@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('leave_allocations', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('user_id');
-            $table->string('leave_type'); // Casual, Sick, Earned
+            $table->string('leave_type'); // e.g., Casual, Sick
             $table->integer('year'); 
             $table->integer('total_days');
             $table->integer('used_days')->default(0);

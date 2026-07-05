@@ -16,7 +16,9 @@ return new class extends Migration
             $table->string('name');
             $table->string('asset_code')->unique(); // e.g., AST-501
             $table->string('serial_number')->nullable();
-            $table->unsignedBigInteger('assigned_to');
+            $table->date('purchase_date')->nullable();
+            $table->decimal('purchase_price', 12, 2)->nullable();
+            $table->unsignedBigInteger('assigned_to')->nullable();
             $table->date('assigned_date')->nullable();
             $table->enum('condition', ['new', 'good', 'damaged', 'under_repair'])->default('new');
             $table->timestamps();

@@ -17,8 +17,10 @@ return new class extends Migration
             $table->string('type'); 
             $table->date('start_date');
             $table->date('end_date');
+            $table->integer('total_days'); 
             $table->text('reason')->nullable();
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
+            $table->unsignedBigInteger('approved_by')->nullable();
             $table->timestamps();
         });
     }

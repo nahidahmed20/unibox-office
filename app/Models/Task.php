@@ -7,5 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class Task extends Model {
     protected $guarded = [];
     public function project() { return $this->belongsTo(Project::class); }
-    public function assignee() { return $this->belongsTo(User::class, 'assigned_to'); }
+    public function assignee()
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
 }

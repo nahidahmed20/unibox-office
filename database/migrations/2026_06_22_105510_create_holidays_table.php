@@ -13,10 +13,11 @@ return new class extends Migration
     {
         Schema::create('holidays', function (Blueprint $table) {
             $table->id();
-            $table->string('name'); // e.g., Eid-ul-Fitr, Independence Day
+            $table->string('name'); 
             $table->date('start_date');
             $table->date('end_date');
             $table->integer('total_days');
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }

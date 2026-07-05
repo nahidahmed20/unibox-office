@@ -31,6 +31,14 @@ class User extends Authenticatable
     public function tasks() { return $this->hasMany(Task::class, 'assigned_to'); }
     public function requisitions() { return $this->hasMany(Requisition::class); }
     public function assets() { return $this->hasMany(Asset::class, 'assigned_to'); }
+    public function notices()
+    {
+        return $this->hasMany(Notice::class, 'created_by');
+    }
+    public function expenses()
+    {
+        return $this->hasMany(Expense::class, 'logged_by');
+    }
 
     /**
      * The attributes that should be hidden for serialization.

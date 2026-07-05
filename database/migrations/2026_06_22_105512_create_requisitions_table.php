@@ -15,9 +15,11 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('user_id');
             $table->string('item_name');
+            $table->integer('quantity')->default(1);
             $table->decimal('estimated_cost', 10, 2)->nullable();
             $table->text('reason');
             $table->enum('status', ['pending', 'approved', 'rejected', 'purchased'])->default('pending');
+            $table->unsignedBigInteger('approved_by')->nullable();
             $table->timestamps();
         });
     }

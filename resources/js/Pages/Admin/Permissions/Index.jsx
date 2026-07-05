@@ -7,7 +7,7 @@ export default function Index({ permissions = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
-    // --- Live Search Setup (অন্যান্য পেজের মতো) ---
+    // --- Live Search Setup ---
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get('search') || '';
     });
@@ -54,7 +54,7 @@ export default function Index({ permissions = [] }) {
         });
     };
 
-    // --- ওপেন ক্রিয়েট মোড ---
+    // --- Open Create Modal ---
     const openCreateModal = () => {
         reset(); 
         clearErrors(); 
@@ -62,7 +62,7 @@ export default function Index({ permissions = [] }) {
         setShowModal(true);
     };
 
-    // --- ওপেন এডিট মোড ---
+    // --- Open Edit Modal ---
     const openEditModal = (permission) => {
         clearErrors(); 
         setData({
@@ -73,7 +73,7 @@ export default function Index({ permissions = [] }) {
         setShowModal(true);
     };
 
-    // --- ফর্ম সাবমিট ---
+    // --- Form Submit ---
     const handleSubmit = (e) => {
         e.preventDefault();
         if (editMode) {
@@ -94,7 +94,7 @@ export default function Index({ permissions = [] }) {
         }
     };
 
-    // --- পারমিশন ডিলিট ---
+    // --- Delete Permission ---
     const handleDelete = (id) => {
         Swal.fire({
             title: 'Are you sure?',
@@ -125,7 +125,7 @@ export default function Index({ permissions = [] }) {
                 <div className="page-header">
                     <h1 className="page-title">Permissions</h1>
                     <div className="breadcrumb">
-                        Dashboard / <span>Permission List</span>
+                        Dashboard / System Settings / <span>Permission List</span>
                     </div>
                 </div>
 
@@ -145,6 +145,7 @@ export default function Index({ permissions = [] }) {
                             <select defaultValue="10">
                                 <option value="10">10</option>
                                 <option value="25">25</option>
+                                <option value="50">50</option>
                             </select> 
                             entries
                         </div>
@@ -177,70 +178,88 @@ export default function Index({ permissions = [] }) {
                         </div>
                     </div>
 
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>PERMISSION NAME</th>
-                                <th>STATUS</th>
-                                <th>ACTION</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {permissions.length > 0 ? (
-                                permissions.map((permission, index) => (
-                                    <tr key={permission.id}>
-                                        <td>{index + 1}</td>
-                                        <td style={{ fontWeight: '600', color: '#334155' }}>{permission.name}</td>
-                                        <td><span className="status-active">Active</span></td>
-                                        <td>
-                                            <div className="action-btns">
-                                                <button onClick={() => openEditModal(permission)} className="icon-btn edit">
-                                                    <i className="fa-regular fa-pen-to-square"></i>
-                                                </button>
-                                                <button onClick={() => handleDelete(permission.id)} className="icon-btn delete">
-                                                    <i className="fa-regular fa-trash-can"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table className="data-table">
+                            <thead>
                                 <tr>
-                                    <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>No permissions found.</td>
+                                    <th>#</th>
+                                    <th>PERMISSION NAME</th>
+                                    <th style={{ textAlign: 'center' }}>STATUS</th>
+                                    <th style={{ textAlign: 'center' }}>ACTION</th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {permissions.length > 0 ? (
+                                    permissions.map((permission, index) => (
+                                        <tr key={permission.id}>
+                                            <td>{index + 1}</td>
+                                            <td style={{ fontWeight: '600', color: '#334155' }}>{permission.name}</td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', background: '#dcfce7', color: '#15803d' }}>
+                                                    Active
+                                                </span>
+                                            </td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <div className="action-btns" style={{ justifyContent: 'center' }}>
+                                                    <button onClick={() => openEditModal(permission)} className="icon-btn edit">
+                                                        <i className="fa-regular fa-pen-to-square"></i>
+                                                    </button>
+                                                    <button onClick={() => handleDelete(permission.id)} className="icon-btn delete">
+                                                        <i className="fa-regular fa-trash-can"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>No permissions found.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            {/* โมডাল সেকশন */}
+            {/* Modal Section */}
             {showModal && (
                 <div className="modal-overlay">
-                    <div className="modal-content">
-                        <h3 className="modal-header">
-                            {editMode ? 'Edit Permission Name' : 'Add New Permission'}
-                        </h3>
+                    <div className="modal-content" style={{ maxWidth: '500px' }}>
+                        
+                        {/* Custom Modal Header with Close Button */}
+                        <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px', marginBottom: '15px' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600', color: '#1f2937' }}>
+                                {editMode ? 'Edit Permission Name' : 'Add New Permission'}
+                            </h3>
+                            <button 
+                                type="button" 
+                                onClick={() => setShowModal(false)} 
+                                style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#6b7280' }}
+                                title="Close"
+                            >
+                                &times;
+                            </button>
+                        </div>
                         
                         <form onSubmit={handleSubmit}>
                             <div className="form-group">
-                                <label>Permission Identifier</label>
+                                <label>Permission Identifier *</label>
                                 <input 
                                     type="text" 
                                     value={data.name} 
                                     onChange={e => setData('name', e.target.value)} 
                                     className="form-control" 
-                                    placeholder="e.g., edit articles" 
+                                    placeholder="e.g., create_users, edit_invoices" 
                                     required
                                 />
-                                {errors.name && <p className="error-text">{errors.name}</p>}
+                                {errors.name && <p className="error-text" style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>{errors.name}</p>}
                             </div>
 
-                            <div className="modal-footer">
+                            <div className="modal-footer" style={{ marginTop: '25px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                                 <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">Cancel</button>
                                 <button type="submit" disabled={processing} className="btn-save">
-                                    {processing ? 'Saving...' : 'Save'}
+                                    {processing ? 'Saving...' : 'Save Permission'}
                                 </button>
                             </div>
                         </form>

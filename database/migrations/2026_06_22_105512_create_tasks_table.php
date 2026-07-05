@@ -16,9 +16,12 @@ return new class extends Migration
             $table->unsignedBigInteger('project_id');
             $table->unsignedBigInteger('assigned_to');
             $table->string('title');
+            $table->text('description')->nullable();
+            $table->enum('priority', ['low', 'medium', 'high', 'urgent'])->default('medium');
             $table->enum('status', ['todo', 'in_progress', 'review', 'done'])->default('todo');
             $table->date('due_date')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

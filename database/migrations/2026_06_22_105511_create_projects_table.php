@@ -15,9 +15,13 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('client_id');
             $table->string('title');
+            $table->text('description')->nullable();
+            $table->date('start_date')->nullable();
             $table->date('deadline');
+            $table->decimal('budget', 12, 2)->nullable();
             $table->enum('status', ['planning', 'in_progress', 'completed', 'on_hold']);
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

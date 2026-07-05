@@ -7,7 +7,7 @@ export default function Index({ roles = [], permissions = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
-    // --- Live Search Setup (Users পেজের মতো) ---
+    // --- Live Search Setup ---
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get('search') || '';
     });
@@ -17,7 +17,7 @@ export default function Index({ roles = [], permissions = [] }) {
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
         id: '', 
         name: '', 
-        permissions: [] // এখানে Permission ID ট্র্যাক হবে
+        permissions: [] 
     });
 
     // --- Live Search ---
@@ -55,7 +55,7 @@ export default function Index({ roles = [], permissions = [] }) {
         });
     };
 
-    // --- ওপেন ক্রিয়েট মোড ---
+    // --- Open Create Modal ---
     const openCreateModal = () => {
         reset(); 
         clearErrors(); 
@@ -63,7 +63,7 @@ export default function Index({ roles = [], permissions = [] }) {
         setShowModal(true);
     };
 
-    // --- ওপেন এডিট মোড ---
+    // --- Open Edit Modal ---
     const openEditModal = (role) => {
         clearErrors(); 
         setData({
@@ -75,7 +75,7 @@ export default function Index({ roles = [], permissions = [] }) {
         setShowModal(true);
     };
 
-    // --- পারমিশন চেকবক্স হ্যান্ডলার (ID ভিত্তিক) ---
+    // --- Permission Checkbox Handler ---
     const handleCheckboxChange = (permissionId) => {
         if (data.permissions.includes(permissionId)) {
             setData('permissions', data.permissions.filter(id => id !== permissionId));
@@ -84,7 +84,7 @@ export default function Index({ roles = [], permissions = [] }) {
         }
     };
 
-    // --- ফর্ম সাবমিট ---
+    // --- Form Submit ---
     const handleSubmit = (e) => {
         e.preventDefault();
         if (editMode) {
@@ -105,7 +105,7 @@ export default function Index({ roles = [], permissions = [] }) {
         }
     };
 
-    // --- রোল ডিলিট ---
+    // --- Delete Role ---
     const handleDelete = (id) => {
         Swal.fire({
             title: 'Are you sure?',
@@ -136,14 +136,14 @@ export default function Index({ roles = [], permissions = [] }) {
                 <div className="page-header">
                     <h1 className="page-title">Roles & Permissions</h1>
                     <div className="breadcrumb">
-                        Dashboard / <span>Role List</span>
+                        Dashboard / System Settings / <span>Role List</span>
                     </div>
                 </div>
 
                 <div className="card-container">
                     <div className="card-header">
                         <div className="card-title">
-                            <i className="fas fa-user-shield"></i> All Roles
+                            <i className="fas fa-user-shield"></i> All System Roles
                         </div>
                         <button onClick={openCreateModal} className="add-btn">
                             + Create Role
@@ -156,6 +156,7 @@ export default function Index({ roles = [], permissions = [] }) {
                             <select defaultValue="10">
                                 <option value="10">10</option>
                                 <option value="25">25</option>
+                                <option value="50">50</option>
                             </select> 
                             entries
                         </div>
@@ -188,106 +189,133 @@ export default function Index({ roles = [], permissions = [] }) {
                         </div>
                     </div>
 
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>ROLE TITLE</th>
-                                <th>ASSIGNED PERMISSIONS</th>
-                                <th>STATUS</th>
-                                <th>ACTION</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {roles.length > 0 ? (
-                                roles.map((role, index) => (
-                                    <tr key={role.id}>
-                                        <td>{index + 1}</td>
-                                        <td style={{ fontWeight: '600' }}>{role.name}</td>
-                                        <td>
-                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                                                {role.name === 'Super Admin' ? (
-                                                    <span className="status-active" style={{ background: '#f3e8ff', color: '#6b21a8', border: 'none' }}>
-                                                        All Access (Root Bypass)
-                                                    </span>
-                                                ) : (
-                                                    role?.permissions?.map(p => (
-                                                        <span key={p.id} className="status-active" style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' }}>
-                                                            {p.name}
-                                                        </span>
-                                                    ))
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td><span className="status-active">Active</span></td>
-                                        <td>
-                                            <div className="action-btns">
-                                                <button onClick={() => openEditModal(role)} className="icon-btn edit">
-                                                    <i className="fa-regular fa-pen-to-square"></i>
-                                                </button>
-                                                {role.name !== 'Super Admin' && (
-                                                    <button onClick={() => handleDelete(role.id)} className="icon-btn delete">
-                                                        <i className="fa-regular fa-trash-can"></i>
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table className="data-table">
+                            <thead>
                                 <tr>
-                                    <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>No roles found.</td>
+                                    <th>#</th>
+                                    <th>ROLE TITLE</th>
+                                    <th>ASSIGNED PERMISSIONS</th>
+                                    <th style={{ textAlign: 'center' }}>STATUS</th>
+                                    <th style={{ textAlign: 'center' }}>ACTION</th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {roles.length > 0 ? (
+                                    roles.map((role, index) => (
+                                        <tr key={role.id}>
+                                            <td>{index + 1}</td>
+                                            <td style={{ fontWeight: '600', color: '#334155' }}>{role.name}</td>
+                                            <td>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                                    {role.name === 'Super Admin' ? (
+                                                        <span style={{ 
+                                                            padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', 
+                                                            background: '#f3e8ff', color: '#7e22ce' 
+                                                        }}>
+                                                            <i className="fa-solid fa-star me-1"></i> All Access (Root Bypass)
+                                                        </span>
+                                                    ) : (
+                                                        role?.permissions?.map(p => (
+                                                            <span key={p.id} style={{ 
+                                                                padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', 
+                                                                background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' 
+                                                            }}>
+                                                                {p.name}
+                                                            </span>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', background: '#dcfce7', color: '#15803d' }}>
+                                                    Active
+                                                </span>
+                                            </td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <div className="action-btns" style={{ justifyContent: 'center' }}>
+                                                    <button onClick={() => openEditModal(role)} className="icon-btn edit">
+                                                        <i className="fa-regular fa-pen-to-square"></i>
+                                                    </button>
+                                                    {role.name !== 'Super Admin' && (
+                                                        <button onClick={() => handleDelete(role.id)} className="icon-btn delete">
+                                                            <i className="fa-regular fa-trash-can"></i>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="5" style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>No roles found.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            {/* โมডাল সেকশন (Users পেজের কাস্টম ক্লাসেস দিয়ে সাজানো) */}
             {showModal && (
                 <div className="modal-overlay">
-                    <div className="modal-content">
-                        <h3 className="modal-header">
-                            {editMode ? 'Modify Role & Permissions' : 'Create New Role'}
-                        </h3>
+                    <div className="modal-content" style={{ maxWidth: '600px' }}>
+                        
+                        {/* Custom Modal Header Provided By User */}
+                        <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px', marginBottom: '15px' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600', color: '#1f2937' }}>
+                                {editMode ? 'Modify Role & Permissions' : 'Create New Role'}
+                            </h3>
+                            <button 
+                                type="button" 
+                                onClick={() => setShowModal(false)} 
+                                style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#6b7280' }}
+                                title="Close"
+                            >
+                                &times;
+                            </button>
+                        </div>
                         
                         <form onSubmit={handleSubmit}>
                             <div className="form-group">
-                                <label>Role Identifier / Name</label>
+                                <label>Role Identifier / Title *</label>
                                 <input 
                                     type="text" 
                                     disabled={data.name === 'Super Admin'}
                                     value={data.name} 
                                     onChange={e => setData('name', e.target.value)} 
                                     className="form-control" 
-                                    placeholder="e.g., Manager" 
+                                    placeholder="e.g., Manager, Editor, HR" 
                                     required
                                 />
-                                {errors.name && <p className="error-text">{errors.name}</p>}
+                                {errors.name && <p className="error-text" style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>{errors.name}</p>}
                             </div>
                             
                             {data.name !== 'Super Admin' && (
-                                <div className="form-group">
-                                    <label>Check Allowed Permissions</label>
-                                    {/* চেকবক্সের গ্রিড লেআউট ডিজাইন */}
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '10px', background: '#f8f9fa', border: '1px solid #e2e8f0', borderRadius: '4px', maxHeight: '220px', overflowY: 'auto' }}>
+                                <div className="form-group" style={{ marginTop: '20px' }}>
+                                    <label style={{ display: 'block', marginBottom: '8px' }}>Assign Allowed Permissions</label>
+                                    <div style={{ 
+                                        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '15px', 
+                                        background: '#f8f9fa', border: '1px solid #e2e8f0', borderRadius: '6px', 
+                                        maxHeight: '250px', overflowY: 'auto' 
+                                    }}>
                                         {(permissions || []).map(p => (
-                                            <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', cursor: 'pointer', margin: 0 }}>
+                                            <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', margin: 0, fontWeight: '500', color: '#374151' }}>
                                                 <input 
                                                     type="checkbox" 
                                                     checked={data.permissions.includes(p.id)} 
-                                                    onChange={() => handleCheckboxChange(p.id)} 
+                                                    onChange={() => handleCheckboxChange(p.id)}
+                                                    style={{ cursor: 'pointer', width: '16px', height: '16px' }}
                                                 />
                                                 {p.name}
                                             </label>
                                         ))}
                                     </div>
-                                    {errors.permissions && <p className="error-text">{errors.permissions}</p>}
+                                    {errors.permissions && <p className="error-text" style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>{errors.permissions}</p>}
                                 </div>
                             )}
 
-                            <div className="modal-footer">
+                            <div className="modal-footer" style={{ marginTop: '25px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                                 <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">Cancel</button>
                                 <button type="submit" disabled={processing} className="btn-save">
                                     {processing ? 'Saving...' : 'Save Changes'}

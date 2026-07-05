@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router } from '@inertiajs/react'; 
 import Swal from 'sweetalert2'; 
+
 export default function Index({ users = [], roles = [] }) { 
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
@@ -55,6 +56,7 @@ export default function Index({ users = [], roles = [] }) {
         });
     };
 
+    // --- Modal Controls ---
     const openCreateModal = () => {
         reset(); 
         clearErrors(); 
@@ -83,6 +85,7 @@ export default function Index({ users = [], roles = [] }) {
         }
     };
 
+    // --- Form Submit ---
     const handleSubmit = (e) => {
         e.preventDefault();
         if (editMode) {
@@ -103,6 +106,7 @@ export default function Index({ users = [], roles = [] }) {
         }
     };
 
+    // --- Delete User ---
     const handleDelete = (id) => {
         Swal.fire({
             title: 'Are you sure?',
@@ -133,14 +137,14 @@ export default function Index({ users = [], roles = [] }) {
                 <div className="page-header">
                     <h1 className="page-title">Users</h1>
                     <div className="breadcrumb">
-                        Dashboard / <span>User List</span>
+                        Dashboard / System Settings / <span>User List</span>
                     </div>
                 </div>
 
                 <div className="card-container">
                     <div className="card-header">
                         <div className="card-title">
-                            <i className="fas fa-users"></i> All Users
+                            <i className="fas fa-users"></i> All Users Directory
                         </div>
                         <button onClick={openCreateModal} className="add-btn">
                             + Add User
@@ -185,92 +189,118 @@ export default function Index({ users = [], roles = [] }) {
                         </div>
                     </div>
 
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>NAME</th>
-                                <th>EMAIL</th>
-                                <th>ACTIVE ROLES</th>
-                                <th>STATUS</th>
-                                <th>ACTION</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {users.length > 0 ? (
-                                users.map((user, index) => (
-                                    <tr key={user.id}>
-                                        <td>{index + 1}</td>
-                                        <td>{user.name}</td>
-                                        <td>{user.email}</td>
-                                        <td>
-                                            {user.roles && user.roles.map(r => (
-                                                <span key={r.id} className="status-active" style={{ marginRight: '5px' }}>
-                                                    {r.name}
-                                                </span>
-                                            ))}
-                                        </td>
-                                        <td><span className="status-active">Active</span></td>
-                                        <td>
-                                            <div className="action-btns">
-                                                {/* এডিট বাটন */}
-                                                <button onClick={() => openEditModal(user)} className="icon-btn edit">
-                                                    <i className="fa-regular fa-pen-to-square"></i>
-                                                </button>
-                                                <button onClick={() => handleDelete(user.id)} className="icon-btn delete">
-                                                    <i className="fa-regular fa-trash-can"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table className="data-table">
+                            <thead>
                                 <tr>
-                                    <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>No users found.</td>
+                                    <th>#</th>
+                                    <th>NAME</th>
+                                    <th>EMAIL</th>
+                                    <th>ACTIVE ROLES</th>
+                                    <th style={{ textAlign: 'center' }}>STATUS</th>
+                                    <th style={{ textAlign: 'center' }}>ACTION</th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {users.length > 0 ? (
+                                    users.map((user, index) => (
+                                        <tr key={user.id}>
+                                            <td>{index + 1}</td>
+                                            <td style={{ fontWeight: '600', color: '#334155' }}>{user.name}</td>
+                                            <td>{user.email}</td>
+                                            <td>
+                                                {user.roles && user.roles.map(r => (
+                                                    <span 
+                                                        key={r.id} 
+                                                        style={{ 
+                                                            padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', 
+                                                            background: '#e0e7ff', color: '#4338ca', marginRight: '6px', display: 'inline-block', marginBottom: '2px' 
+                                                        }}
+                                                    >
+                                                        {r.name}
+                                                    </span>
+                                                ))}
+                                            </td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', background: '#dcfce7', color: '#15803d' }}>
+                                                    Active
+                                                </span>
+                                            </td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <div className="action-btns" style={{ justifyContent: 'center' }}>
+                                                    <button onClick={() => openEditModal(user)} className="icon-btn edit">
+                                                        <i className="fa-regular fa-pen-to-square"></i>
+                                                    </button>
+                                                    <button onClick={() => handleDelete(user.id)} className="icon-btn delete">
+                                                        <i className="fa-regular fa-trash-can"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="6" style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>No users found.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
+            {/* Modal Section */}
             {showModal && (
                 <div className="modal-overlay">
-                    <div className="modal-content">
-                        <h3 className="modal-header">
-                            {editMode ? 'Modify User Profile' : 'Register New User'}
-                        </h3>
+                    <div className="modal-content" style={{ maxWidth: '550px' }}>
+                        
+                        {/* Custom Modal Header Provided By User */}
+                        <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px', marginBottom: '15px' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
+                                {editMode ? "Modify User Profile" : "Register New User"}
+                            </h3>
+                            <button 
+                                type="button" 
+                                onClick={() => setShowModal(false)} 
+                                style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#6b7280' }}
+                                title="Close"
+                            >
+                                &times;
+                            </button>
+                        </div>
                         
                         <form onSubmit={handleSubmit}>
-                            <div className="form-group">
-                                <label>Full Name</label>
-                                <input 
-                                    type="text" 
-                                    value={data.name} 
-                                    onChange={e => setData('name', e.target.value)} 
-                                    className="form-control" 
-                                    placeholder="Enter name" 
-                                    required
-                                />
-                                {errors.name && <p className="error-text">{errors.name}</p>}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                <div className="form-group">
+                                    <label>Full Name *</label>
+                                    <input 
+                                        type="text" 
+                                        value={data.name} 
+                                        onChange={e => setData('name', e.target.value)} 
+                                        className="form-control" 
+                                        placeholder="Enter name" 
+                                        required
+                                    />
+                                    {errors.name && <p className="error-text" style={{ color: 'red', fontSize: '12px' }}>{errors.name}</p>}
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label>Email Address *</label>
+                                    <input 
+                                        type="email" 
+                                        value={data.email} 
+                                        onChange={e => setData('email', e.target.value)} 
+                                        className="form-control" 
+                                        placeholder="Enter email" 
+                                        required
+                                    />
+                                    {errors.email && <p className="error-text" style={{ color: 'red', fontSize: '12px' }}>{errors.email}</p>}
+                                </div>
                             </div>
                             
-                            <div className="form-group">
-                                <label>Email Address</label>
-                                <input 
-                                    type="email" 
-                                    value={data.email} 
-                                    onChange={e => setData('email', e.target.value)} 
-                                    className="form-control" 
-                                    placeholder="Enter email" 
-                                    required
-                                />
-                                {errors.email && <p className="error-text">{errors.email}</p>}
-                            </div>
-                            
-                            <div className="form-group">
+                            <div className="form-group" style={{ marginTop: '15px' }}>
                                 <label>
-                                    Password {editMode && <span style={{ fontSize: '11px', color: '#999' }}>(Leave blank to keep current)</span>}
+                                    Password {editMode && <span style={{ fontSize: '11px', color: '#999', fontWeight: 'normal' }}>(Leave blank to keep current)</span>}
                                 </label>
                                 <input 
                                     type="password" 
@@ -280,28 +310,28 @@ export default function Index({ users = [], roles = [] }) {
                                     placeholder="Enter password" 
                                     required={!editMode} 
                                 />
-                                {errors.password && <p className="error-text">{errors.password}</p>}
+                                {errors.password && <p className="error-text" style={{ color: 'red', fontSize: '12px' }}>{errors.password}</p>}
                             </div>
                             
-                            <div className="form-group">
+                            <div className="form-group" style={{ marginTop: '15px' }}>
                                 <label>Assign User Roles</label>
-                                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', padding: '10px', background: '#f8f9fa', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
-      
+                                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', padding: '12px', background: '#f8f9fa', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
                                     {(roles || []).map(role => (
-                                        <label key={role.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', cursor: 'pointer', margin: 0 }}>
+                                        <label key={role.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', margin: 0, fontWeight: '500' }}>
                                             <input 
                                                 type="checkbox" 
                                                 checked={data.roles.includes(role.id)} 
                                                 onChange={() => handleRoleCheckbox(role.id)} 
+                                                style={{ cursor: 'pointer' }}
                                             />
                                             {role.name}
                                         </label>
                                     ))}
                                 </div>
-                                {errors.roles && <p className="error-text">{errors.roles}</p>}
+                                {errors.roles && <p className="error-text" style={{ color: 'red', fontSize: '12px' }}>{errors.roles}</p>}
                             </div>
 
-                            <div className="modal-footer">
+                            <div className="modal-footer" style={{ marginTop: '20px' }}>
                                 <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">Cancel</button>
                                 <button type="submit" disabled={processing} className="btn-save">
                                     {processing ? 'Saving...' : 'Save Profile'}

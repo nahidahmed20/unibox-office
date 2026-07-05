@@ -14,10 +14,12 @@ return new class extends Migration
         Schema::create('expenses', function (Blueprint $table) {
             $table->id();
             $table->string('title');
-            $table->unsignedBigInteger('expense_category_id'); // Rent, Utilities, Salary, Stationeries
+            $table->text('description')->nullable();
+            $table->unsignedBigInteger('expense_category_id');
             $table->decimal('amount', 10, 2);
             $table->date('date');
-            $table->foreignId('logged_by')->constrained('users');
+            $table->unsignedBigInteger('logged_by');
+            $table->string('attachment')->nullable(); 
             $table->timestamps();
         });
     }
