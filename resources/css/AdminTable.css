@@ -1,6 +1,9 @@
 body {
     font-family: 'Jost', sans-serif;
+    margin: 0;
+    padding: 0;
 }
+
 /* Slider.css */
 .slider-page-wrapper {
     padding: 30px;
@@ -68,6 +71,7 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
+    transition: background-color 0.3s ease;
 }
 .add-btn:hover {
     background-color: #2c3345;
@@ -81,6 +85,12 @@ body {
     margin-bottom: 20px;
     font-size: 14px;
     color: #4a5568;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+.show-entries {
+    display: flex;
+    align-items: center;
 }
 .show-entries select {
     margin: 0 8px;
@@ -88,7 +98,6 @@ body {
     border: 1px solid #ced4da; 
     border-radius: 4px;
     background-color: white;
-    
     font-size: 14px;
     color: #4a5568;
     min-width: 65px; 
@@ -96,6 +105,7 @@ body {
 .export-buttons {
     display: flex;
     gap: 8px;
+    flex-wrap: wrap;
 }
 .export-btn {
     background: white;
@@ -107,6 +117,7 @@ body {
     display: flex;
     align-items: center;
     gap: 5px;
+    transition: background 0.2s ease;
 }
 .export-btn:hover {
     background: #f8f9fa;
@@ -116,14 +127,21 @@ body {
     border: 1px solid #e2e8f0;
     border-radius: 4px;
     width: 200px;
+    box-sizing: border-box;
 }
 
 /* Table */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
 .data-table {
     width: 100%;
     border-collapse: collapse;
     text-align: center;
     font-size: 14px;
+    min-width: 600px; /* Ensures table doesn't squish too much */
 }
 .data-table th {
     background-color: #f8f9fa;
@@ -132,6 +150,7 @@ body {
     padding: 15px;
     border-top: 1px solid #f0f0f0;
     border-bottom: 1px solid #f0f0f0;
+    white-space: nowrap;
 }
 .data-table td {
     padding: 15px;
@@ -157,6 +176,7 @@ body {
     border-radius: 12px;
     font-size: 12px;
     font-weight: 600;
+    white-space: nowrap;
 }
 
 /* Action Buttons */
@@ -196,6 +216,8 @@ body {
     margin-top: 20px;
     font-size: 14px;
     color: #6c757d;
+    flex-wrap: wrap;
+    gap: 15px;
 }
 .page-numbers {
     display: flex;
@@ -217,6 +239,7 @@ body {
     color: #adb5bd;
     cursor: pointer;
 }
+
 /* Modal Styles */
 .modal-overlay {
     position: fixed;
@@ -229,6 +252,8 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 1050;
+    padding: 20px;
+    box-sizing: border-box;
 }
 .modal-content {
     background: #ffffff;
@@ -238,6 +263,9 @@ body {
     max-width: 400px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     position: relative;
+    box-sizing: border-box;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 .modal-header {
     font-size: 18px;
@@ -299,11 +327,14 @@ body {
 .btn-save:hover {
     background: #2c3345;
 }
+
 /* Popup */
 .swal2-popup {
     width: 480px !important;
+    max-width: 90% !important; /* Added for responsiveness */
     padding: 34px 28px !important;
     border-radius: 8px !important;
+    box-sizing: border-box;
 }
 
 /* Icon */
@@ -337,11 +368,13 @@ body {
 .swal2-actions {
     gap: 14px !important;
     margin-top: 0 !important;
+    flex-wrap: wrap; /* Allows stacking on very small screens */
 }
 
 .swal2-confirm,
 .swal2-cancel {
     width: 150px !important;
+    max-width: 100% !important;
     height: 48px !important;
     border-radius: 30px !important;
     font-size: 16px !important;
@@ -357,18 +390,17 @@ body {
 }
 
 /* Unibox Premium Login Theme */
-
-
 .unibox-wrapper {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    /* Beautiful Soft Gradient Background */
     background: linear-gradient(135deg, #f0f4ff 0%, #e6e9ff 100%);
     position: relative;
     overflow: hidden;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 /* Background Decorative Shapes */
@@ -392,7 +424,6 @@ body {
 .unibox-card {
     width: 100%;
     max-width: 420px;
-    /* Glassmorphism Effect */
     background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -401,7 +432,7 @@ body {
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.6);
     z-index: 10;
-    margin: 20px;
+    box-sizing: border-box;
 }
 
 /* Header Styles */
@@ -410,7 +441,6 @@ body {
     font-weight: 800;
     text-align: center;
     margin: 0 0 10px 0;
-    /* Gradient Text */
     background: linear-gradient(to right, #4f46e5, #3b82f6);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -479,4 +509,95 @@ body {
     color: #9ca3af;
     margin-top: 30px;
     z-index: 10;
+}
+
+
+/* =========================================
+   RESPONSIVE MEDIA QUERIES (Mobile & Tablet)
+   ========================================= */
+
+@media (max-width: 768px) {
+    /* Wrapper & General Padding */
+    .slider-page-wrapper {
+        padding: 15px;
+    }
+
+    /* Page Header */
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .page-title {
+        font-size: 24px;
+    }
+
+    /* Card Header */
+    .card-container {
+        padding: 15px;
+    }
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    .add-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Table Toolbar Elements */
+    .table-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    .search-box, .search-box input {
+        width: 100%;
+    }
+    .export-buttons {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .export-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    /* Pagination */
+    .pagination-area {
+        flex-direction: column;
+        gap: 15px;
+        align-items: center;
+        text-align: center;
+    }
+
+    /* Sweet Alert */
+    .swal2-popup {
+        padding: 24px 20px !important;
+    }
+    .swal2-title {
+        font-size: 24px !important;
+    }
+
+    /* Unibox Login Card */
+    .unibox-card {
+        padding: 30px 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .export-buttons {
+        flex-direction: column;
+    }
+    .export-btn {
+        width: 100%;
+    }
+    .swal2-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+    .swal2-confirm, .swal2-cancel {
+        width: 100% !important;
+    }
 }
