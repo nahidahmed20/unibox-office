@@ -16,4 +16,19 @@ class Expense extends Model {
     {
         return $this->belongsTo(User::class, 'logged_by');
     }
+
+    public function project()
+    {
+        return $this->belongsTo(Project::class, 'project_id');
+    }
+    public function account()
+    {
+        return $this->belongsTo(Account::class, 'account_id');
+    }
+
+    public function transaction()
+    {
+        return $this->morphOne(Transaction::class, 'transactionable');
+    }
+    
 }

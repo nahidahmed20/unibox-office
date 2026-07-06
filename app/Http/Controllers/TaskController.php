@@ -17,17 +17,23 @@ class TaskController extends Controller
 
         if ($request->has('search') && $request->search != '') {
             $searchTerm = $request->search;
-            $query->where('title', 'like', "%{$searchTerm}%")
+            
+            // Nested where query use kora hoyeche jate search properly kaj kore
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('title', 'like', "%{$searchTerm}%")
                   ->orWhere('status', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('project', function($q) use ($searchTerm) {
-                      $q->where('title', 'like', "%{$searchTerm}%");
+                  ->orWhereHas('project', function($pq) use ($searchTerm) {
+                      $pq->where('title', 'like', "%{$searchTerm}%");
                   })
-                  ->orWhereHas('assignee', function($q) use ($searchTerm) {
-                      $q->where('name', 'like', "%{$searchTerm}%");
+                  ->orWhereHas('assignee', function($uq) use ($searchTerm) {
+                      $uq->where('name', 'like', "%{$searchTerm}%");
                   });
+            });
         }
 
-        $tasks = $query->latest()->get(); 
+        // Dropdown entry onujayi paginated data nibe, default 10
+        $perPage = $request->input('per_page', 10);
+        $tasks = $query->latest()->paginate($perPage)->withQueryString(); 
         
         // Modal er dropdown er jonno data
         $projects = Project::select('id', 'title')->latest()->get();
@@ -37,7 +43,7 @@ class TaskController extends Controller
             'tasks' => $tasks,
             'projects' => $projects,
             'users' => $users,
-            'filters' => $request->only('search')
+            'filters' => $request->only('search', 'per_page')
         ]);
     }
 

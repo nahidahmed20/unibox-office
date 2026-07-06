@@ -2,112 +2,174 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Controller;
 use App\Models\ProjectExpense;
 use App\Models\Project;
 use App\Models\ExpenseCategory;
+use App\Models\Account;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Storage;
-
 
 class ProjectExpenseController extends Controller
 {
     public function index(Request $request)
     {
-        $query = ProjectExpense::with(['project', 'category', 'logger']);
+        $query = ProjectExpense::with(['project', 'category', 'account']);
 
-        if ($request->has('search') && $request->search != '') {
-            $searchTerm = $request->search;
-            $query->where('title', 'like', "%{$searchTerm}%")
-                  ->orWhere('vendor_name', 'like', "%{$searchTerm}%") 
-                  ->orWhereHas('project', function($q) use ($searchTerm) {
-                      $q->where('name', 'like', "%{$searchTerm}%"); 
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where('title', 'like', "%{$search}%")
+                  ->orWhere('vendor_name', 'like', "%{$search}%")
+                  ->orWhereHas('project', function($q) use ($search) {
+                      $q->where('title', 'like', "%{$search}%");
                   });
         }
 
-        return Inertia::render('Admin/ProjectExpenses/Index', [
-            'project_expenses' => $query->latest()->get(), 
-            'projects'   => Project::select('id', 'title')->get(), 
-            'categories' => ExpenseCategory::select('id', 'name')->get(),
-            'filters'    => $request->only('search')
-        ]);
+        $project_expenses = $query->latest()->get(); 
+        $projects = Project::select('id', 'title')->get();
+        $categories = ExpenseCategory::select('id', 'name')->get();
+        $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->get();
+
+        return Inertia::render('Admin/ProjectExpenses/Index', compact('project_expenses', 'projects', 'categories', 'accounts'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'project_id'          => 'required|exists:projects,id',
+            'project_id' => 'required|exists:projects,id',
             'expense_category_id' => 'required|exists:expense_categories,id',
-            'title'               => 'required|string|max:255',
-            'vendor_name'         => 'nullable|string|max:255', 
-            'total_bill'          => 'required|numeric|min:0',  
-            'paid_amount'         => 'required|numeric|min:0',  
-            'date'                => 'required|date',
-            'description'         => 'nullable|string',
-            'attachment'          => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'account_id' => 'required|exists:accounts,id',
+            'title' => 'required|string|max:255',
+            'vendor_name' => 'nullable|string|max:255',
+            'total_bill' => 'required|numeric|min:0',
+            'paid_amount' => 'required|numeric|min:0',
+            'date' => 'required|date',
+            'description' => 'nullable|string'
         ]);
 
-        $validated['due_amount'] = $validated['total_bill'] - $validated['paid_amount'];
-        $validated['amount'] = $validated['paid_amount']; 
-        $validated['logged_by'] = auth()->id();
-
+        $due_amount = $request->total_bill - $request->paid_amount;
+        $validated['due_amount'] = $due_amount > 0 ? $due_amount : 0;
+        
         if ($validated['due_amount'] <= 0) {
             $validated['payment_status'] = 'paid';
-        } elseif ($validated['paid_amount'] > 0) {
+        } elseif ($request->paid_amount > 0) {
             $validated['payment_status'] = 'partial';
         } else {
             $validated['payment_status'] = 'due';
         }
 
-        if ($request->hasFile('attachment')) {
-            $validated['attachment'] = $request->file('attachment')->store('expenses/projects', 'public');
-        }
+        DB::transaction(function () use ($validated, $request) {
+            $projectExpense = ProjectExpense::create($validated);
 
-        ProjectExpense::create($validated);
-        return redirect()->back();
+            if ($request->paid_amount > 0) {
+                $account = Account::findOrFail($request->account_id);
+                $account->decrement('current_balance', $request->paid_amount);
+
+                $projectExpense->transaction()->create([
+                    'account_id' => $account->id,
+                    'type' => 'debit',
+                    'amount' => $request->paid_amount,
+                    'transaction_date' => $request->date,
+                    'description' => 'Project Vendor Bill Paid: ' . $request->title,
+                ]);
+            }
+        });
+
+        return back()->with('success', 'Project Expense created successfully.');
     }
 
-    public function update(Request $request, string $id)
+    public function update(Request $request, $id)
     {
-        $expense = ProjectExpense::findOrFail($id);
+        $projectExpense = ProjectExpense::findOrFail($id);
 
         $validated = $request->validate([
-            'project_id'          => 'required|exists:projects,id',
+            'project_id' => 'required|exists:projects,id',
             'expense_category_id' => 'required|exists:expense_categories,id',
-            'title'               => 'required|string|max:255',
-            'vendor_name'         => 'nullable|string|max:255', 
-            'total_bill'          => 'required|numeric|min:0',  
-            'paid_amount'         => 'required|numeric|min:0', 
-            'date'                => 'required|date',
-            'description'         => 'nullable|string',
-            'attachment'          => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'account_id' => 'required|exists:accounts,id',
+            'title' => 'required|string|max:255',
+            'vendor_name' => 'nullable|string|max:255',
+            'total_bill' => 'required|numeric|min:0',
+            'paid_amount' => 'required|numeric|min:0',
+            'date' => 'required|date',
+            'description' => 'nullable|string'
         ]);
 
-        $validated['due_amount'] = $validated['total_bill'] - $validated['paid_amount'];
-        $validated['amount'] = $validated['paid_amount']; 
-
+        $due_amount = $request->total_bill - $request->paid_amount;
+        $validated['due_amount'] = $due_amount > 0 ? $due_amount : 0;
+        
         if ($validated['due_amount'] <= 0) {
             $validated['payment_status'] = 'paid';
-        } elseif ($validated['paid_amount'] > 0) {
+        } elseif ($request->paid_amount > 0) {
             $validated['payment_status'] = 'partial';
         } else {
             $validated['payment_status'] = 'due';
         }
 
-        if ($request->hasFile('attachment')) {
-            if ($expense->attachment) Storage::disk('public')->delete($expense->attachment);
-            $validated['attachment'] = $request->file('attachment')->store('expenses/projects', 'public');
-        }
+        DB::transaction(function () use ($validated, $request, $projectExpense) {
+            
+            if ($projectExpense->account_id != $request->account_id || $projectExpense->paid_amount != $request->paid_amount) {
+                
+                if ($projectExpense->paid_amount > 0 && $projectExpense->account_id) {
+                    $oldAccount = Account::find($projectExpense->account_id);
+                    if ($oldAccount) {
+                        $oldAccount->increment('current_balance', $projectExpense->paid_amount);
+                    }
+                }
 
-        $expense->update($validated);
-        return redirect()->back();
+                if ($request->paid_amount > 0) {
+                    $newAccount = Account::find($request->account_id);
+                    if ($newAccount) {
+                        $newAccount->decrement('current_balance', $request->paid_amount);
+                    }
+
+                    if ($projectExpense->transaction) {
+                        $projectExpense->transaction()->update([
+                            'account_id' => $request->account_id,
+                            'amount' => $request->paid_amount,
+                            'transaction_date' => $request->date,
+                        ]);
+                    } else {
+                        $projectExpense->transaction()->create([
+                            'account_id' => $request->account_id,
+                            'type' => 'debit',
+                            'amount' => $request->paid_amount,
+                            'transaction_date' => $request->date,
+                            'description' => 'Project Vendor Bill Paid: ' . $request->title,
+                        ]);
+                    }
+                } else {
+                    if ($projectExpense->transaction) {
+                        $projectExpense->transaction()->delete();
+                    }
+                }
+            }
+
+            $projectExpense->update($validated);
+        });
+
+        return back()->with('success', 'Project Expense updated successfully.');
     }
 
-    public function destroy(string $id)
+    public function destroy($id)
     {
-        $expense = ProjectExpense::findOrFail($id);
-        if ($expense->attachment) Storage::disk('public')->delete($expense->attachment);
-        $expense->delete();
-        return redirect()->back();
+        $projectExpense = ProjectExpense::findOrFail($id);
+
+        DB::transaction(function () use ($projectExpense) {
+            if ($projectExpense->paid_amount > 0 && $projectExpense->account_id) {
+                $account = Account::find($projectExpense->account_id);
+                if ($account) {
+                    $account->increment('current_balance', $projectExpense->paid_amount);
+                }
+            }
+
+            if ($projectExpense->transaction) {
+                $projectExpense->transaction()->delete();
+            }
+
+            $projectExpense->delete();
+        });
+
+        return back()->with('success', 'Project Expense deleted successfully.');
     }
 }

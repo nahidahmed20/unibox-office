@@ -3,13 +3,14 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router } from '@inertiajs/react'; 
 import Swal from 'sweetalert2'; 
 
-export default function Index({ project_expenses = [], projects = [], categories = [] }) {
+export default function Index({ project_expenses = [], projects = [], categories = [], accounts = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get('search') || '';
     });
+    const [perPage, setPerPage] = useState(10);
     
     const isFirstRender = useRef(true);
 
@@ -17,6 +18,7 @@ export default function Index({ project_expenses = [], projects = [], categories
         id: '', 
         project_id: '',
         expense_category_id: '',
+        account_id: '', // নতুন যুক্ত করা হয়েছে
         title: '', 
         vendor_name: '',
         total_bill: '',
@@ -49,12 +51,12 @@ export default function Index({ project_expenses = [], projects = [], categories
         const delayDebounceFn = setTimeout(() => {
             router.get(
                 route('admin.project-expenses.index'), 
-                { search: searchTerm }, 
+                { search: searchTerm, per_page: perPage }, 
                 { preserveState: true, replace: true }
             );
         }, 500);
         return () => clearTimeout(delayDebounceFn);
-    }, [searchTerm]);
+    }, [searchTerm, perPage]);
 
     const openCreateModal = () => {
         reset(); 
@@ -69,6 +71,7 @@ export default function Index({ project_expenses = [], projects = [], categories
             id: expense.id, 
             project_id: expense.project_id || '',
             expense_category_id: expense.expense_category_id || '',
+            account_id: expense.account_id || '', // Update এর সময় ডাটা লোড
             title: expense.title || '', 
             vendor_name: expense.vendor_name || '',
             total_bill: expense.total_bill || '',
@@ -103,19 +106,19 @@ export default function Index({ project_expenses = [], projects = [], categories
     const handleDelete = (id) => {
         Swal.fire({
             title: 'Delete this record?',
+            text: "Paid amount will be refunded to your account balance.",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
         }).then((result) => {
             if (result.isConfirmed) {
                 destroy(route('admin.project-expenses.destroy', id), {
-                    onSuccess: () => Swal.fire('Deleted!', 'Record removed.', 'success')
+                    onSuccess: () => Swal.fire('Deleted!', 'Record removed and balance restored.', 'success')
                 });
             }
         });
     };
 
-    // Total Aggregations
     const totalBilled = project_expenses.reduce((sum, item) => sum + parseFloat(item.total_bill || 0), 0);
     const totalDue = project_expenses.reduce((sum, item) => sum + parseFloat(item.due_amount || 0), 0);
 
@@ -151,21 +154,34 @@ export default function Index({ project_expenses = [], projects = [], categories
                         </button>
                     </div>
 
-                    <div className="table-toolbar">
-                        <div className="show-entries">
-                            Show <select defaultValue="10"><option value="10">10</option><option value="25">25</option></select> entries
+                    {/* Toolbar with Show Entries and Download Buttons */}
+                    <div className="table-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                        <div className="show-entries" style={{ fontSize: '14px', color: '#4b5563', display: 'flex', alignItems: 'center' }}>
+                            Show
+                            <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))} className="border border-gray-300 rounded px-2 py-1 mx-2 text-sm focus:outline-none focus:border-blue-500">
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                            entries
                         </div>
+
                         <div className="export-buttons" style={{ display: 'flex', gap: '8px' }}>
-                            <button type="button" className="export-btn" onClick={() => window.print()}>
-                                <i className="fas fa-print me-1"></i> Print
-                            </button>
+                            <button type="button" className="export-btn px-3 py-1.5 text-sm border rounded hover:bg-gray-50 text-gray-700 font-medium"><i className="fas fa-copy me-1"></i> Copy</button>
+                            <button type="button" className="export-btn px-3 py-1.5 text-sm border rounded hover:bg-gray-50 text-green-600 font-medium"><i className="fas fa-file-excel me-1"></i> Excel</button>
+                            <button type="button" className="export-btn px-3 py-1.5 text-sm border rounded hover:bg-gray-50 text-blue-600 font-medium"><i className="fas fa-file-csv me-1"></i> CSV</button>
+                            <button type="button" className="export-btn px-3 py-1.5 text-sm border rounded hover:bg-gray-50 text-red-600 font-medium"><i className="fas fa-file-pdf me-1"></i> PDF</button>
+                            <button type="button" onClick={() => window.print()} className="export-btn px-3 py-1.5 text-sm border rounded hover:bg-gray-50 text-gray-700 font-medium"><i className="fas fa-print me-1"></i> Print</button>
                         </div>
+
                         <div className="search-box">
                             <input 
                                 type="text" 
                                 placeholder="Search vendor or project..." 
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
+                                className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 min-w-[200px]"
                             />
                         </div>
                     </div>
@@ -177,6 +193,7 @@ export default function Index({ project_expenses = [], projects = [], categories
                                     <th>DATE</th>
                                     <th>PROJECT & DETAILS</th>
                                     <th>VENDOR / PAYEE</th>
+                                    <th>ACCOUNT</th> 
                                     <th style={{ textAlign: 'right' }}>TOTAL BILL</th>
                                     <th style={{ textAlign: 'right' }}>PAID</th>
                                     <th style={{ textAlign: 'right' }}>DUE</th>
@@ -194,6 +211,11 @@ export default function Index({ project_expenses = [], projects = [], categories
                                                 <div style={{ fontSize: '12px', color: '#64748b' }}>{exp.title}</div>
                                             </td>
                                             <td style={{ fontWeight: '500' }}>{exp.vendor_name || '-'}</td>
+                                            <td>
+                                                <span className="bg-gray-100 px-2 py-1 rounded text-[11px] font-semibold text-gray-600">
+                                                    {exp.account?.name || 'N/A'}
+                                                </span>
+                                            </td>
                                             <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{parseFloat(exp.total_bill).toLocaleString('en-IN')}</td>
                                             <td style={{ textAlign: 'right', color: '#16a34a', fontWeight: 'bold' }}>{parseFloat(exp.paid_amount).toLocaleString('en-IN')}</td>
                                             <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 'bold' }}>{parseFloat(exp.due_amount).toLocaleString('en-IN')}</td>
@@ -216,7 +238,7 @@ export default function Index({ project_expenses = [], projects = [], categories
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="8" style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>No project expenses found.</td>
+                                        <td colSpan="9" style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>No project expenses found.</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -228,7 +250,7 @@ export default function Index({ project_expenses = [], projects = [], categories
             {/* Modal Section */}
             {showModal && (
                 <div className="modal-overlay">
-                    <div className="modal-content" style={{ maxWidth: '700px' }}>
+                    <div className="modal-content" style={{ maxWidth: '750px' }}>
                         
                         <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px', marginBottom: '15px' }}>
                             <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600', color: '#1f2937' }}>
@@ -238,14 +260,13 @@ export default function Index({ project_expenses = [], projects = [], categories
                         </div>
                         
                         <form onSubmit={handleSubmit}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
                                 <div className="form-group">
                                     <label>Select Project *</label>
                                     <select value={data.project_id} onChange={e => setData('project_id', e.target.value)} className="form-control" required>
                                         <option value="">-- Choose Project --</option>
-                                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                        {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
                                     </select>
-                                    {errors.project_id && <p className="error-text">{errors.project_id}</p>}
                                 </div>
                                 <div className="form-group">
                                     <label>Expense Category *</label>
@@ -253,7 +274,16 @@ export default function Index({ project_expenses = [], projects = [], categories
                                         <option value="">-- Choose Category --</option>
                                         {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                     </select>
-                                    {errors.expense_category_id && <p className="error-text">{errors.expense_category_id}</p>}
+                                </div>
+                                <div className="form-group">
+                                    <label>Payment Source (Account) *</label>
+                                    <select value={data.account_id} onChange={e => setData('account_id', e.target.value)} className="form-control" required>
+                                        <option value="">-- Select Account --</option>
+                                        {accounts.map(acc => (
+                                            <option key={acc.id} value={acc.id}>{acc.name} (Bal: ${acc.current_balance})</option>
+                                        ))}
+                                    </select>
+                                    {errors.account_id && <p className="error-text text-red-500 text-xs mt-1">{errors.account_id}</p>}
                                 </div>
                             </div>
 
@@ -261,12 +291,10 @@ export default function Index({ project_expenses = [], projects = [], categories
                                 <div className="form-group">
                                     <label>Expense Title / Subject *</label>
                                     <input type="text" value={data.title} onChange={e => setData('title', e.target.value)} className="form-control" placeholder="e.g., Domain Purchase" required />
-                                    {errors.title && <p className="error-text">{errors.title}</p>}
                                 </div>
                                 <div className="form-group">
                                     <label>Vendor / Contractor Name</label>
                                     <input type="text" value={data.vendor_name} onChange={e => setData('vendor_name', e.target.value)} className="form-control" placeholder="e.g., Mr. Rahim or IT Host" />
-                                    {errors.vendor_name && <p className="error-text">{errors.vendor_name}</p>}
                                 </div>
                             </div>
 
@@ -274,12 +302,10 @@ export default function Index({ project_expenses = [], projects = [], categories
                                 <div className="form-group">
                                     <label style={{ fontWeight: 'bold' }}>Total Bill (BDT) *</label>
                                     <input type="number" step="0.01" value={data.total_bill} onChange={e => setData('total_bill', e.target.value)} className="form-control" required />
-                                    {errors.total_bill && <p className="error-text">{errors.total_bill}</p>}
                                 </div>
                                 <div className="form-group">
                                     <label style={{ fontWeight: 'bold', color: '#16a34a' }}>Paid Amount (BDT) *</label>
                                     <input type="number" step="0.01" value={data.paid_amount} onChange={e => setData('paid_amount', e.target.value)} className="form-control" required />
-                                    {errors.paid_amount && <p className="error-text">{errors.paid_amount}</p>}
                                 </div>
                                 <div className="form-group">
                                     <label style={{ fontWeight: 'bold', color: '#dc2626' }}>Calculated Due</label>
@@ -292,7 +318,6 @@ export default function Index({ project_expenses = [], projects = [], categories
                                 <div className="form-group">
                                     <label>Date *</label>
                                     <input type="date" value={data.date} onChange={e => setData('date', e.target.value)} className="form-control" required />
-                                    {errors.date && <p className="error-text">{errors.date}</p>}
                                 </div>
                                 <div className="form-group">
                                     <label>Remarks / Notes</label>

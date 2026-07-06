@@ -11,7 +11,7 @@ export default function AdminLayout({ children }) {
     const [openMenus, setOpenMenus] = useState({
         crm: route().current('admin.clients.*') || route().current('admin.projects.*') || route().current('admin.tasks.*'),
         hr: route().current('admin.employees.*') || route().current('admin.attendances.*') || route().current('admin.salaries.*') || route().current('admin.leaves.*') || route().current('admin.departments.*') || route().current('admin.designations.*'),
-        finance: route().current('admin.invoices.*') || route().current('admin.expenses.*') || route().current('admin.expense-categories.*') || route().current('admin.investments.*') || route().current('admin.advances.*'),
+        finance: route().current('admin.invoices.*') || route().current('admin.expenses.*') || route().current('admin.expense-categories.*') || route().current('admin.investments.*') || route().current('admin.advances.*') || route().current('admin.accounts.*') || route().current('admin.transactions.*'),
         projectExpense: route().current('admin.project-expenses.*'),
         office: route().current('admin.assets.*') || route().current('admin.requisitions.*') || route().current('admin.notices.*'), 
         access: route().current('admin.users.*') || route().current('admin.roles.*') || route().current('admin.permissions.*')
@@ -177,11 +177,21 @@ export default function AdminLayout({ children }) {
                         {/* 3. Finance & Accounts */}
                         <li className="mx-3 mt-1">
                             <button onClick={() => toggleMenu('finance')} className={`w-full flex items-center px-4 py-2.5 text-[14px] rounded-md font-medium transition-colors ${openMenus.finance ? 'text-white' : 'text-[#b5b9bc] hover:text-white hover:bg-white/5'}`}>
-                                <i className="fa-solid fa-file-invoice-dollar w-6 text-left opacity-80"></i> Finance
+                                <i className="fa-solid fa-file-invoice-dollar w-6 text-left opacity-80"></i> Finance & Accounts
                                 <i className={`fa-solid fa-chevron-right ml-auto text-[11px] transition-transform duration-200 ${openMenus.finance ? 'rotate-90' : ''}`}></i>
                             </button>
                             {openMenus.finance && (
                                 <ul className="list-none p-0 mt-1 mb-2 bg-[#021528] rounded-md py-2 space-y-1">
+                                    <li>
+                                        <Link href={route('admin.accounts.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.accounts.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
+                                            <i className="fa-solid fa-vault mr-2 text-[10px]"></i> Accounts & Balances
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href={route('admin.transactions.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.transactions.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
+                                            <i className="fa-solid fa-money-bill-transfer mr-2 text-[10px]"></i> Transactions List
+                                        </Link>
+                                    </li>
                                     <li>
                                         <Link href={route('admin.invoices.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.invoices.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
                                             <i className="fa-solid fa-file-invoice mr-2 text-[10px]"></i> Invoices
@@ -197,15 +207,11 @@ export default function AdminLayout({ children }) {
                                             <i className="fa-solid fa-tags mr-2 text-[10px]"></i> Categories
                                         </Link>
                                     </li>
-
-                                    {/* --- নতুন যুক্ত করা Investments --- */}
                                     <li>
                                         <Link href={route('admin.investments.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.investments.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
                                             <i className="fa-solid fa-building-columns mr-2 text-[10px]"></i> Investments
                                         </Link>
                                     </li>
-
-                                    {/* --- নতুন যুক্ত করা Advances --- */}
                                     <li>
                                         <Link href={route('admin.advances.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.advances.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
                                             <i className="fa-solid fa-hand-holding-dollar mr-2 text-[10px]"></i> Advances

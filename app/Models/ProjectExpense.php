@@ -17,4 +17,16 @@ class ProjectExpense extends Model
     {
         return $this->belongsTo(ExpenseCategory::class, 'expense_category_id');
     }
+
+    public function logger()
+    {
+        return $this->belongsTo(User::class, 'logged_by');
+    }
+
+    public function account()
+    {
+        return $this->belongsTo(Account::class, 'account_id');
+    }
+
+    
 }

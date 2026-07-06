@@ -13,15 +13,18 @@ class ExpenseCategoryController extends Controller
     {
         $query = ExpenseCategory::query();
 
-        if ($request->has('search') && $request->search != '') {
+        if ($request->filled('search')) {
             $query->where('name', 'like', "%{$request->search}%");
         }
 
-        $categories = $query->latest()->get(); 
+        $categories = $query
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
 
         return Inertia::render('Admin/ExpenseCategories/Index', [
             'categories' => $categories,
-            'filters' => $request->only('search')
+            'filters' => $request->only('search'),
         ]);
     }
 

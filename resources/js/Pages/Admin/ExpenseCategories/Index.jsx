@@ -3,13 +3,12 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { useForm, Head, router } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
-export default function Index({ categories = [] }) {
+export default function Index({ categories, filters = {} }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
 
-    const [searchTerm, setSearchTerm] = useState(
-        () => new URLSearchParams(window.location.search).get("search") || "",
-    );
+    
+    const [searchTerm, setSearchTerm] = useState(filters.search || "");
 
     const isFirstRender = useRef(true);
 
@@ -105,7 +104,7 @@ export default function Index({ categories = [] }) {
 
     // COPY
     const handleCopy = () => {
-        const text = categories
+        const text = categories.data
             .map((c) => `${c.name}\t${c.slug}\t${c.description ?? ""}`)
             .join("\n");
 
@@ -201,9 +200,11 @@ export default function Index({ categories = [] }) {
                         </thead>
 
                         <tbody>
-                            {categories.map((cat, i) => (
+                            {categories.data.map((cat, i) => (
                                 <tr key={cat.id}>
-                                    <td>{i + 1}</td>
+                                    <td>
+                                        {(categories.current_page - 1) * categories.per_page + i + 1}
+                                    </td>
                                     <td style={{ fontWeight: "600" }}>
                                         {cat.name}
                                     </td>
@@ -238,6 +239,82 @@ export default function Index({ categories = [] }) {
                             ))}
                         </tbody>
                     </table>
+                    <div
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            marginTop: "20px",
+                            padding: "15px 0",
+                            borderTop: "1px solid #e5e7eb",
+                        }}
+                    >
+                        <div style={{ fontSize: "14px", color: "#6b7280" }}>
+                            Showing <b>{categories.from ?? 0}</b> to <b>{categories.to ?? 0}</b> of{" "}
+                            <b>{categories.total}</b> entries
+                        </div>
+
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px",
+                            }}
+                        >
+                            {/* Previous */}
+                            <button
+                                disabled={!categories.prev_page_url}
+                                onClick={() =>
+                                    router.visit(categories.prev_page_url, {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    })
+                                }
+                                className="pagination-btn"
+                            >
+                                <i className="fas fa-chevron-left"></i>
+                            </button>
+
+                            {/* Page Numbers */}
+                            {categories.links
+                                .filter(
+                                    (link) =>
+                                        link.label !== "&laquo; Previous" &&
+                                        link.label !== "Next &raquo;"
+                                )
+                                .map((link, index) => (
+                                    <button
+                                        key={index}
+                                        disabled={!link.url}
+                                        onClick={() =>
+                                            link.url &&
+                                            router.visit(link.url, {
+                                                preserveState: true,
+                                                preserveScroll: true,
+                                            })
+                                        }
+                                        className={`pagination-btn ${
+                                            link.active ? "active-page" : ""
+                                        }`}
+                                        dangerouslySetInnerHTML={{ __html: link.label }}
+                                    />
+                                ))}
+
+                            {/* Next */}
+                            <button
+                                disabled={!categories.next_page_url}
+                                onClick={() =>
+                                    router.visit(categories.next_page_url, {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    })
+                                }
+                                className="pagination-btn"
+                            >
+                                <i className="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 

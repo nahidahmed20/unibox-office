@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AdvanceController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AttendanceController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\RequisitionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UserController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -42,12 +44,21 @@ Route::get('/dashboard', function () {
             'monthlyExpenses' => \App\Models\Expense::whereMonth('date', now()->month)->sum('amount'),
             'pendingLeaves' => \App\Models\Leave::where('status', 'pending')->count(),
             'pendingRequisitions' => \App\Models\Requisition::where('status', 'pending')->count(),
-            
             'totalInvestment' => \App\Models\Investment::sum('amount'), 
             'totalClients' => \App\Models\Client::count(),
+            'totalBalance' => \App\Models\Account::where('is_active', true)->sum('current_balance'),
+            'cashBalance' => \App\Models\Account::where('type', 'cash')->where('is_active', true)->sum('current_balance'),
+            'bankBalance' => \App\Models\Account::whereIn('type', ['bank', 'mobile_banking'])->where('is_active', true)->sum('current_balance'),
+            'totalProjectDue' => \App\Models\ProjectExpense::sum('due_amount'),
+            'monthlyRevenue' => \App\Models\Invoice::where('status', 'paid')->whereMonth('created_at', now()->month)->sum('grand_total'),
         ],
         'recentNotices' => \App\Models\Notice::where('is_active', true)->latest()->take(3)->get(),
         'recentTasks' => \App\Models\Task::whereIn('status', ['todo', 'in_progress'])->latest()->take(4)->get(),
+        'recentTransactions' => \App\Models\Transaction::with('account')
+            ->latest('transaction_date')
+            ->latest('id')
+            ->take(5)
+            ->get(),
     ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
@@ -77,6 +88,8 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('investments', InvestmentController::class)->names('admin.investments');
     Route::resource('advances', AdvanceController::class)->names('admin.advances');
+    Route::resource('transactions', TransactionController::class)->names('admin.transactions');
+    Route::resource('accounts', AccountController::class)->names('admin.accounts');
 
     // web.php
     Route::get('/admin/invoices/{id}/print', [InvoiceController::class, 'print'])->name('admin.invoices.print');

@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react'; 
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router } from '@inertiajs/react'; 
+import { useForm, Head, router, Link } from '@inertiajs/react'; 
 import Swal from 'sweetalert2'; 
 
 export default function Index({ clients = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
-    // --- Live Search Setup ---
+    // --- Live Search & Pagination Setup ---
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get('search') || '';
     });
+    const [perPage, setPerPage] = useState(10); 
     
     const isFirstRender = useRef(true);
 
@@ -24,7 +25,7 @@ export default function Index({ clients = [] }) {
         website: ''
     });
 
-    // --- Live Search ---
+    // --- Live Search & Entries Limit ---
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -34,13 +35,13 @@ export default function Index({ clients = [] }) {
         const delayDebounceFn = setTimeout(() => {
             router.get(
                 route('admin.clients.index'), 
-                { search: searchTerm }, 
+                { search: searchTerm, per_page: perPage }, 
                 { preserveState: true, replace: true }
             );
         }, 500);
 
         return () => clearTimeout(delayDebounceFn);
-    }, [searchTerm]);
+    }, [searchTerm, perPage]); 
 
     // --- Copy Table Data ---
     const handleCopy = () => {
@@ -152,10 +153,10 @@ export default function Index({ clients = [] }) {
                     <div className="table-toolbar">
                         <div className="show-entries">
                             Show 
-                            <select defaultValue="10">
-                                <option value="10">10</option>
-                                <option value="25">25</option>
-                                <option value="50">50</option>
+                            <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))}>
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
                             </select> 
                             entries
                         </div>
@@ -198,13 +199,13 @@ export default function Index({ clients = [] }) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {clients.length > 0 ? (
-                                    clients.map((client, index) => (
+                                {(clients.data || clients).length > 0 ? (
+                                    (clients.data || clients).map((client, index) => (
                                         <tr key={client.id}>
-                                            <td>{index + 1}</td>
+                                            <td>{clients.from ? clients.from + index : index + 1}</td>
                                             <td style={{ fontWeight: '600', color: '#334155' }}>{client.name}</td>
                                             <td>{client.company_name || '-'}</td>
-                                            <td>{client.email}</td>
+                                            <td>{client.email || '-'}</td>
                                             <td>{client.phone || '-'}</td>
                                             <td>
                                                 <div className="action-btns">
@@ -226,13 +227,56 @@ export default function Index({ clients = [] }) {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* --- Page Numbers (Pagination with Icons) --- */}
+                    {clients.links && clients.links.length > 3 && (
+                        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 mt-4 rounded-b-lg">
+                            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                                <div>
+                                    <p className="text-sm text-gray-700">
+                                        Showing <span className="font-medium">{clients.from || 0}</span> to <span className="font-medium">{clients.to || 0}</span> of <span className="font-medium">{clients.total || 0}</span> entries
+                                    </p>
+                                </div>
+                                <div>
+                                    <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                                        {clients.links.map((link, index) => {
+                                            // 'Previous' এবং 'Next' লেখাকে FontAwesome আইকন দিয়ে রিপ্লেস করা হচ্ছে
+                                            let labelContent = link.label;
+                                            if (labelContent.includes('Previous')) {
+                                                labelContent = '<i class="fa-solid fa-chevron-left text-[12px]"></i>';
+                                            } else if (labelContent.includes('Next')) {
+                                                labelContent = '<i class="fa-solid fa-chevron-right text-[12px]"></i>';
+                                            }
+
+                                            return (
+                                                <Link
+                                                    key={index}
+                                                    href={link.url || '#'}
+                                                    dangerouslySetInnerHTML={{ __html: labelContent }}
+                                                    className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold border ${
+                                                        link.active
+                                                            ? 'z-10 bg-[#008060] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#008060]'
+                                                            : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'
+                                                    } ${!link.url ? 'text-gray-400 cursor-not-allowed pointer-events-none bg-gray-50' : ''}
+                                                    ${index === 0 ? 'rounded-l-md' : ''} 
+                                                    ${index === clients.links.length - 1 ? 'rounded-r-md' : ''}`}
+                                                />
+                                            );
+                                        })}
+                                    </nav>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    {/* --- End of Pagination --- */}
+
                 </div>
             </div>
 
             {/* Modal Section */}
             {showModal && (
                 <div className="modal-overlay">
-                    <div className="modal-content" style={{ maxWidth: '600px' }}> {/* ektu boro kora holo form er jonno */}
+                    <div className="modal-content" style={{ maxWidth: '600px' }}>
                        
                         <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px', marginBottom: '15px' }}>
                             <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
@@ -264,14 +308,13 @@ export default function Index({ clients = [] }) {
                                 </div>
 
                                 <div className="form-group">
-                                    <label>Email Address *</label>
+                                    <label>Email Address</label>
                                     <input 
                                         type="email" 
                                         value={data.email} 
                                         onChange={e => setData('email', e.target.value)} 
                                         className="form-control" 
                                         placeholder="john@example.com" 
-                                        required
                                     />
                                     {errors.email && <p className="error-text">{errors.email}</p>}
                                 </div>

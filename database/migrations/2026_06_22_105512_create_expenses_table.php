@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('title');
             $table->text('description')->nullable();
             $table->unsignedBigInteger('expense_category_id');
+            $table->unsignedBigInteger('account_id')->nullable()->comment('যে অ্যাকাউন্ট থেকে টাকা খরচ হয়েছে');
             $table->decimal('amount', 10, 2);
             $table->date('date');
             $table->unsignedBigInteger('logged_by');

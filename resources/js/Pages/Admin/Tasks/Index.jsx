@@ -1,17 +1,23 @@
 import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
-import { useForm, Head, router } from "@inertiajs/react";
+import { useForm, Head, router, Link } from "@inertiajs/react";
 import Swal from "sweetalert2";
-import Select from "react-select";
 
-export default function Index({ tasks = [], projects = [], users = [] }) {
+// tasks object hishebe ashbe ekhon pagination er jonno
+export default function Index({ tasks = { data: [], links: [] }, projects = [], users = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
+    
+    // URL theke initial values set kora
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get("search") || "";
     });
-    const [perPage, setPerPage] = useState(10);
+    const [perPage, setPerPage] = useState(() => {
+        return Number(new URLSearchParams(window.location.search).get("per_page")) || 10;
+    });
+    
     const isFirstRender = useRef(true);
+    
     const {
         data,
         setData,
@@ -33,6 +39,7 @@ export default function Index({ tasks = [], projects = [], users = [] }) {
         due_date: "",
     });
 
+    // Search ebong Per Page dropdown dynamic filter
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -54,53 +61,8 @@ export default function Index({ tasks = [], projects = [], users = [] }) {
         return () => clearTimeout(delay);
     }, [searchTerm, perPage]);
 
-    const selectStyles = {
-        control: (provided, state) => ({
-            ...provided,
-            minHeight: "46px",
-            borderRadius: "4px",
-            border: state.isFocused ? "1px solid #000" : "1px solid #d1d5db",
-            boxShadow: state.isFocused ? "0 0 0 1px rgba(0,0,0,.15)" : "none",
-            cursor: "pointer",
-            transition: ".25s",
-        }),
-
-        valueContainer: (provided) => ({
-            ...provided,
-            padding: "2px 12px",
-        }),
-
-        indicatorSeparator: () => ({
-            display: "none",
-        }),
-
-        dropdownIndicator: (provided) => ({
-            ...provided,
-            color: "#6b7280",
-        }),
-
-        menu: (provided) => ({
-            ...provided,
-            borderRadius: "4px",
-            overflow: "hidden",
-            zIndex: 9999,
-        }),
-
-        option: (provided, state) => ({
-            ...provided,
-            borderRadius: "4px",
-            padding: "10px 14px",
-            background: state.isSelected
-                ? "#2563eb"
-                : state.isFocused
-                  ? "#eff6ff"
-                  : "#fff",
-            color: state.isSelected ? "#fff" : "#111827",
-        }),
-    };
-
     const handleCopy = () => {
-        const text = tasks
+        const text = tasks.data
             .map(
                 (t) =>
                     `${t.title}\t${t.project?.title}\t${t.assignee?.name}\t${t.priority}\t${t.status}`,
@@ -147,7 +109,6 @@ export default function Index({ tasks = [], projects = [], users = [] }) {
             put(route("admin.tasks.update", data.id), {
                 onSuccess: () => {
                     setShowModal(false);
-
                     Swal.fire({
                         icon: "success",
                         title: "Updated!",
@@ -161,9 +122,7 @@ export default function Index({ tasks = [], projects = [], users = [] }) {
             post(route("admin.tasks.store"), {
                 onSuccess: () => {
                     reset();
-
                     setShowModal(false);
-
                     Swal.fire({
                         icon: "success",
                         title: "Created!",
@@ -189,7 +148,6 @@ export default function Index({ tasks = [], projects = [], users = [] }) {
             if (result.isConfirmed) {
                 destroy(route("admin.tasks.destroy", id), {
                     preserveScroll: true,
-
                     onSuccess: () => {
                         Swal.fire({
                             icon: "success",
@@ -204,41 +162,14 @@ export default function Index({ tasks = [], projects = [], users = [] }) {
         });
     };
 
+    // Apnar priority function ja upore priorityBadge chilo
     const priorityBadge = (priority) => {
         switch (priority) {
-            case "low":
-                return "status-inactive";
-
-            case "medium":
-                return "status-pending";
-
-            case "high":
-                return "status-active";
-
-            case "urgent":
-                return "status-active";
-
-            default:
-                return "status-pending";
-        }
-    };
-
-    const statusBadge = (status) => {
-        switch (status) {
-            case "todo":
-                return "status-pending";
-
-            case "in_progress":
-                return "status-active";
-
-            case "review":
-                return "status-inactive";
-
-            case "done":
-                return "status-active";
-
-            default:
-                return "status-pending";
+            case "low": return "status-inactive";
+            case "medium": return "status-pending";
+            case "high": return "status-active";
+            case "urgent": return "status-active";
+            default: return "status-pending";
         }
     };
 
@@ -253,8 +184,7 @@ export default function Index({ tasks = [], projects = [], users = [] }) {
                 <div className="card-container">
                     <div className="card-header">
                         <div className="card-title">
-                            <i className="fa-solid fa-list-check"></i> Project
-                            Tasks
+                            <i className="fa-solid fa-list-check"></i> Project Tasks
                         </div>
                         <button onClick={openCreateModal} className="add-btn">
                             + Add Task
@@ -266,9 +196,7 @@ export default function Index({ tasks = [], projects = [], users = [] }) {
                             Show
                             <select
                                 value={perPage}
-                                onChange={(e) =>
-                                    setPerPage(Number(e.target.value))
-                                }
+                                onChange={(e) => setPerPage(Number(e.target.value))}
                             >
                                 <option value={10}>10</option>
                                 <option value={25}>25</option>
@@ -278,35 +206,14 @@ export default function Index({ tasks = [], projects = [], users = [] }) {
                             entries
                         </div>
 
-                        <div
-                            className="export-buttons"
-                            style={{ display: "flex", gap: "8px" }}
-                        >
-                            <button
-                                type="button"
-                                className="export-btn"
-                                onClick={handleCopy}
-                            >
-                                <i className="fas fa-copy me-1"></i>
-                                Copy
+                        <div className="export-buttons" style={{ display: "flex", gap: "8px" }}>
+                            <button type="button" className="export-btn" onClick={handleCopy}>
+                                <i className="fas fa-copy me-1"></i> Copy
                             </button>
-
-                            <button className="export-btn">
-                                <i className="fas fa-file-excel me-1"></i>
-                                Excel
-                            </button>
-
-                            <button className="export-btn">
-                                <i className="fas fa-file-csv me-1"></i>
-                                CSV
-                            </button>
-
-                            <button
-                                className="export-btn"
-                                onClick={() => window.print()}
-                            >
-                                <i className="fas fa-print me-1"></i>
-                                Print
+                            <button className="export-btn"><i className="fas fa-file-excel me-1"></i> Excel</button>
+                            <button className="export-btn"><i className="fas fa-file-csv me-1"></i> CSV</button>
+                            <button className="export-btn" onClick={() => window.print()}>
+                                <i className="fas fa-print me-1"></i> Print
                             </button>
                         </div>
 
@@ -334,167 +241,129 @@ export default function Index({ tasks = [], projects = [], users = [] }) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {tasks.map((task) => (
-                                    <tr key={task.id}>
-                                        <td style={{ fontWeight: "600" }}>
-                                            {task.title}
-                                        </td>
-                                        <td>{task.project?.title}</td>
-                                        <td>{task.assignee?.name}</td>
-                                        <td>
-                                            <span
-                                                className={`px-2 py-1 rounded text-xs font-semibold ${getPriorityColor(task.priority)}`}
-                                            >
-                                                {task.priority.toUpperCase()}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span className="font-medium text-gray-600">
-                                                {task.status
-                                                    .replace("_", " ")
-                                                    .toUpperCase()}
-                                            </span>
-                                        </td>
-                                        <td>{task.due_date || "-"}</td>
-                                        <td>
-                                            <div className="action-btns">
-                                                <button
-                                                    onClick={() =>
-                                                        openEditModal(task)
-                                                    }
-                                                    className="icon-btn edit"
-                                                >
-                                                    <i className="fa-regular fa-pen-to-square"></i>
-                                                </button>
-                                                <button
-                                                    onClick={() =>
-                                                        handleDelete(task.id)
-                                                    }
-                                                    className="icon-btn delete"
-                                                >
-                                                    <i className="fa-regular fa-trash-can"></i>
-                                                </button>
-                                            </div>
-                                        </td>
+                                {tasks.data && tasks.data.length > 0 ? (
+                                    tasks.data.map((task) => (
+                                        <tr key={task.id}>
+                                            <td style={{ fontWeight: "600" }}>{task.title}</td>
+                                            <td>{task.project?.title}</td>
+                                            <td>{task.assignee?.name}</td>
+                                            <td>
+                                                {/* Ekhane dynamic class name a function call fix kora hoyeche */}
+                                                <span className={`px-2 py-1 rounded text-xs font-semibold ${priorityBadge(task.priority)}`}>
+                                                    {task.priority ? task.priority.toUpperCase() : ""}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className="font-medium text-gray-600">
+                                                    {task.status ? task.status.replace("_", " ").toUpperCase() : ""}
+                                                </span>
+                                            </td>
+                                            <td>{task.due_date || "-"}</td>
+                                            <td>
+                                                <div className="action-btns">
+                                                    <button onClick={() => openEditModal(task)} className="icon-btn edit">
+                                                        <i className="fa-regular fa-pen-to-square"></i>
+                                                    </button>
+                                                    <button onClick={() => handleDelete(task.id)} className="icon-btn delete">
+                                                        <i className="fa-regular fa-trash-can"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>No tasks found.</td>
                                     </tr>
-                                ))}
+                                )}
                             </tbody>
                         </table>
                     </div>
+
+                    {/* --- Dynamic Pagination Next/Previous Buttons Section --- */}
+                    {tasks.links && tasks.links.length > 3 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', padding: '0 10px' }}>
+                            <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                                Showing {tasks.from || 0} to {tasks.to || 0} of {tasks.total || 0} entries
+                            </div>
+                            <div style={{ display: 'flex', gap: '5px' }}>
+                                {tasks.links.map((link, index) => {
+                                    // Sudhu dynamic visual check logic (Previous, Next text ke icon dewa)
+                                    let label = link.label;
+                                    if (label.includes('&laquo; Previous')) label = "Previous";
+                                    if (label.includes('Next &raquo;')) label = "Next";
+
+                                    // Jodi link-ti active thake ba url na thake tokhon color dynamic hobe
+                                    const buttonStyle = {
+                                        padding: '8px 14px',
+                                        border: '1px solid #d1d5db',
+                                        borderRadius: '4px',
+                                        fontSize: '0.875rem',
+                                        textDecoration: 'none',
+                                        color: link.active ? '#fff' : (link.url ? '#374151' : '#9ca3af'),
+                                        backgroundColor: link.active ? '#2563eb' : (link.url ? '#fff' : '#f3f4f6'),
+                                        cursor: link.url ? 'pointer' : 'not-allowed',
+                                        pointerEvents: link.url ? 'auto' : 'none'
+                                    };
+
+                                    return (
+                                        <Link
+                                            key={index}
+                                            href={link.url || "#"}
+                                            style={buttonStyle}
+                                            preserveState
+                                        >
+                                            {label}
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
+            {/* --- Modal Container --- */}
             {showModal && (
                 <div className="modal-overlay">
-                    <div
-                        className="modal-content"
-                        style={{ maxWidth: "650px" }}
-                    >
+                    <div className="modal-content" style={{ maxWidth: "650px" }}>
                         <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px', marginBottom: '15px' }}>
                             <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
                                 {editMode ? "Edit Task" : "Add New Task"}
                             </h3>
-                            <button 
-                                type="button" 
-                                onClick={() => setShowModal(false)} 
-                                style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#6b7280' }}
-                                title="Close"
-                            >
+                            <button type="button" onClick={() => setShowModal(false)} style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#6b7280' }} title="Close">
                                 &times;
                             </button>
                         </div>
                         <form onSubmit={handleSubmit}>
-                            <div
-                                style={{
-                                    display: "grid",
-                                    gridTemplateColumns: "1fr 1fr",
-                                    gap: "15px",
-                                }}
-                            >
-                                <div
-                                    className="form-group"
-                                    style={{ gridColumn: "span 2" }}
-                                >
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
+                                <div className="form-group" style={{ gridColumn: "span 2" }}>
                                     <label>Task Title *</label>
-                                    <input
-                                        type="text"
-                                        value={data.title}
-                                        onChange={(e) =>
-                                            setData("title", e.target.value)
-                                        }
-                                        className="form-control"
-                                        required
-                                    />
-                                    {errors.title && (
-                                        <p className="error-text">
-                                            {errors.title}
-                                        </p>
-                                    )}
+                                    <input type="text" value={data.title} onChange={(e) => setData("title", e.target.value)} className="form-control" required />
+                                    {errors.title && <p className="error-text">{errors.title}</p>}
                                 </div>
 
                                 <div className="form-group">
                                     <label>Project *</label>
-                                    <select
-                                        value={data.project_id}
-                                        onChange={(e) =>
-                                            setData(
-                                                "project_id",
-                                                e.target.value,
-                                            )
-                                        }
-                                        className="form-control"
-                                        required
-                                    >
+                                    <select value={data.project_id} onChange={(e) => setData("project_id", e.target.value)} className="form-control" required>
                                         <option value="">Select Project</option>
-                                        {projects.map((p) => (
-                                            <option key={p.id} value={p.id}>
-                                                {p.title}
-                                            </option>
-                                        ))}
+                                        {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
                                     </select>
-                                    {errors.project_id && (
-                                        <p className="error-text">
-                                            {errors.project_id}
-                                        </p>
-                                    )}
+                                    {errors.project_id && <p className="error-text">{errors.project_id}</p>}
                                 </div>
 
                                 <div className="form-group">
                                     <label>Assign To *</label>
-                                    <select
-                                        value={data.assigned_to}
-                                        onChange={(e) =>
-                                            setData(
-                                                "assigned_to",
-                                                e.target.value,
-                                            )
-                                        }
-                                        className="form-control"
-                                        required
-                                    >
+                                    <select value={data.assigned_to} onChange={(e) => setData("assigned_to", e.target.value)} className="form-control" required>
                                         <option value="">Select User</option>
-                                        {users.map((u) => (
-                                            <option key={u.id} value={u.id}>
-                                                {u.name}
-                                            </option>
-                                        ))}
+                                        {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
                                     </select>
-                                    {errors.assigned_to && (
-                                        <p className="error-text">
-                                            {errors.assigned_to}
-                                        </p>
-                                    )}
+                                    {errors.assigned_to && <p className="error-text">{errors.assigned_to}</p>}
                                 </div>
 
                                 <div className="form-group">
                                     <label>Priority</label>
-                                    <select
-                                        value={data.priority}
-                                        onChange={(e) =>
-                                            setData("priority", e.target.value)
-                                        }
-                                        className="form-control"
-                                    >
+                                    <select value={data.priority} onChange={(e) => setData("priority", e.target.value)} className="form-control">
                                         <option value="low">Low</option>
                                         <option value="medium">Medium</option>
                                         <option value="high">High</option>
@@ -504,17 +373,9 @@ export default function Index({ tasks = [], projects = [], users = [] }) {
 
                                 <div className="form-group">
                                     <label>Status</label>
-                                    <select
-                                        value={data.status}
-                                        onChange={(e) =>
-                                            setData("status", e.target.value)
-                                        }
-                                        className="form-control"
-                                    >
+                                    <select value={data.status} onChange={(e) => setData("status", e.target.value)} className="form-control">
                                         <option value="todo">To Do</option>
-                                        <option value="in_progress">
-                                            In Progress
-                                        </option>
+                                        <option value="in_progress">In Progress</option>
                                         <option value="review">Review</option>
                                         <option value="done">Done</option>
                                     </select>
@@ -522,42 +383,18 @@ export default function Index({ tasks = [], projects = [], users = [] }) {
 
                                 <div className="form-group">
                                     <label>Due Date</label>
-                                    <input
-                                        type="date"
-                                        value={data.due_date}
-                                        onChange={(e) =>
-                                            setData("due_date", e.target.value)
-                                        }
-                                        className="form-control"
-                                    />
+                                    <input type="date" value={data.due_date} onChange={(e) => setData("due_date", e.target.value)} className="form-control" />
                                 </div>
                             </div>
 
                             <div className="form-group mt-3">
                                 <label>Description</label>
-                                <textarea
-                                    value={data.description}
-                                    onChange={(e) =>
-                                        setData("description", e.target.value)
-                                    }
-                                    className="form-control"
-                                    rows="3"
-                                ></textarea>
+                                <textarea value={data.description} onChange={(e) => setData("description", e.target.value)} className="form-control" rows="3"></textarea>
                             </div>
 
                             <div className="modal-footer mt-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowModal(false)}
-                                    className="btn-cancel"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={processing}
-                                    className="btn-save"
-                                >
+                                <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">Cancel</button>
+                                <button type="submit" disabled={processing} className="btn-save">
                                     {processing ? "Saving..." : "Save Task"}
                                 </button>
                             </div>

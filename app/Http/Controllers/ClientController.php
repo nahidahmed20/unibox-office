@@ -13,23 +13,21 @@ class ClientController extends Controller
      */
     public function index(Request $request)
     {
+        $perPage = $request->input('per_page', 10);
+
         $query = Client::query();
 
-        // Live Search Logic
-        if ($request->has('search') && $request->search != '') {
-            $searchTerm = $request->search;
-            $query->where('name', 'like', "%{$searchTerm}%")
-                  ->orWhere('email', 'like', "%{$searchTerm}%")
-                  ->orWhere('company_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('phone', 'like', "%{$searchTerm}%");
+        if ($request->has('search')) {
+            $query->where('name', 'like', "%{$request->search}%")
+                ->orWhere('company_name', 'like', "%{$request->search}%")
+                ->orWhere('email', 'like', "%{$request->search}%")
+                ->orWhere('phone', 'like', "%{$request->search}%");
         }
 
-        // Fetch clients
-        $clients = $query->latest()->get(); 
+        $clients = $query->latest()->paginate($perPage)->withQueryString(); 
 
         return Inertia::render('Admin/Clients/Index', [
-            'clients' => $clients,
-            'filters' => $request->only('search')
+            'clients' => $clients
         ]);
     }
 
@@ -49,7 +47,7 @@ class ClientController extends Controller
         $validated = $request->validate([
             'name'         => 'required|string|max:255',
             'company_name' => 'nullable|string|max:255',
-            'email'        => 'required|email|unique:clients,email',
+            'email'        => 'nullable|email|unique:clients,email',
             'phone'        => 'nullable|string|max:20',
             'address'      => 'nullable|string',
             'website'      => 'nullable|url|max:255',
@@ -86,7 +84,7 @@ class ClientController extends Controller
         $validated = $request->validate([
             'name'         => 'required|string|max:255',
             'company_name' => 'nullable|string|max:255',
-            'email'        => 'required|email|unique:clients,email,' . $client->id,
+            'email'        => 'nullable|email|unique:clients,email,' . $client->id,
             'phone'        => 'nullable|string|max:20',
             'address'      => 'nullable|string',
             'website'      => 'nullable|url|max:255',

@@ -2,35 +2,30 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Controller;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\Account;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Storage;
 
 class ExpenseController extends Controller
 {
     public function index(Request $request)
     {
-        // Eloquent relation load korchi (user ebong category)
-        $query = Expense::with(['category', 'logger']);
+        $query = Expense::with(['category', 'account', 'logger']);
 
-        if ($request->has('search') && $request->search != '') {
-            $searchTerm = $request->search;
-            $query->where('title', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('category', function($q) use ($searchTerm) {
-                      $q->where('name', 'like', "%{$searchTerm}%");
-                  });
+        if ($request->has('search')) {
+            $query->where('title', 'like', '%' . $request->search . '%');
         }
 
-        $expenses = $query->latest()->get(); 
-        $categories = ExpenseCategory::select('id', 'name')->get();
+        $expenses = $query->latest()->get();
+        $categories = ExpenseCategory::all();
+        $accounts = Account::where('is_active', true)->get(); 
 
-        return Inertia::render('Admin/Expenses/Index', [
-            'expenses' => $expenses,
-            'categories' => $categories,
-            'filters' => $request->only('search')
-        ]);
+        return Inertia::render('Admin/Expenses/Index', compact('expenses', 'categories', 'accounts'));
     }
 
     public function store(Request $request)
@@ -38,55 +33,87 @@ class ExpenseController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'expense_category_id' => 'required|exists:expense_categories,id',
-            'amount' => 'required|numeric|min:0',
-            'date' => 'required|date',
-            'description' => 'nullable|string',
-            'attachment' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048', // 2MB Max
-        ]);
-
-        $validated['logged_by'] = auth()->id();
-
-        // File Upload Logic
-        if ($request->hasFile('attachment')) {
-            $validated['attachment'] = $request->file('attachment')->store('expenses', 'public');
-        }
-
-        Expense::create($validated);
-        return redirect()->back();
-    }
-
-    public function update(Request $request, string $id)
-    {
-        $expense = Expense::findOrFail($id);
-
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'expense_category_id' => 'required|exists:expense_categories,id',
-            'amount' => 'required|numeric|min:0',
+            'account_id' => 'required|exists:accounts,id',
+            'amount' => 'required|numeric|min:0.01',
             'date' => 'required|date',
             'description' => 'nullable|string',
             'attachment' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
 
         if ($request->hasFile('attachment')) {
-            // Delete old file if exists
-            if ($expense->attachment) {
-                Storage::disk('public')->delete($expense->attachment);
-            }
             $validated['attachment'] = $request->file('attachment')->store('expenses', 'public');
         }
 
-        $expense->update($validated);
-        return redirect()->back();
+        $validated['user_id'] = auth()->id();
+
+        DB::transaction(function () use ($validated, $request) {
+            $expense = Expense::create($validated);
+
+            $account = Account::findOrFail($request->account_id);
+            $account->decrement('current_balance', $request->amount);
+
+            $expense->transaction()->create([
+                'account_id' => $account->id,
+                'type' => 'debit',
+                'amount' => $request->amount,
+                'transaction_date' => $request->date,
+                'description' => 'Office Expense: ' . $request->title,
+            ]);
+        });
+
+        return back()->with('success', 'Expense logged successfully.');
     }
 
-    public function destroy(string $id)
+    public function update(Request $request, $id)
     {
         $expense = Expense::findOrFail($id);
-        if ($expense->attachment) {
-            Storage::disk('public')->delete($expense->attachment);
-        }
-        $expense->delete();
-        return redirect()->back();
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'expense_category_id' => 'required|exists:expense_categories,id',
+            'account_id' => 'required|exists:accounts,id',
+            'amount' => 'required|numeric|min:0.01',
+            'date' => 'required|date',
+            'description' => 'nullable|string',
+        ]);
+
+        DB::transaction(function () use ($validated, $request, $expense) {
+            if ($expense->account_id != $request->account_id || $expense->amount != $request->amount) {
+                
+                $oldAccount = Account::find($expense->account_id);
+                $oldAccount->increment('current_balance', $expense->amount);
+
+                $newAccount = Account::find($request->account_id);
+                $newAccount->decrement('current_balance', $request->amount);
+
+                $expense->transaction()->update([
+                    'account_id' => $request->account_id,
+                    'amount' => $request->amount,
+                    'transaction_date' => $request->date,
+                ]);
+            }
+
+            $expense->update($validated);
+        });
+
+        return back()->with('success', 'Expense updated successfully.');
+    }
+
+    public function destroy($id)
+    {
+        $expense = Expense::findOrFail($id);
+
+        DB::transaction(function () use ($expense) {
+            $account = Account::find($expense->account_id);
+            if ($account) {
+                $account->increment('current_balance', $expense->amount);
+            }
+
+            $expense->transaction()->delete();
+
+            $expense->delete();
+        });
+
+        return back()->with('success', 'Expense deleted and amount restored.');
     }
 }
