@@ -6,17 +6,15 @@ export default function AdminLayout({ children }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [profileDropdown, setProfileDropdown] = useState(false);
     
-
     // Grouped Menu States dynamically checking active routes
     const [openMenus, setOpenMenus] = useState({
         crm: route().current('admin.clients.*') || route().current('admin.projects.*') || route().current('admin.tasks.*'),
         hr: route().current('admin.employees.*') || route().current('admin.attendances.*') || route().current('admin.salaries.*') || route().current('admin.leaves.*') || route().current('admin.departments.*') || route().current('admin.designations.*'),
-        finance: route().current('admin.invoices.*') || route().current('admin.expenses.*') || route().current('admin.expense-categories.*') || route().current('admin.investments.*') || route().current('admin.advances.*') || route().current('admin.accounts.*') || route().current('admin.transactions.*'),
+        finance: route().current('admin.invoices.*') || route().current('admin.expenses.*') || route().current('admin.expense-categories.*') || route().current('admin.investments.*') || route().current('admin.advances.*') || route().current('admin.accounts.*') || route().current('admin.transactions.*') || route().current('invoice-payments.*') || route().current('admin.client-dues') || route().current('admin.vendor-dues'),
         projectExpense: route().current('admin.project-expenses.*'),
         office: route().current('admin.assets.*') || route().current('admin.requisitions.*') || route().current('admin.notices.*'), 
         access: route().current('admin.users.*') || route().current('admin.roles.*') || route().current('admin.permissions.*')
     });
-
 
     const toggleMenu = (menuName) => {
         setOpenMenus(prev => ({ ...prev, [menuName]: !prev[menuName] }));
@@ -95,47 +93,8 @@ export default function AdminLayout({ children }) {
                             )}
                         </li>
 
-                        {/* NEW: 2. HR & Payroll */}
-                        <li className="mx-3 mt-1">
-                            <button onClick={() => toggleMenu('hr')} className={`w-full flex items-center px-4 py-2.5 text-[14px] rounded-md font-medium transition-colors ${openMenus.hr ? 'text-white' : 'text-[#b5b9bc] hover:text-white hover:bg-white/5'}`}>
-                                <i className="fa-solid fa-users-gear w-6 text-left opacity-80"></i> HR & Payroll
-                                <i className={`fa-solid fa-chevron-right ml-auto text-[11px] transition-transform duration-200 ${openMenus.hr ? 'rotate-90' : ''}`}></i>
-                            </button>
-                            {openMenus.hr && (
-                                <ul className="list-none p-0 mt-1 mb-2 bg-[#021528] rounded-md py-2 space-y-1">
-                                    <li>
-                                        <Link href={route('admin.employees.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.employees.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
-                                            <i className="fa-solid fa-id-card mr-2 text-[10px]"></i> Employees
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link href={route('admin.attendances.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.attendances.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
-                                            <i className="fa-solid fa-clock-rotate-left mr-2 text-[10px]"></i> Attendance
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link href={route('admin.salaries.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.salaries.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
-                                            <i className="fa-solid fa-money-check-dollar mr-2 text-[10px]"></i> Payroll / Salary
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link href={route('admin.leaves.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.leaves.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
-                                            <i className="fa-solid fa-calendar-minus mr-2 text-[10px]"></i> Leave Applications
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link href={route('admin.departments.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.departments.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
-                                            <i className="fa-solid fa-building-user mr-2 text-[10px]"></i> Departments
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link href={route('admin.designations.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.designations.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
-                                            <i className="fa-solid fa-user-tie mr-2 text-[10px]"></i> Designations
-                                        </Link>
-                                    </li>
-                                </ul>
-                            )}
-                        </li>
+                        
+                        
                         {/* Project Expense */}
                         <li className="mx-3 mt-1">
                             <button
@@ -215,6 +174,64 @@ export default function AdminLayout({ children }) {
                                     <li>
                                         <Link href={route('admin.advances.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.advances.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
                                             <i className="fa-solid fa-hand-holding-dollar mr-2 text-[10px]"></i> Advances
+                                        </Link>
+                                    </li>
+                                    
+                                    <li>
+                                        <Link href={route('invoice-payments.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('invoice-payments.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
+                                            <i className="fa-solid fa-money-bill-wave mr-2 text-[10px]"></i> Receive Payments
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href={route('admin.client-dues')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.client-dues') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
+                                            <i className="fa-solid fa-file-invoice-dollar mr-2 text-[10px]"></i> Client Dues Report
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href={route('admin.vendor-dues')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.vendor-dues') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
+                                            <i className="fa-solid fa-hand-holding-dollar mr-2 text-[10px]"></i> Vendor Dues Report
+                                        </Link>
+                                    </li>
+                                </ul>
+                            )}
+                        </li>
+
+                        {/* 2. HR & Payroll */}
+                        <li className="mx-3 mt-1">
+                            <button onClick={() => toggleMenu('hr')} className={`w-full flex items-center px-4 py-2.5 text-[14px] rounded-md font-medium transition-colors ${openMenus.hr ? 'text-white' : 'text-[#b5b9bc] hover:text-white hover:bg-white/5'}`}>
+                                <i className="fa-solid fa-users-gear w-6 text-left opacity-80"></i> HR & Payroll
+                                <i className={`fa-solid fa-chevron-right ml-auto text-[11px] transition-transform duration-200 ${openMenus.hr ? 'rotate-90' : ''}`}></i>
+                            </button>
+                            {openMenus.hr && (
+                                <ul className="list-none p-0 mt-1 mb-2 bg-[#021528] rounded-md py-2 space-y-1">
+                                    <li>
+                                        <Link href={route('admin.employees.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.employees.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
+                                            <i className="fa-solid fa-id-card mr-2 text-[10px]"></i> Employees
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href={route('admin.attendances.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.attendances.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
+                                            <i className="fa-solid fa-clock-rotate-left mr-2 text-[10px]"></i> Attendance
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href={route('admin.salaries.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.salaries.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
+                                            <i className="fa-solid fa-money-check-dollar mr-2 text-[10px]"></i> Payroll / Salary
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href={route('admin.leaves.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.leaves.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
+                                            <i className="fa-solid fa-calendar-minus mr-2 text-[10px]"></i> Leave Applications
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href={route('admin.departments.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.departments.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
+                                            <i className="fa-solid fa-building-user mr-2 text-[10px]"></i> Departments
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href={route('admin.designations.index')} className={`flex items-center pl-10 py-2 text-[13px] transition-colors ${route().current('admin.designations.*') ? 'text-white font-bold' : 'text-[#a1a5a8] hover:text-white'}`}>
+                                            <i className="fa-solid fa-user-tie mr-2 text-[10px]"></i> Designations
                                         </Link>
                                     </li>
                                 </ul>

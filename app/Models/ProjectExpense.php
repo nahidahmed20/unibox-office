@@ -28,5 +28,9 @@ class ProjectExpense extends Model
         return $this->belongsTo(Account::class, 'account_id');
     }
 
+    public function transaction()
+    {
+        return $this->morphOne(Transaction::class, 'transactionable');
+    }
     
 }

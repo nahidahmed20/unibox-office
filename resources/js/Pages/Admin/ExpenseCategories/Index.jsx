@@ -247,8 +247,7 @@ export default function Index({ categories, filters = {} }) {
                             marginTop: "20px",
                             padding: "15px 0",
                             borderTop: "1px solid #e5e7eb",
-                        }}
-                    >
+                        }}>
                         <div style={{ fontSize: "14px", color: "#6b7280" }}>
                             Showing <b>{categories.from ?? 0}</b> to <b>{categories.to ?? 0}</b> of{" "}
                             <b>{categories.total}</b> entries

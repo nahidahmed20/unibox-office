@@ -6,7 +6,7 @@ body {
 
 /* Slider.css */
 .slider-page-wrapper {
-    padding: 30px;
+    padding: 12px;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background-color: #f8f9fa;
     min-height: 100vh;
@@ -17,7 +17,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    margin-bottom: 25px;
+    margin-bottom: 10px;
 }
 .page-title {
     font-size: 28px;

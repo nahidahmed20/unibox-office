@@ -10,6 +10,7 @@ use App\Models\Account;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Illuminate\Validation\Rule;
 
 class ProjectExpenseController extends Controller
 {
@@ -27,7 +28,9 @@ class ProjectExpenseController extends Controller
         }
 
         $project_expenses = $query->latest()->get(); 
-        $projects = Project::select('id', 'title')->get();
+        $projects = Project::where('status', '!=', 'completed') 
+                   ->select('id', 'title')
+                   ->get();
         $categories = ExpenseCategory::select('id', 'name')->get();
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->get();
 
@@ -37,9 +40,16 @@ class ProjectExpenseController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'project_id' => 'required|exists:projects,id',
+            'project_id' => [
+                'required',
+                Rule::exists('projects', 'id')->where(function ($query) {
+                    $query->where('status', '!=', 'completed'); 
+                }),
+            ],
             'expense_category_id' => 'required|exists:expense_categories,id',
-            'account_id' => 'required|exists:accounts,id',
+            
+            'account_id' => 'nullable|exists:accounts,id|required_if:paid_amount,>,0',
+            
             'title' => 'required|string|max:255',
             'vendor_name' => 'nullable|string|max:255',
             'total_bill' => 'required|numeric|min:0',
@@ -62,7 +72,7 @@ class ProjectExpenseController extends Controller
         DB::transaction(function () use ($validated, $request) {
             $projectExpense = ProjectExpense::create($validated);
 
-            if ($request->paid_amount > 0) {
+            if ($request->paid_amount > 0 && $request->account_id) {
                 $account = Account::findOrFail($request->account_id);
                 $account->decrement('current_balance', $request->paid_amount);
 
@@ -171,5 +181,16 @@ class ProjectExpenseController extends Controller
         });
 
         return back()->with('success', 'Project Expense deleted successfully.');
+    }
+
+    public function vendorDuesReport()
+    {
+        $vendorDues = ProjectExpense::select('vendor_name', DB::raw('SUM(due_amount) as total_due'))
+            ->where('due_amount', '>', 0)
+            ->whereNotNull('vendor_name') 
+            ->groupBy('vendor_name')
+            ->get();
+
+        return Inertia::render('Admin/Reports/VendorDues', compact('vendorDues'));
     }
 }

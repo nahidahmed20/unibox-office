@@ -7,13 +7,15 @@ import Select from 'react-select';
 export default function Index({ projects = [], clients = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
+    const [viewMode, setViewMode] = useState(false);
 
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get("search") || "";
     });
 
-    const [perPage, setPerPage] = useState(10);
-    const [clientSearch, setClientSearch] = useState("");
+    const [perPage, setPerPage] = useState(() => {
+        return Number(new URLSearchParams(window.location.search).get("per_page")) || 10;
+    });
 
     const isFirstRender = useRef(true);
 
@@ -36,6 +38,7 @@ export default function Index({ projects = [], clients = [] }) {
         deadline: "",
         budget: "",
         status: "planning",
+        client_name: "", // View mode e client name dekhabar jonno
     });
 
     useEffect(() => {
@@ -45,7 +48,6 @@ export default function Index({ projects = [], clients = [] }) {
         }
 
         const delay = setTimeout(() => {
-
             const params = {};
 
             if (searchTerm.trim()) {
@@ -60,14 +62,14 @@ export default function Index({ projects = [], clients = [] }) {
                 preserveState: true,
                 replace: true,
             });
-
         }, 500);
 
         return () => clearTimeout(delay);
     }, [searchTerm, perPage]);
 
     const handleCopy = () => {
-        const text = projects
+        const projectList = projects.data || projects;
+        const text = projectList
             .map(
                 (p) =>
                     `${p.title}\t${p.client?.name || ""}\t${p.deadline}\t${p.status}`,
@@ -88,6 +90,7 @@ export default function Index({ projects = [], clients = [] }) {
         reset();
         clearErrors();
         setEditMode(false);
+        setViewMode(false);
         setShowModal(true);
     };
 
@@ -102,13 +105,35 @@ export default function Index({ projects = [], clients = [] }) {
             deadline: project.deadline || "",
             budget: project.budget || "",
             status: project.status,
+            client_name: project.client?.name || "",
         });
         setEditMode(true);
+        setViewMode(false);
+        setShowModal(true);
+    };
+
+    const openViewModal = (project) => {
+        clearErrors();
+        setData({
+            id: project.id,
+            client_id: project.client_id,
+            title: project.title,
+            description: project.description || "",
+            start_date: project.start_date || "",
+            deadline: project.deadline || "",
+            budget: project.budget || "",
+            status: project.status,
+            client_name: project.client?.name || "",
+        });
+        setEditMode(false);
+        setViewMode(true);
         setShowModal(true);
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
+
+        if (viewMode) return;
 
         if (editMode) {
             put(route("admin.projects.update", data.id), {
@@ -155,52 +180,22 @@ export default function Index({ projects = [], clients = [] }) {
                 borderColor: "#050505",
             },
         }),
-
-        valueContainer: (provided) => ({
-            ...provided,
-            padding: "2px 12px",
-        }),
-
-        placeholder: (provided) => ({
-            ...provided,
-            color: "#9ca3af",
-            fontSize: "14px",
-        }),
-
-        singleValue: (provided) => ({
-            ...provided,
-            color: "#111827",
-            fontWeight: 500,
-        }),
-
-        input: (provided) => ({
-            ...provided,
-            color: "#111827",
-        }),
-
-        indicatorSeparator: () => ({
-            display: "none",
-        }),
-
+        valueContainer: (provided) => ({ ...provided, padding: "2px 12px" }),
+        placeholder: (provided) => ({ ...provided, color: "#9ca3af", fontSize: "14px" }),
+        singleValue: (provided) => ({ ...provided, color: "#111827", fontWeight: 500 }),
+        input: (provided) => ({ ...provided, color: "#111827" }),
+        indicatorSeparator: () => ({ display: "none" }),
         dropdownIndicator: (provided, state) => ({
             ...provided,
             color: state.isFocused ? "#000000" : "#6b7280",
             transition: "all .2s",
-
-            "&:hover": {
-                color: "#050505",
-            },
+            "&:hover": { color: "#050505" },
         }),
-
         clearIndicator: (provided) => ({
             ...provided,
             color: "#ef4444",
-
-            "&:hover": {
-                color: "#dc2626",
-            },
+            "&:hover": { color: "#dc2626" },
         }),
-
         menu: (provided) => ({
             ...provided,
             borderRadius: "4px",
@@ -210,12 +205,7 @@ export default function Index({ projects = [], clients = [] }) {
             border: "1px solid #e5e7eb",
             zIndex: 9999,
         }),
-
-        menuList: (provided) => ({
-            ...provided,
-            padding: "6px",
-        }),
-
+        menuList: (provided) => ({ ...provided, padding: "6px" }),
         option: (provided, state) => ({
             ...provided,
             padding: "10px 14px",
@@ -230,11 +220,7 @@ export default function Index({ projects = [], clients = [] }) {
             color: state.isSelected ? "#fff" : "#111827",
             transition: "all .2s",
         }),
-
-        noOptionsMessage: (provided) => ({
-            ...provided,
-            color: "#9ca3af",
-        }),
+        noOptionsMessage: (provided) => ({ ...provided, color: "#9ca3af" }),
     };
 
     const handleDelete = (id) => {
@@ -260,11 +246,6 @@ export default function Index({ projects = [], clients = [] }) {
         });
     };
 
-    // filtered clients for searchable dropdown
-    const filteredClients = clients.filter((c) =>
-        c.name.toLowerCase().includes(clientSearch.toLowerCase()),
-    );
-
     return (
         <AdminLayout>
             <Head title="Projects Management" />
@@ -277,22 +258,20 @@ export default function Index({ projects = [], clients = [] }) {
                 <div className="card-container">
                     <div className="card-header">
                         <div className="card-title">
-                            <i className="fa-solid fa-layer-group"></i> Project
-                            Directory
+                            <i className="fa-solid fa-layer-group"></i> Project Directory
                         </div>
                         <button onClick={openCreateModal} className="add-btn">
                             + Add Project
                         </button>
                     </div>
 
-                    {/* ===== SAME ASSETS STYLE TOOLBAR ===== */}
                     <div className="table-toolbar">
                         <div className="show-entries">
                             Show 
-                            <select defaultValue="10">
-                                <option value="10">10</option>
-                                <option value="25">25</option>
-                                <option value="50">50</option>
+                            <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))}>
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
                             </select> 
                             entries
                         </div>
@@ -315,7 +294,7 @@ export default function Index({ projects = [], clients = [] }) {
                         <div className="search-box">
                             <input 
                                 type="text" 
-                                placeholder="Search clients..." 
+                                placeholder="Search projects..." 
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -336,53 +315,50 @@ export default function Index({ projects = [], clients = [] }) {
                             </thead>
 
                             <tbody>
-                                {projects.length > 0 ? (
-                                    projects.map((project, index) => (
+                                {(projects.data || projects).length > 0 ? (
+                                    (projects.data || projects).map((project, index) => (
                                         <tr key={project.id}>
-                                            <td>{index + 1}</td>
-                                            <td style={{ fontWeight: "600" }}>
+                                            <td>{projects.from ? projects.from + index : index + 1}</td>
+                                            <td style={{ fontWeight: "600", color: "#334155" }}>
                                                 {project.title}
                                             </td>
                                             <td>
                                                 {project.client?.name || "N/A"}
                                             </td>
-                                            <td>{project.deadline}</td>
+                                            <td>{project.deadline || "-"}</td>
                                             <td>
                                                 <span
                                                     className={`status-${
-                                                        project.status ===
-                                                        "completed"
+                                                        project.status === "completed"
                                                             ? "active"
-                                                            : project.status ===
-                                                                "on_hold"
-                                                              ? "inactive"
-                                                              : "pending"
+                                                            : project.status === "on_hold"
+                                                            ? "inactive"
+                                                            : "pending"
                                                     }`}
                                                 >
-                                                    {project.status
-                                                        .replace("_", " ")
-                                                        .toUpperCase()}
+                                                    {project.status.replace("_", " ").toUpperCase()}
                                                 </span>
                                             </td>
                                             <td>
                                                 <div className="action-btns">
                                                     <button
-                                                        onClick={() =>
-                                                            openEditModal(
-                                                                project,
-                                                            )
-                                                        }
+                                                        onClick={() => openViewModal(project)}
+                                                        className="icon-btn view"
+                                                        title="View"
+                                                    >
+                                                        <i className="fa-regular fa-eye"></i>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => openEditModal(project)}
                                                         className="icon-btn edit"
+                                                        title="Edit"
                                                     >
                                                         <i className="fa-regular fa-pen-to-square"></i>
                                                     </button>
                                                     <button
-                                                        onClick={() =>
-                                                            handleDelete(
-                                                                project.id,
-                                                            )
-                                                        }
+                                                        onClick={() => handleDelete(project.id)}
                                                         className="icon-btn delete"
+                                                        title="Delete"
                                                     >
                                                         <i className="fa-regular fa-trash-can"></i>
                                                     </button>
@@ -392,19 +368,62 @@ export default function Index({ projects = [], clients = [] }) {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td
-                                            colSpan="6"
-                                            style={{
-                                                textAlign: "center",
-                                                padding: "20px",
-                                            }}
-                                        >
+                                        <td colSpan="6" style={{ textAlign: "center", padding: "20px" }}>
                                             No projects found.
                                         </td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
+
+                        {/* Pagination Section */}
+                        {projects.links && (
+                            <div
+                                style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    marginTop: "20px",
+                                    padding: "15px 0",
+                                    borderTop: "1px solid #e5e7eb",
+                                }}
+                            >
+                                <div style={{ fontSize: "14px", color: "#6b7280" }}>
+                                    Showing <b>{projects.from ?? 0}</b> to <b>{projects.to ?? 0}</b> of{" "}
+                                    <b>{projects.total}</b> entries
+                                </div>
+
+                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                    <button
+                                        disabled={!projects.prev_page_url}
+                                        onClick={() => router.visit(projects.prev_page_url, { preserveState: true, preserveScroll: true })}
+                                        className="pagination-btn"
+                                    >
+                                        <i className="fas fa-chevron-left"></i>
+                                    </button>
+
+                                    {projects.links
+                                        .filter(link => link.label !== "&laquo; Previous" && link.label !== "Next &raquo;")
+                                        .map((link, index) => (
+                                            <button
+                                                key={index}
+                                                disabled={!link.url}
+                                                onClick={() => link.url && router.visit(link.url, { preserveState: true, preserveScroll: true })}
+                                                className={`pagination-btn ${link.active ? "active-page" : ""}`}
+                                                dangerouslySetInnerHTML={{ __html: link.label }}
+                                            />
+                                        ))}
+
+                                    <button
+                                        disabled={!projects.next_page_url}
+                                        onClick={() => router.visit(projects.next_page_url, { preserveState: true, preserveScroll: true })}
+                                        className="pagination-btn"
+                                    >
+                                        <i className="fas fa-chevron-right"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -412,166 +431,201 @@ export default function Index({ projects = [], clients = [] }) {
             {/* ===== MODAL ===== */}
             {showModal && (
                 <div className="modal-overlay">
-                    <div
-                        className="modal-content"
-                        style={{ maxWidth: "650px" }}
-                    >
-                        <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px', marginBottom: '15px' }}>
-                            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
-                                {editMode ? "Edit Project" : "Add New Project"}
+                    <div className="modal-content" style={{ maxWidth: "650px" }}>
+                        <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '15px', marginBottom: '20px' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600', color: '#1e293b' }}>
+                                {viewMode ? "Project Information" : editMode ? "Edit Project" : "Add New Project"}
                             </h3>
                             <button 
                                 type="button" 
                                 onClick={() => setShowModal(false)} 
-                                style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#6b7280' }}
+                                style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b', transition: 'color 0.2s' }}
+                                onMouseEnter={(e) => e.target.style.color = '#ef4444'}
+                                onMouseLeave={(e) => e.target.style.color = '#64748b'}
                                 title="Close"
                             >
                                 &times;
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit}>
-                            <div
-                                style={{
-                                    display: "grid",
-                                    gridTemplateColumns: "1fr 1fr",
-                                    gap: "15px",
-                                }}
-                            >
-                                <div className="form-group">
-                                    <label>Project Title *</label>
-                                    <input
-                                        type="text"
-                                        value={data.title}
-                                        onChange={(e) =>
-                                            setData("title", e.target.value)
-                                        }
-                                        className="form-control"
-                                        required
-                                    />
+                        {/* VIEW MODE LAYOUT */}
+                        {viewMode ? (
+                            <div className="view-details" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                                    <div>
+                                        <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Project Title</span>
+                                        <span style={{ display: 'block', fontSize: '15px', color: '#0f172a', fontWeight: '600' }}>{data.title || '-'}</span>
+                                    </div>
+                                    <div>
+                                        <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Client</span>
+                                        <span style={{ display: 'block', fontSize: '15px', color: '#0ea5e9', fontWeight: '500' }}>{data.client_name || '-'}</span>
+                                    </div>
+                                    <div>
+                                        <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Start Date</span>
+                                        <span style={{ display: 'block', fontSize: '15px', color: '#0f172a' }}>{data.start_date || '-'}</span>
+                                    </div>
+                                    <div>
+                                        <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Deadline</span>
+                                        <span style={{ display: 'block', fontSize: '15px', color: '#ef4444', fontWeight: '500' }}>{data.deadline || '-'}</span>
+                                    </div>
+                                    <div>
+                                        <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Budget</span>
+                                        <span style={{ display: 'block', fontSize: '15px', color: '#0f172a' }}>
+                                            {data.budget ? `TK. ${Number(data.budget).toLocaleString()}` : '-'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Status</span>
+                                        <span style={{ 
+                                            display: 'inline-block', 
+                                            padding: '4px 10px', 
+                                            borderRadius: '4px',
+                                            fontSize: '12px',
+                                            fontWeight: '600',
+                                            backgroundColor: data.status === "completed" ? '#dcfce7' : data.status === "on_hold" ? '#fee2e2' : '#e0f2fe',
+                                            color: data.status === "completed" ? '#166534' : data.status === "on_hold" ? '#991b1b' : '#075985'
+                                        }}>
+                                            {data.status ? data.status.replace("_", " ").toUpperCase() : '-'}
+                                        </span>
+                                    </div>
                                 </div>
 
-                                {/* ===== CLIENT SEARCHABLE ===== */}
-                                <div className="form-group">
-                                    <label>Client *</label>
-                                    <Select
-                                        options={clients.map((c) => ({
-                                            value: c.id,
-                                            label: c.name,
-                                        }))}
-                                        value={
-                                            clients
-                                                .map((c) => ({
-                                                    value: c.id,
-                                                    label: c.name,
-                                                }))
-                                                .find((opt) => Number(opt.value) === Number(data.client_id)) || null
-                                        }
-                                        onChange={(selected) =>
-                                            setData("client_id", selected ? selected.value : "")
-                                        }
-                                        placeholder="Search & Select Client"
-                                        isSearchable={true}
-                                        isClearable
-                                        styles={selectStyles}
-                                    />
+                                <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '20px', marginTop: '4px' }}>
+                                    <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Description</span>
+                                    <span style={{ display: 'block', fontSize: '14px', color: '#334155', lineHeight: '1.6', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '6px', border: '1px solid #e2e8f0', minHeight: '80px' }}>
+                                        {data.description || 'No description provided for this project.'}
+                                    </span>
                                 </div>
 
-                                <div className="form-group">
-                                    <label>Start Date</label>
-                                    <input
-                                        type="date"
-                                        value={data.start_date}
-                                        onChange={(e) =>
-                                            setData(
-                                                "start_date",
-                                                e.target.value,
-                                            )
-                                        }
-                                        className="form-control"
-                                    />
-                                </div>
-
-                                <div className="form-group">
-                                    <label>Deadline *</label>
-                                    <input
-                                        type="date"
-                                        value={data.deadline}
-                                        onChange={(e) =>
-                                            setData("deadline", e.target.value)
-                                        }
-                                        className="form-control"
-                                        required
-                                    />
-                                </div>
-
-                                <div className="form-group">
-                                    <label>Budget</label>
-                                    <input
-                                        type="number"
-                                        value={data.budget}
-                                        onChange={(e) =>
-                                            setData("budget", e.target.value)
-                                        }
-                                        className="form-control"
-                                    />
-                                </div>
-
-                                <div className="form-group">
-                                    <label>Status *</label>
-                                    <select
-                                        value={data.status}
-                                        onChange={(e) =>
-                                            setData("status", e.target.value)
-                                        }
-                                        className="form-control"
-                                        required
+                                <div className="modal-footer" style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end', paddingTop: '15px', borderTop: '1px solid #e5e7eb' }}>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setShowModal(false)} 
+                                        style={{ padding: '6px 16px', backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.2s' }}
+                                        onMouseEnter={(e) => { e.target.style.backgroundColor = '#e2e8f0'; e.target.style.color = '#0f172a'; }}
+                                        onMouseLeave={(e) => { e.target.style.backgroundColor = '#f1f5f9'; e.target.style.color = '#475569'; }}
                                     >
-                                        <option value="planning">
-                                            Planning
-                                        </option>
-                                        <option value="in_progress">
-                                            In Progress
-                                        </option>
-                                        <option value="completed">
-                                            Completed
-                                        </option>
-                                        <option value="on_hold">On Hold</option>
-                                    </select>
+                                        Close 
+                                    </button>
                                 </div>
                             </div>
+                        ) : (
+                            /* ADD / EDIT FORM */
+                            <form onSubmit={handleSubmit}>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
+                                    <div className="form-group">
+                                        <label style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>Project Title *</label>
+                                        <input
+                                            type="text"
+                                            value={data.title}
+                                            onChange={(e) => setData("title", e.target.value)}
+                                            className="form-control"
+                                            required
+                                        />
+                                        {errors.title && <p className="error-text" style={{ color: "red", fontSize: "12px", marginTop: "4px" }}>{errors.title}</p>}
+                                    </div>
 
-                            <div
-                                className="form-group"
-                                style={{ marginTop: "15px" }}
-                            >
-                                <label>Description</label>
-                                <textarea
-                                    value={data.description}
-                                    onChange={(e) =>
-                                        setData("description", e.target.value)
-                                    }
-                                    className="form-control"
-                                    rows="3"
-                                />
-                            </div>
+                                    <div className="form-group">
+                                        <label style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>Client *</label>
+                                        <Select
+                                            options={clients.map((c) => ({
+                                                value: c.id,
+                                                label: c.name,
+                                            }))}
+                                            value={
+                                                clients
+                                                    .map((c) => ({
+                                                        value: c.id,
+                                                        label: c.name,
+                                                    }))
+                                                    .find((opt) => Number(opt.value) === Number(data.client_id)) || null
+                                            }
+                                            onChange={(selected) =>
+                                                setData("client_id", selected ? selected.value : "")
+                                            }
+                                            placeholder="Search & Select Client"
+                                            isSearchable={true}
+                                            isClearable
+                                            styles={selectStyles}
+                                        />
+                                        {errors.client_id && <p className="error-text" style={{ color: "red", fontSize: "12px", marginTop: "4px" }}>{errors.client_id}</p>}
+                                    </div>
 
-                            <div
-                                className="modal-footer"
-                                style={{ marginTop: "20px" }}
-                            >
-                                <button
-                                    type="button"
-                                    onClick={() => setShowModal(false)}
-                                    className="btn-cancel"
-                                >
-                                    Cancel
-                                </button>
-                                <button type="submit" className="btn-save">
-                                    Save Project
-                                </button>
-                            </div>
-                        </form>
+                                    <div className="form-group">
+                                        <label style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>Start Date</label>
+                                        <input
+                                            type="date"
+                                            value={data.start_date}
+                                            onChange={(e) => setData("start_date", e.target.value)}
+                                            className="form-control"
+                                        />
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>Deadline *</label>
+                                        <input
+                                            type="date"
+                                            value={data.deadline}
+                                            onChange={(e) => setData("deadline", e.target.value)}
+                                            className="form-control"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>Budget</label>
+                                        <input
+                                            type="number"
+                                            value={data.budget}
+                                            onChange={(e) => setData("budget", e.target.value)}
+                                            className="form-control"
+                                        />
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>Status *</label>
+                                        <select
+                                            value={data.status}
+                                            onChange={(e) => setData("status", e.target.value)}
+                                            className="form-control"
+                                            required
+                                        >
+                                            <option value="planning">Planning</option>
+                                            <option value="in_progress">In Progress</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="on_hold">On Hold</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="form-group" style={{ marginTop: "15px" }}>
+                                    <label style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>Description</label>
+                                    <textarea
+                                        value={data.description}
+                                        onChange={(e) => setData("description", e.target.value)}
+                                        className="form-control"
+                                        rows="3"
+                                    />
+                                </div>
+
+                                <div className="modal-footer" style={{ marginTop: '25px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowModal(false)}
+                                        style={{ padding: '8px 16px', backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '6px', fontWeight: '500', cursor: 'pointer' }}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button 
+                                        type="submit" 
+                                        disabled={processing}
+                                        style={{ padding: '8px 16px', backgroundColor: '#0f172a', color: 'white', border: 'none', borderRadius: '6px', fontWeight: '500', cursor: 'pointer' }}
+                                    >
+                                        {processing ? 'Saving...' : 'Save Project'}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
                     </div>
                 </div>
             )}

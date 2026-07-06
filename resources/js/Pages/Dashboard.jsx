@@ -9,21 +9,21 @@ export default function Dashboard({
         activeProjects: 12,
         pendingTasks: 28,
         unpaidInvoices: 5,
-        monthlyRevenue: 24500, // Update: totalRevenue changed to monthlyRevenue
+        monthlyRevenue: 24500,
         monthlyExpenses: 3200,
         pendingLeaves: 3,
         pendingRequisitions: 4,
         totalInvestment: 500000, 
         totalClients: 18,
-        // --- New Financial Stats ---
         totalBalance: 150000,
         cashBalance: 25000,
         bankBalance: 125000,
-        totalProjectDue: 15000
+        totalProjectDue: 15000,
+        totalClientDue: 35000 // --- New Data: Accounts Receivable ---
     },
     recentNotices = [],
     recentTasks = [],
-    recentTransactions = [] // --- New Prop for Transactions ---
+    recentTransactions = []
 }) {
     return (
         <AdminLayout>
@@ -41,15 +41,15 @@ export default function Dashboard({
                     </div>
                 </div>
                 
-                {/* --- NEW Section: Accounts & Balances --- */}
-                <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Accounts & Balances</h2>
+                {/* --- Row 1: Accounts & Assets --- */}
+                <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Accounts & Assets</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
                     
                     <div className="bg-white p-5 rounded-lg border shadow-sm flex items-center justify-between">
                         <div>
                             <h3 className="text-sm text-gray-500 font-medium">Total Available Balance</h3>
                             <p className="text-2xl font-bold mt-1 text-blue-700">
-                                <span className="text-sm font-semibold mr-1">BDT</span>
+                                <span className="text-sm font-semibold mr-1">TK.</span>
                                 {(stats.totalBalance || 0).toLocaleString('en-IN')}
                             </p>
                         </div>
@@ -62,7 +62,7 @@ export default function Dashboard({
                         <div>
                             <h3 className="text-sm text-gray-500 font-medium">Cash in Hand</h3>
                             <p className="text-2xl font-bold mt-1 text-green-600">
-                                <span className="text-sm font-semibold mr-1">BDT</span>
+                                <span className="text-sm font-semibold mr-1">TK.</span>
                                 {(stats.cashBalance || 0).toLocaleString('en-IN')}
                             </p>
                         </div>
@@ -75,7 +75,7 @@ export default function Dashboard({
                         <div>
                             <h3 className="text-sm text-gray-500 font-medium">Bank & Mobile Banking</h3>
                             <p className="text-2xl font-bold mt-1 text-teal-600">
-                                <span className="text-sm font-semibold mr-1">BDT</span>
+                                <span className="text-sm font-semibold mr-1">TK.</span>
                                 {(stats.bankBalance || 0).toLocaleString('en-IN')}
                             </p>
                         </div>
@@ -86,27 +86,9 @@ export default function Dashboard({
 
                     <div className="bg-white p-5 rounded-lg border shadow-sm flex items-center justify-between">
                         <div>
-                            <h3 className="text-sm text-gray-500 font-medium">Project Payables (Due)</h3>
-                            <p className="text-2xl font-bold mt-1 text-red-600">
-                                <span className="text-sm font-semibold mr-1">BDT</span>
-                                {(stats.totalProjectDue || 0).toLocaleString('en-IN')}
-                            </p>
-                        </div>
-                        <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center text-xl">
-                            <i className="fa-solid fa-hand-holding-dollar"></i>
-                        </div>
-                    </div>
-                </div>
-
-                {/* --- Section 1: Finance & Investments (Updated) --- */}
-                <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Revenue & Expenses</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-                    
-                    <div className="bg-white p-5 rounded-lg border shadow-sm flex items-center justify-between">
-                        <div>
                             <h3 className="text-sm text-gray-500 font-medium">Total Capital / Invest</h3>
                             <p className="text-2xl font-bold mt-1 text-indigo-700">
-                                <span className="text-sm font-semibold mr-1">BDT</span>
+                                <span className="text-sm font-semibold mr-1">TK.</span>
                                 {(stats.totalInvestment || 0).toLocaleString('en-IN')}
                             </p>
                         </div>
@@ -114,16 +96,21 @@ export default function Dashboard({
                             <i className="fa-solid fa-sack-dollar"></i>
                         </div>
                     </div>
+                </div>
 
+                {/* --- Row 2: Finance, Dues & Payables --- */}
+                <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Finance, Dues & Payables</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+                    
                     <div className="bg-white p-5 rounded-lg border shadow-sm flex items-center justify-between">
                         <div>
                             <h3 className="text-sm text-gray-500 font-medium">Monthly Revenue</h3>
-                            <p className="text-2xl font-bold mt-1 text-green-700">
-                                <span className="text-sm font-semibold mr-1">BDT</span>
+                            <p className="text-2xl font-bold mt-1 text-emerald-600">
+                                <span className="text-sm font-semibold mr-1">TK.</span>
                                 {(stats.monthlyRevenue || 0).toLocaleString('en-IN')}
                             </p>
                         </div>
-                        <div className="w-12 h-12 rounded-full bg-green-50 text-green-600 flex items-center justify-center text-xl">
+                        <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
                             <i className="fa-solid fa-chart-line"></i>
                         </div>
                     </div>
@@ -132,7 +119,7 @@ export default function Dashboard({
                         <div>
                             <h3 className="text-sm text-gray-500 font-medium">Monthly Expenses</h3>
                             <p className="text-2xl font-bold mt-1 text-orange-600">
-                                <span className="text-sm font-semibold mr-1">BDT</span>
+                                <span className="text-sm font-semibold mr-1">TK.</span>
                                 {(stats.monthlyExpenses || 0).toLocaleString('en-IN')}
                             </p>
                         </div>
@@ -141,18 +128,38 @@ export default function Dashboard({
                         </div>
                     </div>
 
+                    {/* NEW: Accounts Receivable */}
                     <div className="bg-white p-5 rounded-lg border shadow-sm flex items-center justify-between">
                         <div>
-                            <h3 className="text-sm text-gray-500 font-medium">Unpaid Invoices</h3>
-                            <p className="text-2xl font-bold mt-1 text-rose-600">{stats.unpaidInvoices}</p>
+                            <h3 className="text-sm text-gray-500 font-medium">Client Dues (Receivable)</h3>
+                            <p className="text-2xl font-bold mt-1 text-blue-600">
+                                <span className="text-sm font-semibold mr-1">TK.</span>
+                                {(stats.totalClientDue || 0).toLocaleString('en-IN')}
+                            </p>
+                            <p className="text-xs text-rose-500 font-semibold mt-1">{stats.unpaidInvoices} Unpaid Invoices</p>
+                        </div>
+                        <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
+                            <i className="fa-solid fa-file-invoice-dollar"></i>
+                        </div>
+                    </div>
+
+                    {/* MOVED: Accounts Payable */}
+                    <div className="bg-white p-5 rounded-lg border shadow-sm flex items-center justify-between">
+                        <div>
+                            <h3 className="text-sm text-gray-500 font-medium">Vendor Dues (Payable)</h3>
+                            <p className="text-2xl font-bold mt-1 text-rose-600">
+                                <span className="text-sm font-semibold mr-1">TK.</span>
+                                {(stats.totalProjectDue || 0).toLocaleString('en-IN')}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">To be paid</p>
                         </div>
                         <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xl">
-                            <i className="fa-solid fa-file-invoice-dollar"></i>
+                            <i className="fa-solid fa-hand-holding-dollar"></i>
                         </div>
                     </div>
                 </div>
 
-                {/* --- Section 2 & 3 Combined: CRM, Projects & HR --- */}
+                {/* --- Row 3: Operations & HR --- */}
                 <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Operations & HR</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
                     <div className="bg-white p-5 rounded-lg border shadow-sm flex items-center justify-between">
@@ -160,7 +167,7 @@ export default function Dashboard({
                             <h3 className="text-sm text-gray-500 font-medium">Active Projects</h3>
                             <p className="text-2xl font-bold mt-1 text-[#202223]">{stats.activeProjects}</p>
                         </div>
-                        <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
+                        <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xl">
                             <i className="fa-solid fa-layer-group"></i>
                         </div>
                     </div>
@@ -170,7 +177,7 @@ export default function Dashboard({
                             <h3 className="text-sm text-gray-500 font-medium">Total Clients</h3>
                             <p className="text-2xl font-bold mt-1 text-[#202223]">{stats.totalClients}</p>
                         </div>
-                        <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl">
+                        <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xl">
                             <i className="fa-solid fa-users-line"></i>
                         </div>
                     </div>
@@ -182,7 +189,7 @@ export default function Dashboard({
                                 {stats.presentToday} <span className="text-sm font-normal text-gray-400">/ {stats.totalEmployees}</span>
                             </p>
                         </div>
-                        <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+                        <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xl">
                             <i className="fa-solid fa-user-check"></i>
                         </div>
                     </div>
@@ -194,18 +201,18 @@ export default function Dashboard({
                                 {stats.pendingRequisitions} <span className="text-sm font-normal text-yellow-600">Pending</span>
                             </p>
                         </div>
-                        <div className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-xl">
+                        <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xl">
                             <i className="fa-solid fa-clipboard-list"></i>
                         </div>
                     </div>
                 </div>
 
-                {/* --- Section 4: Lists & Activity (New Layout) --- */}
+                {/* --- Section 4: Lists & Activity --- */}
                 <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Recent Activities</h2>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     
-                    {/* Left Column: Recent Transactions (Takes up 2 columns space on large screens) */}
+                    {/* Left Column: Recent Transactions */}
                     <div className="lg:col-span-2 bg-white rounded-lg border shadow-sm flex flex-col">
                         <div className="px-5 py-4 border-b flex justify-between items-center">
                             <h3 className="font-bold text-[#202223]"><i className="fa-solid fa-arrow-right-arrow-left text-gray-400 mr-2"></i> Recent Transactions</h3>
@@ -229,7 +236,7 @@ export default function Dashboard({
                                                 <td className="px-4 py-3 text-sm font-medium text-gray-800">{trx.account?.name || '-'}</td>
                                                 <td className="px-4 py-3 text-sm text-gray-600 truncate max-w-[200px]">{trx.description}</td>
                                                 <td className={`px-4 py-3 text-sm font-bold text-right ${trx.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
-                                                    {trx.type === 'credit' ? '+' : '-'} {parseFloat(trx.amount).toLocaleString('en-IN')}
+                                                    {trx.type === 'credit' ? '+' : '-'}TK. {parseFloat(trx.amount).toLocaleString('en-IN')}
                                                 </td>
                                             </tr>
                                         ))

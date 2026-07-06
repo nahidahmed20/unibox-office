@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Invoice;
 use App\Models\Client;
+use App\Models\Invoice;
 use App\Models\Project;
+use App\Models\ProjectExpense;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class InvoiceController extends Controller
@@ -92,4 +94,32 @@ class InvoiceController extends Controller
             'invoice' => $invoice
         ]);
     }
+
+    public function clientDuesReport()
+    {
+        $clientsWithDues = Client::with(['invoices' => function($query) {
+            $query->withSum('payments', 'amount');
+        }])->get()->map(function($client) {
+            
+            $totalDue = 0;
+            foreach ($client->invoices as $invoice) {
+                $paid = $invoice->payments_sum_amount ?? 0;
+                $due = $invoice->grand_total - $paid;
+                if ($due > 0) {
+                    $totalDue += $due;
+                }
+            }
+            $client->total_due = $totalDue;
+            return $client;
+        })->filter(function($client) {
+            return $client->total_due > 0;
+        })->values();
+
+        // React Component-e data pass kora
+        return Inertia::render('Admin/Reports/ClientDues', [
+            'clientsWithDues' => $clientsWithDues
+        ]);
+    }
+
+    
 }

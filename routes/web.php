@@ -5,6 +5,7 @@ use App\Http\Controllers\AdvanceController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DesignationController;
 use App\Http\Controllers\EmployeeProfileController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\InvestmentController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\InvoicePaymentController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\PermissionController;
@@ -32,35 +34,9 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard', [
-        'stats' => [
-            'totalEmployees' => \App\Models\EmployeeProfile::count(),
-            'presentToday' => \App\Models\Attendance::whereDate('date', today())->where('status', 'present')->count(),
-            'activeProjects' => \App\Models\Project::where('status', 'in_progress')->count(),
-            'pendingTasks' => \App\Models\Task::whereIn('status', ['todo', 'in_progress'])->count(),
-            'unpaidInvoices' => \App\Models\Invoice::whereIn('status', ['unpaid', 'overdue'])->count(),
-            'totalRevenue' => \App\Models\Invoice::where('status', 'paid')->sum('grand_total'),
-            'monthlyExpenses' => \App\Models\Expense::whereMonth('date', now()->month)->sum('amount'),
-            'pendingLeaves' => \App\Models\Leave::where('status', 'pending')->count(),
-            'pendingRequisitions' => \App\Models\Requisition::where('status', 'pending')->count(),
-            'totalInvestment' => \App\Models\Investment::sum('amount'), 
-            'totalClients' => \App\Models\Client::count(),
-            'totalBalance' => \App\Models\Account::where('is_active', true)->sum('current_balance'),
-            'cashBalance' => \App\Models\Account::where('type', 'cash')->where('is_active', true)->sum('current_balance'),
-            'bankBalance' => \App\Models\Account::whereIn('type', ['bank', 'mobile_banking'])->where('is_active', true)->sum('current_balance'),
-            'totalProjectDue' => \App\Models\ProjectExpense::sum('due_amount'),
-            'monthlyRevenue' => \App\Models\Invoice::where('status', 'paid')->whereMonth('created_at', now()->month)->sum('grand_total'),
-        ],
-        'recentNotices' => \App\Models\Notice::where('is_active', true)->latest()->take(3)->get(),
-        'recentTasks' => \App\Models\Task::whereIn('status', ['todo', 'in_progress'])->latest()->take(4)->get(),
-        'recentTransactions' => \App\Models\Transaction::with('account')
-            ->latest('transaction_date')
-            ->latest('id')
-            ->take(5)
-            ->get(),
-    ]);
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     
@@ -81,7 +57,12 @@ Route::middleware('auth')->group(function () {
     Route::resource('tasks', TaskController::class)->names('admin.tasks');
 
     // 2. Finance & Accounts
+    Route::get('client-dues', [InvoiceController::class, 'clientDuesReport'])->name('admin.client-dues');
+    Route::get('vendor-dues', [ProjectExpenseController::class, 'vendorDuesReport'])->name('admin.vendor-dues');
+
     Route::resource('invoices', InvoiceController::class)->names('admin.invoices');
+    Route::resource('invoice-payments', InvoicePaymentController::class)->names('invoice-payments');
+
     Route::resource('expenses', ExpenseController::class)->names('admin.expenses');
     Route::resource('project-expenses', ProjectExpenseController::class)->names('admin.project-expenses');
     Route::resource('expense-categories', ExpenseCategoryController::class)->names('admin.expense-categories');

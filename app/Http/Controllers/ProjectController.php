@@ -11,21 +11,20 @@ class ProjectController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Project::with('client'); // Relation load kora holo
+        $query = Project::with('client'); 
 
-        // Live Search Logic
         if ($request->has('search') && $request->search != '') {
             $searchTerm = $request->search;
             $query->where('title', 'like', "%{$searchTerm}%")
-                  ->orWhere('status', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('client', function($q) use ($searchTerm) {
-                      $q->where('name', 'like', "%{$searchTerm}%");
-                  });
+                ->orWhere('status', 'like', "%{$searchTerm}%")
+                ->orWhereHas('client', function($q) use ($searchTerm) {
+                    $q->where('name', 'like', "%{$searchTerm}%");
+                });
         }
 
-        $projects = $query->latest()->get(); 
-        
-        // Modal e client select korar jonno clients der list pathano holo
+        $perPage = $request->get('per_page', 10);
+        $projects = $query->latest()->paginate($perPage)->withQueryString(); 
+
         $clients = Client::select('id', 'name')->latest()->get();
 
         return Inertia::render('Admin/Projects/Index', [
