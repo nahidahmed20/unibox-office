@@ -13,22 +13,35 @@ class AssetController extends Controller
     {
         $query = Asset::with('assignee');
 
-        if ($request->has('search') && $request->search != '') {
+        // Search Logic
+        if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where('name', 'like', "%{$searchTerm}%")
-                  ->orWhere('asset_code', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('assignee', function($q) use ($searchTerm) {
-                      $q->where('name', 'like', "%{$searchTerm}%");
-                  });
+
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%")
+                ->orWhere('asset_code', 'like', "%{$searchTerm}%")
+                ->orWhereHas('assignee', function ($aq) use ($searchTerm) {
+                    $aq->where('name', 'like', "%{$searchTerm}%");
+                });
+            });
         }
 
-        $assets = $query->latest()->get(); 
-        $users = User::select('id', 'name')->get();
+        // Pagination
+        $perPage = $request->input('per_page', 10);
+
+        $assets = $query
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $users = User::select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('Admin/Assets/Index', [
-            'assets' => $assets,
-            'users'  => $users,
-            'filters' => $request->only('search')
+            'assets'  => $assets,
+            'users'   => $users,
+            'filters' => $request->only('search', 'per_page'),
         ]);
     }
 

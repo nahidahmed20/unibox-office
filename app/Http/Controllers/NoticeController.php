@@ -12,13 +12,29 @@ class NoticeController extends Controller
     {
         $query = Notice::with('creator');
 
-        if ($request->has('search') && $request->search != '') {
-            $query->where('title', 'like', "%{$request->search}%");
+        // Search Logic
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('title', 'like', "%{$searchTerm}%")
+                ->orWhereHas('creator', function ($cq) use ($searchTerm) {
+                    $cq->where('name', 'like', "%{$searchTerm}%");
+                });
+            });
         }
 
+        // Pagination
+        $perPage = $request->input('per_page', 10);
+
+        $notices = $query
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
+
         return Inertia::render('Admin/Notices/Index', [
-            'notices' => $query->latest()->get(),
-            'filters' => $request->only('search')
+            'notices' => $notices,
+            'filters' => $request->only('search', 'per_page'),
         ]);
     }
 

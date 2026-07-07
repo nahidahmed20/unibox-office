@@ -9,9 +9,30 @@ use Inertia\Inertia;
 
 class PermissionController extends Controller
 {
-    public function index() {
+    public function index(Request $request)
+    {
+        $query = Permission::query();
+
+        // Search Logic
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        // Pagination
+        $perPage = $request->input('per_page', 10);
+
+        $permissions = $query
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
+
         return Inertia::render('Admin/Permissions/Index', [
-            'permissions' => Permission::latest()->get()
+            'permissions' => $permissions,
+            'filters' => $request->only('search', 'per_page'),
         ]);
     }
 

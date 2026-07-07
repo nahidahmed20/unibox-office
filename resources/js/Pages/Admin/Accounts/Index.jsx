@@ -283,7 +283,7 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
                             {/* Total Balance (Always Visible) */}
                             <div style={{ fontWeight: "700", color: "#15803d", fontSize: "1rem", background: "#dcfce7", padding: "8px 20px", borderRadius: "50px", border: "1px solid #bbf7d0" }}>
-                                Total Net Balance: ৳ {Number(totalBalance ?? 0).toLocaleString('en-IN')}
+                                Total Net Balance: TK. {Number(totalBalance ?? 0).toLocaleString('en-IN')}
                             </div>
 
                             {/* Pagination Links */}

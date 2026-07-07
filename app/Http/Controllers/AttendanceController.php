@@ -12,23 +12,29 @@ class AttendanceController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Attendance::with('user');
+        $query = Attendance::with(['user:id,name']);
 
-        if ($request->has('search') && $request->search != '') {
+        // Search functionality
+        if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where('date', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('user', function($q) use ($searchTerm) {
-                      $q->where('name', 'like', "%{$searchTerm}%");
-                  });
+                ->orWhereHas('user', function($q) use ($searchTerm) {
+                    $q->where('name', 'like', "%{$searchTerm}%");
+                });
         }
 
-        $attendances = $query->orderBy('date', 'desc')->get(); 
-        $users = User::select('id', 'name')->get();
+        $perPage = $request->input('per_page', 25);
+        
+        $attendances = $query->orderBy('date', 'desc')
+                            ->paginate($perPage)
+                            ->withQueryString(); 
+
+        $users = User::select('id', 'name')->orderBy('name', 'asc')->get();
 
         return Inertia::render('Admin/Attendances/Index', [
             'attendances' => $attendances,
             'users'       => $users,
-            'filters'     => $request->only('search')
+            'filters'     => $request->only('search', 'per_page')
         ]);
     }
 

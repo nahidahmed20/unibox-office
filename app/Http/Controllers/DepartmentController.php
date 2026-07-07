@@ -10,15 +10,19 @@ class DepartmentController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Department::query();
+        $perPage = $request->input('per_page', 10);
 
-        if ($request->has('search') && $request->search != '') {
-            $query->where('name', 'like', "%{$request->search}%");
-        }
+        $departments = Department::query()
+            ->when($request->search, function ($query, $search) {
+                $query->where('name', 'like', "%{$search}%");
+            })
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString(); 
 
         return Inertia::render('Admin/Departments/Index', [
-            'departments' => $query->latest()->get(),
-            'filters'     => $request->only('search')
+            'departments' => $departments,
+            'filters'     => $request->only(['search', 'per_page'])
         ]);
     }
 

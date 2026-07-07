@@ -72,7 +72,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
         
         const header = "SL\tDate\tInvoice\tClient\tAccount\tAmount\n";
         const text = paymentList
-            .map((payment, idx) => `${idx + 1}\t${payment.payment_date}\tINV-00${payment.invoice_id}\t${payment.invoice?.client?.name || "N/A"}\t${payment.account?.name || "N/A"}\t৳${parseFloat(payment.amount).toFixed(2)}`)
+            .map((payment, idx) => `${idx + 1}\t${payment.payment_date}\tINV-00${payment.invoice_id}\t${payment.invoice?.client?.name || "N/A"}\t${payment.account?.name || "N/A"}\tTK. ${parseFloat(payment.amount).toLocaleString('en-IN')}`)
             .join("\n");
             
         navigator.clipboard.writeText(header + text);
@@ -83,7 +83,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
         if (!paymentList.length) return Swal.fire("Empty!", "No data to export", "warning");
         
         const headers = ["SL,Date,Invoice,Client,Account,Amount\n"];
-        const rows = paymentList.map((payment, idx) => `"${idx + 1}","${payment.payment_date}","INV-00${payment.invoice_id}","${payment.invoice?.client?.name || "N/A"}","${payment.account?.name || "N/A"}","${payment.amount}"`);
+        const rows = paymentList.map((payment, idx) => `"${idx + 1}","${payment.payment_date}","INV-00${payment.invoice_id}","${payment.invoice?.client?.name || "N/A"}","${payment.account?.name || "N/A"}","TK. ${parseFloat(payment.amount).toLocaleString('en-IN')}"`);
         
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
@@ -249,7 +249,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                                                 {payment.account?.name || "N/A"}
                                             </span>
                                         </td>
-                                        <td style={{ padding: "16px 24px", color: "#16a34a", fontWeight: "700", fontSize: "0.95rem" }}>৳ {payment.amount}</td>
+                                        <td style={{ padding: "16px 24px", color: "#16a34a", fontWeight: "700", fontSize: "0.95rem" }}>TK. {parseFloat(payment.amount).toLocaleString('en-IN')}</td>
                                         <td style={{ padding: "16px 24px", textAlign: "right" }}>
                                             <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
                                                 <button onClick={() => openShowModal(payment)} style={{ border: "none", background: "#f0f5ff", color: "#2563eb", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }}><i className="fa-regular fa-eye"></i></button>
@@ -301,7 +301,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                                     <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Select Invoice *</label>
                                     <select value={data.invoice_id} onChange={(e) => setData("invoice_id", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }} required>
                                         <option value="">-- Select Invoice --</option>
-                                        {invoices.map((inv) => <option key={inv.id} value={inv.id}>INV-00{inv.id} ({inv.client?.name}) - ৳{inv.grand_total}</option>)}
+                                        {invoices.map((inv) => <option key={inv.id} value={inv.id}>INV-00{inv.id} ({inv.client?.name}) - TK. {parseFloat(inv.grand_total).toLocaleString('en-IN')}</option>)}
                                     </select>
                                     {errors.invoice_id && <span style={{ color: "#ef4444", fontSize: "0.75rem", display: "block" }}>{errors.invoice_id}</span>}
                                 </div>
@@ -309,14 +309,14 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                                     <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Receive In (Account) *</label>
                                     <select value={data.account_id} onChange={(e) => setData("account_id", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }} required>
                                         <option value="">-- Select Account --</option>
-                                        {accounts.map((acc) => <option key={acc.id} value={acc.id}>{acc.name} (Bal: ৳{acc.current_balance})</option>)}
+                                        {accounts.map((acc) => <option key={acc.id} value={acc.id}>{acc.name} (Bal: TK. {parseFloat(acc.current_balance).toLocaleString('en-IN')})</option>)}
                                     </select>
                                     {errors.account_id && <span style={{ color: "#ef4444", fontSize: "0.75rem", display: "block" }}>{errors.account_id}</span>}
                                 </div>
                             </div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px" }}>
                                 <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount (৳) *</label>
+                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount (TK.) *</label>
                                     <input type="number" step="0.01" value={data.amount} onChange={(e) => setData("amount", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }} required />
                                     {errors.amount && <span style={{ color: "#ef4444", fontSize: "0.75rem", display: "block" }}>{errors.amount}</span>}
                                 </div>
@@ -355,7 +355,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                                 <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #e2e8f0", paddingBottom: "8px" }}><span style={{ color: "#64748b", fontWeight: "500" }}>Payment Date:</span><span style={{ color: "#0f172a", fontWeight: "600" }}>{selectedPayment.payment_date}</span></div>
                                 <div style={{ background: "#f0fdf4", padding: "16px", borderRadius: "8px", border: "1px solid #bbf7d0", marginTop: "12px", textAlign: "center" }}>
                                     <p style={{ color: "#166534", fontWeight: "600", margin: "0 0 4px 0", fontSize: "0.815rem", textTransform: "uppercase" }}>Total Received Amount</p>
-                                    <p style={{ fontSize: "1.75rem", fontWeight: "800", color: "#16a34a", margin: 0 }}>৳ {selectedPayment.amount}</p>
+                                    <p style={{ fontSize: "1.75rem", fontWeight: "800", color: "#16a34a", margin: 0 }}>TK. {parseFloat(selectedPayment.amount).toLocaleString('en-IN')}</p>
                                 </div>
                             </div>
                             <div style={{ marginTop: '24px' }}>

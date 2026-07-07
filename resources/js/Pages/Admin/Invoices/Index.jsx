@@ -277,7 +277,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                                 <div style={{ fontSize: '0.85rem', color: '#dc2626', marginTop: '2px' }}>Due: {inv.due_date}</div>
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '700', color: '#0f172a' }}>
-                                                ৳ {parseFloat(inv.grand_total).toLocaleString('en-IN')}
+                                                TK. {parseFloat(inv.grand_total).toLocaleString('en-IN')}
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: 'center' }}>
                                                 <span className={getStatusBadge(inv.status)} style={{ padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "600", textTransform: "uppercase" }}>
@@ -387,15 +387,15 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
                                 <div>
                                     <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>Sub Total</span>
-                                    <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#334155' }}>৳ {parseFloat(selectedInvoice.sub_total).toLocaleString('en-IN')}</div>
+                                    <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#334155' }}>TK. {parseFloat(selectedInvoice.sub_total).toLocaleString('en-IN')}</div>
                                 </div>
                                 <div>
                                     <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>Tax / Discount</span>
-                                    <div style={{ fontSize: '14px', fontWeight: '600', color: '#475569' }}>T: {selectedInvoice.tax}% | D: ৳{selectedInvoice.discount}</div>
+                                    <div style={{ fontSize: '14px', fontWeight: '600', color: '#475569' }}>T: {selectedInvoice.tax}% | D: TK. {parseFloat(selectedInvoice.discount).toLocaleString('en-IN')}</div>
                                 </div>
                                 <div>
                                     <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>Grand Total</span>
-                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#16a34a' }}>৳ {parseFloat(selectedInvoice.grand_total).toLocaleString('en-IN')}</div>
+                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#16a34a' }}>TK. {parseFloat(selectedInvoice.grand_total).toLocaleString('en-IN')}</div>
                                 </div>
                             </div>
 

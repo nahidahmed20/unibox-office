@@ -13,18 +13,32 @@ class LeaveController extends Controller
     {
         $query = Leave::with(['user', 'approver']);
 
-        if ($request->has('search') && $request->search != '') {
+        // Search Logic
+        if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where('type', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('user', function($q) use ($searchTerm) {
-                      $q->where('name', 'like', "%{$searchTerm}%");
-                  });
+
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('type', 'like', "%{$searchTerm}%")
+                ->orWhereHas('user', function ($uq) use ($searchTerm) {
+                    $uq->where('name', 'like', "%{$searchTerm}%");
+                });
+            });
         }
 
+        // Pagination
+        $perPage = $request->input('per_page', 10);
+
+        $leaves = $query
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $users = User::select('id', 'name')->get();
+
         return Inertia::render('Admin/Leaves/Index', [
-            'leaves'  => $query->latest()->get(),
-            'users'   => User::select('id', 'name')->get(),
-            'filters' => $request->only('search')
+            'leaves'  => $leaves,
+            'users'   => $users,
+            'filters' => $request->only('search', 'per_page'),
         ]);
     }
 

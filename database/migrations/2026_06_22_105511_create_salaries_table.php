@@ -21,6 +21,7 @@ return new class extends Migration
             $table->decimal('deductions', 10, 2)->default(0);
             $table->decimal('net_pay', 10, 2);
             $table->enum('status', ['paid', 'unpaid'])->default('unpaid');
+            $table->unsignedBigInteger('account_id')->nullable();
             $table->date('payment_date')->nullable();
             $table->string('payment_method')->nullable(); 
             $table->timestamps();

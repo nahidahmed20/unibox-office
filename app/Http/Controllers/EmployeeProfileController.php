@@ -15,20 +15,24 @@ class EmployeeProfileController extends Controller
     {
         $query = EmployeeProfile::with(['user', 'department', 'designation']);
 
-        if ($request->has('search') && $request->search != '') {
+        if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where('employee_id_code', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('user', function($q) use ($searchTerm) {
-                      $q->where('name', 'like', "%{$searchTerm}%");
-                  });
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('employee_id_code', 'like', "%{$searchTerm}%")
+                ->orWhereHas('user', function($userQuery) use ($searchTerm) {
+                    $userQuery->where('name', 'like', "%{$searchTerm}%");
+                });
+            });
         }
 
+        $perPage = $request->input('per_page', 10);
+
         return Inertia::render('Admin/Employees/Index', [
-            'employees'    => $query->latest()->get(),
+            'employees'    => $query->latest()->paginate($perPage)->withQueryString(),
             'users'        => User::select('id', 'name')->get(),
             'departments'  => Department::select('id', 'name')->get(),
             'designations' => Designation::select('id', 'name', 'department_id')->get(),
-            'filters'      => $request->only('search')
+            'filters'      => $request->only(['search', 'per_page'])
         ]);
     }
 

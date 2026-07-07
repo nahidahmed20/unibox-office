@@ -419,15 +419,15 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
                                 <div>
                                     <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>Total Bill</span>
-                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#0f172a' }}>৳ {parseFloat(selectedExpense.total_bill).toLocaleString('en-IN')}</div>
+                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#0f172a' }}>TK. {parseFloat(selectedExpense.total_bill).toLocaleString('en-IN')}</div>
                                 </div>
                                 <div>
                                     <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>Paid Amount</span>
-                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#16a34a' }}>৳ {parseFloat(selectedExpense.paid_amount).toLocaleString('en-IN')}</div>
+                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#16a34a' }}>TK. {parseFloat(selectedExpense.paid_amount).toLocaleString('en-IN')}</div>
                                 </div>
                                 <div>
                                     <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>Due Amount</span>
-                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#dc2626' }}>৳ {parseFloat(selectedExpense.due_amount).toLocaleString('en-IN')}</div>
+                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#dc2626' }}>TK. {parseFloat(selectedExpense.due_amount).toLocaleString('en-IN')}</div>
                                 </div>
                             </div>
 

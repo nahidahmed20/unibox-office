@@ -13,18 +13,35 @@ class DesignationController extends Controller
     {
         $query = Designation::with('department');
 
-        if ($request->has('search') && $request->search != '') {
+        // Search Logic
+        if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where('name', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('department', function($q) use ($searchTerm) {
-                      $q->where('name', 'like', "%{$searchTerm}%");
-                  });
+
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%")
+                ->orWhereHas('department', function ($dq) use ($searchTerm) {
+                    $dq->where('name', 'like', "%{$searchTerm}%");
+                });
+            });
         }
 
+        // Pagination
+        $perPage = $request->input('per_page', 10);
+
+        $designations = $query
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $departments = Department::where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
         return Inertia::render('Admin/Designations/Index', [
-            'designations' => $query->latest()->get(),
-            'departments'  => Department::where('is_active', true)->select('id', 'name')->get(),
-            'filters'      => $request->only('search')
+            'designations' => $designations,
+            'departments'  => $departments,
+            'filters'      => $request->only('search', 'per_page'),
         ]);
     }
 

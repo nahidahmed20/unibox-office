@@ -357,7 +357,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                         <div style={{ padding: "24px" }}>
                             <div style={{ textAlign: "center", marginBottom: "20px" }}>
                                 <div style={{ fontSize: "2rem", fontWeight: "800", color: selectedTrx.type === 'credit' ? '#16a34a' : '#dc2626' }}>
-                                    {selectedTrx.type === 'credit' ? '+' : '-'}৳ {parseFloat(selectedTrx.amount).toLocaleString('en-IN')}
+                                    {selectedTrx.type === 'credit' ? '+' : '-'} TK. {parseFloat(selectedTrx.amount).toLocaleString('en-IN')}
                                 </div>
                                 <span style={{ background: selectedTrx.type === 'credit' ? '#dcfce7' : '#fee2e2', color: selectedTrx.type === 'credit' ? '#15803d' : '#b91c1c', padding: '4px 12px', borderRadius: '50px', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', marginTop: "8px", display: "inline-block" }}>
                                     {selectedTrx.type === 'credit' ? 'Successful Deposit' : 'Successful Withdrawal'}
@@ -413,8 +413,8 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                 <div>
                                     <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Select Account *</label>
                                     <Select
-                                        options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${a.current_balance})` }))}
-                                        value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${a.current_balance})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
+                                        options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${a.current_balance})` }))}
+                                        value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${a.current_balance})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
                                         onChange={(selected) => setData("account_id", selected ? selected.value : "")}
                                         placeholder="Choose Account" isSearchable isClearable styles={selectStyles}
                                     />

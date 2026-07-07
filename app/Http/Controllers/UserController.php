@@ -15,18 +15,33 @@ class UserController extends Controller
     {
         $query = User::with('roles');
 
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where('name', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%");
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%")
+                ->orWhere('email', 'like', "%{$searchTerm}%")
+                ->orWhereHas('roles', function ($rq) use ($searchTerm) {
+                    $rq->where('name', 'like', "%{$searchTerm}%");
+                });
+            });
         }
 
-        $users = $query->get();
-        $roles = Role::all(); 
-        
-        return inertia('Admin/Users/Index', [
-            'users' => $users,
-            'roles' => $roles 
+        $perPage = $request->input('per_page', 10);
+
+        $users = $query
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $roles = Role::select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        return Inertia::render('Admin/Users/Index', [
+            'users'   => $users,
+            'roles'   => $roles,
+            'filters' => $request->only('search', 'per_page'),
         ]);
     }
 

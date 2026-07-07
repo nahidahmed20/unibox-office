@@ -10,10 +10,35 @@ use Inertia\Inertia;
 
 class RoleController extends Controller
 {
-    public function index() {
+    public function index(Request $request)
+    {
+        $query = Role::with('permissions');
+
+        // Search Logic
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        // Pagination
+        $perPage = $request->input('per_page', 10);
+
+        $roles = $query
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $permissions = Permission::select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
         return Inertia::render('Admin/Roles/Index', [
-            'roles' => Role::with('permissions')->latest()->get(),
-            'permissions' => Permission::all()
+            'roles' => $roles,
+            'permissions' => $permissions,
+            'filters' => $request->only('search', 'per_page'),
         ]);
     }
 

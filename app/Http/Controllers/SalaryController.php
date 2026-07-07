@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Account;
 use App\Models\Salary;
+use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class SalaryController extends Controller
 {
@@ -14,21 +17,25 @@ class SalaryController extends Controller
     {
         $query = Salary::with('user');
 
-        if ($request->has('search') && $request->search != '') {
+        if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where('month_year', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('user', function($q) use ($searchTerm) {
-                      $q->where('name', 'like', "%{$searchTerm}%");
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('month_year', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('user', function ($uq) use ($searchTerm) {
+                      $uq->where('name', 'like', "%{$searchTerm}%");
                   });
+            });
         }
 
-        $salaries = $query->latest()->get(); 
-        $users = User::select('id', 'name')->get();
+        $perPage = $request->input('per_page', 10);
+        $salaries = $query->latest()->paginate($perPage)->withQueryString();
+        $users = User::select('id', 'name')->orderBy('name')->get();
+        $accounts = Account::where('is_active', true)->get();
 
         return Inertia::render('Admin/Salaries/Index', [
             'salaries' => $salaries,
             'users'    => $users,
-            'filters'  => $request->only('search')
+            'accounts' => $accounts,
         ]);
     }
 
@@ -36,58 +43,105 @@ class SalaryController extends Controller
     {
         $validated = $request->validate([
             'user_id'        => 'required|exists:users,id',
-            'month_year'     => [
-                'required', 'string',
-                Rule::unique('salaries')->where(function ($query) use ($request) {
-                    return $query->where('user_id', $request->user_id);
-                })
-            ],
+            'month_year'     => 'required|string',
             'basic_salary'   => 'required|numeric|min:0',
             'allowances'     => 'nullable|numeric|min:0',
             'bonus'          => 'nullable|numeric|min:0',
             'deductions'     => 'nullable|numeric|min:0',
-            'status'         => 'required|in:paid,unpaid',
-            'payment_date'   => 'nullable|date',
+            'net_pay'        => 'required|numeric',
+            'status'         => 'required|in:unpaid,paid',
             'payment_method' => 'nullable|string',
+            'payment_date'   => 'nullable|date',
+            'account_id'     => 'required_if:status,paid|exists:accounts,id',
         ]);
 
-        // Auto calculation in backend
-        $validated['net_pay'] = $validated['basic_salary'] + ($validated['allowances'] ?? 0) + ($validated['bonus'] ?? 0) - ($validated['deductions'] ?? 0);
+        DB::transaction(function () use ($validated, $request) {
+            $salary = Salary::create($validated);
 
-        Salary::create($validated);
-        return redirect()->back(); 
+            if ($salary->status === 'paid') {
+                $account = Account::findOrFail($request->account_id);
+                $account->decrement('current_balance', $salary->net_pay);
+
+                $salary->transactions()->create([
+                    'account_id'       => $account->id,
+                    'type'             => 'debit',
+                    'amount'           => $salary->net_pay,
+                    'transaction_date' => $salary->payment_date ?? now(),
+                    'description'      => "Salary Payment: " . $salary->month_year,
+                ]);
+            }
+        });
+
+        return redirect()->route('admin.salaries.index')->with('success', 'Salary processed.');
     }
 
     public function update(Request $request, string $id)
     {
         $salary = Salary::findOrFail($id);
-
+        
         $validated = $request->validate([
-            'user_id'        => 'required|exists:users,id',
-            'month_year'     => [
-                'required', 'string',
-                Rule::unique('salaries')->where(function ($query) use ($request) {
-                    return $query->where('user_id', $request->user_id);
-                })->ignore($salary->id)
-            ],
-            'basic_salary'   => 'required|numeric|min:0',
-            'allowances'     => 'nullable|numeric|min:0',
-            'bonus'          => 'nullable|numeric|min:0',
-            'deductions'     => 'nullable|numeric|min:0',
-            'status'         => 'required|in:paid,unpaid',
-            'payment_date'   => 'nullable|date',
-            'payment_method' => 'nullable|string',
+            'user_id'      => 'required|exists:users,id',
+            'basic_salary' => 'required|numeric|min:0',
+            'allowances'   => 'nullable|numeric|min:0',
+            'bonus'        => 'nullable|numeric|min:0',
+            'deductions'   => 'nullable|numeric|min:0',
+            'status'       => 'required|in:paid,unpaid',
+            'account_id'   => 'required_if:status,paid|exists:accounts,id',
         ]);
 
         $validated['net_pay'] = $validated['basic_salary'] + ($validated['allowances'] ?? 0) + ($validated['bonus'] ?? 0) - ($validated['deductions'] ?? 0);
 
-        $salary->update($validated);
-        return redirect()->back();
+        DB::transaction(function () use ($salary, $validated, $request) {
+            
+            if ($salary->status === 'unpaid' && $validated['status'] === 'paid') {
+                $account = Account::findOrFail($request->account_id);
+                $account->decrement('current_balance', $validated['net_pay']);
+                
+                $salary->transactions()->create([
+                    'account_id' => $account->id, 'type' => 'debit', 'amount' => $validated['net_pay'],
+                    'transaction_date' => now(), 'description' => "Salary Payment: " . $salary->month_year
+                ]);
+            } 
+            elseif ($salary->status === 'paid' && $validated['status'] === 'unpaid') {
+                $lastTransaction = $salary->transactions()->latest()->first();
+                if ($lastTransaction) {
+                    $account = Account::find($lastTransaction->account_id);
+                    $account->increment('current_balance', $salary->net_pay);
+                    $salary->transactions()->delete(); 
+                }
+            }
+            elseif ($salary->status === 'paid' && $validated['status'] === 'paid') {
+                $diff = $validated['net_pay'] - $salary->net_pay;
+                if ($diff != 0) {
+                    $lastTransaction = $salary->transactions()->latest()->first();
+                    $account = Account::find($lastTransaction->account_id);
+                    
+                    $account->decrement('current_balance', $diff);
+                    $lastTransaction->update(['amount' => $validated['net_pay']]);
+                }
+            }
+
+            $salary->update($validated);
+        });
+
+        return redirect()->back()->with('success', 'Salary updated.');
     }
 
     public function destroy(string $id)
     {
-        Salary::findOrFail($id)->delete();
-        return redirect()->back();
+        $salary = Salary::findOrFail($id);
+
+        DB::transaction(function () use ($salary) {
+            if ($salary->status === 'paid') {
+                $lastTransaction = $salary->transactions()->latest()->first();
+                if ($lastTransaction) {
+                    $account = Account::find($lastTransaction->account_id);
+                    $account->increment('current_balance', $salary->net_pay);
+                }
+            }
+            $salary->delete();
+        });
+
+        return redirect()->back()->with('success', 'Salary deleted.');
     }
 }

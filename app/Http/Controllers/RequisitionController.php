@@ -13,14 +13,37 @@ class RequisitionController extends Controller
     {
         $query = Requisition::with(['user', 'approver']);
 
-        if ($request->has('search') && $request->search != '') {
-            $query->where('item_name', 'like', "%{$request->search}%");
+        // Search Logic
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('item_name', 'like', "%{$searchTerm}%")
+                ->orWhereHas('user', function ($uq) use ($searchTerm) {
+                    $uq->where('name', 'like', "%{$searchTerm}%");
+                })
+                ->orWhereHas('approver', function ($aq) use ($searchTerm) {
+                    $aq->where('name', 'like', "%{$searchTerm}%");
+                });
+            });
         }
 
+        // Pagination
+        $perPage = $request->input('per_page', 10);
+
+        $requisitions = $query
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $users = User::select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
         return Inertia::render('Admin/Requisitions/Index', [
-            'requisitions' => $query->latest()->get(),
-            'users' => collect(User::select('id', 'name')->get()),
-            'filters' => $request->only('search')
+            'requisitions' => $requisitions,
+            'users' => $users,
+            'filters' => $request->only('search', 'per_page'),
         ]);
     }
 

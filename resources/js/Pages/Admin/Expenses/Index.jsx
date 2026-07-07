@@ -282,7 +282,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                                                 </div>
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: "right", fontWeight: "700", color: "#dc2626" }}>
-                                                ৳ {parseFloat(exp.amount).toLocaleString('en-IN')}
+                                                TK. {parseFloat(exp.amount).toLocaleString('en-IN')}
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: "center" }}>
                                                 <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
@@ -351,7 +351,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                         <div style={{ padding: "24px" }}>
                             <div style={{ textAlign: "center", marginBottom: "20px" }}>
                                 <div style={{ fontSize: "2rem", fontWeight: "800", color: '#dc2626' }}>
-                                    ৳ {parseFloat(selectedExpense.amount).toLocaleString('en-IN')}
+                                    TK. {parseFloat(selectedExpense.amount).toLocaleString('en-IN')}
                                 </div>
                                 <span style={{ background: '#fee2e2', color: '#b91c1c', padding: '4px 12px', borderRadius: '50px', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', marginTop: "8px", display: "inline-block" }}>
                                     Office Expense Recorded
@@ -432,8 +432,8 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                                 <div>
                                     <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Payment Source (Account) *</label>
                                     <Select
-                                        options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${a.current_balance})` }))}
-                                        value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${a.current_balance})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
+                                        options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${a.current_balance})` }))}
+                                        value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${a.current_balance})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
                                         onChange={(selected) => setData("account_id", selected ? selected.value : "")}
                                         placeholder="Choose Account" isSearchable isClearable styles={selectStyles}
                                     />
@@ -443,7 +443,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
 
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                                 <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount (BDT) *</label>
+                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount (TK.) *</label>
                                     <input type="number" step="0.01" value={data.amount} onChange={e => setData('amount', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: 'bold' }} placeholder="0.00" required />
                                     {errors.amount && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.amount}</p>}
                                 </div>
