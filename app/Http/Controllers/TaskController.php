@@ -36,7 +36,7 @@ class TaskController extends Controller
         $tasks = $query->latest()->paginate($perPage)->withQueryString(); 
         
         // Modal er dropdown er jonno data
-        $projects = Project::select('id', 'title')->latest()->get();
+        $projects = Project::where('status', '!=', 'completed')->select('id', 'title')->latest()->get();
         $users = User::select('id', 'name')->get();
 
         return Inertia::render('Admin/Tasks/Index', [

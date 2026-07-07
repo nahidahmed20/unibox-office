@@ -1,15 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react'; 
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router } from '@inertiajs/react'; 
+import { useForm, Head, router, Link } from '@inertiajs/react';
 import Swal from 'sweetalert2'; 
 
-export default function Index({ investments = [], filters = {} }) {
+export default function Index({ investments = {}, filters = {} }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
-    // --- Live Search Setup ---
+    // পেজিনেটেড অবজেক্ট থেকে আসল ডেটা অ্যারে বের করা
+    const investmentList = investments.data || [];
+    
+    // --- Live Search & Per Page State Setup ---
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get('search') || filters.search || '';
+    });
+    
+    const [perPage, setPerPage] = useState(() => {
+        return new URLSearchParams(window.location.search).get('per_page') || filters.per_page || '10';
     });
     
     const isFirstRender = useRef(true);
@@ -23,7 +30,7 @@ export default function Index({ investments = [], filters = {} }) {
         notes: ''
     });
 
-    // --- Live Search ---
+    // --- Live Search, Per Page Change & Debounce Effect ---
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -33,32 +40,69 @@ export default function Index({ investments = [], filters = {} }) {
         const delayDebounceFn = setTimeout(() => {
             router.get(
                 route('admin.investments.index'), 
-                { search: searchTerm }, 
+                { search: searchTerm, per_page: perPage }, 
                 { preserveState: true, replace: true }
             );
-        }, 500);
+        }, 400);
 
         return () => clearTimeout(delayDebounceFn);
-    }, [searchTerm]);
+    }, [searchTerm, perPage]);
 
-    // --- Copy Table Data ---
+    // --- Export Utilities ---
     const handleCopy = () => {
-        const table = document.querySelector('.data-table');
-        if (!table) return;
-        
-        navigator.clipboard.writeText(table.innerText).then(() => {
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'success',
-                title: 'Table data copied!',
-                showConfirmButton: false,
-                timer: 2000
-            });
-        });
+        if (!investmentList.length) return Swal.fire("Empty!", "No data to copy", "warning");
+        const text = investmentList
+            .map((inv, idx) => `${idx + 1}\t${inv.investor_name}\t${inv.investment_date}\t${inv.purpose}\t$${parseFloat(inv.amount).toFixed(2)}`)
+            .join("\n");
+        navigator.clipboard.writeText(text);
+        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1200, showConfirmButton: false, toast: true, position: 'top-end' });
     };
 
-    // --- Open Create Modal ---
+ 
+    const handleExportCSV = () => {
+            if (!advanceList.length) return Swal.fire("Empty!", "No data to export", "warning");
+            const headers = ["SL,Given To,Date,Purpose,Status,Amount\n"];
+            const rows = advanceList.map((adv, idx) => `"${idx + 1}","${adv.given_to}","${adv.date}","${adv.purpose}","${adv.status}","${adv.amount}"`);
+            const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", `Advance_Report_${new Date().toISOString().slice(0,10)}.csv`);
+            link.click();
+        };
+
+    const handlePrint = () => {
+        const tableContent = document.getElementById("printable-investment-table");
+        if (!tableContent) return;
+
+        const printWindow = window.open('', '_blank', `width=${window.screen.width},height=${window.screen.height}`);
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Capital & Investments Report</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 30px; color: #334155; }
+                        h2 { text-align: center; color: #0f172a; margin-bottom: 5px; }
+                        p { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 14px; }
+                        table { width: 100%; border-collapse: collapse; text-align: left; }
+                        th, td { padding: 12px 16px; border: 1px solid #cbd5e1; font-size: 13px; }
+                        th { background-color: #f1f5f9; font-weight: 600; color: #475569; }
+                        th:last-child, td:last-child { display: none !important; }
+                    </style>
+                </head>
+                <body>
+                    <h2>Capital & Investments Directory</h2>
+                    <p>Generated Report Date: ${new Date().toLocaleDateString()}</p>
+                    ${tableContent.outerHTML}
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+    };
+
+    // --- Modal Management ---
     const openCreateModal = () => {
         reset(); 
         clearErrors(); 
@@ -66,7 +110,6 @@ export default function Index({ investments = [], filters = {} }) {
         setShowModal(true);
     };
 
-    // --- Open Edit Modal ---
     const openEditModal = (inv) => {
         clearErrors(); 
         setData({
@@ -81,14 +124,13 @@ export default function Index({ investments = [], filters = {} }) {
         setShowModal(true);
     };
 
-    // --- Form Submit ---
     const handleSubmit = (e) => {
         e.preventDefault();
         if (editMode) {
             put(route('admin.investments.update', data.id), { 
                 onSuccess: () => {
                     setShowModal(false);
-                    Swal.fire('Updated!', 'Investment updated successfully.', 'success');
+                    Swal.fire({ icon: 'success', title: 'Updated!', text: 'Investment updated successfully.', timer: 1500, showConfirmButton: false });
                 }
             });
         } else {
@@ -96,139 +138,150 @@ export default function Index({ investments = [], filters = {} }) {
                 onSuccess: () => { 
                     reset(); 
                     setShowModal(false); 
-                    Swal.fire('Created!', 'New investment added successfully.', 'success');
+                    Swal.fire({ icon: 'success', title: 'Logged!', text: 'New investment added successfully.', timer: 1500, showConfirmButton: false });
                 }
             });
         }
     };
 
-    // --- Delete Investment ---
     const handleDelete = (id) => {
         Swal.fire({
             title: 'Are you sure?',
-            text: 'This investment record will be deleted!',
+            text: 'This investment record will be permanently deleted!',
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonText: 'Yes, delete it!',
+            confirmButtonText: 'Yes, delete it',
             cancelButtonText: 'Cancel',
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6'
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b'
         }).then((result) => {
             if (result.isConfirmed) {
                 destroy(route('admin.investments.destroy', id), {
                     preserveScroll: true,
-                    onSuccess: () => {
-                        Swal.fire('Deleted!', 'Record has been removed.', 'success');
-                    }
+                    onSuccess: () => Swal.fire({ icon: 'success', title: 'Deleted!', text: 'Record has been removed.', timer: 1500, showConfirmButton: false })
                 });
             }
         });
     };
 
-    // Total Calculation
-    const totalInvestment = investments.reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
+    const totalInvestment = investmentList.reduce((sum, inv) => sum + parseFloat(inv.amount || 0), 0);
 
     return (
         <AdminLayout>
             <Head title="Investments Management" />
             
-            <div className="slider-page-wrapper">
-                <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: "24px", background: "#f8fafc", minHeight: "100vh" }}>
+                
+                {/* Header Section */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: "24px" }}>
                     <div>
-                        <h1 className="page-title">Investments</h1>
-                        <div className="breadcrumb">
-                            Dashboard / <span>Investment List</span>
-                        </div>
+                        <h1 style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Investments Management</h1>
+                        <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Track and manage asset allocations, seed funding, and corporate capitals.</p>
                     </div>
-                    {/* Total Capital display matching header style */}
-                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#008060', padding: '10px 15px', background: '#e8f5e9', borderRadius: '5px' }}>
-                        Total Capital: ${totalInvestment.toFixed(2)}
+                    
+                    {/* Total Capital Badge */}
+                    <div style={{ fontSize: '1.05rem', fontWeight: '700', color: '#0f766e', padding: '12px 20px', background: '#f0fdfa', borderRadius: '8px', border: "1px solid #ccfbf1", boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" }}>
+                        <i className="fa-solid fa-chart-line" style={{ marginRight: "8px", color: "#0d9488" }}></i>
+                        Page Total: <span style={{ fontSize: "1.2rem" }}>${totalInvestment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                 </div>
 
-                <div className="card-container">
-                    <div className="card-header">
-                        <div className="card-title">
-                            <i className="fa-solid fa-money-bill-trend-up"></i> Capital & Investments Directory
+                {/* Main Card Container */}
+                <div style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
+                    
+                    {/* Card Header */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
+                        <div style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
+                            <i className="fa-solid fa-money-bill-trend-up" style={{ marginRight: "8px", color: "#2563eb" }}></i> Capital & Investments Directory
                         </div>
-                        <button onClick={openCreateModal} className="add-btn">
-                            + Log Investment
+                        <button onClick={openCreateModal} style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 4px rgba(37, 99, 235, 0.2)" }}>
+                            <i className="fa-solid fa-plus"></i> Log Investment
                         </button>
                     </div>
 
-                    <div className="table-toolbar">
-                        <div className="show-entries">
+                    {/* Toolbar Panel (Search + Per Page Dropdown) */}
+                    <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
+                        
+                        {/* Dynamic Per Page Entries Selector */}
+                        <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
                             Show 
-                            <select defaultValue="10">
-                                <option value="10">10</option>
-                                <option value="25">25</option>
-                                <option value="50">50</option>
-                            </select> 
-                            entries
+                            <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
+                                <option value={10}>10 Entries</option>
+                                <option value={25}>25 Entries</option>
+                                <option value={50}>50 Entries</option>
+                                <option value={100}>100 Entries</option>
+                            </select>
                         </div>
 
-                        <div className="export-buttons" style={{ display: 'flex', gap: '8px' }}>
-                            <button type="button" className="export-btn" onClick={handleCopy}>
-                                <i className="fas fa-copy me-1"></i> Copy
+                        {/* Export Action Tools */}
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button type="button" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
+                                <i className="fas fa-copy text-blue-500"></i> Copy
                             </button>
-                            <button type="button" className="export-btn">
-                                <i className="fas fa-file-excel me-1"></i> Excel
+                            <button type="button" onClick={() => handleExportCSV('excel')} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
+                                <i className="fas fa-file-excel text-emerald-500"></i> Excel
                             </button>
-                            <button type="button" className="export-btn">
-                                <i className="fas fa-file-csv me-1"></i> CSV
-                            </button>
-                            <button type="button" className="export-btn" onClick={() => window.print()}>
-                                <i className="fas fa-print me-1"></i> Print
+                            <button type="button" onClick={handlePrint} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
+                                <i className="fas fa-print text-slate-500"></i> Print
                             </button>
                         </div>
 
-                        <div className="search-box">
+                        {/* Search Component */}
+                        <div style={{ position: "relative" }}>
+                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
                             <input 
                                 type="text" 
-                                placeholder="Search by name or purpose..." 
+                                placeholder="Search investor or purpose..." 
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
+                                style={{ padding: "8px 12px 8px 36px", width: "260px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }}
                             />
                         </div>
                     </div>
 
+                    {/* Main Data Table */}
                     <div style={{ overflowX: 'auto' }}>
-                        <table className="data-table">
+                        <table id="printable-investment-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
                             <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>INVESTOR NAME</th>
-                                    <th>DATE</th>
-                                    <th>PURPOSE</th>
-                                    <th>AMOUNT</th>
-                                    <th>ACTION</th>
+                                <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "60px" }}>SL</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>INVESTOR NAME</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>INVESTMENT DATE</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>PURPOSE TARGET</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>AMOUNT</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center", width: "120px" }}>ACTIONS</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {investments.length > 0 ? (
-                                    investments.map((inv, index) => (
-                                        <tr key={inv.id}>
-                                            <td>{index + 1}</td>
-                                            <td style={{ fontWeight: '600', color: '#334155' }}>{inv.investor_name}</td>
-                                            <td>{inv.investment_date}</td>
-                                            <td>
+                            <tbody style={{ color: "#334155", fontSize: "0.915rem" }}>
+                                {investmentList.length > 0 ? (
+                                    investmentList.map((inv, index) => (
+                                        <tr key={inv.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                                            <td style={{ padding: "16px 24px", color: "#64748b", fontWeight: "500" }}>
+                                                {(investments.current_page - 1) * investments.per_page + index + 1}
+                                            </td>
+                                            <td style={{ padding: "16px 24px" }}>
+                                                <div style={{ fontWeight: '600', color: '#0f172a' }}>{inv.investor_name}</div>
+                                                {inv.notes && <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "2px" }}>{inv.notes}</div>}
+                                            </td>
+                                            <td style={{ padding: "16px 24px", color: "#475569" }}>{inv.investment_date}</td>
+                                            <td style={{ padding: "16px 24px" }}>
                                                 <span style={{ 
-                                                    padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '500',
-                                                    background: inv.purpose === 'Work Purpose' ? '#e0f2fe' : '#dcfce7', 
-                                                    color: inv.purpose === 'Work Purpose' ? '#0369a1' : '#15803d' 
+                                                    padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600',
+                                                    background: inv.purpose === 'Work Purpose' ? '#e0f2fe' : inv.purpose === 'Office Purpose' ? '#dcfce7' : '#f1f5f9', 
+                                                    color: inv.purpose === 'Work Purpose' ? '#0369a1' : inv.purpose === 'Office Purpose' ? '#15803d' : '#475569' 
                                                 }}>
                                                     {inv.purpose}
                                                 </span>
                                             </td>
-                                            <td style={{ fontWeight: 'bold', color: '#008060' }}>
-                                                ${parseFloat(inv.amount).toFixed(2)}
+                                            <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '700', color: '#0d9488' }}>
+                                                ${parseFloat(inv.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                             </td>
-                                            <td>
-                                                <div className="action-btns">
-                                                    <button onClick={() => openEditModal(inv)} className="icon-btn edit">
+                                            <td style={{ padding: "16px 24px", textAlign: 'center' }}>
+                                                <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                    <button onClick={() => openEditModal(inv)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit Record">
                                                         <i className="fa-regular fa-pen-to-square"></i>
                                                     </button>
-                                                    <button onClick={() => handleDelete(inv.id)} className="icon-btn delete">
+                                                    <button onClick={() => handleDelete(inv.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete Record">
                                                         <i className="fa-regular fa-trash-can"></i>
                                                     </button>
                                                 </div>
@@ -237,94 +290,148 @@ export default function Index({ investments = [], filters = {} }) {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>No investment records found.</td>
+                                        <td colSpan="6" style={{ textAlign: 'center', padding: '36px', color: '#94a3b8' }}>No investment records found.</td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Pagination Footer & Info Summary */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderTop: "1px solid #f1f5f9", background: "#f8fafc", flexWrap: "wrap", gap: "16px" }}>
+                        
+                        {/* Data Context Entry Summary */}
+                        <div style={{ color: "#64748b", fontSize: "0.85rem" }}>
+                            Showing <b>{investments.from || 0}</b> to <b>{investments.to || 0}</b> of <b>{investments.total || 0}</b> entries
+                        </div>
+
+                        {/* Dynamic Inertia Pagination Buttons */}
+                        {investments.links && investments.links.length > 3 && (
+                            <div style={{ display: "flex", gap: "4px" }}>
+                                {investments.links.map((link, i) => {
+                                    return link.url === null ? (
+                                        <span 
+                                            key={i} 
+                                            style={{ padding: "8px 14px", border: "1px solid #e2e8f0", borderRadius: "6px", color: "#cbd5e1", fontSize: "0.85rem", cursor: "not-allowed", background: "#fff" }}
+                                            dangerouslySetInnerHTML={{ __html: link.label }}
+                                        />
+                                    ) : (
+                                        <Link
+                                            key={i}
+                                            href={link.url}
+                                            preserveState
+                                            style={{
+                                                padding: "8px 14px",
+                                                border: "1px solid #cbd5e1",
+                                                borderRadius: "6px",
+                                                fontSize: "0.85rem",
+                                                textDecoration: "none",
+                                                fontWeight: link.active ? "700" : "500",
+                                                background: link.active ? "#2563eb" : "#ffffff",
+                                                color: link.active ? "#ffffff" : "#475569",
+                                                boxShadow: link.active ? "0 2px 4px rgba(37, 99, 235, 0.2)" : "none"
+                                            }}
+                                            dangerouslySetInnerHTML={{ __html: link.label }}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+
                 </div>
             </div>
 
-            {/* Modal Section */}
+            {/* --- CREATE / EDIT FORM MODAL SECTION --- */}
             {showModal && (
-                <div className="modal-overlay">
-                    <div className="modal-content" style={{ maxWidth: '600px' }}>
-                        <h3 className="modal-header">
-                            {editMode ? 'Edit Investment Info' : 'Log New Investment'}
-                        </h3>
+                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+                    <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
                         
-                        <form onSubmit={handleSubmit}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                <div className="form-group">
-                                    <label>Investor Name *</label>
+                        {/* Modal Header */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
+                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
+                                {editMode ? '📝 Edit Investment Info' : '✨ Log New Investment'}
+                            </h3>
+                            <button type="button" onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}>
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        
+                        {/* Modal Form */}
+                        <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>
+                                <div style={{ flexDirection: "column", display: "flex" }}>
+                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Investor Name *</label>
                                     <input 
                                         type="text" 
                                         value={data.investor_name} 
                                         onChange={e => setData('investor_name', e.target.value)} 
-                                        className="form-control" 
+                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: "500" }}
                                         placeholder="e.g., John Doe" 
                                         required
                                     />
-                                    {errors.investor_name && <p className="error-text">{errors.investor_name}</p>}
+                                    {errors.investor_name && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.investor_name}</p>}
                                 </div>
 
-                                <div className="form-group">
-                                    <label>Amount ($) *</label>
+                                <div style={{ flexDirection: "column", display: "flex" }}>
+                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount ($) *</label>
                                     <input 
                                         type="number" 
                                         step="0.01"
                                         value={data.amount} 
                                         onChange={e => setData('amount', e.target.value)} 
-                                        className="form-control" 
+                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: "700" }}
                                         placeholder="0.00" 
                                         required
                                     />
-                                    {errors.amount && <p className="error-text">{errors.amount}</p>}
+                                    {errors.amount && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.amount}</p>}
                                 </div>
+                            </div>
 
-                                <div className="form-group">
-                                    <label>Investment Date *</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>
+                                <div style={{ flexDirection: "column", display: "flex" }}>
+                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Investment Date *</label>
                                     <input 
                                         type="date" 
                                         value={data.investment_date} 
                                         onChange={e => setData('investment_date', e.target.value)} 
-                                        className="form-control" 
+                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", color: "#334155" }}
                                         required
                                     />
-                                    {errors.investment_date && <p className="error-text">{errors.investment_date}</p>}
+                                    {errors.investment_date && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.investment_date}</p>}
                                 </div>
 
-                                <div className="form-group">
-                                    <label>Purpose *</label>
+                                <div style={{ flexDirection: "column", display: "flex" }}>
+                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Purpose *</label>
                                     <select 
                                         value={data.purpose} 
                                         onChange={e => setData('purpose', e.target.value)} 
-                                        className="form-control"
+                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", background: "#fff", color: "#334155", height: "38px" }}
                                     >
                                         <option value="Office Purpose">Office Purpose</option>
                                         <option value="Work Purpose">Work Purpose</option>
                                         <option value="Other Purpose">Other Purpose</option>
                                     </select>
-                                    {errors.purpose && <p className="error-text">{errors.purpose}</p>}
+                                    {errors.purpose && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.purpose}</p>}
                                 </div>
                             </div>
 
-                            <div className="form-group" style={{ marginTop: '15px' }}>
-                                <label>Notes</label>
+                            <div style={{ flexDirection: "column", display: "flex", marginBottom: "20px" }}>
+                                <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Notes</label>
                                 <textarea 
                                     value={data.notes} 
                                     onChange={e => setData('notes', e.target.value)} 
-                                    className="form-control" 
-                                    placeholder="Any additional details..." 
-                                    rows="2"
+                                    rows="3"
+                                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", resize: "none" }}
+                                    placeholder="Any additional funding details..." 
                                 ></textarea>
-                                {errors.notes && <p className="error-text">{errors.notes}</p>}
+                                {errors.notes && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.notes}</p>}
                             </div>
 
-                            <div className="modal-footer" style={{ marginTop: '20px' }}>
-                                <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">Cancel</button>
-                                <button type="submit" disabled={processing} className="btn-save">
+                            {/* Modal Footer Control */}
+                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+                                <button type="button" onClick={() => setShowModal(false)} style={{ background: "#f1f5f9", color: "#334155", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500" }}>Cancel</button>
+                                <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", opacity: processing ? 0.7 : 1 }}>
                                     {processing ? 'Saving...' : 'Save Investment'}
                                 </button>
                             </div>

@@ -11,19 +11,20 @@ class InvestmentController extends Controller
     public function index(Request $request)
     {
         $query = Investment::query();
-
         if ($request->has('search') && $request->search != '') {
             $searchTerm = $request->search;
-            $query->where('investor_name', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('purpose', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('investment_date', 'like', '%' . $searchTerm . '%');
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('investor_name', 'like', '%' . $searchTerm . '%')
+                ->orWhere('purpose', 'like', '%' . $searchTerm . '%')
+                ->orWhere('investment_date', 'like', '%' . $searchTerm . '%');
+            });
         }
-
-        $investments = $query->latest()->get();
+        $perPage = $request->input('per_page', 10);
+        $investments = $query->latest()->paginate($perPage)->withQueryString();
         
         return Inertia::render('Admin/Investments/Index', [
             'investments' => $investments,
-            'filters' => $request->only('search') 
+            'filters' => $request->only(['search', 'per_page']) 
         ]);
     }
 

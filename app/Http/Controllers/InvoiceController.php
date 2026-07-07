@@ -16,24 +16,43 @@ class InvoiceController extends Controller
     {
         $query = Invoice::with(['client', 'project']);
 
-        if ($request->has('search') && $request->search != '') {
+        // Search Logic
+        if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where('invoice_number', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('client', function($q) use ($searchTerm) {
-                      $q->where('name', 'like', "%{$searchTerm}%");
-                  });
+
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('invoice_number', 'like', "%{$searchTerm}%")
+                ->orWhereHas('client', function ($cq) use ($searchTerm) {
+                    $cq->where('name', 'like', "%{$searchTerm}%");
+                })
+                ->orWhereHas('project', function ($pq) use ($searchTerm) {
+                    $pq->where('title', 'like', "%{$searchTerm}%");
+                });
+            });
         }
 
-        $invoices = $query->latest()->get(); 
-        
-        $clients = Client::select('id', 'name')->latest()->get();
-        $projects = Project::select('id', 'title')->latest()->get();
+        // Pagination
+        $perPage = $request->input('per_page', 10);
+
+        $invoices = $query
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
+
+        // Dropdown Data
+        $clients = Client::select('id', 'name')
+            ->latest()
+            ->get();
+
+        $projects = Project::select('id', 'title')
+            ->latest()
+            ->get();
 
         return Inertia::render('Admin/Invoices/Index', [
             'invoices' => $invoices,
             'clients' => $clients,
             'projects' => $projects,
-            'filters' => $request->only('search')
+            'filters' => $request->only('search', 'per_page'),
         ]);
     }
 
@@ -95,29 +114,27 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function clientDuesReport()
+    public function clientDuesReport(Request $request)
     {
-        $clientsWithDues = Client::with(['invoices' => function($query) {
-            $query->withSum('payments', 'amount');
-        }])->get()->map(function($client) {
-            
-            $totalDue = 0;
-            foreach ($client->invoices as $invoice) {
-                $paid = $invoice->payments_sum_amount ?? 0;
-                $due = $invoice->grand_total - $paid;
-                if ($due > 0) {
-                    $totalDue += $due;
-                }
-            }
-            $client->total_due = $totalDue;
+        $allClients = Client::with(['invoices' => fn($q) => $q->withSum('payments', 'amount')])->get();
+        
+        $processedClients = $allClients->map(function($client) {
+            $client->total_due = $client->invoices->sum(fn($i) => $i->grand_total - ($i->payments_sum_amount ?? 0));
             return $client;
-        })->filter(function($client) {
-            return $client->total_due > 0;
-        })->values();
+        })->filter(fn($c) => $c->total_due > 0)->values();
 
-        // React Component-e data pass kora
+        $perPage = $request->input('per_page', 10);
+        $currentPage = \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPage();
+        $items = $processedClients->forPage($currentPage, $perPage);
+        
+        $paginatedClients = new \Illuminate\Pagination\LengthAwarePaginator(
+            $items, $processedClients->count(), $perPage, $currentPage, 
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
         return Inertia::render('Admin/Reports/ClientDues', [
-            'clientsWithDues' => $clientsWithDues
+            'clientsWithDues' => $paginatedClients, 
+            'grandTotal' => $processedClients->sum('total_due') 
         ]);
     }
 

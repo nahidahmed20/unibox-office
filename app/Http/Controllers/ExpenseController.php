@@ -17,15 +17,48 @@ class ExpenseController extends Controller
     {
         $query = Expense::with(['category', 'account', 'logger']);
 
-        if ($request->has('search')) {
-            $query->where('title', 'like', '%' . $request->search . '%');
+        // Search Logic
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('title', 'like', "%{$searchTerm}%")
+                ->orWhereHas('category', function ($cq) use ($searchTerm) {
+                    $cq->where('name', 'like', "%{$searchTerm}%");
+                })
+                ->orWhereHas('account', function ($aq) use ($searchTerm) {
+                    $aq->where('name', 'like', "%{$searchTerm}%");
+                })
+                ->orWhereHas('logger', function ($lq) use ($searchTerm) {
+                    $lq->where('name', 'like', "%{$searchTerm}%");
+                });
+            });
         }
 
-        $expenses = $query->latest()->get();
-        $categories = ExpenseCategory::all();
-        $accounts = Account::where('is_active', true)->get(); 
+        // Pagination
+        $perPage = $request->input('per_page', 10);
 
-        return Inertia::render('Admin/Expenses/Index', compact('expenses', 'categories', 'accounts'));
+        $expenses = $query
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
+
+        // Dropdown Data
+        $categories = ExpenseCategory::select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $accounts = Account::where('is_active', true)
+            ->select('id', 'name', 'current_balance')
+            ->orderBy('name')
+            ->get();
+
+        return Inertia::render('Admin/Expenses/Index', [
+            'expenses' => $expenses,
+            'categories' => $categories,
+            'accounts' => $accounts,
+            'filters' => $request->only('search', 'per_page'),
+        ]);
     }
 
     public function store(Request $request)

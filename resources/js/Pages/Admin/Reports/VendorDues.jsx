@@ -1,109 +1,200 @@
 import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { Head, router } from "@inertiajs/react";
+import Swal from "sweetalert2";
 
-export default function VendorDues({ vendorDues = [] }) {
-    const [searchTerm, setSearchTerm] = useState("");
-    const [perPage, setPerPage] = useState(10);
-
-    // মোট কত টাকা আপনাকে দিতে হবে তার হিসাব
-    const grandTotalPayable = vendorDues.reduce((sum, vendor) => sum + parseFloat(vendor.total_due), 0);
-
-    // লোকাল সার্চ ফিল্টার (যেহেতু ডাটাবেস থেকে শুধু নাম আর ব্যালেন্স আসছে)
-    const filteredVendors = vendorDues.filter(vendor => 
-        vendor.vendor_name.toLowerCase().includes(searchTerm.toLowerCase())
+export default function VendorDues({ vendorDues }) {
+    // URL থেকে আগের ভ্যালুগুলো ধরে রাখার জন্য
+    const [searchTerm, setSearchTerm] = useState(
+        () => new URLSearchParams(window.location.search).get("search") || "",
     );
+    const [perPage, setPerPage] = useState(
+        () => Number(new URLSearchParams(window.location.search).get("per_page")) || 10
+    );
+    const isFirstRender = useRef(true);
+
+    // পেজিনেশনের কারণে ডাটা এখন vendorDues.data এর ভেতরে থাকবে
+    const vendorsList = vendorDues?.data || [];
+
+    const grandTotalPayable = vendorsList.reduce((sum, vendor) => sum + parseFloat(vendor.total_due), 0);
+
+    // Search এবং Per Page চেঞ্জ হলে ব্যাকএন্ডে রিকোয়েস্ট পাঠানোর জন্য
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+        const delay = setTimeout(() => {
+            router.get(
+                route("admin.vendor-dues"), // আপনার web.php তে রাউটের নাম যা দেওয়া আছে, তা এখানে দিন
+                { search: searchTerm, per_page: perPage },
+                { preserveState: true, replace: true },
+            );
+        }, 500);
+
+        return () => clearTimeout(delay);
+    }, [searchTerm, perPage]);
+
+    /* =========================================
+       EXPORT FUNCTIONS (Copy, CSV, Print)
+    ========================================= */
+    const handleCopy = () => {
+        if (!vendorsList.length) return Swal.fire("Empty!", "No data to copy", "warning");
+        
+        const header = "SL\tVendor Name\tStatus\tTotal Due\n";
+        const text = vendorsList
+            .map((vendor, idx) => `${idx + 1}\t${vendor.vendor_name}\tPayable\tTK. ${parseFloat(vendor.total_due).toFixed(2)}`)
+            .join("\n");
+            
+        navigator.clipboard.writeText(header + text);
+        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1200, showConfirmButton: false, toast: true, position: 'top-end' });
+    };
+
+    const handleExportCSV = () => {
+        if (!vendorsList.length) return Swal.fire("Empty!", "No data to export", "warning");
+        
+        const headers = ["SL,Vendor Name,Status,Total Due\n"];
+        const rows = vendorsList.map((vendor, idx) => 
+            `"${idx + 1}","${vendor.vendor_name}","Payable","${vendor.total_due}"`
+        );
+        
+        const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `Vendor_Dues_Report_${new Date().toISOString().slice(0,10)}.csv`);
+        link.click();
+    };
+
+    const handlePrint = () => {
+        const tableContent = document.getElementById("printable-vendor-dues-table");
+        if (!tableContent) return;
+
+        const printWindow = window.open('', '_blank', `width=${window.screen.width},height=${window.screen.height}`);
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Vendor Dues Report</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 30px; color: #334155; }
+                        h2 { text-align: center; color: #0f172a; margin-bottom: 5px; }
+                        p { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 14px; }
+                        table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; }
+                        th, td { padding: 12px 16px; border: 1px solid #cbd5e1; font-size: 13px; }
+                        th { background-color: #f1f5f9; font-weight: 600; color: #475569; text-transform: uppercase; }
+                        
+                        table { counter-reset: rowNumber; }
+                        tbody tr { counter-increment: rowNumber; }
+                        tbody tr td:first-child::before { content: counter(rowNumber) ". "; font-weight: bold; margin-right: 5px; }
+                        
+                        th:last-child, td:last-child { text-align: right !important; color: #d97706; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <h2>Accounts Payable - Vendor Dues (দেনা)</h2>
+                    <p>Generated Report Date: ${new Date().toLocaleDateString()}</p>
+                    ${tableContent.outerHTML}
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+    };
 
     return (
         <AdminLayout>
             <Head title="Vendor Dues Report" />
 
-            <div className="slider-page-wrapper">
-                <div className="page-header">
-                    <h1 className="page-title">Accounts Payable (আমার কাছে কে টাকা পাবে)</h1>
+            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc", minHeight: "100vh" }}>
+                <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+                    <h1 className="page-title" style={{ fontSize: "1.5rem", fontWeight: "700", color: "#0f172a" }}>Accounts Payable (আমার কাছে কে টাকা পাবে)</h1>
                 </div>
                 
                 {/* Summary Cards */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '20px' }}>
-                    <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
-                        <p style={{ fontSize: '13px', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Total Vendors to Pay</p>
-                        <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#111827', margin: '5px 0 0 0' }}>{vendorDues.length}</h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+                    <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', border: '1px solid #e2e8f0' }}>
+                        <p style={{ fontSize: '0.875rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '600', marginBottom: '8px' }}>Total Vendors to Pay</p>
+                        <h2 style={{ fontSize: '2rem', fontWeight: '700', color: '#0f172a', margin: '0' }}>{vendorDues?.total || 0}</h2>
                     </div>
-                    <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb', borderLeft: '4px solid #f59e0b' }}>
-                        <p style={{ fontSize: '13px', color: '#6b7280', textTransform: 'uppercase', fontWeight: '600' }}>Total Payable Amount (দেনা)</p>
-                        <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#d97706', margin: '5px 0 0 0' }}>
+                    <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', border: '1px solid #e2e8f0', borderLeft: '5px solid #f59e0b' }}>
+                        <p style={{ fontSize: '0.875rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '600', marginBottom: '8px' }}>Total Payable Amount (দেনা)</p>
+                        <h2 style={{ fontSize: '2rem', fontWeight: '700', color: '#d97706', margin: '0' }}>
                             TK. {grandTotalPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </h2>
                     </div>
                 </div>
 
-                <div className="card-container">
-                    <div className="card-header">
-                        <div className="card-title">
-                            <i className="fa-solid fa-hand-holding-dollar"></i> Vendor Dues List
+                <div className="card-container" style={{ background: "#fff", borderRadius: "12px", boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+                    <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 24px", borderBottom: "1px solid #f1f5f9" }}>
+                        <div className="card-title" style={{ fontSize: "1.1rem", fontWeight: "600", color: "#1e293b", display: "flex", alignItems: "center", gap: "10px" }}>
+                            <i className="fa-solid fa-hand-holding-dollar" style={{ color: "#f59e0b" }}></i> Vendor Dues List
                         </div>
                     </div>
 
                     {/* TOOLBAR */}
-                    <div className="table-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                    <div className="table-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '16px' }}>
                         
-                        <div className="show-entries" style={{ fontSize: '14px', color: '#4b5563', display: 'flex', alignItems: 'center' }}>
+                        <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
                             Show
                             <select
                                 value={perPage}
                                 onChange={(e) => setPerPage(Number(e.target.value))}
-                                className="border border-gray-300 rounded px-2 py-1 mx-2 text-sm focus:outline-none focus:border-blue-500"
+                                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", outline: "none", cursor: "pointer" }}
                             >
-                                <option value={10}>10</option>
-                                <option value={25}>25</option>
-                                <option value={50}>50</option>
+                                <option value={10}>10 Entries</option>
+                                <option value={25}>25 Entries</option>
+                                <option value={50}>50 Entries</option>
+                                <option value={100}>100 Entries</option>
                             </select>
-                            entries
                         </div>
 
+                        {/* EXPORT BUTTONS */}
                         <div className="export-buttons" style={{ display: 'flex', gap: '8px' }}>
-                            <button type="button" className="export-btn px-3 py-1.5 text-sm border rounded hover:bg-gray-50"><i className="fas fa-file-excel me-1 text-green-600"></i> Excel</button>
-                            <button type="button" className="export-btn px-3 py-1.5 text-sm border rounded hover:bg-gray-50"><i className="fas fa-file-pdf me-1 text-red-600"></i> PDF</button>
-                            <button type="button" className="export-btn px-3 py-1.5 text-sm border rounded hover:bg-gray-50"><i className="fas fa-print me-1 text-gray-600"></i> Print</button>
+                            <button onClick={handleCopy} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}><i className="fas fa-copy"></i> Copy</button>
+                            <button onClick={handleExportCSV} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}><i className="fas fa-file-excel text-green-600"></i> Excel</button>
+                            <button onClick={handlePrint} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}><i className="fas fa-file-pdf text-red-600"></i> PDF</button>
+                            <button onClick={handlePrint} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}><i className="fas fa-print text-gray-600"></i> Print</button>
                         </div>
 
-                        <div className="search-box">
+                        <div className="search-box" style={{ position: "relative" }}>
                             <input
                                 type="text"
                                 placeholder="Search vendor..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500"
+                                style={{ width: "240px", padding: "6px 12px", paddingLeft: "36px", fontSize: "0.875rem", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }}
                             />
+                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
                         </div>
                     </div>
 
-                    <table className="data-table">
+                    <table id="printable-vendor-dues-table" className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.875rem" }}>
                         <thead>
-                            <tr>
-                                <th>VENDOR NAME</th>
-                                <th>STATUS</th>
-                                <th style={{ textAlign: 'right' }}>TOTAL DUE (দেনা)</th>
+                            <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                                <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Vendor Name</th>
+                                <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Status</th>
+                                <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem", textAlign: "right" }}>Total Due (দেনা)</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {filteredVendors.length === 0 ? (
+                        <tbody style={{ color: "#334155" }}>
+                            {vendorsList.length === 0 ? (
                                 <tr>
-                                    <td colSpan="3" className="text-center py-4 text-gray-500">No due records found.</td>
+                                    <td colSpan="3" style={{ padding: "32px", textAlign: "center", color: "#64748b" }}>No due records found.</td>
                                 </tr>
                             ) : (
-                                filteredVendors.slice(0, perPage).map((vendor, index) => (
-                                    <tr key={index}>
-                                        <td style={{ fontWeight: "600", color: "#111827", fontSize: '15px' }}>
-                                            <i className="fa-solid fa-store text-gray-400 mr-2"></i> 
+                                vendorsList.map((vendor, idx) => (
+                                    <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9", background: idx % 2 === 0 ? "#fff" : "#fdfdfd" }}>
+                                        <td style={{ padding: "16px 24px", fontWeight: "600", color: "#0f172a" }}>
+                                            <i className="fa-solid fa-store" style={{ color: "#94a3b8", marginRight: "8px" }}></i> 
                                             {vendor.vendor_name}
                                         </td>
-                                        <td>
-                                            <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs font-semibold">
+                                        <td style={{ padding: "16px 24px" }}>
+                                            <span style={{ background: "#ffedd5", padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "600", color: "#9a3412", border: "1px solid #fdba74" }}>
                                                 Payable
                                             </span>
                                         </td>
-                                        <td style={{ textAlign: 'right', fontWeight: 'bold', color: '#d97706', fontSize: '15px' }}>
+                                        <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '700', color: '#d97706', fontSize: "0.95rem" }}>
                                             TK. {parseFloat(vendor.total_due).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                         </td>
                                     </tr>

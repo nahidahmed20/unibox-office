@@ -14,21 +14,34 @@ class TransactionController extends Controller
     public function index(Request $request)
     {
         $query = Transaction::with('account');
-
-        // Search logic
-        if ($request->has('search') && !empty($request->search)) {
-            $search = $request->search;
-            $query->where('description', 'like', "%{$search}%")
-                  ->orWhere('reference_number', 'like', "%{$search}%")
-                  ->orWhereHas('account', function($q) use ($search) {
-                      $q->where('name', 'like', "%{$search}%");
-                  });
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('description', 'like', "%{$searchTerm}%")
+                ->orWhere('reference_number', 'like', "%{$searchTerm}%")
+                ->orWhereHas('account', function ($aq) use ($searchTerm) {
+                    $aq->where('name', 'like', "%{$searchTerm}%");
+                });
+            });
         }
+        $perPage = $request->input('per_page', 10);
+        $transactions = $query
+            ->latest('transaction_date')
+            ->latest('id')
+            ->paginate($perPage)
+            ->withQueryString();
 
-        $transactions = $query->latest('transaction_date')->latest('id')->get();
-        $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->get();
+        // Dropdown data
+        $accounts = Account::where('is_active', true)
+            ->select('id', 'name', 'current_balance')
+            ->orderBy('name')
+            ->get();
 
-        return Inertia::render('Admin/Transactions/Index', compact('transactions', 'accounts'));
+        return Inertia::render('Admin/Transactions/Index', [
+            'transactions' => $transactions,
+            'accounts' => $accounts,
+            'filters' => $request->only('search', 'per_page'),
+        ]);
     }
 
     public function store(Request $request)

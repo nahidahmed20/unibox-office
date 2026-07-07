@@ -9,22 +9,30 @@ use Illuminate\Support\Str;
 
 class ExpenseCategoryController extends Controller
 {
-    public function index(Request $request)
+   public function index(Request $request)
     {
         $query = ExpenseCategory::query();
 
+        // Search Logic
         if ($request->filled('search')) {
-            $query->where('name', 'like', "%{$request->search}%");
+            $searchTerm = $request->search;
+
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%");
+            });
         }
+
+        // Pagination
+        $perPage = $request->input('per_page', 10);
 
         $categories = $query
             ->latest()
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
         return Inertia::render('Admin/ExpenseCategories/Index', [
             'categories' => $categories,
-            'filters' => $request->only('search'),
+            'filters' => $request->only('search', 'per_page'),
         ]);
     }
 

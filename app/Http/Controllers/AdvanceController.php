@@ -12,15 +12,27 @@ class AdvanceController extends Controller
     {
         $query = Advance::query();
 
-        if ($request->has('search') && $request->search != '') {
+        // Search Logic
+        if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where('given_to', 'like', "%{$searchTerm}%")
-                  ->orWhere('purpose', 'like', "%{$searchTerm}%");
+
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('given_to', 'like', "%{$searchTerm}%")
+                ->orWhere('purpose', 'like', "%{$searchTerm}%");
+            });
         }
 
+        // Pagination
+        $perPage = $request->input('per_page', 10);
+
+        $advances = $query
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
+
         return Inertia::render('Admin/Advances/Index', [
-            'advances' => $query->latest()->get(),
-            'filters'  => $request->only('search')
+            'advances' => $advances,
+            'filters'  => $request->only('search', 'per_page'),
         ]);
     }
 

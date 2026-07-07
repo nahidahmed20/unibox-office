@@ -1,23 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react'; 
+import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router, Link } from '@inertiajs/react'; 
-import Swal from 'sweetalert2'; 
+import { useForm, Head, router, Link } from '@inertiajs/react';
+import Swal from 'sweetalert2';
 
-export default function Index({ clients = [] }) {
+export default function Index({ clients = { data: [], links: [] } }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
-    const [viewMode, setViewMode] = useState(false); 
     
-    // --- Live Search & Pagination Setup ---
+    // View Modal State
+    const [showViewModal, setShowViewModal] = useState(false);
+    const [selectedClient, setSelectedClient] = useState(null);
+
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get('search') || '';
     });
-    const [perPage, setPerPage] = useState(10); 
-    
+    const [perPage, setPerPage] = useState(() => {
+        return Number(new URLSearchParams(window.location.search).get("per_page")) || 10;
+    });
+
     const isFirstRender = useRef(true);
 
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
-        id: '', 
+        id: '',
         name: '',
         company_name: '',
         email: '',
@@ -26,55 +30,101 @@ export default function Index({ clients = [] }) {
         website: ''
     });
 
-    // --- Live Search & Entries Limit ---
+    // --- Live Search & Pagination ---
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
             return;
         }
-
         const delayDebounceFn = setTimeout(() => {
-            router.get(
-                route('admin.clients.index'), 
-                { search: searchTerm, per_page: perPage }, 
-                { preserveState: true, replace: true }
-            );
-        }, 500);
+            const params = {};
+            if (searchTerm.trim()) params.search = searchTerm;
+            if (perPage !== 10) params.per_page = perPage;
+
+            router.get(route('admin.clients.index'), params, {
+                preserveState: true,
+                replace: true
+            });
+        }, 400);
 
         return () => clearTimeout(delayDebounceFn);
-    }, [searchTerm, perPage]); 
+    }, [searchTerm, perPage]);
 
-    // --- Copy Table Data ---
+    // --- Copy Data ---
     const handleCopy = () => {
-        const table = document.querySelector('.data-table');
-        if (!table) return;
+        if (!clients.data || !clients.data.length) return Swal.fire("Empty!", "No data to copy", "warning");
+        const text = clients.data
+            .map((c) => `${c.name}\t${c.company_name || "N/A"}\t${c.email || "N/A"}\t${c.phone || "N/A"}`)
+            .join("\n");
+        navigator.clipboard.writeText(text);
+        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false });
+    };
+
+    // --- Export CSV ---
+    const handleExportCSV = () => {
+        if (!clients.data || !clients.data.length) return Swal.fire("Empty!", "No data to export", "warning");
+        const headers = ["Client Name,Company,Email,Phone,Website,Address\n"];
+        const rows = clients.data.map(c => `"${c.name}","${c.company_name || ''}","${c.email || ''}","${c.phone || ''}","${c.website || ''}","${c.address || ''}"`);
+        const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `Clients_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+        link.click();
+    };
+
+    // --- Custom Full Screen Print ---
+    const handlePrint = () => {
+        const tableContent = document.getElementById("printable-table");
+        if (!tableContent) return;
+
+        const printWindow = window.open(
+            '', 
+            '_blank', 
+            `width=${window.screen.width},height=${window.screen.height},top=0,left=0`
+        );
         
-        navigator.clipboard.writeText(table.innerText).then(() => {
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'success',
-                title: 'Table data copied!',
-                showConfirmButton: false,
-                timer: 2000
-            });
-        });
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Clients Report</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; color: #334155; }
+                        h2 { text-align: center; color: #1e293b; margin-bottom: 20px; }
+                        table { width: 100%; border-collapse: collapse; text-align: left; }
+                        th, td { padding: 12px; border: 1px solid #cbd5e1; }
+                        th { background-color: #f1f5f9; font-weight: 600; text-transform: uppercase; font-size: 12px; }
+                        /* Hide Actions Column */
+                        th:last-child, td:last-child { display: none !important; }
+                    </style>
+                </head>
+                <body>
+                    <h2>Clients Directory Report</h2>
+                    ${tableContent.outerHTML}
+                </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 250);
     };
 
-    // --- Open Create Modal ---
+    // --- Modals ---
     const openCreateModal = () => {
-        reset(); 
-        clearErrors(); 
-        setEditMode(false); 
-        setViewMode(false);
+        reset();
+        clearErrors();
+        setEditMode(false);
         setShowModal(true);
     };
 
-    // --- Open Edit Modal ---
     const openEditModal = (client) => {
-        clearErrors(); 
+        clearErrors();
         setData({
-            id: client?.id || '', 
+            id: client?.id || '',
             name: client?.name || '',
             company_name: client?.company_name || '',
             email: client?.email || '',
@@ -82,69 +132,51 @@ export default function Index({ clients = [] }) {
             address: client?.address || '',
             website: client?.website || ''
         });
-        setEditMode(true); 
-        setViewMode(false);
+        setEditMode(true);
         setShowModal(true);
     };
 
-    // --- Open View Modal ---
     const openViewModal = (client) => {
-        clearErrors(); 
-        setData({
-            id: client?.id || '', 
-            name: client?.name || '',
-            company_name: client?.company_name || '',
-            email: client?.email || '',
-            phone: client?.phone || '',
-            address: client?.address || '',
-            website: client?.website || ''
-        });
-        setEditMode(false); 
-        setViewMode(true);
-        setShowModal(true);
+        setSelectedClient(client);
+        setShowViewModal(true);
     };
 
-    // --- Form Submit ---
     const handleSubmit = (e) => {
         e.preventDefault();
-        
-        if (viewMode) return; 
-
         if (editMode) {
-            put(route('admin.clients.update', data.id), { 
+            put(route('admin.clients.update', data.id), {
                 onSuccess: () => {
                     setShowModal(false);
-                    Swal.fire('Updated!', 'Client updated successfully.', 'success');
+                    Swal.fire({ icon: "success", title: "Updated Successfully!", timer: 1500, showConfirmButton: false });
                 }
             });
         } else {
-            post(route('admin.clients.store'), { 
-                onSuccess: () => { 
-                    reset(); 
-                    setShowModal(false); 
-                    Swal.fire('Created!', 'New client added successfully.', 'success');
+            post(route('admin.clients.store'), {
+                onSuccess: () => {
+                    reset();
+                    setShowModal(false);
+                    Swal.fire({ icon: "success", title: "Created Successfully!", timer: 1500, showConfirmButton: false });
                 }
             });
         }
     };
 
-    // --- Client Delete ---
     const handleDelete = (id) => {
         Swal.fire({
             title: 'Are you sure?',
-            text: 'This client will be temporarily deleted (soft delete)!',
+            text: 'This client will be deleted permanently!',
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonText: 'Yes, delete it!',
+            confirmButtonText: 'Yes, Delete It',
             cancelButtonText: 'Cancel',
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6'
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280'
         }).then((result) => {
             if (result.isConfirmed) {
                 destroy(route('admin.clients.destroy', id), {
                     preserveScroll: true,
                     onSuccess: () => {
-                        Swal.fire('Deleted!', 'Client has been removed.', 'success');
+                        Swal.fire({ icon: "success", title: "Deleted!", text: "Client removed successfully.", timer: 1500, showConfirmButton: false });
                     }
                 });
             }
@@ -155,90 +187,96 @@ export default function Index({ clients = [] }) {
         <AdminLayout>
             <Head title="Clients Management" />
             
-            <div className="slider-page-wrapper">
-                <div className="page-header">
-                    <h1 className="page-title">Clients</h1>
-                    <div className="breadcrumb">
-                        Dashboard / <span>Client List</span>
+            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc" }}>
+                
+                {/* Header */}
+                <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+                    <div>
+                        <h1 className="page-title" style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Client Workspace</h1>
+                        <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Manage, track and communicate with your clients.</p>
                     </div>
                 </div>
 
-                <div className="card-container">
-                    <div className="card-header">
-                        <div className="card-title">
-                            <i className="fa-solid fa-users-line"></i> Client Directory
+                <div className="card-container" style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
+                    
+                    <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
+                        <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
+                            <i className="fa-solid fa-users" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Client Directory
                         </div>
-                        <button onClick={openCreateModal} className="add-btn">
-                            + Add Client
+                        <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
+                            <i className="fa-solid fa-plus"></i> Add New Client
                         </button>
                     </div>
 
-                    <div className="table-toolbar">
-                        <div className="show-entries">
+                    {/* Toolbar */}
+                    <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
+                        <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
                             Show 
-                            <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))}>
-                                <option value={10}>10</option>
-                                <option value={25}>25</option>
-                                <option value={50}>50</option>
-                            </select> 
-                            entries
+                            <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
+                                <option value={10}>10 Entries</option>
+                                <option value={25}>25 Entries</option>
+                                <option value={50}>50 Entries</option>
+                                <option value={100}>100 Entries</option>
+                            </select>
                         </div>
 
-                        <div className="export-buttons" style={{ display: 'flex', gap: '8px' }}>
-                            <button type="button" className="export-btn" onClick={handleCopy}>
-                                <i className="fas fa-copy me-1"></i> Copy
+                        <div className="export-buttons" style={{ display: "flex", gap: "8px" }}>
+                            <button type="button" className="export-btn" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
+                                <i className="fas fa-copy text-blue-500"></i> Copy
                             </button>
-                            <button type="button" className="export-btn">
-                                <i className="fas fa-file-excel me-1"></i> Excel
+                            <button type="button" className="export-btn" onClick={handleExportCSV} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
+                                <i className="fas fa-file-excel text-emerald-500"></i> CSV
                             </button>
-                            <button type="button" className="export-btn">
-                                <i className="fas fa-file-csv me-1"></i> CSV
-                            </button>
-                            <button type="button" className="export-btn" onClick={() => window.print()}>
-                                <i className="fas fa-print me-1"></i> Print
+                            <button type="button" className="export-btn" onClick={handlePrint} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
+                                <i className="fas fa-print text-slate-500"></i> Print
                             </button>
                         </div>
 
-                        <div className="search-box">
-                            <input 
-                                type="text" 
-                                placeholder="Search clients..." 
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+                        <div className="search-box" style={{ position: "relative" }}>
+                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
+                            <input type="text" placeholder="Search clients..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "260px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
                         </div>
                     </div>
 
-                    <div style={{ overflowX: 'auto' }}>
-                        <table className="data-table">
+                    {/* Table */}
+                    <div style={{ overflowX: "auto" }}>
+                        <table id="printable-table" className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
                             <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>CLIENT NAME</th>
-                                    <th>COMPANY</th>
-                                    <th>EMAIL</th>
-                                    <th>PHONE</th>
-                                    <th>ACTION</th>
+                                <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "60px" }}>SL</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Client Details</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Contact Info</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Address</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {(clients.data || clients).length > 0 ? (
-                                    (clients.data || clients).map((client, index) => (
-                                        <tr key={client.id}>
-                                            <td>{clients.from ? clients.from + index : index + 1}</td>
-                                            <td style={{ fontWeight: '600', color: '#334155' }}>{client.name}</td>
-                                            <td>{client.company_name || '-'}</td>
-                                            <td>{client.email || '-'}</td>
-                                            <td>{client.phone || '-'}</td>
-                                            <td>
-                                                <div className="action-btns">
-                                                    <button onClick={() => openViewModal(client)} className="icon-btn view"  title="View">
+                            <tbody style={{ color: "#334155", fontSize: "0.915rem" }}>
+                                {clients.data && clients.data.length > 0 ? (
+                                    clients.data.map((client, index) => (
+                                        <tr key={client.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                                            <td style={{ padding: "16px 24px", color: "#64748b", fontWeight: "500" }}>
+                                                {clients.from ? clients.from + index : index + 1}
+                                            </td>
+                                            <td style={{ padding: "16px 24px" }}>
+                                                <div style={{ fontWeight: "600", color: "#0f172a" }}>{client.name}</div>
+                                                <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "2px" }}><i className="fa-regular fa-building me-1"></i> {client.company_name || "No Company"}</div>
+                                            </td>
+                                            <td style={{ padding: "16px 24px" }}>
+                                                <div style={{ color: "#0ea5e9", fontSize: "0.875rem" }}>{client.email || "-"}</div>
+                                                <div style={{ fontSize: "0.875rem", color: "#475569", marginTop: "2px" }}>{client.phone || "-"}</div>
+                                            </td>
+                                            <td style={{ padding: "16px 24px" }}>
+                                                <div style={{ fontSize: "0.875rem", color: "#475569" }}>{client.address ? client.address.substring(0, 30) + '...' : "-"}</div>
+                                            </td>
+                                            <td style={{ padding: "16px 24px", textAlign: "right" }}>
+                                                <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                                    <button onClick={() => openViewModal(client)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
                                                         <i className="fa-regular fa-eye"></i>
                                                     </button>
-                                                    <button onClick={() => openEditModal(client)} className="icon-btn edit" title="Edit">
+                                                    <button onClick={() => openEditModal(client)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit Client">
                                                         <i className="fa-regular fa-pen-to-square"></i>
                                                     </button>
-                                                    <button onClick={() => handleDelete(client.id)} className="icon-btn delete" title="Delete">
+                                                    <button onClick={() => handleDelete(client.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete Client">
                                                         <i className="fa-regular fa-trash-can"></i>
                                                     </button>
                                                 </div>
@@ -247,222 +285,161 @@ export default function Index({ clients = [] }) {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>No clients found.</td>
+                                        <td colSpan="4" style={{ textAlign: "center", padding: "32px", color: "#94a3b8" }}>No clients found.</td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
-                        <div
-                            style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                marginTop: "20px",
-                                padding: "15px 0",
-                                borderTop: "1px solid #e5e7eb",
-                            }}>
-                            <div style={{ fontSize: "14px", color: "#6b7280" }}>
-                                Showing <b>{clients.from ?? 0}</b> to <b>{clients.to ?? 0}</b> of{" "}
-                                <b>{clients.total}</b> entries
+                    </div>
+
+                    {/* Pagination Links */}
+                    {clients.links && clients.links.length > 3 && (
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
+                            <div style={{ color: "#64748b", fontSize: "0.875rem" }}>
+                                Showing {clients.from || 0} to {clients.to || 0} of {clients.total || 0} entries
                             </div>
-    
-                            <div
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "4px",
-                                }}
-                            >
-                                <button
-                                    disabled={!clients.prev_page_url}
-                                    onClick={() => router.visit(clients.prev_page_url, { preserveState: true, preserveScroll: true })}
-                                    className="pagination-btn"
-                                >
-                                    <i className="fas fa-chevron-left"></i>
-                                </button>
-    
-                                {clients.links
-                                    .filter(link => link.label !== "&laquo; Previous" && link.label !== "Next &raquo;")
-                                    .map((link, index) => (
-                                        <button
-                                            key={index}
-                                            disabled={!link.url}
-                                            onClick={() => link.url && router.visit(link.url, { preserveState: true, preserveScroll: true })}
-                                            className={`pagination-btn ${link.active ? "active-page" : ""}`}
-                                            dangerouslySetInnerHTML={{ __html: link.label }}
-                                        />
-                                    ))}
-    
-                                <button
-                                    disabled={!clients.next_page_url}
-                                    onClick={() => router.visit(clients.next_page_url, { preserveState: true, preserveScroll: true })}
-                                    className="pagination-btn"
-                                >
-                                    <i className="fas fa-chevron-right"></i>
-                                </button>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                                {clients.links.map((link, index) => (
+                                    <Link 
+                                        key={index} 
+                                        href={link.url || "#"} 
+                                        style={{ 
+                                            padding: "6px 12px", 
+                                            border: "1px solid #cbd5e1", 
+                                            borderRadius: "6px", 
+                                            fontSize: "0.875rem", 
+                                            color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"), 
+                                            backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"), 
+                                            pointerEvents: link.url ? "auto" : "none", 
+                                            textDecoration: "none",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            minWidth: "32px"
+                                        }} 
+                                        preserveState
+                                    >
+                                        {link.label.includes("Previous") ? (
+                                            <i className="fa-solid fa-chevron-left"></i>
+                                        ) : link.label.includes("Next") ? (
+                                            <i className="fa-solid fa-chevron-right"></i>
+                                        ) : (
+                                            link.label.replace("&laquo;", "").replace("&raquo;", "")
+                                        )}
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* --- VIEW DETAILS MODAL --- */}
+            {showViewModal && selectedClient && (
+                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+                    <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
+                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
+                                <i className="fa-regular fa-address-card" style={{ marginRight: "8px", color: "#2563eb" }}></i> Client Profile
+                            </h3>
+                            <button type="button" onClick={() => setShowViewModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}>
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <div style={{ padding: "24px" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
+                                <div>
+                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Client Name</span>
+                                    <div style={{ fontSize: "1.1rem", fontWeight: "700", color: "#0f172a" }}>{selectedClient.name}</div>
+                                </div>
+                                <div>
+                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Company Name</span>
+                                    <div style={{ fontWeight: "600", color: "#334155" }}><i className="fa-regular fa-building text-amber-500" style={{ marginRight: "6px" }}></i>{selectedClient.company_name || "N/A"}</div>
+                                </div>
+                                <div>
+                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Email Address</span>
+                                    <div style={{ fontWeight: "600", color: "#0ea5e9" }}><i className="fa-regular fa-envelope" style={{ marginRight: "6px" }}></i>{selectedClient.email || "N/A"}</div>
+                                </div>
+                                <div>
+                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Phone Number</span>
+                                    <div style={{ color: "#475569", fontWeight: "500" }}><i className="fa-solid fa-phone text-emerald-500" style={{ marginRight: "6px" }}></i>{selectedClient.phone || "N/A"}</div>
+                                </div>
+                                <div style={{ gridColumn: "span 2" }}>
+                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Website</span>
+                                    <div style={{ color: "#2563eb", fontWeight: "500" }}>
+                                        <i className="fa-solid fa-globe" style={{ marginRight: "6px" }}></i>
+                                        {selectedClient.website ? <a href={selectedClient.website} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>{selectedClient.website}</a> : "N/A"}
+                                    </div>
+                                </div>
+                            </div>
+                            <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
+                                <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Physical Address</span>
+                                <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "8px", border: "1px solid #e2e8f0", color: "#475569", fontSize: "0.9rem", lineHeight: "1.6", minHeight: "60px", whiteSpace: "pre-line" }}>
+                                    <i className="fa-solid fa-location-dot text-rose-500" style={{ marginRight: "6px" }}></i>
+                                    {selectedClient.address || "No address provided."}
+                                </div>
+                            </div>
+                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+                                <button type="button" onClick={() => setShowViewModal(false)} style={{ background: "#1e293b", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500" }}>Close Profile</button>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
 
-            {/* Modal Section */}
+            {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
-                <div className="modal-overlay">
-                    <div className="modal-content" style={{ maxWidth: '600px' }}>
-                       
-                        <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '15px', marginBottom: '20px' }}>
-                            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600', color: '#1e293b' }}>
-                                {viewMode ? "Client Information" : editMode ? "Edit Client Info" : "Add New Client"}
+                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+                    <div style={{ background: "#fff", width: "100%", maxWidth: "650px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
+                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
+                                {editMode ? "📝 Update Client Details" : "✨ Register New Client"}
                             </h3>
-                            <button 
-                                type="button" 
-                                onClick={() => setShowModal(false)} 
-                                style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b', transition: 'color 0.2s' }}
-                                onMouseEnter={(e) => e.target.style.color = '#ef4444'}
-                                onMouseLeave={(e) => e.target.style.color = '#64748b'}
-                                title="Close"
-                            >
-                                &times;
+                            <button type="button" onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}>
+                                <i className="fa-solid fa-xmark"></i>
                             </button>
                         </div>
-                        
-                        {/* VIEW MODE LAYOUT (Modern Shopify Style) */}
-                        {viewMode ? (
-                            <div className="view-details" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                                    <div>
-                                        <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Client Name</span>
-                                        <span style={{ display: 'block', fontSize: '15px', color: '#0f172a', fontWeight: '500' }}>{data.name || '-'}</span>
-                                    </div>
-                                    <div>
-                                        <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Email Address</span>
-                                        <span style={{ display: 'block', fontSize: '15px', color: '#0ea5e9' }}>{data.email ? <a href={`mailto:${data.email}`} style={{ textDecoration: 'none', color: 'inherit' }}>{data.email}</a> : '-'}</span>
-                                    </div>
-                                    <div>
-                                        <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Company Name</span>
-                                        <span style={{ display: 'block', fontSize: '15px', color: '#0f172a' }}>{data.company_name || '-'}</span>
-                                    </div>
-                                    <div>
-                                        <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Phone Number</span>
-                                        <span style={{ display: 'block', fontSize: '15px', color: '#0f172a' }}>{data.phone || '-'}</span>
-                                    </div>
+                        <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                                <div style={{ gridColumn: "span 1" }}>
+                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Client Name *</label>
+                                    <input type="text" value={data.name} onChange={(e) => setData("name", e.target.value)} placeholder="e.g. John Doe" style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} required />
+                                    {errors.name && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.name}</p>}
                                 </div>
-                                
-                                <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '20px', marginTop: '4px' }}>
-                                    <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Website</span>
-                                    <span style={{ display: 'block', fontSize: '15px', color: '#0ea5e9' }}>
-                                        {data.website ? <a href={data.website} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>{data.website}</a> : '-'}
-                                    </span>
+                                <div style={{ gridColumn: "span 1" }}>
+                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Company Name</label>
+                                    <input type="text" value={data.company_name} onChange={(e) => setData("company_name", e.target.value)} placeholder="e.g. ABC Corp" style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} />
+                                    {errors.company_name && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.company_name}</p>}
                                 </div>
-
-                                <div>
-                                    <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Address</span>
-                                    <span style={{ display: 'block', fontSize: '15px', color: '#0f172a', lineHeight: '1.5', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                                        {data.address || 'No address provided.'}
-                                    </span>
+                                <div style={{ gridColumn: "span 1" }}>
+                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Email Address</label>
+                                    <input type="email" value={data.email} onChange={(e) => setData("email", e.target.value)} placeholder="john@example.com" style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} />
+                                    {errors.email && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.email}</p>}
                                 </div>
-
-                                <div className="modal-footer" style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end', paddingTop: '15px', borderTop: '1px solid #e5e7eb' }}>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setShowModal(false)} 
-                                        style={{ padding: '6px 16px', backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.2s' }}
-                                        onMouseEnter={(e) => { e.target.style.backgroundColor = '#e2e8f0'; e.target.style.color = '#0f172a'; }}
-                                        onMouseLeave={(e) => { e.target.style.backgroundColor = '#f1f5f9'; e.target.style.color = '#475569'; }}
-                                    >
-                                        Close 
-                                    </button>
+                                <div style={{ gridColumn: "span 1" }}>
+                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Phone Number</label>
+                                    <input type="text" value={data.phone} onChange={(e) => setData("phone", e.target.value)} placeholder="+8801..." style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} />
+                                    {errors.phone && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.phone}</p>}
+                                </div>
+                                <div style={{ gridColumn: "span 2" }}>
+                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Website URL</label>
+                                    <input type="url" value={data.website} onChange={(e) => setData("website", e.target.value)} placeholder="https://example.com" style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} />
+                                    {errors.website && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.website}</p>}
+                                </div>
+                                <div style={{ gridColumn: "span 2" }}>
+                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Full Address</label>
+                                    <textarea value={data.address} onChange={(e) => setData("address", e.target.value)} placeholder="Client's physical address" style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", resize: "vertical" }} rows="2"></textarea>
+                                    {errors.address && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.address}</p>}
                                 </div>
                             </div>
-                        ) : (
-                            /* ADD/EDIT MODE FORM */
-                            <form onSubmit={handleSubmit}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                    <div className="form-group">
-                                        <label style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>Client Name *</label>
-                                        <input 
-                                            type="text" 
-                                            value={data.name} 
-                                            onChange={e => setData('name', e.target.value)} 
-                                            className="form-control" 
-                                            placeholder="e.g., John Doe" 
-                                            required
-                                        />
-                                        {errors.name && <p className="error-text">{errors.name}</p>}
-                                    </div>
 
-                                    <div className="form-group">
-                                        <label style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>Email Address</label>
-                                        <input 
-                                            type="email" 
-                                            value={data.email} 
-                                            onChange={e => setData('email', e.target.value)} 
-                                            className="form-control" 
-                                            placeholder="john@example.com" 
-                                        />
-                                        {errors.email && <p className="error-text">{errors.email}</p>}
-                                    </div>
-
-                                    <div className="form-group">
-                                        <label style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>Company Name</label>
-                                        <input 
-                                            type="text" 
-                                            value={data.company_name} 
-                                            onChange={e => setData('company_name', e.target.value)} 
-                                            className="form-control" 
-                                            placeholder="e.g., ABC Corp" 
-                                        />
-                                        {errors.company_name && <p className="error-text">{errors.company_name}</p>}
-                                    </div>
-
-                                    <div className="form-group">
-                                        <label style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>Phone Number</label>
-                                        <input 
-                                            type="text" 
-                                            value={data.phone} 
-                                            onChange={e => setData('phone', e.target.value)} 
-                                            className="form-control" 
-                                            placeholder="+8801..." 
-                                        />
-                                        {errors.phone && <p className="error-text">{errors.phone}</p>}
-                                    </div>
-                                </div>
-
-                                <div className="form-group" style={{ marginTop: '15px' }}>
-                                    <label style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>Website</label>
-                                    <input 
-                                        type="url" 
-                                        value={data.website} 
-                                        onChange={e => setData('website', e.target.value)} 
-                                        className="form-control" 
-                                        placeholder="https://example.com" 
-                                    />
-                                    {errors.website && <p className="error-text">{errors.website}</p>}
-                                </div>
-
-                                <div className="form-group" style={{ marginTop: '15px' }}>
-                                    <label style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>Address</label>
-                                    <textarea 
-                                        value={data.address} 
-                                        onChange={e => setData('address', e.target.value)} 
-                                        className="form-control" 
-                                        placeholder="Client's full address" 
-                                        rows="2"
-                                    ></textarea>
-                                    {errors.address && <p className="error-text">{errors.address}</p>}
-                                </div>
-
-                                <div className="modal-footer" style={{ marginTop: '25px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                                    <button type="button" onClick={() => setShowModal(false)} className="btn-cancel" style={{ padding: '8px 16px', backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '6px', fontWeight: '500', cursor: 'pointer' }}>
-                                        Cancel
-                                    </button>
-                                    <button type="submit" disabled={processing} className="btn-save" style={{ padding: '8px 16px', backgroundColor: '#0f172a', color: 'white', border: 'none', borderRadius: '6px', fontWeight: '500', cursor: 'pointer' }}>
-                                        {processing ? 'Saving...' : 'Save Client'}
-                                    </button>
-                                </div>
-                            </form>
-                        )}
+                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+                                <button type="button" onClick={() => setShowModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569" }}>Dismiss</button>
+                                <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", opacity: processing ? 0.7 : 1 }}>
+                                    {processing ? "Saving Changes..." : "Save Client"}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

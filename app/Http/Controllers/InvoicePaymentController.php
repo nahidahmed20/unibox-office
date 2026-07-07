@@ -11,13 +11,53 @@ use Inertia\Inertia;
 
 class InvoicePaymentController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $payments = InvoicePayment::with(['invoice.client', 'account'])->latest()->get();
-        $invoices = Invoice::with('client')->where('status', '!=', 'paid')->get();
-        $accounts = Account::where('is_active', true)->get();
+        $query = InvoicePayment::with([
+            'invoice.client',
+            'account'
+        ]);
 
-        return Inertia::render('Admin/InvoicePayments/Index', compact('payments', 'invoices', 'accounts'));
+        // Search
+        if ($request->filled('search')) {
+            $search = $request->search;
+
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('invoice.client', function ($client) use ($search) {
+                    $client->where('name', 'like', "%{$search}%");
+                })
+                ->orWhereHas('account', function ($account) use ($search) {
+                    $account->where('account_name', 'like', "%{$search}%");
+                })
+                ->orWhere('payment_method', 'like', "%{$search}%")
+                ->orWhere('reference', 'like', "%{$search}%");
+            });
+        }
+
+        // Pagination
+        $payments = $query
+            ->latest()
+            ->paginate($request->per_page ?? 10)
+            ->withQueryString();
+
+        $invoices = Invoice::with('client')
+            ->where('status', '!=', 'paid')
+            ->latest()
+            ->get();
+
+        $accounts = Account::where('is_active', true)
+            ->latest()
+            ->get();
+
+        return Inertia::render('Admin/InvoicePayments/Index', [
+            'payments' => $payments,
+            'invoices' => $invoices,
+            'accounts' => $accounts,
+            'filters' => [
+                'search' => $request->search,
+                'per_page' => $request->per_page ?? 10,
+            ],
+        ]);
     }
 
     public function store(Request $request)

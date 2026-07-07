@@ -183,13 +183,21 @@ class ProjectExpenseController extends Controller
         return back()->with('success', 'Project Expense deleted successfully.');
     }
 
-    public function vendorDuesReport()
+    public function vendorDuesReport(Request $request)
     {
-        $vendorDues = ProjectExpense::select('vendor_name', DB::raw('SUM(due_amount) as total_due'))
+        $perPage = $request->input('per_page', 10);
+        $search = $request->input('search');
+
+        $query = ProjectExpense::select('vendor_name', DB::raw('SUM(due_amount) as total_due'))
             ->where('due_amount', '>', 0)
-            ->whereNotNull('vendor_name') 
-            ->groupBy('vendor_name')
-            ->get();
+            ->whereNotNull('vendor_name')
+            ->groupBy('vendor_name');
+
+        if ($search) {
+            $query->where('vendor_name', 'LIKE', "%{$search}%");
+        }
+
+        $vendorDues = $query->paginate($perPage)->withQueryString();
 
         return Inertia::render('Admin/Reports/VendorDues', compact('vendorDues'));
     }
