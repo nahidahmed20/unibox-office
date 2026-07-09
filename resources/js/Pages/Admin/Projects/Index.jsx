@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { useForm, Head, router, Link } from "@inertiajs/react";
 import Swal from "sweetalert2";
-import Select from 'react-select';
 
 export default function Index({ projects = { data: [], links: [] }, clients = [] }) {
     const [showModal, setShowModal] = useState(false);
@@ -11,6 +10,10 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
     // View Modal এর জন্য স্টেট
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedProject, setSelectedProject] = useState(null);
+
+    // --- Searchable Dropdown State ---
+    const [clientSearch, setClientSearch] = useState("");
+    const [showClientDropdown, setShowClientDropdown] = useState(false);
     
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get("search") || "";
@@ -80,15 +83,12 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
         link.setAttribute("download", `Projects_Report_${new Date().toISOString().slice(0,10)}.csv`);
         link.click();
     };
+
     const handlePrint = () => {
         const tableContent = document.getElementById("printable-table");
         if (!tableContent) return;
 
-        const printWindow = window.open(
-            '', 
-            '_blank', 
-            `width=${window.screen.width},height=${window.screen.height},top=0,left=0`
-        );
+        const printWindow = window.open('', '_blank', `width=${window.screen.width},height=${window.screen.height},top=0,left=0`);
         
         printWindow.document.write(`
             <html>
@@ -123,6 +123,8 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
         reset();
         clearErrors();
         setEditMode(false);
+        setClientSearch("");
+        setShowClientDropdown(false);
         setShowModal(true);
     };
 
@@ -138,6 +140,8 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
             budget: project.budget || "",
             status: project.status,
         });
+        setClientSearch("");
+        setShowClientDropdown(false);
         setEditMode(true);
         setShowModal(true);
     };
@@ -149,6 +153,13 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
     const handleSubmit = (e) => {
         e.preventDefault();
+
+        // Check if Client is selected
+        if (!data.client_id) {
+            Swal.fire("Required", "Please select a client from the dropdown.", "warning");
+            return;
+        }
+
         if (editMode) {
             put(route("admin.projects.update", data.id), {
                 onSuccess: () => {
@@ -196,28 +207,6 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
             on_hold: "bg-red-100 text-red-800 border border-red-300 animate-pulse"
         };
         return styles[status] || "bg-gray-100 text-gray-800";
-    };
-
-    // React-Select Custom Styles
-    const selectStyles = {
-        control: (provided, state) => ({
-            ...provided,
-            minHeight: "38px",
-            borderRadius: "6px",
-            border: state.isFocused ? "1px solid #3b82f6" : "1px solid #cbd5e1",
-            boxShadow: state.isFocused ? "0 0 0 1px #3b82f6" : "none",
-            "&:hover": { borderColor: "#94a3b8" },
-        }),
-        valueContainer: (provided) => ({ ...provided, padding: "2px 8px" }),
-        placeholder: (provided) => ({ ...provided, color: "#9ca3af", fontSize: "0.875rem" }),
-        singleValue: (provided) => ({ ...provided, color: "#1e293b", fontSize: "0.875rem" }),
-        option: (provided, state) => ({
-            ...provided,
-            fontSize: "0.875rem",
-            backgroundColor: state.isSelected ? "#2563eb" : state.isFocused ? "#eff6ff" : "#fff",
-            color: state.isSelected ? "#fff" : "#1e293b",
-            cursor: "pointer",
-        }),
     };
 
     return (
@@ -323,14 +312,13 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="6" style={{ textAlign: "center", padding: "32px", color: "#94a3b8" }}>No projects found.</td>
+                                        <td colSpan="7" style={{ textAlign: "center", padding: "32px", color: "#94a3b8" }}>No projects found.</td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
 
-                    {/* Pagination Links */}
                     {projects.links && projects.links.length > 3 && (
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
                             <div style={{ color: "#64748b", fontSize: "0.875rem" }}>
@@ -438,66 +426,124 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                 <i className="fa-solid fa-xmark"></i>
                             </button>
                         </div>
-                        <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                                <div style={{ gridColumn: "span 2" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Project Title *</label>
-                                    <input type="text" value={data.title} onChange={(e) => setData("title", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} required />
-                                    {errors.title && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.title}</p>}
+                        
+                        {/* Outside Click Wrapper for Custom Dropdown */}
+                        <div onClick={() => showClientDropdown && setShowClientDropdown(false)} style={{ padding: "24px", maxHeight: "80vh", overflowY: "auto" }}>
+                            <form onSubmit={handleSubmit}>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                                    <div style={{ gridColumn: "span 2" }}>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Project Title *</label>
+                                        <input type="text" value={data.title} onChange={(e) => setData("title", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} required />
+                                        {errors.title && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.title}</p>}
+                                    </div>
+
+                                    {/* --- SEARCHABLE DROPDOWN FOR CLIENT --- */}
+                                    <div style={{ gridColumn: "span 1", position: "relative" }}>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Client *</label>
+                                        
+                                        <div 
+                                            onClick={(e) => { e.stopPropagation(); setShowClientDropdown(!showClientDropdown); }}
+                                            style={{ width: "100%", padding: "10px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                                        >
+                                            <span style={{ color: data.client_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
+                                                {data.client_id 
+                                                    ? (() => {
+                                                        const c = clients.find(cl => cl.id == data.client_id);
+                                                        return c ? `${c.name} ${c.company_name ? `(${c.company_name})` : ''}` : "-- Choose Client --";
+                                                    })()
+                                                    : "-- Search & Select Client --"
+                                                }
+                                            </span>
+                                            <i className={`fa-solid fa-chevron-${showClientDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem" }}></i>
+                                        </div>
+
+                                        {showClientDropdown && (
+                                            <div 
+                                                onClick={(e) => e.stopPropagation()}
+                                                style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "250px", display: "flex", flexDirection: "column" }}
+                                            >
+                                                <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Type client name..." 
+                                                        value={clientSearch}
+                                                        onChange={(e) => setClientSearch(e.target.value)}
+                                                        style={{ width: "100%", padding: "8px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }}
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                <div style={{ overflowY: "auto", padding: "4px 0" }}>
+                                                    {clients.filter(c => 
+                                                        c.name.toLowerCase().includes(clientSearch.toLowerCase()) || 
+                                                        (c.company_name && c.company_name.toLowerCase().includes(clientSearch.toLowerCase()))
+                                                    ).length > 0 ? (
+                                                        clients.filter(c => 
+                                                            c.name.toLowerCase().includes(clientSearch.toLowerCase()) || 
+                                                            (c.company_name && c.company_name.toLowerCase().includes(clientSearch.toLowerCase()))
+                                                        ).map(c => (
+                                                            <div 
+                                                                key={c.id} 
+                                                                onClick={() => {
+                                                                    setData("client_id", c.id);
+                                                                    setShowClientDropdown(false);
+                                                                    setClientSearch("");
+                                                                }}
+                                                                style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.9rem", color: "#334155", background: data.client_id == c.id ? "#f0fdf4" : "transparent" }}
+                                                                onMouseEnter={(e) => e.target.style.background = "#f1f5f9"}
+                                                                onMouseLeave={(e) => e.target.style.background = data.client_id == c.id ? "#f0fdf4" : "transparent"}
+                                                            >
+                                                                {c.name} {c.company_name ? <span style={{ color: "#64748b", fontSize: "0.8rem" }}>({c.company_name})</span> : ''}
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No client found.</div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {errors.client_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.client_id}</p>}
+                                    </div>
+                                    {/* ------------------------------------------- */}
+
+                                    <div style={{ gridColumn: "span 1" }}>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Budget</label>
+                                        <input type="number" value={data.budget} onChange={(e) => setData("budget", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }} />
+                                    </div>
+
+                                    <div style={{ gridColumn: "span 1" }}>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Start Date</label>
+                                        <input type="date" value={data.start_date} onChange={(e) => setData("start_date", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }} />
+                                    </div>
+
+                                    <div style={{ gridColumn: "span 1" }}>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Deadline *</label>
+                                        <input type="date" value={data.deadline} onChange={(e) => setData("deadline", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }} required />
+                                    </div>
+
+                                    <div style={{ gridColumn: "span 2" }}>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Project Status *</label>
+                                        <select value={data.status} onChange={(e) => setData("status", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }} required>
+                                            <option value="planning">Planning</option>
+                                            <option value="in_progress">In Progress</option>
+                                            <option value="on_hold">On Hold</option>
+                                            <option value="completed">Completed</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div style={{ marginTop: "16px" }}>
+                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Description / Notes</label>
+                                    <textarea value={data.description} onChange={(e) => setData("description", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", resize: "vertical" }} rows="3"></textarea>
                                 </div>
 
-                                <div style={{ gridColumn: "span 1" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Client *</label>
-                                    <Select
-                                        options={clients.map((c) => ({ value: c.id, label: c.name }))}
-                                        value={clients.map((c) => ({ value: c.id, label: c.name })).find((opt) => Number(opt.value) === Number(data.client_id)) || null}
-                                        onChange={(selected) => setData("client_id", selected ? selected.value : "")}
-                                        placeholder="Search & Select Client"
-                                        isSearchable={true}
-                                        isClearable
-                                        styles={selectStyles}
-                                    />
-                                    {errors.client_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.client_id}</p>}
+                                <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+                                    <button type="button" onClick={() => setShowModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569" }}>Dismiss</button>
+                                    <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", opacity: processing ? 0.7 : 1 }}>
+                                        {processing ? "Saving Changes..." : "Commit Project"}
+                                    </button>
                                 </div>
-
-                                <div style={{ gridColumn: "span 1" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Budget</label>
-                                    <input type="number" value={data.budget} onChange={(e) => setData("budget", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }} />
-                                </div>
-
-                                <div style={{ gridColumn: "span 1" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Start Date</label>
-                                    <input type="date" value={data.start_date} onChange={(e) => setData("start_date", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }} />
-                                </div>
-
-                                <div style={{ gridColumn: "span 1" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Deadline *</label>
-                                    <input type="date" value={data.deadline} onChange={(e) => setData("deadline", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }} required />
-                                </div>
-
-                                <div style={{ gridColumn: "span 2" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Project Status *</label>
-                                    <select value={data.status} onChange={(e) => setData("status", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }} required>
-                                        <option value="planning">Planning</option>
-                                        <option value="in_progress">In Progress</option>
-                                        <option value="on_hold">On Hold</option>
-                                        <option value="completed">Completed</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div style={{ marginTop: "16px" }}>
-                                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Description / Notes</label>
-                                <textarea value={data.description} onChange={(e) => setData("description", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", resize: "vertical" }} rows="3"></textarea>
-                            </div>
-
-                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                <button type="button" onClick={() => setShowModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569" }}>Dismiss</button>
-                                <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", opacity: processing ? 0.7 : 1 }}>
-                                    {processing ? "Saving Changes..." : "Commit Project"}
-                                </button>
-                            </div>
-                        </form>
+                            </form>
+                        </div>
                     </div>
                 </div>
             )}

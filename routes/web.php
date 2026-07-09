@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AdvanceController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\ClientAdvanceController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
@@ -26,6 +27,7 @@ use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\VendorController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -53,8 +55,11 @@ Route::middleware('auth')->group(function () {
 
     // 1. CRM & Projects
     Route::resource('clients', ClientController::class)->names('admin.clients');
+    Route::resource('vendors', VendorController::class)->names('admin.vendors');
     Route::resource('projects', ProjectController::class)->names('admin.projects');
     Route::resource('tasks', TaskController::class)->names('admin.tasks');
+
+    Route::resource('client-advances', ClientAdvanceController::class)->names('admin.client-advances');
 
     // 2. Finance & Accounts
     Route::get('client-dues', [InvoiceController::class, 'clientDuesReport'])->name('admin.client-dues');

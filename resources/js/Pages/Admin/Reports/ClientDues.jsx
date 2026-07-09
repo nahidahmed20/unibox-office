@@ -7,26 +7,33 @@ export default function ClientDues({ clientsWithDues = [] }) {
     const [searchTerm, setSearchTerm] = useState(
         () => new URLSearchParams(window.location.search).get("search") || "",
     );
-    const [perPage, setPerPage] = useState(10);
+    const [perPage, setPerPage] = useState(
+        () => Number(new URLSearchParams(window.location.search).get("per_page")) || 10
+    );
     const isFirstRender = useRef(true);
 
     const grandTotalDue = clientsWithDues.data.reduce((sum, client) => sum + parseFloat(client.total_due), 0);
 
-    useEffect(() => {
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            return;
-        }
-        const delay = setTimeout(() => {
-            router.get(
-                route("admin.client-dues"),
-                { search: searchTerm },
-                { preserveState: true, replace: true },
-            );
-        }, 500);
+    
 
-        return () => clearTimeout(delay);
-    }, [searchTerm]);
+    useEffect(() => {
+            if (isFirstRender.current) {
+                isFirstRender.current = false;
+                return;
+            }
+            const delayDebounceFn = setTimeout(() => {
+                const params = {};
+                if (searchTerm.trim()) params.search = searchTerm;
+                if (perPage !== 10) params.per_page = perPage;
+    
+                router.get(route('admin.client-dues'), params, {
+                    preserveState: true,
+                    replace: true
+                });
+            }, 400);
+    
+            return () => clearTimeout(delayDebounceFn);
+        }, [searchTerm, perPage]);
 
     /* =========================================
        EXPORT FUNCTIONS (Copy, CSV, Print)
@@ -200,6 +207,44 @@ export default function ClientDues({ clientsWithDues = [] }) {
                             )}
                         </tbody>
                     </table>
+                    {clientsWithDues.links && clientsWithDues.links.length > 3 && (
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
+                            <div style={{ color: "#64748b", fontSize: "0.875rem" }}>
+                                Showing {clientsWithDues.from || 0} to {clientsWithDues.to || 0} of {clientsWithDues.total || 0} entries
+                            </div>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                                {clientsWithDues.links.map((link, index) => (
+                                    <Link 
+                                        key={index} 
+                                        href={link.url || "#"} 
+                                        style={{ 
+                                            padding: "6px 12px", 
+                                            border: "1px solid #cbd5e1", 
+                                            borderRadius: "6px", 
+                                            fontSize: "0.875rem", 
+                                            color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"), 
+                                            backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"), 
+                                            pointerEvents: link.url ? "auto" : "none", 
+                                            textDecoration: "none",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            minWidth: "32px"
+                                        }} 
+                                        preserveState
+                                    >
+                                        {link.label.includes("Previous") ? (
+                                            <i className="fa-solid fa-chevron-left"></i>
+                                        ) : link.label.includes("Next") ? (
+                                            <i className="fa-solid fa-chevron-right"></i>
+                                        ) : (
+                                            link.label.replace("&laquo;", "").replace("&raquo;", "")
+                                        )}
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </AdminLayout>

@@ -17,7 +17,7 @@ return new class extends Migration
             $table->unsignedBigInteger('expense_category_id');
             $table->unsignedBigInteger('account_id')->nullable()->comment('যে অ্যাকাউন্ট থেকে টাকা খরচ হয়েছে');
             $table->string('title');
-            $table->string('vendor_name')->nullable()->comment('যার সাথে চুক্তি বা যাকে টাকা দেওয়া হচ্ছে');
+            $table->unsignedBigInteger('vendor_id')->nullable()->comment('যার সাথে চুক্তি বা যাকে টাকা দেওয়া হচ্ছে');
             $table->text('description')->nullable();
             $table->decimal('total_bill', 15, 2)->default(0)->comment('কাজের মোট চুক্তি বা বিল');
             $table->decimal('paid_amount', 15, 2)->default(0)->comment('ইতোমধ্যে কত দেওয়া হয়েছে');

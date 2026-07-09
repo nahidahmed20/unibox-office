@@ -7,6 +7,7 @@ use App\Models\ProjectExpense;
 use App\Models\Project;
 use App\Models\ExpenseCategory;
 use App\Models\Account;
+use App\Models\Vendor; // Vendor মডেল ইমপোর্ট করা হলো
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -16,25 +17,31 @@ class ProjectExpenseController extends Controller
 {
     public function index(Request $request)
     {
-        $query = ProjectExpense::with(['project', 'category', 'account']);
+        $perPage = $request->input('per_page', 10);
+        
+        // vendor রিলেশন লোড করা হলো
+        $query = ProjectExpense::with(['project', 'category', 'account', 'vendor']);
 
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
             $query->where('title', 'like', "%{$search}%")
-                  ->orWhere('vendor_name', 'like', "%{$search}%")
+                  ->orWhereHas('vendor', function($q) use ($search) {
+                      $q->where('name', 'like', "%{$search}%");
+                  })
                   ->orWhereHas('project', function($q) use ($search) {
                       $q->where('title', 'like', "%{$search}%");
                   });
         }
 
-        $project_expenses = $query->latest()->get(); 
-        $projects = Project::where('status', '!=', 'completed') 
-                   ->select('id', 'title')
-                   ->get();
+        // get() এর পরিবর্তে paginate() ব্যবহার করা হলো ফ্রন্টএন্ডের সাথে মিল রাখার জন্য
+        $project_expenses = $query->latest()->paginate($perPage)->withQueryString(); 
+        
+        $projects = Project::where('status', '!=', 'completed')->select('id', 'title')->get();
         $categories = ExpenseCategory::select('id', 'name')->get();
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->get();
+        $vendors = Vendor::select('id', 'name', 'company_name')->get(); // ভেন্ডর ডেটা
 
-        return Inertia::render('Admin/ProjectExpenses/Index', compact('project_expenses', 'projects', 'categories', 'accounts'));
+        return Inertia::render('Admin/ProjectExpenses/Index', compact('project_expenses', 'projects', 'categories', 'accounts', 'vendors'));
     }
 
     public function store(Request $request)
@@ -47,11 +54,9 @@ class ProjectExpenseController extends Controller
                 }),
             ],
             'expense_category_id' => 'required|exists:expense_categories,id',
-            
             'account_id' => 'nullable|exists:accounts,id|required_if:paid_amount,>,0',
-            
             'title' => 'required|string|max:255',
-            'vendor_name' => 'nullable|string|max:255',
+            'vendor_id' => 'nullable|exists:vendors,id', // vendor_name এর বদলে vendor_id
             'total_bill' => 'required|numeric|min:0',
             'paid_amount' => 'required|numeric|min:0',
             'date' => 'required|date',
@@ -96,9 +101,9 @@ class ProjectExpenseController extends Controller
         $validated = $request->validate([
             'project_id' => 'required|exists:projects,id',
             'expense_category_id' => 'required|exists:expense_categories,id',
-            'account_id' => 'required|exists:accounts,id',
+            'account_id' => 'nullable|exists:accounts,id|required_if:paid_amount,>,0',
             'title' => 'required|string|max:255',
-            'vendor_name' => 'nullable|string|max:255',
+            'vendor_id' => 'nullable|exists:vendors,id', // vendor_name এর বদলে vendor_id
             'total_bill' => 'required|numeric|min:0',
             'paid_amount' => 'required|numeric|min:0',
             'date' => 'required|date',
@@ -117,7 +122,6 @@ class ProjectExpenseController extends Controller
         }
 
         DB::transaction(function () use ($validated, $request, $projectExpense) {
-            
             if ($projectExpense->account_id != $request->account_id || $projectExpense->paid_amount != $request->paid_amount) {
                 
                 if ($projectExpense->paid_amount > 0 && $projectExpense->account_id) {
@@ -188,13 +192,17 @@ class ProjectExpenseController extends Controller
         $perPage = $request->input('per_page', 10);
         $search = $request->input('search');
 
-        $query = ProjectExpense::select('vendor_name', DB::raw('SUM(due_amount) as total_due'))
+        // Update vendor_name to use vendor relationship
+        $query = ProjectExpense::with('vendor')
+            ->select('vendor_id', DB::raw('SUM(due_amount) as total_due'))
             ->where('due_amount', '>', 0)
-            ->whereNotNull('vendor_name')
-            ->groupBy('vendor_name');
+            ->whereNotNull('vendor_id')
+            ->groupBy('vendor_id');
 
         if ($search) {
-            $query->where('vendor_name', 'LIKE', "%{$search}%");
+            $query->whereHas('vendor', function($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%");
+            });
         }
 
         $vendorDues = $query->paginate($perPage)->withQueryString();

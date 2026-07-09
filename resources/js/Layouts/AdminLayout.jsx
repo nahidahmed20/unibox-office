@@ -8,9 +8,9 @@ export default function AdminLayout({ children }) {
     
     // Grouped Menu States dynamically checking active routes
     const [openMenus, setOpenMenus] = useState({
-        crm: route().current('admin.clients.*') || route().current('admin.projects.*') || route().current('admin.tasks.*'),
+        crm: route().current('admin.clients.*') || route().current('admin.projects.*') || route().current('admin.tasks.*') || route().current('admin.vendors.*'),
         hr: route().current('admin.employees.*') || route().current('admin.attendances.*') || route().current('admin.salaries.*') || route().current('admin.leaves.*') || route().current('admin.departments.*') || route().current('admin.designations.*'),
-        finance: route().current('admin.invoices.*') || route().current('admin.expenses.*') || route().current('admin.expense-categories.*') || route().current('admin.investments.*') || route().current('admin.advances.*') || route().current('admin.accounts.*') || route().current('admin.transactions.*') || route().current('invoice-payments.*') || route().current('admin.client-dues') || route().current('admin.vendor-dues'),
+        finance: route().current('admin.invoices.*') || route().current('admin.expenses.*') || route().current('admin.expense-categories.*') || route().current('admin.investments.*') || route().current('admin.advances.*') || route().current('admin.client-advances.*') || route().current('admin.accounts.*') || route().current('admin.transactions.*') || route().current('invoice-payments.*') || route().current('admin.client-dues') || route().current('admin.vendor-dues'),
         projectExpense: route().current('admin.project-expenses.*'),
         office: route().current('admin.assets.*') || route().current('admin.requisitions.*') || route().current('admin.notices.*'), 
         access: route().current('admin.users.*') || route().current('admin.roles.*') || route().current('admin.permissions.*')
@@ -99,6 +99,11 @@ export default function AdminLayout({ children }) {
                                         </Link>
                                     </li>
                                     <li>
+                                        <Link href={route('admin.vendors.index')} className={`flex items-center pl-10 pr-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.vendors.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                            <i className="fa-solid fa-truck-field mr-2 text-[10px]"></i> Vendors
+                                        </Link>
+                                    </li>
+                                    <li>
                                         <Link href={route('admin.tasks.index')} className={`flex items-center pl-10 pr-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.tasks.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                             <i className="fa-solid fa-list-check mr-2 text-[10px]"></i> Tasks
                                         </Link>
@@ -131,8 +136,11 @@ export default function AdminLayout({ children }) {
                                 <i className="fa-solid fa-file-invoice-dollar w-6 text-left opacity-80"></i> Finance & Accounts
                                 <i className={`fa-solid fa-chevron-right ml-auto text-[11px] transition-transform duration-200 ${openMenus.finance ? 'rotate-90' : ''}`}></i>
                             </button>
+                            
                             {openMenus.finance && (
                                 <ul className="list-none p-0 mt-1 mb-2 bg-[#021528] rounded-md py-2 space-y-1 px-2">
+                                    
+                                    {/* 1. Core Accounts & Ledger */}
                                     <li>
                                         <Link href={route('admin.accounts.index')} className={`flex items-center pl-10 pr-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.accounts.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                             <i className="fa-solid fa-vault mr-2 text-[10px]"></i> Accounts & Balances
@@ -143,11 +151,25 @@ export default function AdminLayout({ children }) {
                                             <i className="fa-solid fa-money-bill-transfer mr-2 text-[10px]"></i> Transactions List
                                         </Link>
                                     </li>
+
+                                    {/* 2. Income & Receivables (AR) */}
                                     <li>
                                         <Link href={route('admin.invoices.index')} className={`flex items-center pl-10 pr-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.invoices.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                             <i className="fa-solid fa-file-invoice mr-2 text-[10px]"></i> Invoices
                                         </Link>
                                     </li>
+                                    <li>
+                                        <Link href={route('invoice-payments.index')} className={`flex items-center pl-10 pr-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('invoice-payments.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                            <i className="fa-solid fa-money-bill-wave mr-2 text-[10px]"></i> Receive Payments
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href={route('admin.client-advances.index')} className={`flex items-center pl-10 pr-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.client-advances.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                            <i className="fa-solid fa-sack-dollar mr-2 text-[10px]"></i> Client Advances
+                                        </Link>
+                                    </li>
+
+                                    {/* 3. Payables & Expenses (AP) */}
                                     <li>
                                         <Link href={route('admin.expenses.index')} className={`flex items-center pl-10 pr-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.expenses.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                             <i className="fa-solid fa-receipt mr-2 text-[10px]"></i> Expenses
@@ -159,20 +181,19 @@ export default function AdminLayout({ children }) {
                                         </Link>
                                     </li>
                                     <li>
+                                        <Link href={route('admin.advances.index')} className={`flex items-center pl-10 pr-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.advances.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                            <i className="fa-solid fa-hand-holding-dollar mr-2 text-[10px]"></i> Staff Advances
+                                        </Link>
+                                    </li>
+
+                                    {/* 4. Other Assets */}
+                                    <li>
                                         <Link href={route('admin.investments.index')} className={`flex items-center pl-10 pr-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.investments.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                             <i className="fa-solid fa-building-columns mr-2 text-[10px]"></i> Investments
                                         </Link>
                                     </li>
-                                    <li>
-                                        <Link href={route('admin.advances.index')} className={`flex items-center pl-10 pr-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.advances.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
-                                            <i className="fa-solid fa-hand-holding-dollar mr-2 text-[10px]"></i> Advances
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link href={route('invoice-payments.index')} className={`flex items-center pl-10 pr-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('invoice-payments.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
-                                            <i className="fa-solid fa-money-bill-wave mr-2 text-[10px]"></i> Receive Payments
-                                        </Link>
-                                    </li>
+
+                                    {/* 5. Reports & Summaries */}
                                     <li>
                                         <Link href={route('admin.client-dues')} className={`flex items-center pl-10 pr-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.client-dues') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                             <i className="fa-solid fa-file-invoice-dollar mr-2 text-[10px]"></i> Client Dues Report
@@ -183,10 +204,10 @@ export default function AdminLayout({ children }) {
                                             <i className="fa-solid fa-hand-holding-dollar mr-2 text-[10px]"></i> Vendor Dues Report
                                         </Link>
                                     </li>
+                                    
                                 </ul>
                             )}
                         </li>
-
                         {/* 2. HR & Payroll */}
                         <li className="mx-3 mt-1">
                             <button onClick={() => toggleMenu('hr')} className={`w-full flex items-center px-4 py-2.5 text-[14px] rounded-md font-medium transition-colors ${openMenus.hr ? 'text-white' : 'text-[#b5b9bc] hover:text-white hover:bg-white/5'}`}>

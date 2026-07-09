@@ -61,9 +61,17 @@ class ClientController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Client $client)
     {
-        // 
+        $client->append(['financial_summary', 'project_stats']);
+        
+        $client->load(['projects' => function($q) {
+            $q->latest()->take(5);
+        }, 'invoices.items']);
+
+        return inertia('Admin/Clients/Show', [
+            'client' => $client
+        ]);
     }
 
     /**

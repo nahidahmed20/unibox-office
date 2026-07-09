@@ -2,15 +2,27 @@ import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link } from '@inertiajs/react'; 
 import Swal from 'sweetalert2'; 
-import Select from 'react-select';
 
-export default function Index({ project_expenses = { data: [], links: [] }, projects = [], categories = [], accounts = [] }) {
+export default function Index({ project_expenses = { data: [], links: [] }, projects = [], categories = [], accounts = [], vendors = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
     // View Modal State
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedExpense, setSelectedExpense] = useState(null);
+
+    // --- Searchable Dropdown States ---
+    const [projectSearch, setProjectSearch] = useState("");
+    const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+
+    const [categorySearch, setCategorySearch] = useState("");
+    const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+
+    const [accountSearch, setAccountSearch] = useState("");
+    const [showAccountDropdown, setShowAccountDropdown] = useState(false);
+
+    const [vendorSearch, setVendorSearch] = useState("");
+    const [showVendorDropdown, setShowVendorDropdown] = useState(false);
 
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get('search') || '';
@@ -27,12 +39,20 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         expense_category_id: '',
         account_id: '', 
         title: '', 
-        vendor_name: '',
+        vendor_id: '', // Updated to vendor_id
         total_bill: '',
         paid_amount: '',
         date: '',
         description: ''
     });
+
+    // Close all dropdowns when clicking outside
+    const closeAllDropdowns = () => {
+        setShowProjectDropdown(false);
+        setShowCategoryDropdown(false);
+        setShowAccountDropdown(false);
+        setShowVendorDropdown(false);
+    };
 
     // --- Auto Calculate Due & Status in UI ---
     const calculateDue = () => {
@@ -75,7 +95,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const handleCopy = () => {
         if (!expList.length) return Swal.fire("Empty!", "No data to copy", "warning");
         const text = expList
-            .map((e) => `${e.date}\t${e.title}\t${e.vendor_name || "N/A"}\t${e.total_bill}\t${e.paid_amount}\t${e.payment_status?.toUpperCase()}`)
+            .map((e) => `${e.date}\t${e.title}\t${e.vendor?.name || "N/A"}\t${e.total_bill}\t${e.paid_amount}\t${e.payment_status?.toUpperCase()}`)
             .join("\n");
         navigator.clipboard.writeText(text);
         Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false });
@@ -84,7 +104,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const handleExportCSV = () => {
         if (!expList.length) return Swal.fire("Empty!", "No data to export", "warning");
         const headers = ["Date,Project,Expense Title,Vendor,Account,Total Bill,Paid,Due,Status\n"];
-        const rows = expList.map(e => `"${e.date}","${e.project?.name || ''}","${e.title}","${e.vendor_name || ''}","${e.account?.name || ''}","${e.total_bill}","${e.paid_amount}","${e.due_amount}","${e.payment_status}"`);
+        const rows = expList.map(e => `"${e.date}","${e.project?.title || ''}","${e.title}","${e.vendor?.name || ''}","${e.account?.name || ''}","${e.total_bill}","${e.paid_amount}","${e.due_amount}","${e.payment_status}"`);
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -98,7 +118,6 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         if (!tableContent) return;
 
         const printWindow = window.open('', '_blank', `width=${window.screen.width},height=${window.screen.height},top=0,left=0`);
-        
         printWindow.document.write(`
             <html>
                 <head>
@@ -109,7 +128,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                         table { width: 100%; border-collapse: collapse; text-align: left; }
                         th, td { padding: 12px; border: 1px solid #cbd5e1; font-size: 13px; }
                         th { background-color: #f1f5f9; font-weight: 600; text-transform: uppercase; }
-                        th:last-child, td:last-child { display: none !important; } /* Hide Actions */
+                        th:last-child, td:last-child { display: none !important; }
                     </style>
                 </head>
                 <body>
@@ -118,7 +137,6 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                 </body>
             </html>
         `);
-        
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
@@ -129,6 +147,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         reset(); 
         clearErrors(); 
         setEditMode(false); 
+        closeAllDropdowns();
         setShowModal(true);
     };
 
@@ -140,13 +159,14 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             expense_category_id: expense.expense_category_id || '',
             account_id: expense.account_id || '', 
             title: expense.title || '', 
-            vendor_name: expense.vendor_name || '',
+            vendor_id: expense.vendor_id || '',
             total_bill: expense.total_bill || '',
             paid_amount: expense.paid_amount || '',
             date: expense.date || '',
             description: expense.description || ''
         });
         setEditMode(true); 
+        closeAllDropdowns();
         setShowModal(true);
     };
 
@@ -158,6 +178,10 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     // --- Actions ---
     const handleSubmit = (e) => {
         e.preventDefault();
+        
+        if (!data.project_id) return Swal.fire("Required", "Please select a project.", "warning");
+        if (!data.expense_category_id) return Swal.fire("Required", "Please select an expense category.", "warning");
+        
         if (editMode) {
             put(route('admin.project-expenses.update', data.id), { 
                 onSuccess: () => {
@@ -201,24 +225,6 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         return { bg: '#fee2e2', text: '#b91c1c' };
     };
 
-    // React-Select Custom Styles
-    const selectStyles = {
-        control: (provided, state) => ({
-            ...provided, minHeight: "38px", borderRadius: "6px",
-            border: state.isFocused ? "1px solid #3b82f6" : "1px solid #cbd5e1",
-            boxShadow: state.isFocused ? "0 0 0 1px #3b82f6" : "none",
-            "&:hover": { borderColor: "#94a3b8" },
-        }),
-        valueContainer: (provided) => ({ ...provided, padding: "2px 8px" }),
-        placeholder: (provided) => ({ ...provided, color: "#9ca3af", fontSize: "0.875rem" }),
-        singleValue: (provided) => ({ ...provided, color: "#1e293b", fontSize: "0.875rem" }),
-        option: (provided, state) => ({
-            ...provided, fontSize: "0.875rem",
-            backgroundColor: state.isSelected ? "#2563eb" : state.isFocused ? "#eff6ff" : "#fff",
-            color: state.isSelected ? "#fff" : "#1e293b", cursor: "pointer",
-        }),
-    };
-
     const totalBilled = expList.reduce((sum, item) => sum + parseFloat(item.total_bill || 0), 0);
     const totalDue = expList.reduce((sum, item) => sum + parseFloat(item.due_amount || 0), 0);
 
@@ -226,9 +232,8 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         <AdminLayout>
             <Head title="Project Expenses & Payables" />
             
-            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc" }}>
+            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc", minHeight: "100vh" }}>
                 
-                {/* Header & Summary */}
                 <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '15px' }}>
                     <div>
                         <h1 className="page-title" style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Project Accounts Payable</h1>
@@ -246,7 +251,6 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
                 <div className="card-container" style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
                     
-                    {/* Card Header */}
                     <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
                         <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-wallet" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Vendor Bills & Project Cost
@@ -256,7 +260,6 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                         </button>
                     </div>
 
-                    {/* Toolbar */}
                     <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
                         <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
                             Show 
@@ -282,11 +285,10 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
                         <div className="search-box" style={{ position: "relative" }}>
                             <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
-                            <input type="text" placeholder="Search vendor or project..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "260px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
+                            <input type="text" placeholder="Search title or vendor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "260px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
                         </div>
                     </div>
 
-                    {/* Table */}
                     <div style={{ overflowX: 'auto' }}>
                         <table id="printable-table" className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
                             <thead>
@@ -313,11 +315,11 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                 </td>
                                                 <td style={{ padding: "16px 24px", fontSize: '0.875rem', color: "#475569" }}>{exp.date}</td>
                                                 <td style={{ padding: "16px 24px" }}>
-                                                    <div style={{ fontWeight: '600', color: '#0f172a' }}>{exp.project?.name || 'N/A'}</div>
+                                                    <div style={{ fontWeight: '600', color: '#0f172a' }}>{exp.project?.title || 'N/A'}</div>
                                                     <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>{exp.title}</div>
                                                 </td>
                                                 <td style={{ padding: "16px 24px" }}>
-                                                    <div style={{ fontWeight: '500', color: '#334155' }}>{exp.vendor_name || '-'}</div>
+                                                    <div style={{ fontWeight: '500', color: '#334155' }}>{exp.vendor?.name || '-'}</div>
                                                     <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}><i className="fa-solid fa-building-columns me-1"></i> {exp.account?.name || 'N/A'}</div>
                                                 </td>
                                                 <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '600', color: '#0f172a' }}>{parseFloat(exp.total_bill).toLocaleString('en-IN')}</td>
@@ -330,15 +332,9 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                 </td>
                                                 <td style={{ padding: "16px 24px", textAlign: "right" }}>
                                                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
-                                                        <button onClick={() => openViewModal(exp)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View">
-                                                            <i className="fa-regular fa-eye"></i>
-                                                        </button>
-                                                        <button onClick={() => openEditModal(exp)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit">
-                                                            <i className="fa-regular fa-pen-to-square"></i>
-                                                        </button>
-                                                        <button onClick={() => handleDelete(exp.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
-                                                            <i className="fa-regular fa-trash-can"></i>
-                                                        </button>
+                                                        <button onClick={() => openViewModal(exp)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View"><i className="fa-regular fa-eye"></i></button>
+                                                        <button onClick={() => openEditModal(exp)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit"><i className="fa-regular fa-pen-to-square"></i></button>
+                                                        <button onClick={() => handleDelete(exp.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete"><i className="fa-regular fa-trash-can"></i></button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -353,25 +349,12 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                         </table>
                     </div>
 
-                    {/* Pagination Links */}
                     {project_expenses.links && project_expenses.links.length > 3 && (
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
-                            <div style={{ color: "#64748b", fontSize: "0.875rem" }}>
-                                Showing {project_expenses.from || 0} to {project_expenses.to || 0} of {project_expenses.total || 0} entries
-                            </div>
+                            <div style={{ color: "#64748b", fontSize: "0.875rem" }}>Showing {project_expenses.from || 0} to {project_expenses.to || 0} of {project_expenses.total || 0} entries</div>
                             <div style={{ display: "flex", gap: "6px" }}>
                                 {project_expenses.links.map((link, index) => (
-                                    <Link 
-                                        key={index} 
-                                        href={link.url || "#"} 
-                                        style={{ 
-                                            padding: "6px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.875rem", 
-                                            color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"), 
-                                            backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"), 
-                                            pointerEvents: link.url ? "auto" : "none", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "32px"
-                                        }} 
-                                        preserveState
-                                    >
+                                    <Link key={index} href={link.url || "#"} style={{ padding: "6px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.875rem", color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"), backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"), pointerEvents: link.url ? "auto" : "none", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "32px" }} preserveState>
                                         {link.label.includes("Previous") ? <i className="fa-solid fa-chevron-left"></i> : link.label.includes("Next") ? <i className="fa-solid fa-chevron-right"></i> : link.label.replace("&laquo;", "").replace("&raquo;", "")}
                                     </Link>
                                 ))}
@@ -399,11 +382,11 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                 </div>
                                 <div>
                                     <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Project Name</span>
-                                    <div style={{ fontWeight: "600", color: "#334155" }}><i className="fa-solid fa-folder text-blue-500" style={{ marginRight: "6px" }}></i>{selectedExpense.project?.name || "N/A"}</div>
+                                    <div style={{ fontWeight: "600", color: "#334155" }}><i className="fa-solid fa-folder text-blue-500" style={{ marginRight: "6px" }}></i>{selectedExpense.project?.title || "N/A"}</div>
                                 </div>
                                 <div>
                                     <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Vendor / Payee</span>
-                                    <div style={{ fontWeight: "600", color: "#334155" }}><i className="fa-solid fa-user-tie text-amber-500" style={{ marginRight: "6px" }}></i>{selectedExpense.vendor_name || "N/A"}</div>
+                                    <div style={{ fontWeight: "600", color: "#334155" }}><i className="fa-solid fa-user-tie text-amber-500" style={{ marginRight: "6px" }}></i>{selectedExpense.vendor?.name || "N/A"}</div>
                                 </div>
                                 <div>
                                     <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Payment Account</span>
@@ -415,7 +398,6 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                 </div>
                             </div>
                             
-                            {/* Billing Summary Box */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
                                 <div>
                                     <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>Total Bill</span>
@@ -455,83 +437,178 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                             </h3>
                             <button type="button" onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}><i className="fa-solid fa-xmark"></i></button>
                         </div>
-                        <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
-                                <div style={{ gridColumn: "span 1" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Select Project *</label>
-                                    <Select
-                                        options={projects.map((p) => ({ value: p.id, label: p.title || p.name }))}
-                                        value={projects.map((p) => ({ value: p.id, label: p.title || p.name })).find((opt) => Number(opt.value) === Number(data.project_id)) || null}
-                                        onChange={(selected) => setData("project_id", selected ? selected.value : "")}
-                                        placeholder="Choose Project" isSearchable isClearable styles={selectStyles}
-                                    />
-                                </div>
-                                <div style={{ gridColumn: "span 1" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Expense Category *</label>
-                                    <Select
-                                        options={categories.map((c) => ({ value: c.id, label: c.name }))}
-                                        value={categories.map((c) => ({ value: c.id, label: c.name })).find((opt) => Number(opt.value) === Number(data.expense_category_id)) || null}
-                                        onChange={(selected) => setData("expense_category_id", selected ? selected.value : "")}
-                                        placeholder="Choose Category" isSearchable isClearable styles={selectStyles}
-                                    />
-                                </div>
-                                <div style={{ gridColumn: "span 1" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Payment Source *</label>
-                                    <Select
-                                        options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${a.current_balance})` }))}
-                                        value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${a.current_balance})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
-                                        onChange={(selected) => setData("account_id", selected ? selected.value : "")}
-                                        placeholder="Select Account" isSearchable isClearable styles={selectStyles}
-                                    />
-                                    {errors.account_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.account_id}</p>}
-                                </div>
-                            </div>
+                        
+                        <div onClick={closeAllDropdowns} style={{ padding: "24px", maxHeight: "80vh", overflowY: "auto" }}>
+                            <form onSubmit={handleSubmit}>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
+                                    
+                                    {/* --- 1. PROJECT DROPDOWN --- */}
+                                    <div style={{ gridColumn: "span 1", position: "relative" }}>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Select Project *</label>
+                                        <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowProjectDropdown(!showProjectDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <span style={{ color: data.project_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
+                                                {data.project_id ? (projects.find(p => p.id == data.project_id)?.title || "Unknown") : "Choose Project"}
+                                            </span>
+                                            <i className={`fa-solid fa-chevron-${showProjectDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem" }}></i>
+                                        </div>
+                                        {showProjectDropdown && (
+                                            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", display: "flex", flexDirection: "column" }}>
+                                                <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
+                                                    <input type="text" placeholder="Search project..." value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }} autoFocus />
+                                                </div>
+                                                <div style={{ overflowY: "auto", padding: "4px 0" }}>
+                                                    {projects.filter(p => p.title?.toLowerCase().includes(projectSearch.toLowerCase())).length > 0 ? (
+                                                        projects.filter(p => p.title?.toLowerCase().includes(projectSearch.toLowerCase())).map(p => (
+                                                            <div key={p.id} onClick={() => { setData("project_id", p.id); setShowProjectDropdown(false); setProjectSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.project_id == p.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.project_id == p.id ? "#f0fdf4" : "transparent"}>
+                                                                {p.title}
+                                                            </div>
+                                                        ))
+                                                    ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No project found.</div>)}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {errors.project_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.project_id}</p>}
+                                    </div>
 
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px" }}>
-                                <div style={{ gridColumn: "span 1" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Expense Title / Subject *</label>
-                                    <input type="text" value={data.title} onChange={e => setData('title', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} placeholder="e.g., Domain Purchase" required />
-                                </div>
-                                <div style={{ gridColumn: "span 1" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Vendor / Contractor Name</label>
-                                    <input type="text" value={data.vendor_name} onChange={e => setData('vendor_name', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} placeholder="e.g., Mr. Rahim or IT Host" />
-                                </div>
-                            </div>
+                                    {/* --- 2. CATEGORY DROPDOWN --- */}
+                                    <div style={{ gridColumn: "span 1", position: "relative" }}>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Expense Category *</label>
+                                        <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowCategoryDropdown(!showCategoryDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <span style={{ color: data.expense_category_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
+                                                {data.expense_category_id ? (categories.find(c => c.id == data.expense_category_id)?.name || "Unknown") : "Choose Category"}
+                                            </span>
+                                            <i className={`fa-solid fa-chevron-${showCategoryDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem" }}></i>
+                                        </div>
+                                        {showCategoryDropdown && (
+                                            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", display: "flex", flexDirection: "column" }}>
+                                                <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
+                                                    <input type="text" placeholder="Search category..." value={categorySearch} onChange={(e) => setCategorySearch(e.target.value)} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }} autoFocus />
+                                                </div>
+                                                <div style={{ overflowY: "auto", padding: "4px 0" }}>
+                                                    {categories.filter(c => c.name?.toLowerCase().includes(categorySearch.toLowerCase())).length > 0 ? (
+                                                        categories.filter(c => c.name?.toLowerCase().includes(categorySearch.toLowerCase())).map(c => (
+                                                            <div key={c.id} onClick={() => { setData("expense_category_id", c.id); setShowCategoryDropdown(false); setCategorySearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.expense_category_id == c.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.expense_category_id == c.id ? "#f0fdf4" : "transparent"}>
+                                                                {c.name}
+                                                            </div>
+                                                        ))
+                                                    ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No category found.</div>)}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {errors.expense_category_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.expense_category_id}</p>}
+                                    </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginTop: '16px', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#1e293b", marginBottom: "6px" }}>Total Bill (BDT) *</label>
-                                    <input type="number" step="0.01" value={data.total_bill} onChange={e => setData('total_bill', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: '600' }} required />
+                                    {/* --- 3. ACCOUNT DROPDOWN --- */}
+                                    <div style={{ gridColumn: "span 1", position: "relative" }}>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Payment Source *</label>
+                                        <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowAccountDropdown(!showAccountDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <span style={{ color: data.account_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
+                                                {data.account_id ? (() => {
+                                                    const acc = accounts.find(a => a.id == data.account_id);
+                                                    return acc ? `${acc.name} (Bal: ${acc.current_balance})` : "Unknown";
+                                                })() : "Select Account"}
+                                            </span>
+                                            <i className={`fa-solid fa-chevron-${showAccountDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem" }}></i>
+                                        </div>
+                                        {showAccountDropdown && (
+                                            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", display: "flex", flexDirection: "column" }}>
+                                                <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
+                                                    <input type="text" placeholder="Search account..." value={accountSearch} onChange={(e) => setAccountSearch(e.target.value)} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }} autoFocus />
+                                                </div>
+                                                <div style={{ overflowY: "auto", padding: "4px 0" }}>
+                                                    {accounts.filter(a => a.name?.toLowerCase().includes(accountSearch.toLowerCase())).length > 0 ? (
+                                                        accounts.filter(a => a.name?.toLowerCase().includes(accountSearch.toLowerCase())).map(a => (
+                                                            <div key={a.id} onClick={() => { setData("account_id", a.id); setShowAccountDropdown(false); setAccountSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.account_id == a.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.account_id == a.id ? "#f0fdf4" : "transparent"}>
+                                                                {a.name} <span style={{color: '#64748b', fontSize: '0.8rem'}}>(Bal: {a.current_balance})</span>
+                                                            </div>
+                                                        ))
+                                                    ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No account found.</div>)}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {errors.account_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.account_id}</p>}
+                                    </div>
                                 </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#16a34a", marginBottom: "6px" }}>Paid Amount (BDT) *</label>
-                                    <input type="number" step="0.01" value={data.paid_amount} onChange={e => setData('paid_amount', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: '600', color: '#16a34a' }} required />
-                                </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#dc2626", marginBottom: "6px" }}>Calculated Due</label>
-                                    <input type="text" value={calculateDue()} disabled style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: '#f1f5f9', fontWeight: 'bold', color: '#dc2626' }} />
-                                    <div style={{ marginTop: '6px', fontSize: '11px', fontWeight: 'bold', color: '#64748b', letterSpacing: '0.5px' }}>STATUS: {calculateStatus()}</div>
-                                </div>
-                            </div>
 
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "16px", marginTop: "16px" }}>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Date *</label>
-                                    <input type="date" value={data.date} onChange={e => setData('date', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} required />
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px" }}>
+                                    <div style={{ gridColumn: "span 1" }}>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Expense Title / Subject *</label>
+                                        <input type="text" value={data.title} onChange={e => setData('title', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} placeholder="e.g., Domain Purchase" required />
+                                    </div>
+                                    
+                                    {/* --- 4. VENDOR DROPDOWN --- */}
+                                    <div style={{ gridColumn: "span 1", position: "relative" }}>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Vendor / Contractor Name</label>
+                                        <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowVendorDropdown(!showVendorDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <span style={{ color: data.vendor_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
+                                                {data.vendor_id 
+                                                    ? (() => {
+                                                        const v = vendors.find(vd => vd.id == data.vendor_id);
+                                                        return v ? `${v.name} ${v.company_name ? `(${v.company_name})` : ''}` : "Choose Vendor";
+                                                    })()
+                                                    : "Search & Select Vendor"
+                                                }
+                                            </span>
+                                            <i className={`fa-solid fa-chevron-${showVendorDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem" }}></i>
+                                        </div>
+                                        {showVendorDropdown && (
+                                            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", display: "flex", flexDirection: "column" }}>
+                                                <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
+                                                    <input type="text" placeholder="Search vendor..." value={vendorSearch} onChange={(e) => setVendorSearch(e.target.value)} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }} autoFocus />
+                                                </div>
+                                                <div style={{ overflowY: "auto", padding: "4px 0" }}>
+                                                    <div onClick={() => { setData("vendor_id", ""); setShowVendorDropdown(false); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#94a3b8", borderBottom: "1px solid #f1f5f9" }}>
+                                                        -- No Vendor --
+                                                    </div>
+                                                    {vendors.filter(v => v.name?.toLowerCase().includes(vendorSearch.toLowerCase()) || v.company_name?.toLowerCase().includes(vendorSearch.toLowerCase())).length > 0 ? (
+                                                        vendors.filter(v => v.name?.toLowerCase().includes(vendorSearch.toLowerCase()) || v.company_name?.toLowerCase().includes(vendorSearch.toLowerCase())).map(v => (
+                                                            <div key={v.id} onClick={() => { setData("vendor_id", v.id); setShowVendorDropdown(false); setVendorSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.vendor_id == v.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.vendor_id == v.id ? "#f0fdf4" : "transparent"}>
+                                                                {v.name} {v.company_name ? <span style={{ color: "#64748b", fontSize: "0.8rem" }}>({v.company_name})</span> : ''}
+                                                            </div>
+                                                        ))
+                                                    ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No vendor found.</div>)}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {errors.vendor_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.vendor_id}</p>}
+                                    </div>
                                 </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Remarks / Notes</label>
-                                    <input type="text" value={data.description} onChange={e => setData('description', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} placeholder="Optional notes..." />
-                                </div>
-                            </div>
 
-                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                <button type="button" onClick={() => setShowModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569", fontWeight: "500" }}>Dismiss</button>
-                                <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", opacity: processing ? 0.7 : 1 }}>
-                                    {processing ? "Saving Changes..." : "Commit Expense"}
-                                </button>
-                            </div>
-                        </form>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginTop: '16px', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                    <div>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#1e293b", marginBottom: "6px" }}>Total Bill (BDT) *</label>
+                                        <input type="number" step="0.01" value={data.total_bill} onChange={e => setData('total_bill', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: '600' }} required />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#16a34a", marginBottom: "6px" }}>Paid Amount (BDT) *</label>
+                                        <input type="number" step="0.01" value={data.paid_amount} onChange={e => setData('paid_amount', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: '600', color: '#16a34a' }} required />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#dc2626", marginBottom: "6px" }}>Calculated Due</label>
+                                        <input type="text" value={calculateDue()} disabled style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: '#f1f5f9', fontWeight: 'bold', color: '#dc2626' }} />
+                                        <div style={{ marginTop: '6px', fontSize: '11px', fontWeight: 'bold', color: '#64748b', letterSpacing: '0.5px' }}>STATUS: {calculateStatus()}</div>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "16px", marginTop: "16px" }}>
+                                    <div>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Date *</label>
+                                        <input type="date" value={data.date} onChange={e => setData('date', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} required />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Remarks / Notes</label>
+                                        <input type="text" value={data.description} onChange={e => setData('description', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} placeholder="Optional notes..." />
+                                    </div>
+                                </div>
+
+                                <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+                                    <button type="button" onClick={() => setShowModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569", fontWeight: "500" }}>Dismiss</button>
+                                    <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", opacity: processing ? 0.7 : 1 }}>
+                                        {processing ? "Saving Changes..." : "Commit Expense"}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             )}

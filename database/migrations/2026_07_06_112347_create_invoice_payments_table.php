@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('invoice_id');
             $table->unsignedBigInteger('account_id'); 
+            $table->string('method')->nullable();
             $table->decimal('amount', 12, 2); 
             $table->date('payment_date');
             $table->text('note')->nullable();
