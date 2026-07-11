@@ -12,4 +12,19 @@ class Account extends Model
     {
         return $this->hasMany(Transaction::class);
     }
+
+    public function advances()
+    {
+        return $this->hasMany(Advance::class);
+    }
+
+    public function expenses()
+    {
+        return $this->hasMany(Expense::class);
+    }
+
+    public function projectExpenses()
+    {
+        return $this->hasMany(ProjectExpense::class);
+    }
 }

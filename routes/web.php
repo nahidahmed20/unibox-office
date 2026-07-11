@@ -73,6 +73,10 @@ Route::middleware('auth')->group(function () {
     Route::resource('expense-categories', ExpenseCategoryController::class)->names('admin.expense-categories');
 
     Route::resource('investments', InvestmentController::class)->names('admin.investments');
+    Route::post('/advances/{id}/return', [AdvanceController::class, 'returnMoney'])->name('admin.advances.returnMoney');
+    Route::get('/advances/ledger/{userId}', [AdvanceController::class, 'employeeLedger'])
+    ->name('admin.advances.employeeLedger');
+    
     Route::resource('advances', AdvanceController::class)->names('admin.advances');
     Route::resource('transactions', TransactionController::class)->names('admin.transactions');
     Route::resource('accounts', AccountController::class)->names('admin.accounts');

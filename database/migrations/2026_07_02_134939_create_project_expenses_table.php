@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('project_id'); 
             $table->unsignedBigInteger('expense_category_id');
+            $table->unsignedBigInteger('advance_id')->nullable();
             $table->unsignedBigInteger('account_id')->nullable()->comment('যে অ্যাকাউন্ট থেকে টাকা খরচ হয়েছে');
             $table->string('title');
             $table->unsignedBigInteger('vendor_id')->nullable()->comment('যার সাথে চুক্তি বা যাকে টাকা দেওয়া হচ্ছে');

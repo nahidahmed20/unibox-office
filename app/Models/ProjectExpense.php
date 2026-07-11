@@ -32,5 +32,15 @@ class ProjectExpense extends Model
     {
         return $this->morphOne(Transaction::class, 'transactionable');
     }
+
+    public function expenseCategory()
+    {
+        return $this->belongsTo(ExpenseCategory::class);
+    }
+
+    public function vendor()
+    {
+        return $this->belongsTo(Vendor::class);
+    }
     
 }

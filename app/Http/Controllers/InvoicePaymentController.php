@@ -23,7 +23,10 @@ class InvoicePaymentController extends Controller
             $search = $request->search;
 
             $query->where(function ($q) use ($search) {
-                $q->whereHas('invoice.client', function ($client) use ($search) {
+                $q->whereHas('invoice', function ($invoice) use ($search) {
+                    $invoice->where('invoice_number', 'like', "%{$search}%");
+                })
+                ->orWhereHas('invoice.client', function ($client) use ($search) {
                     $client->where('name', 'like', "%{$search}%");
                 })
                 ->orWhereHas('account', function ($account) use ($search) {
@@ -41,9 +44,15 @@ class InvoicePaymentController extends Controller
             ->withQueryString();
 
         $invoices = Invoice::with('client')
+            ->withSum('payments', 'amount')
             ->where('status', '!=', 'paid')
             ->latest()
-            ->get();
+            ->get()
+            ->map(function ($invoice) {
+                $paid = $invoice->payments_sum_amount ?? 0;
+                $invoice->due_amount = max($invoice->grand_total - $paid, 0);
+                return $invoice;
+            });
 
         $accounts = Account::where('is_active', true)
             ->latest()

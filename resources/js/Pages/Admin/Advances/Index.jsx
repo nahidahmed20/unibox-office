@@ -3,11 +3,13 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link } from '@inertiajs/react'; 
 import Swal from 'sweetalert2'; 
 
-export default function Index({ advances = [], filters = {} }) {
+export default function Index({ advances = [], filters = {}, accounts = [], employees = [] }) {
     const [showModal, setShowModal] = useState(false);
+    const [showReturnModal, setShowReturnModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
+    const [selectedAdvance, setSelectedAdvance] = useState(null);
+    const [expandedRows, setExpandedRows] = useState({});
     
-    // পেজিনেটেড অবজেক্ট বা নরমাল অ্যারে থেকে ডেটা বের করা
     const advanceList = Array.isArray(advances) ? advances : (advances.data || []);
     
     const [searchTerm, setSearchTerm] = useState(() => {
@@ -20,14 +22,21 @@ export default function Index({ advances = [], filters = {} }) {
     
     const isFirstRender = useRef(true);
 
+    // Main Create/Edit Form
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
         id: '', 
-        given_to: '', 
+        account_id: '',
+        user_id: '', 
         amount: '', 
         date: '', 
         purpose: 'Office Purpose', 
         status: 'unsettled',
         notes: ''
+    });
+
+    // Cash Return Form
+    const { data: returnData, setData: setReturnData, post: postReturn, processing: returnProcessing, reset: returnReset, errors: returnErrors, clearErrors: clearReturnErrors } = useForm({
+        return_amount: ''
     });
 
     // --- Live Search & Per Page Change ---
@@ -46,11 +55,42 @@ export default function Index({ advances = [], filters = {} }) {
         return () => clearTimeout(delayDebounceFn);
     }, [searchTerm, perPage]);
 
+    // --- Group advances by employee so repeated advances to the same person collapse into one row ---
+    const groupedAdvances = React.useMemo(() => {
+        const map = new Map();
+        advanceList.forEach((adv) => {
+            const key = adv.user_id;
+            if (!map.has(key)) {
+                map.set(key, {
+                    user_id: adv.user_id,
+                    user: adv.user,
+                    records: [],
+                    total_given: 0,
+                    total_expensed: 0,
+                    total_returned: 0,
+                });
+            }
+            const group = map.get(key);
+            group.records.push(adv);
+            group.total_given += parseFloat(adv.amount || 0);
+            group.total_expensed += parseFloat(adv.settled_amount || 0);
+            group.total_returned += parseFloat(adv.returned_amount || 0);
+        });
+        return Array.from(map.values()).map((group) => ({
+            ...group,
+            total_due: group.total_given - group.total_expensed - group.total_returned,
+        }));
+    }, [advanceList]);
+
+    const toggleExpand = (userId) => {
+        setExpandedRows((prev) => ({ ...prev, [userId]: !prev[userId] }));
+    };
+
     // --- Export Utilities ---
     const handleCopy = () => {
         if (!advanceList.length) return Swal.fire("Empty!", "No data to copy", "warning");
         const text = advanceList
-            .map((adv, idx) => `${idx + 1}\t${adv.date}\t${adv.given_to}\t${adv.purpose}\t${adv.status}\tBDT ${parseFloat(adv.amount).toFixed(2)}`)
+            .map((adv, idx) => `${idx + 1}\t${adv.date}\t${adv.account?.name || 'N/A'}\t${adv.user?.name}\t${adv.purpose}\t${adv.status}\tBDT ${parseFloat(adv.amount).toFixed(2)}`)
             .join("\n");
         navigator.clipboard.writeText(text);
         Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1200, showConfirmButton: false, toast: true, position: 'top-end' });
@@ -58,8 +98,14 @@ export default function Index({ advances = [], filters = {} }) {
 
     const handleExportCSV = () => {
         if (!advanceList.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const headers = ["SL,Given To,Date,Purpose,Status,Amount\n"];
-        const rows = advanceList.map((adv, idx) => `"${idx + 1}","${adv.given_to}","${adv.date}","${adv.purpose}","${adv.status}","${adv.amount}"`);
+        const headers = ["SL,Date,Account,Given To,Purpose,Total Given,Expensed,Returned,Due,Status\n"];
+        const rows = advanceList.map((adv, idx) => {
+            const expensed = parseFloat(adv.settled_amount || 0);
+            const returned = parseFloat(adv.returned_amount || 0);
+            const total = parseFloat(adv.amount || 0);
+            const due = total - expensed - returned;
+            return `"${idx + 1}","${adv.date}","${adv.account?.name || 'N/A'}","${adv.user?.name}","${adv.purpose}","${total}","${expensed}","${returned}","${due}","${adv.status}"`;
+        });
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -111,7 +157,8 @@ export default function Index({ advances = [], filters = {} }) {
         clearErrors(); 
         setData({
             id: adv.id,
-            given_to: adv.given_to,
+            account_id: adv.account_id || '',
+            user_id: adv.user_id || '', 
             amount: adv.amount,
             date: adv.date,
             purpose: adv.purpose || 'Office Purpose',
@@ -122,10 +169,25 @@ export default function Index({ advances = [], filters = {} }) {
         setShowModal(true);
     };
 
+    const openReturnModal = (adv) => {
+        setSelectedAdvance(adv);
+        returnReset();
+        clearReturnErrors();
+        
+        // Calculate due amount to show as placeholder/default
+        const totalSettled = parseFloat(adv.settled_amount || 0) + parseFloat(adv.returned_amount || 0);
+        const due = parseFloat(adv.amount) - totalSettled;
+        
+        setReturnData('return_amount', due > 0 ? due : '');
+        setShowReturnModal(true);
+    };
+
+    // --- Form Submits ---
     const handleSubmit = (e) => {
         e.preventDefault();
         if (editMode) {
             put(route('admin.advances.update', data.id), { 
+                preserveScroll: true,
                 onSuccess: () => {
                     setShowModal(false);
                     Swal.fire({ icon: 'success', title: 'Updated!', text: 'Advance record updated successfully.', timer: 1500, showConfirmButton: false });
@@ -133,6 +195,7 @@ export default function Index({ advances = [], filters = {} }) {
             });
         } else {
             post(route('admin.advances.store'), { 
+                preserveScroll: true,
                 onSuccess: () => { 
                     reset(); 
                     setShowModal(false); 
@@ -142,10 +205,21 @@ export default function Index({ advances = [], filters = {} }) {
         }
     };
 
+    const handleReturnSubmit = (e) => {
+        e.preventDefault();
+        postReturn(route('admin.advances.returnMoney', selectedAdvance.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setShowReturnModal(false);
+                Swal.fire({ icon: 'success', title: 'Refunded!', text: 'Leftover cash returned to account.', timer: 2000, showConfirmButton: false });
+            }
+        });
+    };
+
     const handleDelete = (id) => {
         Swal.fire({
             title: 'Are you sure?',
-            text: 'This advance record will be permanently deleted!',
+            text: 'Remaining money will be automatically refunded to the account!',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonText: 'Yes, delete it',
@@ -156,13 +230,17 @@ export default function Index({ advances = [], filters = {} }) {
             if (result.isConfirmed) {
                 destroy(route('admin.advances.destroy', id), {
                     preserveScroll: true,
-                    onSuccess: () => Swal.fire({ icon: 'success', title: 'Deleted!', text: 'Record has been removed.', timer: 1500, showConfirmButton: false })
+                    onSuccess: () => Swal.fire({ icon: 'success', title: 'Deleted!', text: 'Record removed and refunded.', timer: 1500, showConfirmButton: false })
                 });
             }
         });
     };
 
-    const totalUnsettled = advanceList.filter(a => a.status === 'unsettled').reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+    // Total Unsettled Calculation based on Due
+    const totalUnsettled = advanceList.filter(a => a.status === 'unsettled').reduce((sum, item) => {
+        const remaining = parseFloat(item.amount) - parseFloat(item.settled_amount || 0) - parseFloat(item.returned_amount || 0);
+        return sum + (remaining > 0 ? remaining : 0);
+    }, 0);
 
     return (
         <AdminLayout>
@@ -180,7 +258,7 @@ export default function Index({ advances = [], filters = {} }) {
                     {/* Total Unsettled Badge */}
                     <div style={{ fontSize: '1.05rem', fontWeight: '700', color: '#b91c1c', padding: '12px 20px', background: '#fee2e2', borderRadius: '8px', border: "1px solid #fecaca", boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" }}>
                         <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: "8px", color: "#dc2626" }}></i>
-                        Total Unsettled: <span style={{ fontSize: "1.2rem" }}>BDT {totalUnsettled.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        Total Unsettled Due: <span style={{ fontSize: "1.2rem" }}>BDT {totalUnsettled.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                 </div>
 
@@ -216,7 +294,7 @@ export default function Index({ advances = [], filters = {} }) {
                             <button type="button" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
                                 <i className="fas fa-copy text-blue-500"></i> Copy
                             </button>
-                            <button type="button" onClick={() => handleExportCSV('excel')} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
+                            <button type="button" onClick={handleExportCSV} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
                                 <i className="fas fa-file-excel text-emerald-500"></i> Excel
                             </button>
                             <button type="button" onClick={handlePrint} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
@@ -242,55 +320,162 @@ export default function Index({ advances = [], filters = {} }) {
                         <table id="printable-advance-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
                             <thead>
                                 <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "60px" }}>SL</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "50px" }}></th>
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>DATE</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>ACCOUNT</th>
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>GIVEN TO</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>PURPOSE</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>AMOUNT</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>GIVEN</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#16a34a", textTransform: "uppercase", textAlign: "right" }}>EXPENSED</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#2563eb", textTransform: "uppercase", textAlign: "right" }}>RETURNED</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#dc2626", textTransform: "uppercase", textAlign: "right" }}>DUE</th>
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>STATUS</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center", width: "120px" }}>ACTIONS</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center", width: "160px" }}>ACTIONS</th>
                                 </tr>
                             </thead>
                             <tbody style={{ color: "#334155", fontSize: "0.915rem" }}>
-                                {advanceList.length > 0 ? (
-                                    advanceList.map((adv, index) => (
-                                        <tr key={adv.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                                            <td style={{ padding: "16px 24px", color: "#64748b", fontWeight: "500" }}>
-                                                {advances.current_page ? (advances.current_page - 1) * advances.per_page + index + 1 : index + 1}
-                                            </td>
-                                            <td style={{ padding: "16px 24px", color: "#475569" }}>{adv.date}</td>
-                                            <td style={{ padding: "16px 24px" }}>
-                                                <div style={{ fontWeight: '600', color: '#0f172a' }}>{adv.given_to}</div>
-                                                {adv.notes && <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "2px" }}>{adv.notes}</div>}
-                                            </td>
-                                            <td style={{ padding: "16px 24px", color: "#475569" }}>{adv.purpose || 'N/A'}</td>
-                                            <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '700', color: '#0f766e' }}>
-                                                BDT {parseFloat(adv.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                            </td>
-                                            <td style={{ padding: "16px 24px", textAlign: 'center' }}>
-                                                <span style={{ 
-                                                    padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600', textTransform: 'capitalize',
-                                                    background: adv.status === 'settled' ? '#dcfce7' : '#fee2e2', 
-                                                    color: adv.status === 'settled' ? '#15803d' : '#b91c1c' 
-                                                }}>
-                                                    {adv.status}
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: "16px 24px", textAlign: 'center' }}>
-                                                <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
-                                                    <button onClick={() => openEditModal(adv)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit Record">
-                                                        <i className="fa-regular fa-pen-to-square"></i>
-                                                    </button>
-                                                    <button onClick={() => handleDelete(adv.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete Record">
-                                                        <i className="fa-regular fa-trash-can"></i>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
+                                {groupedAdvances.length > 0 ? (
+                                    groupedAdvances.map((group) => {
+                                        const isExpanded = !!expandedRows[group.user_id];
+                                        const hasMultiple = group.records.length > 1;
+                                        const single = group.records[0];
+
+                                        return (
+                                            <React.Fragment key={group.user_id}>
+                                                {/* Group summary row */}
+                                                <tr style={{ borderBottom: isExpanded ? "none" : "1px solid #f1f5f9", background: isExpanded ? "#f8fafc" : "#fff" }}>
+                                                    <td style={{ padding: "16px 24px", textAlign: "center" }}>
+                                                        {hasMultiple && (
+                                                            <button 
+                                                                onClick={() => toggleExpand(group.user_id)}
+                                                                style={{ border: "none", background: "#e2e8f0", color: "#475569", width: "28px", height: "28px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "0.2s" }}
+                                                            >
+                                                                <i className={`fa-solid fa-chevron-${isExpanded ? 'down' : 'right'}`} style={{ fontSize: "0.75rem" }}></i>
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                    <td style={{ padding: "16px 24px", color: "#475569" }}>
+                                                        {hasMultiple ? `${group.records.length} entries` : single.date}
+                                                    </td>
+                                                    <td style={{ padding: "16px 24px", color: "#0f766e", fontWeight: "600" }}>
+                                                        {hasMultiple ? 'Multiple' : (single.account?.name || 'N/A')}
+                                                    </td>
+                                                    <td style={{ padding: "16px 24px" }}>
+                                                        <Link href={route('admin.advances.employeeLedger', group.user_id)} style={{ fontWeight: '700', color: '#0f172a', textDecoration: 'none' }}>
+                                                            {group.user?.name}
+                                                        </Link>
+                                                        {hasMultiple ? (
+                                                            <span style={{ marginLeft: "8px", fontSize: "0.7rem", fontWeight: "700", color: "#2563eb", background: "#dbeafe", padding: "2px 8px", borderRadius: "999px" }}>
+                                                                {group.records.length}
+                                                            </span>
+                                                        ) : (
+                                                            single.purpose && <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "2px" }}>{single.purpose}</div>
+                                                        )}
+                                                    </td>
+                                                    <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '700', color: '#0f172a' }}>
+                                                        {group.total_given.toLocaleString('en-IN')}
+                                                    </td>
+                                                    <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '600', color: '#16a34a' }}>
+                                                        {group.total_expensed > 0 ? group.total_expensed.toLocaleString('en-IN') : '-'}
+                                                    </td>
+                                                    <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '600', color: '#2563eb' }}>
+                                                        {group.total_returned > 0 ? group.total_returned.toLocaleString('en-IN') : '-'}
+                                                    </td>
+                                                    <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '700', color: '#dc2626' }}>
+                                                        {group.total_due > 0 ? group.total_due.toLocaleString('en-IN') : '0'}
+                                                    </td>
+                                                    <td style={{ padding: "16px 24px", textAlign: 'center' }}>
+                                                        <span style={{ 
+                                                            padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600', textTransform: 'capitalize',
+                                                            background: group.total_due > 0 ? '#fee2e2' : '#dcfce7', 
+                                                            color: group.total_due > 0 ? '#b91c1c' : '#15803d' 
+                                                        }}>
+                                                            {group.total_due > 0 ? 'unsettled' : 'settled'}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: "16px 24px", textAlign: 'center' }}>
+                                                        {hasMultiple ? (
+                                                            <button 
+                                                                onClick={() => toggleExpand(group.user_id)}
+                                                                style={{ background: "#f1f5f9", border: "none", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", color: "#2563eb", fontSize: "0.8rem", fontWeight: "600" }}
+                                                            >
+                                                                {isExpanded ? 'Hide' : 'View'} details
+                                                            </button>
+                                                        ) : (
+                                                            <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                                {single.status !== 'settled' && group.total_due > 0 && (
+                                                                    <button onClick={() => openReturnModal(single)} style={{ background: "#dcfce7", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a", fontSize: "0.85rem", fontWeight: "600" }} title="Refund Cash">
+                                                                        <i className="fa-solid fa-money-bill-transfer"></i>
+                                                                    </button>
+                                                                )}
+                                                                <button onClick={() => openEditModal(single)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit Record">
+                                                                    <i className="fa-regular fa-pen-to-square"></i>
+                                                                </button>
+                                                                <button onClick={() => handleDelete(single.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete Record">
+                                                                    <i className="fa-regular fa-trash-can"></i>
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+
+                                                {/* Expanded detail rows - individual advances for this employee */}
+                                                {isExpanded && hasMultiple && group.records.map((adv) => {
+                                                    const expensed = parseFloat(adv.settled_amount || 0);
+                                                    const returned = parseFloat(adv.returned_amount || 0);
+                                                    const totalGiven = parseFloat(adv.amount || 0);
+                                                    const due = totalGiven - expensed - returned;
+
+                                                    return (
+                                                        <tr key={adv.id} style={{ borderBottom: "1px solid #f1f5f9", background: "#f8fafc" }}>
+                                                            <td></td>
+                                                            <td style={{ padding: "10px 24px", color: "#64748b", fontSize: "0.85rem" }}>{adv.date}</td>
+                                                            <td style={{ padding: "10px 24px", color: "#0f766e", fontSize: "0.85rem" }}>{adv.account?.name || 'N/A'}</td>
+                                                            <td style={{ padding: "10px 24px", color: "#64748b", fontSize: "0.85rem" }}>{adv.purpose || '-'}</td>
+                                                            <td style={{ padding: "10px 24px", textAlign: 'right', fontWeight: '600', color: '#334155', fontSize: "0.85rem" }}>
+                                                                {totalGiven.toLocaleString('en-IN')}
+                                                            </td>
+                                                            <td style={{ padding: "10px 24px", textAlign: 'right', color: '#16a34a', fontSize: "0.85rem" }}>
+                                                                {expensed > 0 ? expensed.toLocaleString('en-IN') : '-'}
+                                                            </td>
+                                                            <td style={{ padding: "10px 24px", textAlign: 'right', color: '#2563eb', fontSize: "0.85rem" }}>
+                                                                {returned > 0 ? returned.toLocaleString('en-IN') : '-'}
+                                                            </td>
+                                                            <td style={{ padding: "10px 24px", textAlign: 'right', color: '#dc2626', fontSize: "0.85rem" }}>
+                                                                {due > 0 ? due.toLocaleString('en-IN') : '0'}
+                                                            </td>
+                                                            <td style={{ padding: "10px 24px", textAlign: 'center' }}>
+                                                                <span style={{ 
+                                                                    padding: '3px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '600', textTransform: 'capitalize',
+                                                                    background: adv.status === 'settled' ? '#dcfce7' : '#fee2e2', 
+                                                                    color: adv.status === 'settled' ? '#15803d' : '#b91c1c' 
+                                                                }}>
+                                                                    {adv.status}
+                                                                </span>
+                                                            </td>
+                                                            <td style={{ padding: "10px 24px", textAlign: 'center' }}>
+                                                                <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                                    {adv.status !== 'settled' && due > 0 && (
+                                                                        <button onClick={() => openReturnModal(adv)} style={{ background: "#dcfce7", border: "none", padding: "5px 9px", borderRadius: "6px", cursor: "pointer", color: "#16a34a", fontSize: "0.8rem" }} title="Refund Cash">
+                                                                            <i className="fa-solid fa-money-bill-transfer"></i>
+                                                                        </button>
+                                                                    )}
+                                                                    <button onClick={() => openEditModal(adv)} style={{ background: "#fff", border: "1px solid #e2e8f0", padding: "5px 9px", borderRadius: "6px", cursor: "pointer", color: "#0f172a", fontSize: "0.8rem" }} title="Edit Record">
+                                                                        <i className="fa-regular fa-pen-to-square"></i>
+                                                                    </button>
+                                                                    <button onClick={() => handleDelete(adv.id)} style={{ background: "#fff", border: "1px solid #fecaca", padding: "5px 9px", borderRadius: "6px", cursor: "pointer", color: "#ef4444", fontSize: "0.8rem" }} title="Delete Record">
+                                                                        <i className="fa-regular fa-trash-can"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </React.Fragment>
+                                        );
+                                    })
                                 ) : (
                                     <tr>
-                                        <td colSpan="7" style={{ textAlign: 'center', padding: '36px', color: '#94a3b8' }}>No advance records found.</td>
+                                        <td colSpan="10" style={{ textAlign: 'center', padding: '36px', color: '#94a3b8' }}>No advance records found.</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -317,7 +502,7 @@ export default function Index({ advances = [], filters = {} }) {
                 </div>
             </div>
 
-            {/* --- CREATE / EDIT FORM MODAL SECTION --- */}
+            {/* --- MAIN CREATE / EDIT FORM MODAL SECTION --- */}
             {showModal && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
                     <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
@@ -334,20 +519,54 @@ export default function Index({ advances = [], filters = {} }) {
                         
                         {/* Modal Form */}
                         <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
+                            
+                            {errors.error && (
+                                <div style={{ background: "#fee2e2", color: "#b91c1c", padding: "12px", borderRadius: "6px", marginBottom: "16px", fontSize: "0.875rem", fontWeight: "600", display: "flex", alignItems: "center", gap: "8px" }}>
+                                    <i className="fa-solid fa-circle-exclamation"></i>
+                                    {errors.error}
+                                </div>
+                            )}
+
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>
                                 <div style={{ flexDirection: "column", display: "flex" }}>
-                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Given To (Name) *</label>
-                                    <input 
-                                        type="text" 
-                                        value={data.given_to} 
-                                        onChange={e => setData('given_to', e.target.value)} 
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: "500" }}
-                                        placeholder="e.g., John Doe" 
-                                        required
-                                    />
-                                    {errors.given_to && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.given_to}</p>}
+                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Select Account *</label>
+                                    <select 
+                                        value={data.account_id} 
+                                        onChange={e => setData('account_id', e.target.value)} 
+                                        disabled={editMode}
+                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: "500", background: editMode ? "#f1f5f9" : "#fff", color: "#334155", height: "42px" }}
+                                        required={!editMode}
+                                    >
+                                        <option value="">-- Choose Account --</option>
+                                        {accounts.map(acc => (
+                                            <option key={acc.id} value={acc.id}>
+                                                {acc.name} (Bal: {Number(acc.current_balance).toLocaleString('en-IN')})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {errors.account_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.account_id}</p>}
                                 </div>
 
+                                <div style={{ flexDirection: "column", display: "flex", marginBottom: "16px" }}>
+    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>
+        Employee *
+    </label>
+    <select 
+        value={data.user_id} 
+        onChange={e => setData('user_id', e.target.value)} 
+        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+        required
+    >
+        <option value="">Select an Employee...</option>
+        {/* employees লিস্টটি ব্যাকএন্ড থেকে প্রপস হিসেবে আসবে */}
+        {employees.map(emp => (
+            <option key={emp.id} value={emp.id}>{emp.name}</option>
+        ))}
+    </select>
+</div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>
                                 <div style={{ flexDirection: "column", display: "flex" }}>
                                     <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount (BDT) *</label>
                                     <input 
@@ -361,9 +580,7 @@ export default function Index({ advances = [], filters = {} }) {
                                     />
                                     {errors.amount && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.amount}</p>}
                                 </div>
-                            </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>
                                 <div style={{ flexDirection: "column", display: "flex" }}>
                                     <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Date *</label>
                                     <input 
@@ -375,7 +592,9 @@ export default function Index({ advances = [], filters = {} }) {
                                     />
                                     {errors.date && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.date}</p>}
                                 </div>
+                            </div>
 
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>
                                 <div style={{ flexDirection: "column", display: "flex" }}>
                                     <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Purpose</label>
                                     <input 
@@ -387,33 +606,31 @@ export default function Index({ advances = [], filters = {} }) {
                                     />
                                     {errors.purpose && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.purpose}</p>}
                                 </div>
-                            </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>
                                 <div style={{ flexDirection: "column", display: "flex" }}>
                                     <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Status</label>
                                     <select 
                                         value={data.status} 
                                         onChange={e => setData('status', e.target.value)} 
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", background: "#fff", color: "#334155", height: "38px" }}
+                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", background: "#fff", color: "#334155", height: "42px" }}
                                     >
                                         <option value="unsettled">Unsettled (Not adjusted)</option>
                                         <option value="settled">Settled (Bill Submitted)</option>
                                     </select>
                                     {errors.status && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.status}</p>}
                                 </div>
-                                
-                                <div style={{ flexDirection: "column", display: "flex" }}>
-                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Notes</label>
-                                    <textarea 
-                                        value={data.notes} 
-                                        onChange={e => setData('notes', e.target.value)} 
-                                        rows="1"
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", resize: "none" }}
-                                        placeholder="Additional details..." 
-                                    ></textarea>
-                                    {errors.notes && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.notes}</p>}
-                                </div>
+                            </div>
+
+                            <div style={{ flexDirection: "column", display: "flex", marginBottom: "16px" }}>
+                                <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Notes</label>
+                                <textarea 
+                                    value={data.notes} 
+                                    onChange={e => setData('notes', e.target.value)} 
+                                    rows="1"
+                                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", resize: "none" }}
+                                    placeholder="Additional details..." 
+                                ></textarea>
+                                {errors.notes && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.notes}</p>}
                             </div>
 
                             {/* Modal Footer Control */}
@@ -421,6 +638,61 @@ export default function Index({ advances = [], filters = {} }) {
                                 <button type="button" onClick={() => setShowModal(false)} style={{ background: "#f1f5f9", color: "#334155", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500" }}>Cancel</button>
                                 <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", opacity: processing ? 0.7 : 1 }}>
                                     {processing ? 'Saving...' : 'Save Record'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* --- CASH RETURN MODAL --- */}
+            {showReturnModal && selectedAdvance && (
+                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+                    <div style={{ background: "#fff", width: "100%", maxWidth: "450px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
+                        
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
+                                    💵 Refund Leftover Cash
+                                </h3>
+                                <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#64748b" }}>
+                                    Return cash from <b>{selectedAdvance.user?.name || 'N/A'}</b> to Account.
+                                </p>
+                            </div>
+                            <button type="button" onClick={() => setShowReturnModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}>
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        
+                        <form onSubmit={handleReturnSubmit} style={{ padding: "24px" }}>
+                            {returnErrors.error && (
+                                <div style={{ background: "#fee2e2", color: "#b91c1c", padding: "12px", borderRadius: "6px", marginBottom: "16px", fontSize: "0.875rem", fontWeight: "600", display: "flex", alignItems: "center", gap: "8px" }}>
+                                    <i className="fa-solid fa-circle-exclamation"></i>
+                                    {returnErrors.error}
+                                </div>
+                            )}
+
+                            <div style={{ flexDirection: "column", display: "flex", marginBottom: "16px" }}>
+                                <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Refund Amount (BDT) *</label>
+                                <input 
+                                    type="number" 
+                                    step="0.01"
+                                    value={returnData.return_amount} 
+                                    onChange={e => setReturnData('return_amount', e.target.value)} 
+                                    style={{ width: "100%", padding: "10px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: "700" }}
+                                    placeholder="Enter returned cash amount" 
+                                    required
+                                />
+                                {returnErrors.return_amount && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{returnErrors.return_amount}</p>}
+                                <small style={{ color: "#64748b", marginTop: "6px", fontSize: "0.75rem" }}>
+                                    This money will be added back to <b>{selectedAdvance.account?.name}</b>.
+                                </small>
+                            </div>
+
+                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+                                <button type="button" onClick={() => setShowReturnModal(false)} style={{ background: "#f1f5f9", color: "#334155", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500" }}>Cancel</button>
+                                <button type="submit" disabled={returnProcessing} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", opacity: returnProcessing ? 0.7 : 1 }}>
+                                    {returnProcessing ? 'Processing...' : 'Confirm Refund'}
                                 </button>
                             </div>
                         </form>

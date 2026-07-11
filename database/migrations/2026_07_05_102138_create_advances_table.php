@@ -13,8 +13,12 @@ return new class extends Migration
     {
         Schema::create('advances', function (Blueprint $table) {
             $table->id();
-            $table->string('given_to')->comment('যাকে অ্যাডভান্স দেওয়া হলো');
-            $table->decimal('amount', 15, 2)->comment('কত টাকা দেওয়া হলো');
+            $table->unsignedBigInteger('account_id')->nullable()->comment('যে একাউন্ট থেকে অ্যাডভান্স দেওয়া হলো');
+            $table->unsignedBigInteger('user_id')->comment('যাকে অ্যাডভান্স দেওয়া হলো');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->decimal('amount', 15, 2)->comment('কত টাকা দেওয়া হলো');
+            $table->decimal('settled_amount', 15, 2)->default(0)->comment('কত টাকার বিল/খরচ জমা দিয়েছে');
+            $table->decimal('returned_amount', 15, 2)->default(0)->comment('কত টাকা ফেরত দিয়েছে');
             $table->date('date');
             $table->string('purpose')->nullable()->comment('অফিসের কাজ নাকি অন্য কিছু');
             $table->string('status')->default('unsettled')->comment('unsettled, settled');

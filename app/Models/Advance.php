@@ -9,7 +9,20 @@ class Advance extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'given_to', 'amount', 'date', 'purpose', 'status', 'notes', 'logged_by'
-    ];
+    protected $guarded = ['id'];
+
+    public function account()
+    {
+        return $this->belongsTo(Account::class);
+    }
+
+    public function logger()
+    {
+        return $this->belongsTo(User::class, 'logged_by');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

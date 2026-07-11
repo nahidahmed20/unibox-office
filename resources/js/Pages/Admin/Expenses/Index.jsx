@@ -4,13 +4,17 @@ import { useForm, Head, router, Link } from "@inertiajs/react";
 import Swal from "sweetalert2";
 import Select from "react-select";
 
-export default function Index({ expenses = { data: [], links: [] }, categories = [], accounts = [] }) {
+// advances প্রপস যুক্ত করা হলো
+export default function Index({ expenses = { data: [], links: [] }, categories = [], accounts = [], advances = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
 
     // View Modal State
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedExpense, setSelectedExpense] = useState(null);
+
+    // Payment Source Type Toggle (Account or Advance)
+    const [paymentType, setPaymentType] = useState('account');
 
     const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get("search") || "");
     const [perPage, setPerPage] = useState(() => Number(new URLSearchParams(window.location.search).get("per_page")) || 10);
@@ -22,6 +26,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
         title: "",
         expense_category_id: "",
         account_id: "",
+        advance_id: "", // নতুন ফিল্ড
         amount: "",
         date: "",
         description: "",
@@ -55,7 +60,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
     const handleCopy = () => {
         if (!expList.length) return Swal.fire("Empty!", "No data to copy", "warning");
         const text = expList
-            .map((e) => `${e.date}\t${e.title}\t${e.category?.name || "N/A"}\t${e.account?.name || "N/A"}\t${e.amount}`)
+            .map((e) => `${e.date}\t${e.title}\t${e.category?.name || "N/A"}\t${e.account_id ? e.account?.name : (e.advance_id ? 'Advance' : 'N/A')}\t${e.amount}`)
             .join("\n");
         navigator.clipboard.writeText(text);
         Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false });
@@ -63,8 +68,8 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
 
     const handleExportCSV = () => {
         if (!expList.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const headers = ["Date,Title,Category,Account,Amount,Description\n"];
-        const rows = expList.map(e => `"${e.date}","${e.title}","${e.category?.name || ''}","${e.account?.name || ''}","${e.amount}","${e.description || ''}"`);
+        const headers = ["Date,Title,Category,Payment Source,Amount,Description\n"];
+        const rows = expList.map(e => `"${e.date}","${e.title}","${e.category?.name || ''}","${e.account_id ? e.account?.name : (e.advance_id ? 'Advance' : '')}","${e.amount}","${e.description || ''}"`);
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -109,6 +114,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
         reset();
         clearErrors();
         setData("_method", "post");
+        setPaymentType('account'); // Default Payment Source
         setEditMode(false);
         setShowModal(true);
     };
@@ -120,12 +126,14 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
             title: expense.title || "",
             expense_category_id: expense.expense_category_id || "",
             account_id: expense.account_id || "",
+            advance_id: expense.advance_id || "",
             amount: expense.amount || "",
             date: expense.date || "",
             description: expense.description || "",
-            attachment: null, // Keep null, only attach new file if needed
-            _method: "put", // Required for Laravel file uploads in PUT
+            attachment: null, 
+            _method: "put", 
         });
+        setPaymentType(expense.advance_id ? 'advance' : 'account'); // Set correct toggle
         setEditMode(true);
         setShowModal(true);
     };
@@ -137,6 +145,12 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
 
     const handleSubmit = (e) => {
         e.preventDefault();
+
+        // Custom validation for source
+        if (!data.account_id && !data.advance_id) {
+            return Swal.fire("Required", "Please select a Payment Source (Account or Advance).", "warning");
+        }
+
         post(
             editMode ? route("admin.expenses.update", data.id) : route("admin.expenses.store"),
             {
@@ -150,7 +164,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                         showConfirmButton: false,
                     });
                 },
-                forceFormData: true, // Required for file uploads
+                forceFormData: true, 
             }
         );
     };
@@ -158,7 +172,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
     const handleDelete = (id) => {
         Swal.fire({
             title: "Delete Expense?",
-            text: "This will restore the amount to your account balance.",
+            text: "This will restore the amount to your account or advance balance.",
             icon: "warning",
             showCancelButton: true,
             confirmButtonColor: "#ef4444",
@@ -191,6 +205,12 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
             color: state.isSelected ? "#fff" : "#1e293b", cursor: "pointer",
         }),
     };
+
+    // --- Advance dropdown options (built once, reused for options + selected value) ---
+    const advanceOptions = advances.map((a) => {
+        const rem = parseFloat(a.amount) - (parseFloat(a.settled_amount) + parseFloat(a.returned_amount));
+        return { value: a.id, label: `${a.user?.name || 'Unknown'} (Rem: TK. ${rem})` };
+    });
 
     return (
         <AdminLayout>
@@ -256,7 +276,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "60px" }}>SL</th>
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>DATE</th>
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>EXPENSE TITLE</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>CATEGORY & ACCOUNT</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>CATEGORY & SOURCE</th>
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>AMOUNT</th>
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>ACTIONS</th>
                                 </tr>
@@ -278,7 +298,8 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                                                     {exp.category?.name || "Uncategorized"}
                                                 </span>
                                                 <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
-                                                    <i className="fa-solid fa-building-columns me-1"></i> {exp.account?.name || "N/A"}
+                                                    <i className={exp.advance_id ? "fa-solid fa-hand-holding-dollar me-1" : "fa-solid fa-building-columns me-1"}></i> 
+                                                    {exp.account_id ? (exp.account?.name || 'Account') : (exp.advance_id ? 'Advance' : 'N/A')}
                                                 </div>
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: "right", fontWeight: "700", color: "#dc2626" }}>
@@ -368,8 +389,14 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                                     <div style={{ fontWeight: "600", color: "#334155" }}><i className="fa-solid fa-tag text-blue-500" style={{ marginRight: "6px" }}></i>{selectedExpense.category?.name || "N/A"}</div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Payment Account</span>
-                                    <div style={{ fontWeight: "600", color: "#334155" }}><i className="fa-solid fa-building-columns text-purple-500" style={{ marginRight: "6px" }}></i>{selectedExpense.account?.name || "N/A"}</div>
+                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Payment Source</span>
+                                    <div style={{ fontWeight: "600", color: "#334155" }}>
+                                        {selectedExpense.account_id ? (
+                                            <><i className="fa-solid fa-building-columns text-purple-500" style={{ marginRight: "6px" }}></i>{selectedExpense.account?.name}</>
+                                        ) : selectedExpense.advance_id ? (
+                                            <><i className="fa-solid fa-hand-holding-dollar text-teal-500" style={{ marginRight: "6px" }}></i>Paid via Advance</>
+                                        ) : "N/A"}
+                                    </div>
                                 </div>
                                 <div>
                                     <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Date Logged</span>
@@ -403,73 +430,105 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
             {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "650px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
+                    <div style={{ background: "#fff", width: "100%", maxWidth: "650px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden", maxHeight: "95vh", display: "flex", flexDirection: "column" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
                             <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
                                 {editMode ? "📝 Edit Expense" : "✨ Log New Expense"}
                             </h3>
                             <button type="button" onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}><i className="fa-solid fa-xmark"></i></button>
                         </div>
-                        <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
-                            
-                            <div style={{ marginBottom: "16px" }}>
-                                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Expense Title *</label>
-                                <input type="text" value={data.title} onChange={e => setData('title', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: "500" }} placeholder="e.g. Monthly Electricity Bill" required />
-                                {errors.title && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.title}</p>}
-                            </div>
-
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Category *</label>
-                                    <Select
-                                        options={categories.map((c) => ({ value: c.id, label: c.name }))}
-                                        value={categories.map((c) => ({ value: c.id, label: c.name })).find((opt) => Number(opt.value) === Number(data.expense_category_id)) || null}
-                                        onChange={(selected) => setData("expense_category_id", selected ? selected.value : "")}
-                                        placeholder="Choose Category" isSearchable isClearable styles={selectStyles}
-                                    />
-                                    {errors.expense_category_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.expense_category_id}</p>}
+                        <div style={{ overflowY: "auto", flex: 1 }}>
+                            <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
+                                
+                                <div style={{ marginBottom: "16px" }}>
+                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Expense Title *</label>
+                                    <input type="text" value={data.title} onChange={e => setData('title', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: "500" }} placeholder="e.g. Monthly Electricity Bill" required />
+                                    {errors.title && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.title}</p>}
                                 </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Payment Source (Account) *</label>
-                                    <Select
-                                        options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${a.current_balance})` }))}
-                                        value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${a.current_balance})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
-                                        onChange={(selected) => setData("account_id", selected ? selected.value : "")}
-                                        placeholder="Choose Account" isSearchable isClearable styles={selectStyles}
-                                    />
-                                    {errors.account_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.account_id}</p>}
+
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                                    <div>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Category *</label>
+                                        <Select
+                                            options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                                            value={categories.map((c) => ({ value: c.id, label: c.name })).find((opt) => Number(opt.value) === Number(data.expense_category_id)) || null}
+                                            onChange={(selected) => setData("expense_category_id", selected ? selected.value : "")}
+                                            placeholder="Choose Category" isSearchable isClearable styles={selectStyles}
+                                        />
+                                        {errors.expense_category_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.expense_category_id}</p>}
+                                    </div>
+                                    <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: "6px" }}>
+                                            <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", margin: 0 }}>Payment Source *</label>
+                                            <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem' }}>
+                                                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                    <input type="radio" name="payType" checked={paymentType === 'account'} onChange={() => { setPaymentType('account'); setData('advance_id', ''); }} />
+                                                    Account
+                                                </label>
+                                                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                    <input type="radio" name="payType" checked={paymentType === 'advance'} onChange={() => { setPaymentType('advance'); setData('account_id', ''); }} />
+                                                    Advance
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        {paymentType === 'account' && (
+                                            <>
+                                                <Select
+                                                    options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${a.current_balance})` }))}
+                                                    value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${a.current_balance})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
+                                                    onChange={(selected) => setData("account_id", selected ? selected.value : "")}
+                                                    placeholder="Choose Account" isSearchable isClearable styles={selectStyles}
+                                                />
+                                                {errors.account_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.account_id}</p>}
+                                            </>
+                                        )}
+
+                                        {paymentType === 'advance' && (
+                                            <>
+                                                <Select
+                                                    options={advanceOptions}
+                                                    value={advanceOptions.find((opt) => Number(opt.value) === Number(data.advance_id)) || null}
+                                                    onChange={(selected) => setData("advance_id", selected ? selected.value : "")}
+                                                    placeholder="Choose Advance" isSearchable isClearable styles={selectStyles}
+                                                    noOptionsMessage={() => "No active advance found."}
+                                                />
+                                                {errors.advance_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.advance_id}</p>}
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount (TK.) *</label>
-                                    <input type="number" step="0.01" value={data.amount} onChange={e => setData('amount', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: 'bold' }} placeholder="0.00" required />
-                                    {errors.amount && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.amount}</p>}
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                                    <div>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount (TK.) *</label>
+                                        <input type="number" step="0.01" value={data.amount} onChange={e => setData('amount', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: 'bold' }} placeholder="0.00" required />
+                                        {errors.amount && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.amount}</p>}
+                                    </div>
+                                    <div>
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Date *</label>
+                                        <input type="date" value={data.date} onChange={e => setData('date', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} required />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Date *</label>
-                                    <input type="date" value={data.date} onChange={e => setData('date', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} required />
+
+                                <div style={{ marginBottom: "16px" }}>
+                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Description / Notes</label>
+                                    <textarea value={data.description} onChange={e => setData('description', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", resize: "vertical" }} rows="2" placeholder="Optional context..."></textarea>
                                 </div>
-                            </div>
 
-                            <div style={{ marginBottom: "16px" }}>
-                                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Description / Notes</label>
-                                <textarea value={data.description} onChange={e => setData('description', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", resize: "vertical" }} rows="2" placeholder="Optional context..."></textarea>
-                            </div>
+                                <div>
+                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Attachment (Receipt / Voucher)</label>
+                                    <input type="file" onChange={e => setData('attachment', e.target.files[0])} style={{ width: "100%", padding: "6px", borderRadius: "6px", border: "1px dashed #cbd5e1", outline: "none", fontSize: "0.85rem" }} accept="image/*,application/pdf" />
+                                </div>
 
-                            <div>
-                                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Attachment (Receipt / Voucher)</label>
-                                <input type="file" onChange={e => setData('attachment', e.target.files[0])} style={{ width: "100%", padding: "6px", borderRadius: "6px", border: "1px dashed #cbd5e1", outline: "none", fontSize: "0.85rem" }} accept="image/*,application/pdf" />
-                            </div>
-
-                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                <button type="button" onClick={() => setShowModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569", fontWeight: "500" }}>Dismiss</button>
-                                <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", opacity: processing ? 0.7 : 1 }}>
-                                    {processing ? "Processing..." : (editMode ? "Update Expense" : "Commit Expense")}
-                                </button>
-                            </div>
-                        </form>
+                                <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+                                    <button type="button" onClick={() => setShowModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569", fontWeight: "500" }}>Dismiss</button>
+                                    <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", opacity: processing ? 0.7 : 1 }}>
+                                        {processing ? "Processing..." : (editMode ? "Update Expense" : "Commit Expense")}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             )}

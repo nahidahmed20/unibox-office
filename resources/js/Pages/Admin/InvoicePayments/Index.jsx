@@ -3,6 +3,103 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { useForm, Head, router } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
+/* =========================================
+   REUSABLE SEARCHABLE SELECT COMPONENT
+========================================= */
+function SearchableSelect({ options, value, onChange, placeholder, getLabel, getValue, renderOption, error }) {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState("");
+    const wrapperRef = useRef(null);
+    const inputRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(e) {
+            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+                setOpen(false);
+                setSearch("");
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        if (open && inputRef.current) inputRef.current.focus();
+    }, [open]);
+
+    const selected = options.find((opt) => String(getValue(opt)) === String(value));
+    const filtered = options.filter((opt) =>
+        getLabel(opt).toLowerCase().includes(search.toLowerCase())
+    );
+
+    return (
+        <div ref={wrapperRef} style={{ position: "relative" }}>
+            <div
+                onClick={() => setOpen((o) => !o)}
+                style={{
+                    width: "100%", padding: "8px 12px", border: `1px solid ${error ? "#fca5a5" : "#cbd5e1"}`,
+                    borderRadius: "6px", background: "#fff", cursor: "pointer", display: "flex",
+                    justifyContent: "space-between", alignItems: "center", fontSize: "0.875rem",
+                    color: selected ? "#0f172a" : "#94a3b8",
+                }}
+            >
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {selected ? getLabel(selected) : placeholder}
+                </span>
+                <i className="fa-solid fa-chevron-down" style={{ fontSize: "0.7rem", color: "#94a3b8", marginLeft: "8px", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}></i>
+            </div>
+
+            {open && (
+                <div style={{
+                    position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#fff",
+                    border: "1px solid #cbd5e1", borderRadius: "8px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+                    zIndex: 60, maxHeight: "260px", display: "flex", flexDirection: "column", overflow: "hidden",
+                }}>
+                    <div style={{ padding: "8px", borderBottom: "1px solid #f1f5f9" }}>
+                        <div style={{ position: "relative" }}>
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Type to search..."
+                                style={{ width: "100%", padding: "6px 10px 6px 30px", border: "1px solid #e2e8f0", borderRadius: "6px", outline: "none", fontSize: "0.8rem", boxSizing: "border-box" }}
+                            />
+                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: "0.75rem" }}></i>
+                        </div>
+                    </div>
+                    <div style={{ overflowY: "auto" }}>
+                        {filtered.length === 0 ? (
+                            <div style={{ padding: "14px", textAlign: "center", color: "#94a3b8", fontSize: "0.8rem" }}>No results found</div>
+                        ) : (
+                            filtered.map((opt) => {
+                                const isActive = String(getValue(opt)) === String(value);
+                                return (
+                                    <div
+                                        key={getValue(opt)}
+                                        onClick={() => { onChange(String(getValue(opt))); setOpen(false); setSearch(""); }}
+                                        onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "#f8fafc"; }}
+                                        onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "#fff"; }}
+                                        style={{
+                                            padding: "10px 12px", cursor: "pointer", fontSize: "0.85rem",
+                                            background: isActive ? "#eff6ff" : "#fff",
+                                            color: isActive ? "#2563eb" : "#334155",
+                                            fontWeight: isActive ? "600" : "400",
+                                            borderBottom: "1px solid #f8fafc",
+                                        }}
+                                    >
+                                        {renderOption ? renderOption(opt) : getLabel(opt)}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function Index({ payments = {}, invoices = [], accounts = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -72,7 +169,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
         
         const header = "SL\tDate\tInvoice\tClient\tAccount\tAmount\n";
         const text = paymentList
-            .map((payment, idx) => `${idx + 1}\t${payment.payment_date}\tINV-00${payment.invoice_id}\t${payment.invoice?.client?.name || "N/A"}\t${payment.account?.name || "N/A"}\tTK. ${parseFloat(payment.amount).toLocaleString('en-IN')}`)
+            .map((payment, idx) => `${idx + 1}\t${payment.payment_date}\t${payment.invoice?.invoice_number || "N/A"}\t${payment.invoice?.client?.name || "N/A"}\t${payment.account?.name || "N/A"}\tTK. ${parseFloat(payment.amount).toLocaleString('en-IN')}`)
             .join("\n");
             
         navigator.clipboard.writeText(header + text);
@@ -83,7 +180,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
         if (!paymentList.length) return Swal.fire("Empty!", "No data to export", "warning");
         
         const headers = ["SL,Date,Invoice,Client,Account,Amount\n"];
-        const rows = paymentList.map((payment, idx) => `"${idx + 1}","${payment.payment_date}","INV-00${payment.invoice_id}","${payment.invoice?.client?.name || "N/A"}","${payment.account?.name || "N/A"}","TK. ${parseFloat(payment.amount).toLocaleString('en-IN')}"`);
+        const rows = paymentList.map((payment, idx) => `"${idx + 1}","${payment.payment_date}","${payment.invoice?.invoice_number || "N/A"}","${payment.invoice?.client?.name || "N/A"}","${payment.account?.name || "N/A"}","TK. ${parseFloat(payment.amount).toLocaleString('en-IN')}"`);
         
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
@@ -134,6 +231,17 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
 
     const openCreateModal = () => {
         reset(); clearErrors(); setData("_method", "post"); setEditMode(false); setShowModal(true);
+    };
+
+    const handleInvoiceSelect = (val) => {
+        const inv = invoices.find((i) => String(i.id) === String(val));
+        setData((prevData) => ({
+            ...prevData,
+            invoice_id: val,
+            // Auto-fill the remaining due amount only for a brand new payment,
+            // never overwrite an amount that's already set while editing.
+            amount: !editMode && inv ? String(inv.due_amount ?? inv.grand_total) : prevData.amount,
+        }));
     };
 
     const openEditModal = (payment) => {
@@ -213,7 +321,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
 
                         <div className="search-box" style={{ position: "relative" }}>
                             <input
-                                type="text" placeholder="Search payments..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                                type="text" placeholder="Search by invoice #, client, account..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                                 style={{ width: "240px", padding: "6px 12px", paddingLeft: "36px", fontSize: "0.875rem", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }}
                             />
                             <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
@@ -241,7 +349,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                                     <tr key={payment.id} style={{ borderBottom: "1px solid #f1f5f9", background: idx % 2 === 0 ? "#fff" : "#fdfdfd" }}>
                                         <td style={{ padding: "16px 24px", fontWeight: "500" }}>{payment.payment_date}</td>
                                         <td style={{ padding: "16px 24px" }}>
-                                            <div style={{ fontWeight: "600", color: "#2563eb", marginBottom: "2px" }}>INV-00{payment.invoice_id}</div>
+                                            <div style={{ fontWeight: "600", color: "#2563eb", marginBottom: "2px" }}>{payment.invoice?.invoice_number || "N/A"}</div>
                                             <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: "500" }}>{payment.invoice?.client?.name}</div>
                                         </td>
                                         <td style={{ padding: "16px 24px" }}>
@@ -290,7 +398,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
             {/* ADD / EDIT MODAL */}
             {showModal && (
                 <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
-                    <div className="modal-content" style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)", overflow: "hidden" }}>
+                    <div className="modal-content" style={{ background: "#fff", width: "100%", maxWidth: "900px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)" }}>
                         <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', padding: '18px 24px' }}>
                             <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '700', color: '#0f172a' }}>{editMode ? "✏️ Edit Payment Record" : "💰 Receive New Payment"}</h3>
                             <button onClick={() => setShowModal(false)} style={{ background: 'transparent', border: 'none', fontSize: '1.25rem', cursor: 'pointer', color: '#94a3b8' }}>&times;</button>
@@ -299,21 +407,44 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                                 <div className="form-group">
                                     <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Select Invoice *</label>
-                                    <select value={data.invoice_id} onChange={(e) => setData("invoice_id", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }} required>
-                                        <option value="">-- Select Invoice --</option>
-                                        {invoices.map((inv) => <option key={inv.id} value={inv.id}>INV-00{inv.id} ({inv.client?.name}) - TK. {parseFloat(inv.grand_total).toLocaleString('en-IN')}</option>)}
-                                    </select>
+                                    <SearchableSelect
+                                        options={invoices}
+                                        value={data.invoice_id}
+                                        onChange={handleInvoiceSelect}
+                                        placeholder="-- Select Invoice --"
+                                        error={errors.invoice_id}
+                                        getValue={(inv) => inv.id}
+                                        getLabel={(inv) => `${inv.invoice_number} (${inv.client?.name || "N/A"}) - Due: TK. ${parseFloat(inv.due_amount ?? inv.grand_total).toLocaleString('en-IN')}`}
+                                    />
                                     {errors.invoice_id && <span style={{ color: "#ef4444", fontSize: "0.75rem", display: "block" }}>{errors.invoice_id}</span>}
                                 </div>
                                 <div className="form-group">
                                     <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Receive In (Account) *</label>
-                                    <select value={data.account_id} onChange={(e) => setData("account_id", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }} required>
-                                        <option value="">-- Select Account --</option>
-                                        {accounts.map((acc) => <option key={acc.id} value={acc.id}>{acc.name} (Bal: TK. {parseFloat(acc.current_balance).toLocaleString('en-IN')})</option>)}
-                                    </select>
+                                    <SearchableSelect
+                                        options={accounts}
+                                        value={data.account_id}
+                                        onChange={(val) => setData("account_id", val)}
+                                        placeholder="-- Select Account --"
+                                        error={errors.account_id}
+                                        getValue={(acc) => acc.id}
+                                        getLabel={(acc) => `${acc.name} (Bal: TK. ${parseFloat(acc.current_balance).toLocaleString('en-IN')})`}
+                                    />
                                     {errors.account_id && <span style={{ color: "#ef4444", fontSize: "0.75rem", display: "block" }}>{errors.account_id}</span>}
                                 </div>
                             </div>
+
+                            {data.invoice_id && (() => {
+                                const selectedInvoice = invoices.find((i) => String(i.id) === String(data.invoice_id));
+                                if (!selectedInvoice) return null;
+                                const due = parseFloat(selectedInvoice.due_amount ?? selectedInvoice.grand_total);
+                                return (
+                                    <div style={{ marginTop: "16px", padding: "10px 14px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                        <span style={{ fontSize: "0.8rem", fontWeight: "600", color: "#1e40af" }}>Client's Remaining Due for {selectedInvoice.invoice_number}</span>
+                                        <span style={{ fontSize: "1rem", fontWeight: "800", color: "#1d4ed8" }}>TK. {due.toLocaleString('en-IN')}</span>
+                                    </div>
+                                );
+                            })()}
+
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px" }}>
                                 <div className="form-group">
                                     <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount (TK.) *</label>
@@ -350,7 +481,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                         <div style={{ padding: "24px" }}>
                             <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "0.875rem" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #e2e8f0", paddingBottom: "8px" }}><span style={{ color: "#64748b", fontWeight: "500" }}>Client Name:</span><span style={{ color: "#0f172a", fontWeight: "600" }}>{selectedPayment.invoice?.client?.name}</span></div>
-                                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #e2e8f0", paddingBottom: "8px" }}><span style={{ color: "#64748b", fontWeight: "500" }}>Invoice Ref:</span><span style={{ color: "#2563eb", fontWeight: "700" }}>INV-00{selectedPayment.invoice_id}</span></div>
+                                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #e2e8f0", paddingBottom: "8px" }}><span style={{ color: "#64748b", fontWeight: "500" }}>Invoice Ref:</span><span style={{ color: "#2563eb", fontWeight: "700" }}>{selectedPayment.invoice?.invoice_number || "N/A"}</span></div>
                                 <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #e2e8f0", paddingBottom: "8px" }}><span style={{ color: "#64748b", fontWeight: "500" }}>Account Credited:</span><span style={{ color: "#0f172a", fontWeight: "600" }}>{selectedPayment.account?.name}</span></div>
                                 <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #e2e8f0", paddingBottom: "8px" }}><span style={{ color: "#64748b", fontWeight: "500" }}>Payment Date:</span><span style={{ color: "#0f172a", fontWeight: "600" }}>{selectedPayment.payment_date}</span></div>
                                 <div style={{ background: "#f0fdf4", padding: "16px", borderRadius: "8px", border: "1px solid #bbf7d0", marginTop: "12px", textAlign: "center" }}>

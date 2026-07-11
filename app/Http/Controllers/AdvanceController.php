@@ -3,54 +3,73 @@
 namespace App\Http\Controllers;
 
 use App\Models\Advance;
+use App\Models\Account;
+use App\Models\User; // <-- User মডেল ইম্পোর্ট করতে হবে
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 
 class AdvanceController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Advance::query();
+        $query = Advance::query()->with(['account', 'user']); 
 
-        // Search Logic
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-
             $query->where(function ($q) use ($searchTerm) {
-                $q->where('given_to', 'like', "%{$searchTerm}%")
-                ->orWhere('purpose', 'like', "%{$searchTerm}%");
+                $q->whereHas('user', function ($q2) use ($searchTerm) {
+                    $q2->where('name', 'like', "%{$searchTerm}%");
+                })->orWhere('purpose', 'like', "%{$searchTerm}%");
             });
         }
 
-        // Pagination
-        $perPage = $request->input('per_page', 10);
+        $perPage = $request->input('per_page') === 'all' ? ($query->count() > 0 ? $query->count() : 10) : $request->input('per_page', 10);
+        
+        $advances = $query->latest()->paginate($perPage)->withQueryString();
+        $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->get();
 
-        $advances = $query
-            ->latest()
-            ->paginate($perPage)
-            ->withQueryString();
+        $employees = User::whereHas('employeeProfile')->select('id', 'name')->get();
 
         return Inertia::render('Admin/Advances/Index', [
             'advances' => $advances,
             'filters'  => $request->only('search', 'per_page'),
+            'accounts' => $accounts,
+            'employees' => $employees, 
         ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'given_to' => 'required|string|max:255',
-            'amount'   => 'required|numeric|min:1',
-            'date'     => 'required|date',
-            'purpose'  => 'nullable|string|max:255',
-            'status'   => 'required|in:unsettled,settled',
-            'notes'    => 'nullable|string',
+            'account_id' => 'required|exists:accounts,id', 
+            'user_id'    => 'required|exists:users,id', 
+            'amount'     => 'required|numeric|min:1',
+            'date'       => 'required|date',
+            'purpose'    => 'nullable|string|max:255',
+            'status'     => 'required|in:unsettled,settled',
+            'notes'      => 'nullable|string',
         ]);
 
-        $validated['logged_by'] = auth()->id();
-        Advance::create($validated);
+        try {
+            DB::transaction(function () use ($validated) {
+                $account = Account::findOrFail($validated['account_id']);
+                if ($account->current_balance < $validated['amount']) throw new \Exception('অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
+                
+                $account->current_balance -= $validated['amount'];
+                $account->save();
 
-        return redirect()->back();
+                $validated['logged_by'] = auth()->id();
+                $validated['settled_amount'] = 0;
+                $validated['returned_amount'] = 0;
+                
+                Advance::create($validated);
+            });
+
+            return redirect()->back()->with('success', 'Advance logged successfully.');
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
+        }
     }
 
     public function update(Request $request, string $id)
@@ -58,21 +77,132 @@ class AdvanceController extends Controller
         $advance = Advance::findOrFail($id);
 
         $validated = $request->validate([
-            'given_to' => 'required|string|max:255',
-            'amount'   => 'required|numeric|min:1',
-            'date'     => 'required|date',
-            'purpose'  => 'nullable|string|max:255',
-            'status'   => 'required|in:unsettled,settled',
-            'notes'    => 'nullable|string',
+            'account_id' => 'required|exists:accounts,id',
+            'user_id'    => 'required|exists:users,id', 
+            'amount'     => 'required|numeric|min:1',
+            'date'       => 'required|date',
+            'purpose'    => 'nullable|string|max:255',
+            'status'     => 'required|in:unsettled,settled',
+            'notes'      => 'nullable|string',
         ]);
 
-        $advance->update($validated);
-        return redirect()->back();
+        try {
+            DB::transaction(function () use ($advance, $validated) {
+                if ($advance->account_id != $validated['account_id']) {
+                    $oldAccount = Account::findOrFail($advance->account_id);
+                    $oldAccount->current_balance += $advance->amount;
+                    $oldAccount->save();
+
+                    $newAccount = Account::findOrFail($validated['account_id']);
+                    if ($newAccount->current_balance < $validated['amount']) {
+                        throw new \Exception('নতুন অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
+                    }
+                    $newAccount->current_balance -= $validated['amount'];
+                    $newAccount->save();
+                } 
+                else if ($advance->amount != $validated['amount']) {
+                    $account = Account::findOrFail($advance->account_id);
+                    $difference = $validated['amount'] - $advance->amount; 
+                    
+                    if ($difference > 0 && $account->current_balance < $difference) {
+                        throw new \Exception('অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
+                    }
+                    $account->current_balance -= $difference;
+                    $account->save();
+                }
+
+                $advance->update($validated);
+            });
+
+            return redirect()->back()->with('success', 'Advance updated successfully.');
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
+    public function returnMoney(Request $request, string $id)
+    {
+        $advance = Advance::findOrFail($id);
+
+        $validated = $request->validate([
+            'return_amount' => 'required|numeric|min:1', 
+        ]);
+
+        try {
+            DB::transaction(function () use ($advance, $validated) {
+                $advance->returned_amount += $validated['return_amount'];
+                
+                if (($advance->settled_amount + $advance->returned_amount) >= $advance->amount) {
+                    $advance->status = 'settled';
+                }
+                $advance->save();
+
+                $account = Account::find($advance->account_id);
+                if ($account) {
+                    $account->current_balance += $validated['return_amount'];
+                    $account->save();
+                }
+            });
+
+            return redirect()->back()->with('success', 'Money returned to account successfully.');
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
+        }
     }
 
     public function destroy(string $id)
     {
-        Advance::findOrFail($id)->delete();
-        return redirect()->back();
+        $advance = Advance::findOrFail($id);
+
+        try {
+            DB::transaction(function () use ($advance) {
+                $settled = $advance->settled_amount ?? 0;
+                $returned = $advance->returned_amount ?? 0;
+                
+                $refund_amount = $advance->amount - $settled - $returned;
+                
+                if ($refund_amount > 0 && $advance->account_id) {
+                    $account = Account::find($advance->account_id);
+                    if ($account) {
+                        $account->current_balance += $refund_amount;
+                        $account->save();
+                    }
+                }
+
+                $advance->delete();
+            });
+
+            return redirect()->back()->with('success', 'Advance deleted and money refunded.');
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
+    public function employeeLedger($userId)
+    {
+        $employee = User::with('employeeProfile')
+            ->withSum('advances', 'amount')
+            ->withSum('advances', 'settled_amount')
+            ->withSum('advances', 'returned_amount')
+            ->findOrFail($userId);
+
+        $advancesHistory = Advance::where('user_id', $userId)->latest()->get();
+
+        $totalAdvance = $employee->advances_sum_amount ?? 0;
+        $totalSettled = $employee->advances_sum_settled_amount ?? 0;
+        $totalReturned = $employee->advances_sum_returned_amount ?? 0;
+        
+        $currentDue = $totalAdvance - ($totalSettled + $totalReturned);
+
+        return Inertia::render('Admin/Advances/Ledger', [
+            'employee' => $employee,
+            'advancesHistory' => $advancesHistory,
+            'summary' => [
+                'total_advance' => $totalAdvance,
+                'total_settled' => $totalSettled,
+                'total_returned' => $totalReturned,
+                'current_due' => $currentDue
+            ]
+        ]);
     }
 }

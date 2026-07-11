@@ -31,22 +31,20 @@ export default function Print({ invoice }) {
         return () => clearTimeout(timer);
     }, []);
 
-    // Fallback if invoice is missing
     if (!invoice) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading Invoice...</div>;
 
-    // Check availability of optional fields to dynamically span rows
+    // Calculations based on actual data
     const hasTax = invoice.tax && parseFloat(invoice.tax) > 0;
     const hasDiscount = invoice.discount && parseFloat(invoice.discount) > 0;
-    const hasAdvance = invoice.use_advance_amount && parseFloat(invoice.use_advance_amount) > 0;
+    const advanceAmount = Number(invoice.advance_used) || 0; // ব্যাকএন্ড থেকে আসা ডাটা
+    const hasAdvance = advanceAmount > 0;
     
-    // Base 2 rows (Sub-total + Grand Total). Add rows if Tax, Discount, or Advance exist.
     const rowSpanCount = 2 + (hasTax ? 1 : 0) + (hasDiscount ? 1 : 0) + (hasAdvance ? 2 : 0);
 
     // Calculate dynamic words based on grand total (or payable due if advance is used)
-    const payableAmount = hasAdvance ? (invoice.grand_total - invoice.use_advance_amount) : invoice.grand_total;
+    const payableAmount = hasAdvance ? (Number(invoice.grand_total) - advanceAmount) : Number(invoice.grand_total);
     const grandTotalWords = numberToWords(payableAmount);
 
-    // Pure CSS Styling - Adjusted for 1px thin borders
     const customCss = `
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: #fff; font-family: Arial, sans-serif; color: #000; }
@@ -62,35 +60,25 @@ export default function Print({ invoice }) {
         }
         .invoice-content { padding-left: 50px; }
         .logo { font-size: 36px; font-weight: bold; color: #147a5b; letter-spacing: 2px; margin-bottom: 30px; text-transform: uppercase; }
-        .info-section { line-height: 1.6; margin-bottom: 20px; }
         
-        /* Table Styles (Made borders thinner 1px) */
+        .info-section { display: flex; justify-content: space-between; margin-bottom: 30px; line-height: 1.6; }
+        
         .invoice-table { width: 100%; border-collapse: collapse; border: 1px solid #333; margin-bottom: 30px; }
         .invoice-table th, .invoice-table td { border: 1px solid #333; padding: 10px; }
         .invoice-table th { text-align: center; background-color: #f9fafb; font-weight: bold; }
         
         .text-center { text-align: center; }
         .text-right { text-align: right; }
-        .text-left { text-align: left; }
         .align-top { vertical-align: top; }
         .align-middle { vertical-align: middle; }
         .font-bold { font-weight: bold; }
         .item-description { white-space: pre-wrap; font-size: 13px; margin-top: 4px; color: #333; }
         .bank-info { line-height: 1.6; font-size: 13px; margin-bottom: 60px; }
-        .signature-section { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 80px; padding: 0 10px; }
-        .sign-box { width: 160px; text-align: center; position: relative; }
-        .sign-line { border-top: 1px solid #333; padding-top: 5px; }
-        .fake-seal {
-            position: absolute; top: -70px; left: -15px; width: 90px; height: 90px;
-            border: 1.5px solid #003366; border-radius: 50%; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; color: #003366; opacity: 0.6;
-            transform: rotate(-15deg); pointer-events: none; background: transparent;
-        }
-        .fake-seal-text-top { font-size: 10px; font-weight: bold; letter-spacing: 2px; }
-        .fake-seal-mid { border-top: 1px solid #003366; border-bottom: 1px solid #003366; width: 100%; text-align: center; margin: 4px 0; padding: 2px 0; }
-        .fake-seal-text-mid { font-size: 12px; font-weight: bold; }
-        .fake-seal-text-bottom { font-size: 8px; text-transform: uppercase; }
-        .fake-signature { position: absolute; top: -25px; left: 20px; font-family: 'Brush Script MT', cursive; font-size: 22px; color: #333; }
+        
+        .signature-section { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 100px; padding: 0 10px; }
+        .sign-box { width: 160px; text-align: center; }
+        .sign-line { border-top: 1px solid #333; padding-top: 5px; font-weight: bold; }
+        
         .footer { position: absolute; bottom: 15mm; left: 15mm; right: 15mm; text-align: center; }
         .footer-msg { color: #2cb34a; font-weight: bold; margin-bottom: 5px; font-size: 15px; }
         .footer-divider { border: 0; border-top: 1px solid rgba(44, 179, 74, 0.5); margin-bottom: 8px; }
@@ -107,7 +95,6 @@ export default function Print({ invoice }) {
     return (
         <div className="invoice-container">
             <Head title={`Invoice - ${invoice.invoice_number}`} />
-            
             <style>{customCss}</style>
 
             <div className="vertical-text">Invoice</div>
@@ -119,10 +106,15 @@ export default function Print({ invoice }) {
 
                 {/* To & Date Section */}
                 <div className="info-section">
-                    <p>Date: {invoice.invoice_date}</p>
-                    <p>To</p>
-                    {invoice.client?.name && <p className="font-bold">{invoice.client.name}</p>}
-                    {invoice.client?.company_name && <p>{invoice.client.company_name}</p>}
+                    <div>
+                        <p style={{ marginBottom: "5px" }}><strong>To:</strong></p>
+                        {invoice.client?.name && <p className="font-bold">{invoice.client.name}</p>}
+                        {invoice.client?.company_name && <p>{invoice.client.company_name}</p>}
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                        <p><strong>Invoice No:</strong> {invoice.invoice_number}</p>
+                        <p><strong>Date:</strong> {invoice.invoice_date}</p>
+                    </div>
                 </div>
 
                 {/* Main Table */}
@@ -136,8 +128,6 @@ export default function Print({ invoice }) {
                         </tr>
                     </thead>
                     <tbody>
-                        
-                        {/* Dynamic Line Items */}
                         {invoice.items && invoice.items.length > 0 ? (
                             invoice.items.map((item, index) => (
                                 <tr key={index}>
@@ -204,15 +194,14 @@ export default function Print({ invoice }) {
                                     <>
                                         <tr>
                                             <td colSpan="2" className="text-right" style={{ paddingRight: '15px' }}>Advance Adjusted</td>
-                                            <td className="text-center">- {invoice.use_advance_amount}/-</td>
+                                            <td className="text-center">- {advanceAmount.toFixed(2)}/-</td>
                                         </tr>
                                         <tr>
                                             <td colSpan="2" className="text-right font-bold" style={{ paddingRight: '15px' }}>Payable Due</td>
-                                            <td className="text-center font-bold">{(invoice.grand_total - invoice.use_advance_amount).toFixed(2)}/-</td>
+                                            <td className="text-center font-bold">{payableAmount.toFixed(2)}/-</td>
                                         </tr>
                                     </>
                                 )}
-                                
                             </>
                         )}
                     </tbody>
@@ -234,15 +223,6 @@ export default function Print({ invoice }) {
                     </div>
                     
                     <div className="sign-box">
-                        <div className="fake-seal">
-                            <span className="fake-seal-text-top">UNIBOX</span>
-                            <div className="fake-seal-mid">
-                                <span className="fake-seal-text-mid">UNIBOX</span>
-                            </div>
-                            <span className="fake-seal-text-bottom">Dhaka, Bangladesh</span>
-                        </div>
-                        
-                        <div className="fake-signature">Moudud</div>
                         <div className="sign-line">Signature</div>
                     </div>
                 </div>

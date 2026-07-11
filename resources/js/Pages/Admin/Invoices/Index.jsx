@@ -2,24 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link } from '@inertiajs/react'; 
 import Swal from 'sweetalert2'; 
-import Select from 'react-select'; // <-- Added react-select
+import Select from 'react-select'; 
 
 export default function Index({ invoices = { data: [], links: [] }, clients = [], projects = [], nextInvoiceNumber }) {
-    // --- States ---
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState(null);
+    const [editingInvoice, setEditingInvoice] = useState(null);
 
-    // Client Advance Info
     const [availableAdvance, setAvailableAdvance] = useState(0);
 
-    // Search & Pagination
     const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get('search') || '');
     const [perPage, setPerPage] = useState(() => Number(new URLSearchParams(window.location.search).get("per_page")) || 10);
     const isFirstRender = useRef(true);
 
-    // --- Form State ---
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
         id: "",
         client_id: "",
@@ -36,7 +33,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         items: [{ project_id: "", description: "", quantity: 1, unit_price: 0, total: 0 }]
     });
 
-    // --- React Select Custom Styles ---
     const selectStyles = {
         control: (provided, state) => ({
             ...provided, 
@@ -57,10 +53,9 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
             backgroundColor: state.isSelected ? "#2563eb" : state.isFocused ? "#eff6ff" : "#fff",
             color: state.isSelected ? "#fff" : "#1e293b", cursor: "pointer",
         }),
-        menuPortal: base => ({ ...base, zIndex: 9999 }) // Ensures dropdown stays above modal limits
+        menuPortal: base => ({ ...base, zIndex: 9999 })
     };
 
-    // --- Options for Selects ---
     const clientOptions = clients.map(c => ({
         value: c.id,
         label: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}`,
@@ -80,7 +75,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         label: p.title
     }));
 
-    // --- Item Handlers ---
     const addItem = () => {
         setData("items", [...data.items, { project_id: "", description: "", quantity: 1, unit_price: 0, total: 0 }]);
     };
@@ -100,25 +94,31 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         setData("items", rows);
     };
 
-    // --- Auto Calculations ---
+    // Auto Calculations: Overwrite Prevention Fixed!
     useEffect(() => {
         let subtotal = 0;
         data.items.forEach(item => { subtotal += Number(item.total); });
         
         const taxAmount = (subtotal * Number(data.tax)) / 100;
         const grand = subtotal + taxAmount - Number(data.discount);
-        
-        let validAdvanceUsed = Number(data.use_advance_amount) || 0;
-        if (validAdvanceUsed > grand) validAdvanceUsed = grand;
-        if (validAdvanceUsed > availableAdvance) validAdvanceUsed = availableAdvance;
 
-        setData(prev => ({
-            ...prev,
-            sub_total: subtotal,
-            grand_total: grand,
-            use_advance_amount: validAdvanceUsed
-        }));
-    }, [data.items, data.tax, data.discount, availableAdvance]); 
+        setData(prev => {
+            // Prevent overriding the advance unless it strictly exceeds the grand total
+            let validAdvanceUsed = Number(prev.use_advance_amount) || 0;
+            if (validAdvanceUsed > grand) validAdvanceUsed = grand;
+            
+            // Only update state if values actually changed to prevent loop/overrides
+            if (prev.sub_total !== subtotal || prev.grand_total !== grand || prev.use_advance_amount !== validAdvanceUsed) {
+                return {
+                    ...prev,
+                    sub_total: subtotal,
+                    grand_total: grand,
+                    use_advance_amount: validAdvanceUsed
+                };
+            }
+            return prev;
+        });
+    }, [data.items, data.tax, data.discount]); 
 
     const handleAdvanceChange = (e) => {
         let val = Number(e.target.value);
@@ -127,7 +127,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         setData("use_advance_amount", val);
     };
 
-    // --- Search & Pagination Action ---
     useEffect(() => {
         if (isFirstRender.current) { isFirstRender.current = false; return; }
         const delay = setTimeout(() => { 
@@ -139,10 +138,10 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         return () => clearTimeout(delay);
     }, [searchTerm, perPage]);
 
-    // --- Modals ---
     const openCreateModal = () => { 
         reset(); 
         clearErrors(); 
+        setEditingInvoice(null);
         setAvailableAdvance(0);
         setEditMode(false); 
         setData("invoice_number", nextInvoiceNumber || ""); 
@@ -151,7 +150,16 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
     
     const openEditModal = (inv) => {
         clearErrors(); 
-        setAvailableAdvance(0); 
+        setEditingInvoice(inv);
+        
+        // Exact 20,000 (or whatever was used) comes from backend
+        const advanceUsedByThisInvoice = Number(inv.advance_used) || 0;
+        
+        const selectedClient = clients.find(c => c.id === inv.client_id);
+        const currentAvailable = selectedClient ? Number(selectedClient.available_advance || 0) : 0;
+        
+        setAvailableAdvance(currentAvailable + advanceUsedByThisInvoice);
+        
         setData({ 
             id: inv.id,
             client_id: inv.client_id || '',
@@ -162,10 +170,24 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
             tax: inv.tax || 0,
             discount: inv.discount || 0,
             grand_total: inv.grand_total || 0,
-            use_advance_amount: 0,
+            use_advance_amount: advanceUsedByThisInvoice, // 20,000 will be set here
             status: inv.status || 'unpaid',
             notes: inv.notes || '',
-            items: inv.items?.length > 0 ? inv.items : [{ project_id: "", description: "", quantity: 1, unit_price: 0, total: 0 }]
+            items: inv.items?.length > 0
+                ? inv.items.map(item => ({
+                    project_id: item.project_id || "",
+                    description: item.description || "",
+                    quantity: item.quantity || 1,
+                    unit_price: item.unit_price || 0,
+                    total: item.total || 0,
+                }))
+                : [{
+                    project_id: "",
+                    description: "",
+                    quantity: 1,
+                    unit_price: 0,
+                    total: 0,
+                }]
         });
         setEditMode(true); 
         setShowModal(true);
@@ -176,7 +198,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         setShowViewModal(true); 
     };
 
-    // --- Submit & Delete ---
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!data.client_id) return Swal.fire("Required", "Please select a client.", "warning");
@@ -195,16 +216,16 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
     const handleDelete = (id) => {
         Swal.fire({ 
             title: 'Delete Invoice?', 
-            text: 'This action cannot be undone!', 
+            text: 'This will also restore any applied advance back to the client!', 
             icon: 'warning', 
             showCancelButton: true, 
             confirmButtonColor: '#ef4444', 
             cancelButtonColor: '#6b7280',
-            confirmButtonText: 'Yes, Delete It' 
+            confirmButtonText: 'Yes, Delete' 
         }).then((res) => { 
             if (res.isConfirmed) destroy(route('admin.invoices.destroy', id), { 
                 preserveScroll: true,
-                onSuccess: () => Swal.fire({ icon: "success", title: "Deleted!", timer: 1500, showConfirmButton: false })
+                onSuccess: () => Swal.fire({ icon: "success", title: "Deleted & Refunded!", timer: 1500, showConfirmButton: false })
             }); 
         });
     };
@@ -226,8 +247,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
             <Head title="Invoices & Billing" />
             
             <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc", minHeight: "100vh" }}>
-                
-                {/* --- HEADER --- */}
                 <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '15px' }}>
                     <div>
                         <h1 className="page-title" style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Billing & Invoices</h1>
@@ -237,7 +256,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
                 <div className="card-container" style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
                     
-                    {/* --- CARD HEADER --- */}
                     <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
                         <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-file-invoice-dollar" style={{ marginRight: "8px", color: "#3b82f6" }}></i> All Invoices
@@ -247,7 +265,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                         </button>
                     </div>
 
-                    {/* --- TOOLBAR --- */}
                     <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
                         <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
                             Show 
@@ -270,7 +287,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                         </div>
                     </div>
 
-                    {/* --- TABLE --- */}
                     <div style={{ overflowX: 'auto' }}>
                         <table className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
                             <thead>
@@ -336,7 +352,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                         </table>
                     </div>
 
-                    {/* --- PAGINATION --- */}
                     <div style={{ padding: "20px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <div style={{ color: "#64748b", fontSize: "0.875rem" }}>
@@ -424,13 +439,24 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                             </div>
 
                             <div style={{ display: "flex", justifyContent: "flex-end", fontSize: "0.95rem", color: "#334155" }}>
-                                <div style={{ width: "250px" }}>
+                                <div style={{ width: "270px" }}>
                                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}><span>Sub Total:</span> <span>TK {selectedInvoice.sub_total}</span></div>
                                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}><span>Tax:</span> <span>{selectedInvoice.tax}%</span></div>
                                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}><span>Discount:</span> <span style={{ color: "#ef4444" }}>- TK {selectedInvoice.discount}</span></div>
                                     <div style={{ display: "flex", justifyContent: "space-between", borderTop: "2px solid #e2e8f0", paddingTop: "10px", marginTop: "4px", fontWeight: "700", color: "#2563eb", fontSize: "1.1rem" }}>
                                         <span>Grand Total:</span> <span>TK {selectedInvoice.grand_total}</span>
                                     </div>
+                                    
+                                    {(Number(selectedInvoice.advance_used) > 0) && (
+                                        <>
+                                            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontWeight: "600", color: "#059669", fontSize: "0.95rem" }}>
+                                                <span>Advance Applied:</span> <span>- TK {Number(selectedInvoice.advance_used)}</span>
+                                            </div>
+                                            <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed #cbd5e1", paddingTop: "10px", marginTop: "4px", fontWeight: "800", color: "#dc2626", fontSize: "1.1rem" }}>
+                                                <span>Payable Due:</span> <span>TK {Number(selectedInvoice.grand_total) - Number(selectedInvoice.advance_used)}</span>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 
@@ -455,7 +481,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
                         <form onSubmit={handleSubmit} style={{ overflowY: "auto", padding: "24px", flex: 1 }}>
                             
-                            {/* --- ROW 1: Client & INV Number --- */}
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "16px" }}>
                                 <div>
                                     <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Select Client *</label>
@@ -464,12 +489,20 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                         value={clientOptions.find(opt => opt.value === data.client_id) || null}
                                         onChange={(selected) => {
                                             const clientId = selected ? selected.value : "";
-                                            const advance = selected ? Number(selected.advance) : 0;
+                                            let advance = selected ? Number(selected.advance) : 0;
+                                            
+                                            let prevUsedAdvance = 0;
+                                            if (editMode && editingInvoice && clientId === editingInvoice.client_id) {
+                                                prevUsedAdvance = Number(editingInvoice.advance_used || 0);
+                                                advance += prevUsedAdvance;
+                                            }
+
                                             setAvailableAdvance(advance);
+                                            
                                             setData(prev => ({
                                                 ...prev,
                                                 client_id: clientId,
-                                                use_advance_amount: 0,
+                                                use_advance_amount: prevUsedAdvance,
                                                 items: [{ project_id: "", description: "", quantity: 1, unit_price: 0, total: 0 }]
                                             }));
                                         }}
@@ -481,14 +514,12 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                         menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
                                     />
                                     {errors.client_id && <span style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", display: "block" }}>{errors.client_id}</span>}
-                                    {(() => {
-                                        const selectedClient = clients.find(c => c.id === data.client_id);
-                                        return selectedClient ? (
-                                            <div style={{ fontSize: "0.80rem", color: "#047857", marginTop: "8px", background: "#ecfdf5", padding: "6px 10px", borderRadius: "6px", border: "1px solid #a7f3d0", display: "inline-block" }}>
-                                                <i className="fa-solid fa-wallet me-1"></i> Available Advance: <strong style={{ marginLeft: "4px" }}>TK. {selectedClient.available_advance}</strong>
-                                            </div>
-                                        ) : null;
-                                    })()}
+                                    
+                                    {availableAdvance > 0 && (
+                                        <div style={{ fontSize: "0.80rem", color: "#047857", marginTop: "8px", background: "#ecfdf5", padding: "6px 10px", borderRadius: "6px", border: "1px solid #a7f3d0", display: "inline-block" }}>
+                                            <i className="fa-solid fa-wallet me-1"></i> Available Advance: <strong style={{ marginLeft: "4px" }}>TK. {availableAdvance.toLocaleString('en-IN')}</strong>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div>
@@ -498,7 +529,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 </div>
                             </div>
 
-                            {/* --- ROW 2: Dates & Status --- */}
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", marginBottom: "24px" }}>
                                 <div>
                                     <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Invoice Date *</label>
@@ -525,7 +555,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 </div>
                             </div>
 
-                            {/* --- LINE ITEMS SECTION --- */}
                             <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "20px", marginBottom: "24px" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                                     <h4 style={{ margin: 0, color: "#334155", fontWeight: "600", fontSize: "1.05rem" }}><i className="fa-solid fa-list-check me-2 text-slate-400"></i>Line Items</h4>
@@ -571,7 +600,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 {errors.items && <span style={{ color: "#ef4444", fontSize: "0.75rem", display: "block", marginTop: "4px" }}>{errors.items}</span>}
                             </div>
 
-                            {/* --- TOTALS & NOTES --- */}
                             <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: "24px", borderTop: "1px solid #e2e8f0", paddingTop: "24px" }}>
                                 <div>
                                     <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Notes / Terms & Conditions</label>
@@ -596,8 +624,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                         <span style={{ color: "#2563eb" }}>TK. {(data.grand_total || 0).toLocaleString('en-IN')}</span>
                                     </div>
 
-                                    {/* --- ADVANCE ADJUSTMENT UI --- */}
-                                    {!editMode && availableAdvance > 0 && (
+                                    {availableAdvance > 0 && (
                                         <div style={{ marginTop: "24px", padding: "16px", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "8px" }}>
                                             <span style={{ fontSize: "0.85rem", color: "#047857", fontWeight: "700", display: "block", marginBottom: "12px" }}>
                                                 <i className="fa-solid fa-wallet" style={{ marginRight: "6px" }}></i> 

@@ -3,13 +3,16 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link } from '@inertiajs/react'; 
 import Swal from 'sweetalert2'; 
 
-export default function Index({ project_expenses = { data: [], links: [] }, projects = [], categories = [], accounts = [], vendors = [] }) {
+export default function Index({ project_expenses = { data: [], links: [] }, projects = [], categories = [], accounts = [], vendors = [], advances = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
     // View Modal State
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedExpense, setSelectedExpense] = useState(null);
+
+    // Payment Source Type Toggle (Account or Advance)
+    const [paymentType, setPaymentType] = useState('account');
 
     // --- Searchable Dropdown States ---
     const [projectSearch, setProjectSearch] = useState("");
@@ -23,6 +26,9 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
     const [vendorSearch, setVendorSearch] = useState("");
     const [showVendorDropdown, setShowVendorDropdown] = useState(false);
+
+    const [advanceSearch, setAdvanceSearch] = useState("");
+    const [showAdvanceDropdown, setShowAdvanceDropdown] = useState(false);
 
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get('search') || '';
@@ -38,8 +44,9 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         project_id: '',
         expense_category_id: '',
         account_id: '', 
+        advance_id: '', // New Field added
         title: '', 
-        vendor_id: '', // Updated to vendor_id
+        vendor_id: '', 
         total_bill: '',
         paid_amount: '',
         date: '',
@@ -52,6 +59,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         setShowCategoryDropdown(false);
         setShowAccountDropdown(false);
         setShowVendorDropdown(false);
+        setShowAdvanceDropdown(false);
     };
 
     // --- Auto Calculate Due & Status in UI ---
@@ -103,8 +111,8 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
     const handleExportCSV = () => {
         if (!expList.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const headers = ["Date,Project,Expense Title,Vendor,Account,Total Bill,Paid,Due,Status\n"];
-        const rows = expList.map(e => `"${e.date}","${e.project?.title || ''}","${e.title}","${e.vendor?.name || ''}","${e.account?.name || ''}","${e.total_bill}","${e.paid_amount}","${e.due_amount}","${e.payment_status}"`);
+        const headers = ["Date,Project,Expense Title,Vendor,Account/Source,Total Bill,Paid,Due,Status\n"];
+        const rows = expList.map(e => `"${e.date}","${e.project?.title || ''}","${e.title}","${e.vendor?.name || ''}","${e.account_id ? e.account?.name : (e.advance_id ? 'Advance' : '')}","${e.total_bill}","${e.paid_amount}","${e.due_amount}","${e.payment_status}"`);
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -147,6 +155,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         reset(); 
         clearErrors(); 
         setEditMode(false); 
+        setPaymentType('account'); // Default to account
         closeAllDropdowns();
         setShowModal(true);
     };
@@ -158,6 +167,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             project_id: expense.project_id || '',
             expense_category_id: expense.expense_category_id || '',
             account_id: expense.account_id || '', 
+            advance_id: expense.advance_id || '', // Load advance ID
             title: expense.title || '', 
             vendor_id: expense.vendor_id || '',
             total_bill: expense.total_bill || '',
@@ -165,6 +175,8 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             date: expense.date || '',
             description: expense.description || ''
         });
+        // Auto select the correct payment source tab
+        setPaymentType(expense.advance_id ? 'advance' : 'account');
         setEditMode(true); 
         closeAllDropdowns();
         setShowModal(true);
@@ -181,6 +193,9 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         
         if (!data.project_id) return Swal.fire("Required", "Please select a project.", "warning");
         if (!data.expense_category_id) return Swal.fire("Required", "Please select an expense category.", "warning");
+        if (parseFloat(data.paid_amount) > 0 && !data.account_id && !data.advance_id) {
+            return Swal.fire("Required", "Please select a Payment Source (Account or Advance) to pay the amount.", "warning");
+        }
         
         if (editMode) {
             put(route('admin.project-expenses.update', data.id), { 
@@ -203,7 +218,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const handleDelete = (id) => {
         Swal.fire({
             title: 'Delete this record?',
-            text: "Paid amount will be refunded to your account balance.",
+            text: "Paid amount will be refunded to your account/advance balance.",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
@@ -320,7 +335,10 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                 </td>
                                                 <td style={{ padding: "16px 24px" }}>
                                                     <div style={{ fontWeight: '500', color: '#334155' }}>{exp.vendor?.name || '-'}</div>
-                                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}><i className="fa-solid fa-building-columns me-1"></i> {exp.account?.name || 'N/A'}</div>
+                                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
+                                                        <i className={exp.advance_id ? "fa-solid fa-hand-holding-dollar me-1" : "fa-solid fa-building-columns me-1"}></i> 
+                                                        {exp.account_id ? (exp.account?.name || 'Account') : (exp.advance_id ? 'Advance' : 'N/A')}
+                                                    </div>
                                                 </td>
                                                 <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '600', color: '#0f172a' }}>{parseFloat(exp.total_bill).toLocaleString('en-IN')}</td>
                                                 <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '600', color: '#16a34a' }}>{parseFloat(exp.paid_amount).toLocaleString('en-IN')}</td>
@@ -389,8 +407,14 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                     <div style={{ fontWeight: "600", color: "#334155" }}><i className="fa-solid fa-user-tie text-amber-500" style={{ marginRight: "6px" }}></i>{selectedExpense.vendor?.name || "N/A"}</div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Payment Account</span>
-                                    <div style={{ fontWeight: "600", color: "#334155" }}><i className="fa-solid fa-building-columns text-purple-500" style={{ marginRight: "6px" }}></i>{selectedExpense.account?.name || "N/A"}</div>
+                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Payment Source</span>
+                                    <div style={{ fontWeight: "600", color: "#334155" }}>
+                                        {selectedExpense.account_id ? (
+                                            <><i className="fa-solid fa-building-columns text-purple-500" style={{ marginRight: "6px" }}></i>{selectedExpense.account?.name}</>
+                                        ) : selectedExpense.advance_id ? (
+                                            <><i className="fa-solid fa-hand-holding-dollar text-teal-500" style={{ marginRight: "6px" }}></i>Paid via Advance</>
+                                        ) : "N/A"}
+                                    </div>
                                 </div>
                                 <div>
                                     <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Date</span>
@@ -430,7 +454,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "750px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
+                    <div style={{ background: "#fff", width: "100%", maxWidth: "750px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "95vh" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
                             <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
                                 {editMode ? "📝 Update Bill/Expense" : "✨ Log New Bill/Expense"}
@@ -438,7 +462,13 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                             <button type="button" onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}><i className="fa-solid fa-xmark"></i></button>
                         </div>
                         
-                        <div onClick={closeAllDropdowns} style={{ padding: "24px", maxHeight: "80vh", overflowY: "auto" }}>
+                        {errors.error && (
+                            <div style={{ margin: "16px 24px 0", padding: "10px", background: "#fee2e2", color: "#b91c1c", borderRadius: "6px", fontSize: "0.875rem", border: "1px solid #fecaca" }}>
+                                <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: "6px" }}></i> {errors.error}
+                            </div>
+                        )}
+                        
+                        <div onClick={closeAllDropdowns} style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
                             <form onSubmit={handleSubmit}>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
                                     
@@ -498,35 +528,90 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                         {errors.expense_category_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.expense_category_id}</p>}
                                     </div>
 
-                                    {/* --- 3. ACCOUNT DROPDOWN --- */}
+                                    {/* --- 3. PAYMENT SOURCE (Account vs Advance) --- */}
                                     <div style={{ gridColumn: "span 1", position: "relative" }}>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Payment Source *</label>
-                                        <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowAccountDropdown(!showAccountDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                            <span style={{ color: data.account_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
-                                                {data.account_id ? (() => {
-                                                    const acc = accounts.find(a => a.id == data.account_id);
-                                                    return acc ? `${acc.name} (Bal: ${acc.current_balance})` : "Unknown";
-                                                })() : "Select Account"}
-                                            </span>
-                                            <i className={`fa-solid fa-chevron-${showAccountDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem" }}></i>
-                                        </div>
-                                        {showAccountDropdown && (
-                                            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", display: "flex", flexDirection: "column" }}>
-                                                <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
-                                                    <input type="text" placeholder="Search account..." value={accountSearch} onChange={(e) => setAccountSearch(e.target.value)} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }} autoFocus />
-                                                </div>
-                                                <div style={{ overflowY: "auto", padding: "4px 0" }}>
-                                                    {accounts.filter(a => a.name?.toLowerCase().includes(accountSearch.toLowerCase())).length > 0 ? (
-                                                        accounts.filter(a => a.name?.toLowerCase().includes(accountSearch.toLowerCase())).map(a => (
-                                                            <div key={a.id} onClick={() => { setData("account_id", a.id); setShowAccountDropdown(false); setAccountSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.account_id == a.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.account_id == a.id ? "#f0fdf4" : "transparent"}>
-                                                                {a.name} <span style={{color: '#64748b', fontSize: '0.8rem'}}>(Bal: {a.current_balance})</span>
-                                                            </div>
-                                                        ))
-                                                    ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No account found.</div>)}
-                                                </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: "6px" }}>
+                                            <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", margin: 0 }}>Payment Source</label>
+                                            <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem' }}>
+                                                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                    <input type="radio" name="payType" checked={paymentType === 'account'} onChange={() => { setPaymentType('account'); setData('advance_id', ''); }} />
+                                                    Account
+                                                </label>
+                                                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                    <input type="radio" name="payType" checked={paymentType === 'advance'} onChange={() => { setPaymentType('advance'); setData('account_id', ''); }} />
+                                                    Advance
+                                                </label>
                                             </div>
+                                        </div>
+
+                                        {/* Dropdown for Main Account */}
+                                        {paymentType === 'account' && (
+                                            <>
+                                                <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowAccountDropdown(!showAccountDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                                    <span style={{ color: data.account_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
+                                                        {data.account_id ? (() => {
+                                                            const acc = accounts.find(a => a.id == data.account_id);
+                                                            return acc ? `${acc.name} (Bal: ${acc.current_balance})` : "Unknown";
+                                                        })() : "Select Account"}
+                                                    </span>
+                                                    <i className={`fa-solid fa-chevron-${showAccountDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem" }}></i>
+                                                </div>
+                                                {showAccountDropdown && (
+                                                    <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", display: "flex", flexDirection: "column" }}>
+                                                        <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
+                                                            <input type="text" placeholder="Search account..." value={accountSearch} onChange={(e) => setAccountSearch(e.target.value)} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }} autoFocus />
+                                                        </div>
+                                                        <div style={{ overflowY: "auto", padding: "4px 0" }}>
+                                                            {accounts.filter(a => a.name?.toLowerCase().includes(accountSearch.toLowerCase())).length > 0 ? (
+                                                                accounts.filter(a => a.name?.toLowerCase().includes(accountSearch.toLowerCase())).map(a => (
+                                                                    <div key={a.id} onClick={() => { setData("account_id", a.id); setShowAccountDropdown(false); setAccountSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.account_id == a.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.account_id == a.id ? "#f0fdf4" : "transparent"}>
+                                                                        {a.name} <span style={{color: '#64748b', fontSize: '0.8rem'}}>(Bal: {a.current_balance})</span>
+                                                                    </div>
+                                                                ))
+                                                            ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No account found.</div>)}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {errors.account_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.account_id}</p>}
+                                            </>
                                         )}
-                                        {errors.account_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.account_id}</p>}
+
+                                        {/* Dropdown for Staff Advance */}
+                                        {paymentType === 'advance' && (
+                                            <>
+                                                <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowAdvanceDropdown(!showAdvanceDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                                    <span style={{ color: data.advance_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
+                                                        {data.advance_id ? (() => {
+                                                            const adv = advances.find(a => a.id == data.advance_id);
+                                                            if (!adv) return "Unknown";
+                                                            const rem = parseFloat(adv.amount) - (parseFloat(adv.settled_amount) + parseFloat(adv.returned_amount));
+                                                            return `${adv.user?.name} (Rem: ${rem})`;
+                                                        })() : "Select Advance"}
+                                                    </span>
+                                                    <i className={`fa-solid fa-chevron-${showAdvanceDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem" }}></i>
+                                                </div>
+                                                {showAdvanceDropdown && (
+                                                    <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", display: "flex", flexDirection: "column" }}>
+                                                        <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
+                                                            <input type="text" placeholder="Search advance..." value={advanceSearch} onChange={(e) => setAdvanceSearch(e.target.value)} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }} autoFocus />
+                                                        </div>
+                                                        <div style={{ overflowY: "auto", padding: "4px 0" }}>
+                                                            {advances.filter(a => a.user?.name?.toLowerCase().includes(advanceSearch.toLowerCase())).length > 0 ? (
+                                                                advances.filter(a => a.user?.name?.toLowerCase().includes(advanceSearch.toLowerCase())).map(a => {
+                                                                    const remaining = parseFloat(a.amount) - (parseFloat(a.settled_amount) + parseFloat(a.returned_amount));
+                                                                    return (
+                                                                        <div key={a.id} onClick={() => { setData("advance_id", a.id); setShowAdvanceDropdown(false); setAdvanceSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.advance_id == a.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.advance_id == a.id ? "#f0fdf4" : "transparent"}>
+                                                                            {a.user?.name} <span style={{color: '#64748b', fontSize: '0.8rem'}}>(Rem: {remaining})</span>
+                                                                        </div>
+                                                                    );
+                                                                })
+                                                            ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No active advance found.</div>)}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {errors.advance_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.advance_id}</p>}
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 

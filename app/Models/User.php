@@ -40,6 +40,31 @@ class User extends Authenticatable
         return $this->hasMany(Expense::class, 'logged_by');
     }
 
+    public function loggedAdvances()
+    {
+        return $this->hasMany(Advance::class, 'logged_by');
+    }
+
+    public function loggedExpenses()
+    {
+        return $this->hasMany(Expense::class, 'logged_by');
+    }
+
+    public function loggedProjectExpenses()
+    {
+        return $this->hasMany(ProjectExpense::class, 'logged_by');
+    }
+
+    public function employeeProfile()
+    {
+        return $this->hasOne(EmployeeProfile::class);
+    }
+
+    public function advances()
+    {
+        return $this->hasMany(Advance::class);
+    }
+
     /**
      * The attributes that should be hidden for serialization.
      *

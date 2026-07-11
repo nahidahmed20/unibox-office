@@ -7,7 +7,7 @@ use App\Models\Transaction;
 
 class InvoicePayment extends Model
 {
-    protected $fillable = ['invoice_id', 'account_id', 'amount', 'payment_date', 'note'];
+    protected $guarded = ['id'];
 
     // Ei relation-ti jog korun
     public function transaction()
