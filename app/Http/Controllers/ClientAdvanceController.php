@@ -17,32 +17,20 @@ class ClientAdvanceController extends Controller
         $perPage = $request->input('per_page', 10);
         $search = $request->input('search');
 
-        $query = Client::whereHas('clientAdvances')
+        $clientWithAdvances = Client::whereHas('clientAdvances')
             ->with(['clientAdvances' => function($q) {
                 $q->with('account')->latest('date'); 
             }])
             ->withSum('clientAdvances as total_amount', 'amount')
-            ->withSum('clientAdvances as total_used', 'used_amount');
-
-        if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                ->orWhere('company_name', 'like', "%{$search}%");
-            });
-        }
-
-        $clientWithAdvances = $query->paginate($perPage)->withQueryString();
-
-        
-        $clientWithAdvances = Client::whereHas('clientAdvances')
-            ->with(['clientAdvances.account']) 
-            ->withSum('clientAdvances as total_amount', 'amount')
             ->withSum('clientAdvances as total_used', 'used_amount')
-            ->when($request->search, function ($query, $search) {
-                $query->where('name', 'like', "%{$search}%")
+            ->when($search, function ($query, $search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
                     ->orWhere('company_name', 'like', "%{$search}%");
+                });
             })
-            ->paginate($request->per_page ?? 10)
+            ->paginate($perPage)
+            ->withQueryString() 
             ->through(function ($client) {
                 $client->available_balance = ($client->total_amount ?? 0) - ($client->total_used ?? 0);
                 return $client;

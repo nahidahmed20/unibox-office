@@ -1,24 +1,19 @@
 import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
-import { Head, router } from "@inertiajs/react";
+import { Head, router, Link } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
-export default function VendorDues({ vendorDues }) {
-    // URL থেকে আগের ভ্যালুগুলো ধরে রাখার জন্য
+export default function VendorDues({ vendorDues, grandTotal }) {
     const [searchTerm, setSearchTerm] = useState(
-        () => new URLSearchParams(window.location.search).get("search") || "",
+        () => new URLSearchParams(window.location.search).get("search") || ""
     );
     const [perPage, setPerPage] = useState(
         () => Number(new URLSearchParams(window.location.search).get("per_page")) || 10
     );
     const isFirstRender = useRef(true);
 
-    // পেজিনেশনের কারণে ডাটা এখন vendorDues.data এর ভেতরে থাকবে
     const vendorsList = vendorDues?.data || [];
 
-    const grandTotalPayable = vendorsList.reduce((sum, vendor) => sum + parseFloat(vendor.total_due), 0);
-
-    // Search এবং Per Page চেঞ্জ হলে ব্যাকএন্ডে রিকোয়েস্ট পাঠানোর জন্য
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -26,24 +21,21 @@ export default function VendorDues({ vendorDues }) {
         }
         const delay = setTimeout(() => {
             router.get(
-                route("admin.vendor-dues"), // আপনার web.php তে রাউটের নাম যা দেওয়া আছে, তা এখানে দিন
+                route("admin.vendor-dues"),
                 { search: searchTerm, per_page: perPage },
-                { preserveState: true, replace: true },
+                { preserveState: true, replace: true }
             );
         }, 500);
 
         return () => clearTimeout(delay);
     }, [searchTerm, perPage]);
 
-    /* =========================================
-       EXPORT FUNCTIONS (Copy, CSV, Print)
-    ========================================= */
     const handleCopy = () => {
         if (!vendorsList.length) return Swal.fire("Empty!", "No data to copy", "warning");
         
         const header = "SL\tVendor Name\tStatus\tTotal Due\n";
         const text = vendorsList
-            .map((vendor, idx) => `${idx + 1}\t${vendor.vendor_name}\tPayable\tTK. ${parseFloat(vendor.total_due).toFixed(2)}`)
+            .map((vendor, idx) => `${(vendorDues.from || 1) + idx}\t${vendor.vendor_name}\tPayable\tTK. ${parseFloat(vendor.total_due).toFixed(2)}`)
             .join("\n");
             
         navigator.clipboard.writeText(header + text);
@@ -55,7 +47,7 @@ export default function VendorDues({ vendorDues }) {
         
         const headers = ["SL,Vendor Name,Status,Total Due\n"];
         const rows = vendorsList.map((vendor, idx) => 
-            `"${idx + 1}","${vendor.vendor_name}","Payable","${vendor.total_due}"`
+            `"${(vendorDues.from || 1) + idx}","${vendor.vendor_name}","Payable","${vendor.total_due}"`
         );
         
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
@@ -93,6 +85,7 @@ export default function VendorDues({ vendorDues }) {
                 <body>
                     <h2>Accounts Payable - Vendor Dues (দেনা)</h2>
                     <p>Generated Report Date: ${new Date().toLocaleDateString()}</p>
+                    <p><strong>Total Payable Amount: TK. ${Number(grandTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></p>
                     ${tableContent.outerHTML}
                 </body>
             </html>
@@ -120,7 +113,7 @@ export default function VendorDues({ vendorDues }) {
                     <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', border: '1px solid #e2e8f0', borderLeft: '5px solid #f59e0b' }}>
                         <p style={{ fontSize: '0.875rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '600', marginBottom: '8px' }}>Total Payable Amount (দেনা)</p>
                         <h2 style={{ fontSize: '2rem', fontWeight: '700', color: '#d97706', margin: '0' }}>
-                            TK. {grandTotalPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            TK. {Number(grandTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </h2>
                     </div>
                 </div>
@@ -169,39 +162,69 @@ export default function VendorDues({ vendorDues }) {
                         </div>
                     </div>
 
-                    <table id="printable-vendor-dues-table" className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.875rem" }}>
-                        <thead>
-                            <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
-                                <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Vendor Name</th>
-                                <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Status</th>
-                                <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem", textAlign: "right" }}>Total Due (দেনা)</th>
-                            </tr>
-                        </thead>
-                        <tbody style={{ color: "#334155" }}>
-                            {vendorsList.length === 0 ? (
-                                <tr>
-                                    <td colSpan="3" style={{ padding: "32px", textAlign: "center", color: "#64748b" }}>No due records found.</td>
+                    <div style={{ overflowX: "auto" }}>
+                        <table id="printable-vendor-dues-table" className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.875rem" }}>
+                            <thead>
+                                <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                                    <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Vendor Name</th>
+                                    <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Status</th>
+                                    <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem", textAlign: "right" }}>Total Due (দেনা)</th>
                                 </tr>
-                            ) : (
-                                vendorsList.map((vendor, idx) => (
-                                    <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9", background: idx % 2 === 0 ? "#fff" : "#fdfdfd" }}>
-                                        <td style={{ padding: "16px 24px", fontWeight: "600", color: "#0f172a" }}>
-                                            <i className="fa-solid fa-store" style={{ color: "#94a3b8", marginRight: "8px" }}></i> 
-                                            {vendor.vendor_name}
-                                        </td>
-                                        <td style={{ padding: "16px 24px" }}>
-                                            <span style={{ background: "#ffedd5", padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "600", color: "#9a3412", border: "1px solid #fdba74" }}>
-                                                Payable
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '700', color: '#d97706', fontSize: "0.95rem" }}>
-                                            TK. {parseFloat(vendor.total_due).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                        </td>
+                            </thead>
+                            <tbody style={{ color: "#334155" }}>
+                                {vendorsList.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="3" style={{ padding: "32px", textAlign: "center", color: "#64748b" }}>No due records found.</td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                ) : (
+                                    vendorsList.map((vendor, idx) => (
+                                        <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9", background: idx % 2 === 0 ? "#fff" : "#fdfdfd" }}>
+                                            <td style={{ padding: "16px 24px", fontWeight: "600", color: "#0f172a" }}>
+                                                <i className="fa-solid fa-store" style={{ color: "#94a3b8", marginRight: "8px" }}></i> 
+                                                {vendor.vendor_name}
+                                                {vendor.company_name && <span style={{display: "block", fontSize: "0.75rem", color: "#64748b", marginTop: "4px", marginLeft: "22px"}}>{vendor.company_name}</span>}
+                                            </td>
+                                            <td style={{ padding: "16px 24px" }}>
+                                                <span style={{ background: "#ffedd5", padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "600", color: "#9a3412", border: "1px solid #fdba74" }}>
+                                                    Payable
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '700', color: '#d97706', fontSize: "0.95rem" }}>
+                                                TK. {parseFloat(vendor.total_due).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Pagination */}
+                    {vendorDues?.links && vendorDues.links.length > 3 && (
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
+                            <div style={{ color: "#64748b", fontSize: "0.875rem" }}>
+                                Showing {vendorDues.from || 0} to {vendorDues.to || 0} of {vendorDues.total || 0} entries
+                            </div>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                                {vendorDues.links.map((link, index) => (
+                                    <Link 
+                                        key={index} 
+                                        href={link.url || "#"} 
+                                        style={{ 
+                                            padding: "6px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.875rem", 
+                                            color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"), 
+                                            backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"), 
+                                            pointerEvents: link.url ? "auto" : "none", textDecoration: "none", 
+                                            display: "flex", alignItems: "center", justifyContent: "center", minWidth: "32px" 
+                                        }} 
+                                        preserveState
+                                    >
+                                        <span dangerouslySetInnerHTML={{ __html: link.label }}></span>
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </AdminLayout>

@@ -42,5 +42,10 @@ class ProjectExpense extends Model
     {
         return $this->belongsTo(Vendor::class);
     }
+
+    public function advanceUser()
+    {
+        return $this->belongsTo(User::class, 'advance_user_id');
+    }
     
 }

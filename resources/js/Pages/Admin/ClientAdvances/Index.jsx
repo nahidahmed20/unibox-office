@@ -295,8 +295,8 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
                                                                                 <td style={{ padding: "12px 16px", color: "#2563eb", fontWeight: "500" }}>{adv.account?.name}</td>
                                                                                 <td style={{ padding: "12px 16px", fontWeight: "700", color: "#10b981" }}>TK. {Number(adv.amount).toLocaleString()}</td>
                                                                                 <td style={{ padding: "12px 16px" }}>
-                                                                                    <span style={{ color: adv.available_amount > 0 ? "#f59e0b" : "#94a3b8", fontWeight: "600" }}>
-                                                                                        TK. {Number(adv.available_amount).toLocaleString()}
+                                                                                    <span style={{ color: (adv.amount - adv.used_amount) > 0 ? "#f59e0b" : "#94a3b8", fontWeight: "600" }}>
+                                                                                        TK. {Number(adv.amount - adv.used_amount).toLocaleString()}
                                                                                     </span>
                                                                                 </td>
                                                                                 <td style={{ padding: "12px 16px", color: "#64748b" }}>{adv.note || "—"}</td>
@@ -376,7 +376,7 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
                                 </div>
                                 <div>
                                     <span style={{ color: "#94a3b8", fontSize: "0.8rem", textTransform: "uppercase" }}>Currently Available</span>
-                                    <div style={{ fontWeight: "700", color: "#f59e0b", fontSize: "1.1rem" }}>TK. {selectedAdvance.available_amount}</div>
+                                    <div style={{ fontWeight: "700", color: "#f59e0b", fontSize: "1.1rem" }}>TK. {selectedAdvance.amount - selectedAdvance.used_amount}</div>
                                 </div>
                                 <div>
                                     <span style={{ color: "#94a3b8", fontSize: "0.8rem", textTransform: "uppercase" }}>Received Date</span>

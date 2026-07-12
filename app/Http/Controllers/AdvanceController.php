@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Advance;
+use App\Models\AdvanceBalance;
 use App\Models\Account;
-use App\Models\User; // <-- User মডেল ইম্পোর্ট করতে হবে
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +14,7 @@ class AdvanceController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Advance::query()->with(['account', 'user']); 
+        $query = Advance::query()->with(['account', 'user']);
 
         if ($request->filled('search')) {
             $searchTerm = $request->search;
@@ -25,25 +26,24 @@ class AdvanceController extends Controller
         }
 
         $perPage = $request->input('per_page') === 'all' ? ($query->count() > 0 ? $query->count() : 10) : $request->input('per_page', 10);
-        
+
         $advances = $query->latest()->paginate($perPage)->withQueryString();
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->get();
-
         $employees = User::whereHas('employeeProfile')->select('id', 'name')->get();
 
         return Inertia::render('Admin/Advances/Index', [
-            'advances' => $advances,
-            'filters'  => $request->only('search', 'per_page'),
-            'accounts' => $accounts,
-            'employees' => $employees, 
+            'advances'   => $advances,
+            'filters'    => $request->only('search', 'per_page'),
+            'accounts'   => $accounts,
+            'employees'  => $employees,
         ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'account_id' => 'required|exists:accounts,id', 
-            'user_id'    => 'required|exists:users,id', 
+            'account_id' => 'required|exists:accounts,id',
+            'user_id'    => 'required|exists:users,id',
             'amount'     => 'required|numeric|min:1',
             'date'       => 'required|date',
             'purpose'    => 'nullable|string|max:255',
@@ -54,16 +54,22 @@ class AdvanceController extends Controller
         try {
             DB::transaction(function () use ($validated) {
                 $account = Account::findOrFail($validated['account_id']);
-                if ($account->current_balance < $validated['amount']) throw new \Exception('অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
-                
+                if ($account->current_balance < $validated['amount']) {
+                    throw new \Exception('অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
+                }
+
                 $account->current_balance -= $validated['amount'];
                 $account->save();
 
                 $validated['logged_by'] = auth()->id();
                 $validated['settled_amount'] = 0;
                 $validated['returned_amount'] = 0;
-                
+
                 Advance::create($validated);
+
+                // --- Pooled balance sync ---
+                $balance = AdvanceBalance::firstOrCreate(['user_id' => $validated['user_id']]);
+                $balance->increment('total_given', $validated['amount']);
             });
 
             return redirect()->back()->with('success', 'Advance logged successfully.');
@@ -78,7 +84,7 @@ class AdvanceController extends Controller
 
         $validated = $request->validate([
             'account_id' => 'required|exists:accounts,id',
-            'user_id'    => 'required|exists:users,id', 
+            'user_id'    => 'required|exists:users,id',
             'amount'     => 'required|numeric|min:1',
             'date'       => 'required|date',
             'purpose'    => 'nullable|string|max:255',
@@ -88,6 +94,8 @@ class AdvanceController extends Controller
 
         try {
             DB::transaction(function () use ($advance, $validated) {
+
+                // --- Account balance adjustment ---
                 if ($advance->account_id != $validated['account_id']) {
                     $oldAccount = Account::findOrFail($advance->account_id);
                     $oldAccount->current_balance += $advance->amount;
@@ -99,16 +107,42 @@ class AdvanceController extends Controller
                     }
                     $newAccount->current_balance -= $validated['amount'];
                     $newAccount->save();
-                } 
-                else if ($advance->amount != $validated['amount']) {
+                } elseif ($advance->amount != $validated['amount']) {
                     $account = Account::findOrFail($advance->account_id);
-                    $difference = $validated['amount'] - $advance->amount; 
-                    
+                    $difference = $validated['amount'] - $advance->amount;
+
                     if ($difference > 0 && $account->current_balance < $difference) {
                         throw new \Exception('অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
                     }
                     $account->current_balance -= $difference;
                     $account->save();
+                }
+
+                // --- Pooled balance (per-employee) sync ---
+                $oldUserId = $advance->user_id;
+                $newUserId = $validated['user_id'];
+                $oldAmount = (float) $advance->amount;
+                $newAmount = (float) $validated['amount'];
+                $settled   = (float) $advance->settled_amount;
+                $returned  = (float) $advance->returned_amount;
+
+                if ($oldUserId != $newUserId) {
+                    $oldBalance = AdvanceBalance::where('user_id', $oldUserId)->first();
+                    if ($oldBalance) {
+                        $oldBalance->decrement('total_given', $oldAmount);
+                        $oldBalance->decrement('total_used', $settled);
+                        $oldBalance->decrement('total_returned', $returned);
+                    }
+
+                    $newBalance = AdvanceBalance::firstOrCreate(['user_id' => $newUserId]);
+                    $newBalance->increment('total_given', $newAmount);
+                    $newBalance->increment('total_used', $settled);
+                    $newBalance->increment('total_returned', $returned);
+                } elseif ($oldAmount != $newAmount) {
+                    $balance = AdvanceBalance::where('user_id', $oldUserId)->first();
+                    if ($balance) {
+                        $balance->increment('total_given', $newAmount - $oldAmount);
+                    }
                 }
 
                 $advance->update($validated);
@@ -125,13 +159,13 @@ class AdvanceController extends Controller
         $advance = Advance::findOrFail($id);
 
         $validated = $request->validate([
-            'return_amount' => 'required|numeric|min:1', 
+            'return_amount' => 'required|numeric|min:1',
         ]);
 
         try {
             DB::transaction(function () use ($advance, $validated) {
                 $advance->returned_amount += $validated['return_amount'];
-                
+
                 if (($advance->settled_amount + $advance->returned_amount) >= $advance->amount) {
                     $advance->status = 'settled';
                 }
@@ -142,6 +176,10 @@ class AdvanceController extends Controller
                     $account->current_balance += $validated['return_amount'];
                     $account->save();
                 }
+
+                // --- Pooled balance sync ---
+                AdvanceBalance::where('user_id', $advance->user_id)
+                    ->increment('total_returned', $validated['return_amount']);
             });
 
             return redirect()->back()->with('success', 'Money returned to account successfully.');
@@ -153,14 +191,17 @@ class AdvanceController extends Controller
     public function destroy(string $id)
     {
         $advance = Advance::findOrFail($id);
+        if ((float) $advance->settled_amount > 0) {
+            return redirect()->back()->withErrors([
+                'error' => 'এই Advance থেকে ইতিমধ্যে ' . number_format($advance->settled_amount, 2) . ' টাকা প্রজেক্ট এক্সপেন্সে খরচ হয়ে গেছে। এই রেকর্ড ডিলিট করলে হিসাব গণ্ডগোল হবে। আগে সংশ্লিষ্ট এক্সপেন্স এন্ট্রিগুলো ঠিক করুন বা মুছুন, তারপর এই advance ডিলিট করুন।'
+            ]);
+        }
 
         try {
             DB::transaction(function () use ($advance) {
-                $settled = $advance->settled_amount ?? 0;
-                $returned = $advance->returned_amount ?? 0;
-                
-                $refund_amount = $advance->amount - $settled - $returned;
-                
+                $returned = (float) ($advance->returned_amount ?? 0);
+                $refund_amount = (float) $advance->amount - $returned;
+
                 if ($refund_amount > 0 && $advance->account_id) {
                     $account = Account::find($advance->account_id);
                     if ($account) {
@@ -169,10 +210,16 @@ class AdvanceController extends Controller
                     }
                 }
 
+                $balance = AdvanceBalance::where('user_id', $advance->user_id)->first();
+                if ($balance) {
+                    $balance->decrement('total_given', $advance->amount);
+                    $balance->decrement('total_returned', $returned);
+                }
+
                 $advance->delete();
             });
 
-            return redirect()->back()->with('success', 'Advance deleted and money refunded.');
+            return redirect()->back()->with('success', 'Advance deleted and full amount refunded to account.');
         } catch (\Exception $e) {
             return redirect()->back()->withErrors(['error' => $e->getMessage()]);
         }
@@ -191,18 +238,18 @@ class AdvanceController extends Controller
         $totalAdvance = $employee->advances_sum_amount ?? 0;
         $totalSettled = $employee->advances_sum_settled_amount ?? 0;
         $totalReturned = $employee->advances_sum_returned_amount ?? 0;
-        
+
         $currentDue = $totalAdvance - ($totalSettled + $totalReturned);
 
         return Inertia::render('Admin/Advances/Ledger', [
             'employee' => $employee,
             'advancesHistory' => $advancesHistory,
             'summary' => [
-                'total_advance' => $totalAdvance,
-                'total_settled' => $totalSettled,
+                'total_advance'  => $totalAdvance,
+                'total_settled'  => $totalSettled,
                 'total_returned' => $totalReturned,
-                'current_due' => $currentDue
-            ]
+                'current_due'    => $currentDue,
+            ],
         ]);
     }
 }

@@ -3,13 +3,16 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 
-export default function Index({ vendors = { data: [], links: [] } }) {
+export default function Index({ vendors = { data: [], links: [] }, accounts = [], advances = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
     // View Modal State
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedVendor, setSelectedVendor] = useState(null);
+
+    // Pay Modal State
+    const [showPayModal, setShowPayModal] = useState(false);
 
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get('search') || '';
@@ -27,6 +30,17 @@ export default function Index({ vendors = { data: [], links: [] } }) {
         phone: '',
         address: '',
         opening_balance: 0
+    });
+
+    // --- Pay Vendor Form ---
+    const payForm = useForm({
+        project_expense_id: '',
+        payment_source: 'account', 
+        account_id: '',
+        advance_user_id: '', 
+        pay_amount: '',
+        discount_amount: '',
+        date: new Date().toISOString().split('T')[0]
     });
 
     // --- Live Search & Pagination ---
@@ -132,6 +146,18 @@ export default function Index({ vendors = { data: [], links: [] } }) {
         setShowViewModal(true);
     };
 
+    const openPayModal = (vendor) => {
+        const dueBills = vendor.project_expenses || vendor.projectExpenses || [];
+        if (dueBills.length === 0) {
+            return Swal.fire("No Dues", "This vendor has no pending bills.", "info");
+        }
+        setSelectedVendor(vendor);
+        payForm.reset();
+        payForm.clearErrors();
+        setShowPayModal(true);
+    };
+
+    // --- Submits ---
     const handleSubmit = (e) => {
         e.preventDefault();
         if (editMode) {
@@ -144,12 +170,24 @@ export default function Index({ vendors = { data: [], links: [] } }) {
         } else {
             post(route('admin.vendors.store'), {
                 onSuccess: () => {
-                    reset();
                     setShowModal(false);
                     Swal.fire({ icon: "success", title: "Created Successfully!", timer: 1500, showConfirmButton: false });
                 }
             });
         }
+    };
+
+    const handlePaySubmit = (e) => {
+        e.preventDefault();
+        payForm.post(route('admin.vendors.pay', selectedVendor.id), {
+            onSuccess: () => {
+                setShowPayModal(false);
+                Swal.fire({ icon: "success", title: "Payment Successful!", timer: 1500, showConfirmButton: false });
+            },
+            onError: (err) => {
+                if (err.error) Swal.fire("Error", err.error, "error");
+            }
+        });
     };
 
     const handleDelete = (id) => {
@@ -253,6 +291,10 @@ export default function Index({ vendors = { data: [], links: [] } }) {
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: "right" }}>
                                                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                                    {/* --- Pay Button added here --- */}
+                                                    <button onClick={() => openPayModal(vendor)} style={{ background: "#fef3c7", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#d97706" }} title="Make Payment">
+                                                        <i className="fa-solid fa-money-bill-wave"></i>
+                                                    </button>
                                                     <button onClick={() => openViewModal(vendor)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
                                                         <i className="fa-regular fa-eye"></i>
                                                     </button>
@@ -380,6 +422,144 @@ export default function Index({ vendors = { data: [], links: [] } }) {
                                 <button type="button" onClick={() => setShowModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569" }}>Dismiss</button>
                                 <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", opacity: processing ? 0.7 : 1 }}>
                                     {processing ? "Saving Changes..." : "Save Vendor"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* --- NEW: PAY VENDOR MODAL --- */}
+            {showPayModal && selectedVendor && (
+                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+                    <div style={{ background: "#fff", width: "100%", maxWidth: "650px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
+                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
+                                <i className="fa-solid fa-money-check-dollar" style={{ marginRight: "8px", color: "#10b981" }}></i> Process Payment: {selectedVendor.name}
+                            </h3>
+                            <button type="button" onClick={() => setShowPayModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}>
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <form onSubmit={handlePaySubmit} style={{ padding: "24px" }}>
+                            
+                            {/* Bill Dropdown */}
+                            <div style={{ marginBottom: "16px" }}>
+                                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Select Pending Bill *</label>
+                                <select 
+                                    value={payForm.data.project_expense_id} 
+                                    onChange={e => payForm.setData("project_expense_id", e.target.value)} 
+                                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} 
+                                    required
+                                >
+                                    <option value="">-- Choose a bill --</option>
+                                    {(selectedVendor.project_expenses || selectedVendor.projectExpenses || []).map(bill => (
+                                        <option key={bill.id} value={bill.id}>
+                                            {bill.title} (Due: TK. {Number(bill.due_amount).toLocaleString()})
+                                        </option>
+                                    ))}
+                                </select>
+                                {payForm.errors.project_expense_id && <span style={{color:"#ef4444", fontSize:"0.75rem", marginTop: "4px", display: "block"}}>{payForm.errors.project_expense_id}</span>}
+                            </div>
+
+                            {/* Payment Source Radios */}
+                            <div style={{ marginBottom: "20px", padding: "12px", background: "#f1f5f9", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "10px" }}>Payment Source *</label>
+                                <div style={{ display: "flex", gap: "24px" }}>
+                                    <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", color: "#334155", fontSize: "0.9rem", fontWeight: "500" }}>
+                                        <input 
+                                            type="radio" name="payment_source" value="account" 
+                                            checked={payForm.data.payment_source === 'account'} 
+                                            onChange={() => { payForm.setData("payment_source", "account"); payForm.setData("advance_user_id", ""); }} 
+                                        />
+                                        Bank / Cash Account
+                                    </label>
+                                    <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", color: "#334155", fontSize: "0.9rem", fontWeight: "500" }}>
+                                        <input 
+                                            type="radio" name="payment_source" value="advance" 
+                                            checked={payForm.data.payment_source === 'advance'} 
+                                            onChange={() => { payForm.setData("payment_source", "advance"); payForm.setData("account_id", ""); }} 
+                                        />
+                                        Employee Advance
+                                    </label>
+                                </div>
+                            </div>
+
+                            {/* Conditional Source Dropdowns */}
+                            {payForm.data.payment_source === 'account' ? (
+                                <div style={{ marginBottom: "16px" }}>
+                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Select Account *</label>
+                                    <select 
+                                        value={payForm.data.account_id} 
+                                        onChange={e => payForm.setData("account_id", e.target.value)} 
+                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} 
+                                        required
+                                    >
+                                        <option value="">-- Select Account --</option>
+                                        {accounts.map(acc => (
+                                            <option key={acc.id} value={acc.id}>{acc.name} (Bal: {Number(acc.current_balance).toLocaleString()})</option>
+                                        ))}
+                                    </select>
+                                    {payForm.errors.account_id && <span style={{color:"#ef4444", fontSize:"0.75rem", marginTop: "4px", display: "block"}}>{payForm.errors.account_id}</span>}
+                                </div>
+                            ) : (
+                                <div style={{ marginBottom: "16px" }}>
+                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Select Employee *</label>
+                                    <select 
+                                        value={payForm.data.advance_user_id} 
+                                        onChange={e => payForm.setData("advance_user_id", e.target.value)} 
+                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} 
+                                        required
+                                    >
+                                        <option value="">-- Select Employee --</option>
+                                        {advances.map(adv => (
+                                            <option key={adv.id} value={adv.user_id}>{adv.user?.name} (Avail: TK. {Number(adv.available_balance).toLocaleString()})</option>
+                                        ))}
+                                    </select>
+                                    {payForm.errors.advance_user_id && <span style={{color:"#ef4444", fontSize:"0.75rem", marginTop: "4px", display: "block"}}>{payForm.errors.advance_user_id}</span>}
+                                </div>
+                            )}
+
+                            {/* Amount & Date fields */}
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                                <div>
+                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Pay Amount (TK) *</label>
+                                    <input 
+                                        type="number" step="0.01" min="1" 
+                                        value={payForm.data.pay_amount} 
+                                        onChange={e => payForm.setData("pay_amount", e.target.value)} 
+                                        placeholder="e.g. 19000"
+                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} 
+                                        required 
+                                    />
+                                    {payForm.errors.pay_amount && <span style={{color:"#ef4444", fontSize:"0.75rem", marginTop: "4px", display: "block"}}>{payForm.errors.pay_amount}</span>}
+                                </div>
+                                <div>
+                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Discount / Waiver (TK)</label>
+                                    <input 
+                                        type="number" step="0.01" min="0" 
+                                        value={payForm.data.discount_amount} 
+                                        onChange={e => payForm.setData("discount_amount", e.target.value)} 
+                                        placeholder="e.g. 1000"
+                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} 
+                                    />
+                                </div>
+                                <div style={{ gridColumn: "span 2" }}>
+                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Payment Date *</label>
+                                    <input 
+                                        type="date" 
+                                        value={payForm.data.date} 
+                                        onChange={e => payForm.setData("date", e.target.value)} 
+                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} 
+                                        required 
+                                    />
+                                </div>
+                            </div>
+
+                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+                                <button type="button" onClick={() => setShowPayModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569" }}>Dismiss</button>
+                                <button type="submit" disabled={payForm.processing} style={{ background: "#10b981", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", opacity: payForm.processing ? 0.7 : 1 }}>
+                                    {payForm.processing ? "Processing..." : "Confirm Payment"}
                                 </button>
                             </div>
                         </form>

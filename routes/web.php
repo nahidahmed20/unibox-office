@@ -54,6 +54,7 @@ Route::middleware('auth')->group(function () {
     Route::get('admin/users/export/excel', [UserController::class, 'exportExcel'])->name('admin.users.export.excel');
 
     // 1. CRM & Projects
+    Route::post('/admin/vendors/{vendor}/pay', [VendorController::class, 'payVendor'])->name('admin.vendors.pay');
     Route::resource('clients', ClientController::class)->names('admin.clients');
     Route::resource('vendors', VendorController::class)->names('admin.vendors');
     Route::resource('projects', ProjectController::class)->names('admin.projects');

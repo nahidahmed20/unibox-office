@@ -16,6 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('project_id'); 
             $table->unsignedBigInteger('expense_category_id');
             $table->unsignedBigInteger('advance_id')->nullable();
+            $table->unsignedBigInteger('advance_user_id')->nullable();
             $table->unsignedBigInteger('account_id')->nullable()->comment('যে অ্যাকাউন্ট থেকে টাকা খরচ হয়েছে');
             $table->string('title');
             $table->unsignedBigInteger('vendor_id')->nullable()->comment('যার সাথে চুক্তি বা যাকে টাকা দেওয়া হচ্ছে');
@@ -24,6 +25,7 @@ return new class extends Migration
             $table->decimal('paid_amount', 15, 2)->default(0)->comment('ইতোমধ্যে কত দেওয়া হয়েছে');
             $table->decimal('due_amount', 15, 2)->default(0)->comment('বাকি কত টাকা পাবে');
             $table->decimal('amount', 15, 2)->default(0)->comment('এই এন্ট্রিতে কত টাকা খরচ দেখানো হলো');
+            $table->decimal('discount_amount', 15, 2)->default(0);
             $table->string('payment_status')->default('due')->comment('paid, partial, or due');
             $table->date('date');
             $table->string('attachment')->nullable(); 

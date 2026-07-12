@@ -3,6 +3,183 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { useForm, Head, router } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
+// Reusable searchable dropdown (replaces plain <select> for long option lists)
+function SearchableSelect({
+    options = [],
+    value,
+    onChange,
+    placeholder = "Select",
+    disabled = false,
+    labelKey = "name",
+    valueKey = "id",
+    required = false,
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState("");
+    const wrapperRef = useRef(null);
+
+    const selectedOption = options.find(
+        (opt) => String(opt[valueKey]) === String(value)
+    );
+
+    useEffect(() => {
+        function handleClickOutside(e) {
+            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+                setIsOpen(false);
+                setSearch("");
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const filteredOptions = options.filter((opt) =>
+        String(opt[labelKey] || "")
+            .toLowerCase()
+            .includes(search.toLowerCase())
+    );
+
+    return (
+        <div ref={wrapperRef} style={{ position: "relative" }}>
+            <div
+                onClick={() => !disabled && setIsOpen((o) => !o)}
+                style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    border: isOpen ? "1px solid #2563eb" : "1px solid #cbd5e1",
+                    borderRadius: "6px",
+                    background: disabled ? "#f1f5f9" : "#fff",
+                    cursor: disabled ? "not-allowed" : "pointer",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    color: selectedOption ? "#0f172a" : "#94a3b8",
+                    fontSize: "0.9rem",
+                    boxSizing: "border-box",
+                }}
+            >
+                <span
+                    style={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                    }}
+                >
+                    {selectedOption ? selectedOption[labelKey] : placeholder}
+                </span>
+                <i
+                    className={`fa-solid fa-chevron-${isOpen ? "up" : "down"}`}
+                    style={{ fontSize: "0.7rem", color: "#94a3b8", marginLeft: "8px" }}
+                ></i>
+            </div>
+
+            {isOpen && !disabled && (
+                <div
+                    style={{
+                        position: "absolute",
+                        top: "calc(100% + 4px)",
+                        left: 0,
+                        right: 0,
+                        background: "#fff",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "8px",
+                        boxShadow: "0 10px 15px -3px rgba(0,0,0,0.15)",
+                        zIndex: 100,
+                        maxHeight: "230px",
+                        display: "flex",
+                        flexDirection: "column",
+                    }}
+                >
+                    <div style={{ padding: "8px", borderBottom: "1px solid #f1f5f9" }}>
+                        <input
+                            autoFocus
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Type to search..."
+                            style={{
+                                width: "100%",
+                                padding: "6px 10px",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "6px",
+                                outline: "none",
+                                fontSize: "0.85rem",
+                                boxSizing: "border-box",
+                            }}
+                        />
+                    </div>
+                    <div style={{ overflowY: "auto" }}>
+                        {filteredOptions.length === 0 ? (
+                            <div
+                                style={{
+                                    padding: "10px 14px",
+                                    color: "#94a3b8",
+                                    fontSize: "0.85rem",
+                                }}
+                            >
+                                No results found
+                            </div>
+                        ) : (
+                            filteredOptions.map((opt) => {
+                                const isSelected =
+                                    String(opt[valueKey]) === String(value);
+                                return (
+                                    <div
+                                        key={opt[valueKey]}
+                                        onClick={() => {
+                                            onChange(String(opt[valueKey]));
+                                            setIsOpen(false);
+                                            setSearch("");
+                                        }}
+                                        style={{
+                                            padding: "8px 14px",
+                                            fontSize: "0.875rem",
+                                            cursor: "pointer",
+                                            background: isSelected ? "#eff6ff" : "#fff",
+                                            color: isSelected ? "#2563eb" : "#334155",
+                                            fontWeight: isSelected ? "600" : "400",
+                                        }}
+                                        onMouseEnter={(e) =>
+                                            (e.currentTarget.style.background = isSelected
+                                                ? "#eff6ff"
+                                                : "#f8fafc")
+                                        }
+                                        onMouseLeave={(e) =>
+                                            (e.currentTarget.style.background = isSelected
+                                                ? "#eff6ff"
+                                                : "#fff")
+                                        }
+                                    >
+                                        {opt[labelKey]}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Hidden input keeps native HTML5 "required" validation working */}
+            {required && (
+                <input
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={value || ""}
+                    required
+                    onChange={() => {}}
+                    style={{
+                        position: "absolute",
+                        opacity: 0,
+                        height: 0,
+                        width: "100%",
+                        pointerEvents: "none",
+                    }}
+                />
+            )}
+        </div>
+    );
+}
+
 export default function Index({
     employees = {},
     users = [],
@@ -16,16 +193,16 @@ export default function Index({
     const [showFormModal, setShowFormModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false); // For View (Show) Modal
     const [viewData, setViewData] = useState(null); // To store data for viewing
-    
+
     const [editMode, setEditMode] = useState(false);
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get("search") || "";
     });
-    
+
     const [perPage, setPerPage] = useState(() => {
         return Number(new URLSearchParams(window.location.search).get("per_page")) || 10;
     });
-    
+
     const isFirstRender = useRef(true);
 
     const {
@@ -65,7 +242,7 @@ export default function Index({
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
             if (perPage !== 10) params.per_page = perPage;
-            
+
             router.get(route("admin.employees.index"), params, {
                 preserveState: true,
                 replace: true,
@@ -94,7 +271,7 @@ export default function Index({
                     `${emp.employee_id_code}\t${emp.user?.name || "N/A"}\t${emp.department?.name || "N/A"}\t${emp.designation?.name || "N/A"}\t${emp.joining_date}\tTK. ${parseFloat(emp.basic_salary).toFixed(2)}`
             )
             .join("\n");
-        
+
         navigator.clipboard.writeText(header + text);
         Swal.fire({
             icon: "success",
@@ -190,7 +367,7 @@ export default function Index({
     return (
         <AdminLayout>
             <Head title="Employee Profiles" />
-            
+
             <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc", minHeight: "100vh" }}>
                 <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
                     <h1 className="page-title" style={{ fontSize: "1.5rem", fontWeight: "700", color: "#0f172a" }}>Employees</h1>
@@ -208,9 +385,9 @@ export default function Index({
 
                     {/* TOOLBAR */}
                     <div className="table-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '16px' }}>
-                        
+
                         <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                            Show 
+                            Show
                             <select value={perPage} onChange={handlePerPageChange} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", outline: "none", cursor: "pointer" }}>
                                 <option value={10}>10 Entries</option>
                                 <option value={25}>25 Entries</option>
@@ -236,9 +413,9 @@ export default function Index({
 
                         <div className="search-box" style={{ position: "relative" }}>
                             <input
-                                type="text" 
-                                placeholder="Search employees..." 
-                                value={searchTerm} 
+                                type="text"
+                                placeholder="Search employees..."
+                                value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 style={{ width: "240px", padding: "6px 12px", paddingLeft: "36px", fontSize: "0.875rem", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }}
                             />
@@ -315,7 +492,7 @@ export default function Index({
                                             padding: '6px 12px', fontSize: '0.875rem', border: link.active ? '1px solid #2563eb' : '1px solid #cbd5e1', borderRadius: '6px',
                                             background: link.active ? '#2563eb' : '#fff', color: link.active ? '#fff' : '#475569', cursor: link.url ? 'pointer' : 'not-allowed',
                                             opacity: link.url ? 1 : 0.6, fontWeight: link.active ? '600' : '500'
-                                        }} 
+                                        }}
                                         dangerouslySetInnerHTML={{ __html: link.label }}
                                     />
                                 ))}
@@ -333,50 +510,57 @@ export default function Index({
                             <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '700', color: '#0f172a' }}>
                                 {editMode ? "✏️ Edit Employee Profile" : "👤 Add New Employee"}
                             </h3>
-                            <button 
-                                type="button" onClick={() => setShowFormModal(false)} 
+                            <button
+                                type="button" onClick={() => setShowFormModal(false)}
                                 style={{ background: 'transparent', border: 'none', fontSize: '1.25rem', cursor: 'pointer', color: '#94a3b8' }}
                             >
                                 &times;
                             </button>
                         </div>
-                        
+
                         <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
-                             {/* ... Form fields are exactly the same as previous code ... */}
                             <div style={{ marginBottom: "16px", fontSize: "0.875rem", fontWeight: "600", color: "#64748b", textTransform: "uppercase", borderBottom: "1px solid #f1f5f9", paddingBottom: "4px" }}>Official Details</div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                                 <div className="form-group">
                                     <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Link User Account *</label>
-                                    <select value={data.user_id} onChange={(e) => setData("user_id", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }} required disabled={editMode}>
-                                        <option value="">Select User</option>
-                                        {users.map((u) => (<option key={u.id} value={u.id}>{u.name}</option>))}
-                                    </select>
+                                    <SearchableSelect
+                                        options={users}
+                                        value={data.user_id}
+                                        onChange={(val) => setData("user_id", val)}
+                                        placeholder="Select User"
+                                        disabled={editMode}
+                                        required
+                                    />
                                 </div>
                                 <div className="form-group">
                                     <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Employee ID Code *</label>
-                                    <input type="text" value={data.employee_id_code} onChange={(e) => setData("employee_id_code", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }} required />
+                                    <input type="text" value={data.employee_id_code} onChange={(e) => setData("employee_id_code", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} required />
                                 </div>
                                 <div className="form-group">
                                     <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Department</label>
-                                    <select value={data.department_id} onChange={(e) => setData("department_id", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }}>
-                                        <option value="">Select</option>
-                                        {departments.map((d) => (<option key={d.id} value={d.id}>{d.name}</option>))}
-                                    </select>
+                                    <SearchableSelect
+                                        options={departments}
+                                        value={data.department_id}
+                                        onChange={(val) => setData("department_id", val)}
+                                        placeholder="Select"
+                                    />
                                 </div>
                                 <div className="form-group">
                                     <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Designation</label>
-                                    <select value={data.designation_id} onChange={(e) => setData("designation_id", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }}>
-                                        <option value="">Select</option>
-                                        {designations.map((d) => (<option key={d.id} value={d.id}>{d.name}</option>))}
-                                    </select>
+                                    <SearchableSelect
+                                        options={designations}
+                                        value={data.designation_id}
+                                        onChange={(val) => setData("designation_id", val)}
+                                        placeholder="Select"
+                                    />
                                 </div>
                                 <div className="form-group">
                                     <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Joining Date *</label>
-                                    <input type="date" value={data.joining_date} onChange={(e) => setData("joining_date", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }} required />
+                                    <input type="date" value={data.joining_date} onChange={(e) => setData("joining_date", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} required />
                                 </div>
                                 <div className="form-group">
                                     <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Basic Salary *</label>
-                                    <input type="number" step="0.01" value={data.basic_salary} onChange={(e) => setData("basic_salary", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }} required />
+                                    <input type="number" step="0.01" value={data.basic_salary} onChange={(e) => setData("basic_salary", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} required />
                                 </div>
                             </div>
 
@@ -392,11 +576,11 @@ export default function Index({
                                 </div>
                                 <div className="form-group">
                                     <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Blood Group</label>
-                                    <input type="text" value={data.blood_group} onChange={(e) => setData("blood_group", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }} placeholder="e.g., O+" />
+                                    <input type="text" value={data.blood_group} onChange={(e) => setData("blood_group", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} placeholder="e.g., O+" />
                                 </div>
                                 <div className="form-group">
                                     <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>NID Number</label>
-                                    <input type="text" value={data.nid_number} onChange={(e) => setData("nid_number", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }} />
+                                    <input type="text" value={data.nid_number} onChange={(e) => setData("nid_number", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} />
                                 </div>
                             </div>
 
@@ -427,7 +611,7 @@ export default function Index({
                             </div>
                             <button onClick={() => setShowViewModal(false)} style={{ background: 'transparent', border: 'none', fontSize: '1.25rem', cursor: 'pointer', color: '#94a3b8' }}>&times;</button>
                         </div>
-                        
+
                         <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "16px", fontSize: "0.9rem" }}>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", background: "#f8fafc", padding: "16px", borderRadius: "8px", border: "1px solid #f1f5f9" }}>
                                 <div>

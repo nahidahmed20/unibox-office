@@ -2,34 +2,29 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\ProjectExpense;
 use App\Models\Project;
 use App\Models\ExpenseCategory;
 use App\Models\Account;
-use App\Models\Advance;
 use App\Models\Vendor;
+use App\Models\Advance;
+use App\Models\AdvanceBalance;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 
 class ProjectExpenseController extends Controller
 {
     public function index(Request $request)
     {
-        $query = ProjectExpense::with(['project', 'category', 'account', 'vendor']);
+        $query = ProjectExpense::with(['project', 'category', 'account', 'vendor', 'advanceUser']);
 
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhereHas('vendor', function ($vq) use ($search) {
-                      $vq->where('name', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('project', function ($pq) use ($search) {
-                      $pq->where('title', 'like', "%{$search}%");
-                  });
+                  ->orWhereHas('vendor', fn ($vq) => $vq->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('project', fn ($pq) => $pq->where('title', 'like', "%{$search}%"));
             });
         }
 
@@ -42,232 +37,251 @@ class ProjectExpenseController extends Controller
 
         $projects = Project::where('status', '!=', 'completed')->select('id', 'title')->get();
         $categories = ExpenseCategory::select('id', 'name')->orderBy('name')->get();
-        $accounts = Account::where('is_active', true)
-            ->select('id', 'name', 'current_balance')
-            ->orderBy('name')->get();
+        $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->orderBy('name')->get();
         $vendors = Vendor::select('id', 'name', 'company_name')->get();
 
-        // NOTE: Advance no longer has a `given_to` column — it's tied to a user via `user_id`.
-        $advances = Advance::with('user:id,name')
-            ->where('status', 'unsettled')
-            ->select('id', 'user_id', 'amount', 'settled_amount', 'returned_amount')
+        // --- Pooled advance balance, user-wise (একই ইউজার বারবার আসবে না) ---
+        $advances = AdvanceBalance::with('user:id,name')
             ->get()
-            ->sortBy('user.name')
-            ->values();
+            ->filter(fn ($b) => $b->balance > 0.009)
+            ->sortBy(fn ($b) => $b->user->name ?? '')
+            ->values()
+            ->map(fn ($b) => [
+                'user_id' => $b->user_id,
+                'user'    => $b->user,
+                'balance' => round($b->balance, 2),
+            ]);
 
-        return Inertia::render('Admin/ProjectExpenses/Index', compact('project_expenses', 'projects', 'categories', 'accounts', 'vendors', 'advances'));
+        return Inertia::render('Admin/ProjectExpenses/Index', compact(
+            'project_expenses', 'projects', 'categories', 'accounts', 'vendors', 'advances'
+        ));
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'project_id' => ['required', Rule::exists('projects', 'id')->where(function ($query) {
-                $query->where('status', '!=', 'completed');
-            })],
-            'expense_category_id' => 'required|exists:expense_categories,id',
-            'account_id' => 'nullable|exists:accounts,id',
-            'advance_id' => 'nullable|exists:advances,id',
-            'title' => 'required|string|max:255',
-            'vendor_id' => 'nullable|exists:vendors,id',
-            'total_bill' => 'required|numeric|min:0',
-            'paid_amount' => 'required|numeric|min:0',
-            'date' => 'required|date',
-            'description' => 'nullable|string'
-        ]);
+        $validated = $this->validateData($request);
+        $paid = (float) ($validated['paid_amount'] ?? 0);
 
-        if ($validated['paid_amount'] > 0 && empty($validated['account_id']) && empty($validated['advance_id'])) {
-            return back()->withErrors(['error' => 'Please select either an Account or an Advance to pay the bill.']);
-        }
-
-        $due_amount = $validated['total_bill'] - $validated['paid_amount'];
-        $validated['due_amount'] = $due_amount > 0 ? $due_amount : 0;
-
-        if ($validated['due_amount'] <= 0) {
-            $validated['payment_status'] = 'paid';
-        } elseif ($validated['paid_amount'] > 0) {
-            $validated['payment_status'] = 'partial';
-        } else {
-            $validated['payment_status'] = 'due';
+        if ($error = $this->validateSource($validated, $paid)) {
+            return redirect()->back()->withErrors(['error' => $error]);
         }
 
         try {
-            DB::transaction(function () use ($validated) {
-                $advance = null;
-                $account = null;
+            DB::transaction(function () use ($validated, $paid) {
+                $this->deductFromSource($validated['account_id'] ?? null, $validated['advance_user_id'] ?? null, $paid);
 
-                // Validate the payment source BEFORE writing anything
-                if ($validated['paid_amount'] > 0) {
-                    if (!empty($validated['advance_id'])) {
-                        $advance = Advance::findOrFail($validated['advance_id']);
-                        $availableDue = $advance->amount - $advance->settled_amount - $advance->returned_amount;
-
-                        if ($validated['paid_amount'] > $availableDue) {
-                            throw new \Exception('Paid amount exceeds the available advance balance!');
-                        }
-                    } elseif (!empty($validated['account_id'])) {
-                        $account = Account::findOrFail($validated['account_id']);
-
-                        if ($account->current_balance < $validated['paid_amount']) {
-                            throw new \Exception('Selected account does not have sufficient balance!');
-                        }
-                    }
-                }
-
-                $projectExpense = ProjectExpense::create($validated);
-
-                if ($advance) {
-                    $advance->settled_amount += $validated['paid_amount'];
-                    if (($advance->settled_amount + $advance->returned_amount) >= $advance->amount) {
-                        $advance->status = 'settled';
-                    }
-                    $advance->save();
-                } elseif ($account) {
-                    $account->decrement('current_balance', $validated['paid_amount']);
-
-                    $projectExpense->transaction()->create([
-                        'account_id' => $account->id,
-                        'type' => 'debit',
-                        'amount' => $validated['paid_amount'],
-                        'transaction_date' => $validated['date'],
-                        'description' => 'Project Vendor Bill Paid: ' . $validated['title'],
-                    ]);
-                }
+                ProjectExpense::create([
+                    ...$validated,
+                    'paid_amount'    => $paid,
+                    'due_amount'     => round($validated['total_bill'] - $paid, 2),
+                    'payment_status' => $this->resolveStatus($validated['total_bill'], $paid),
+                ]);
             });
 
-            return back()->with('success', 'Project Expense created successfully.');
+            return redirect()->back()->with('success', 'Expense logged successfully.');
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => $e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
         }
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, string $id)
     {
-        $projectExpense = ProjectExpense::findOrFail($id);
+        $expense = ProjectExpense::findOrFail($id);
+        $validated = $this->validateData($request);
+        $newPaid = (float) ($validated['paid_amount'] ?? 0);
 
-        $validated = $request->validate([
-            'project_id' => ['required', Rule::exists('projects', 'id')->where(function ($query) {
-                $query->where('status', '!=', 'completed');
-            })],
-            'expense_category_id' => 'required|exists:expense_categories,id',
-            'account_id' => 'nullable|exists:accounts,id',
-            'advance_id' => 'nullable|exists:advances,id',
-            'title' => 'required|string|max:255',
-            'vendor_id' => 'nullable|exists:vendors,id',
-            'total_bill' => 'required|numeric|min:0',
-            'paid_amount' => 'required|numeric|min:0',
-            'date' => 'required|date',
-            'description' => 'nullable|string'
-        ]);
-
-        if ($validated['paid_amount'] > 0 && empty($validated['account_id']) && empty($validated['advance_id'])) {
-            return back()->withErrors(['error' => 'Please select either an Account or an Advance.']);
+        if ($error = $this->validateSource($validated, $newPaid)) {
+            return redirect()->back()->withErrors(['error' => $error]);
         }
 
-        $due_amount = $validated['total_bill'] - $validated['paid_amount'];
-        $validated['due_amount'] = $due_amount > 0 ? $due_amount : 0;
-        $validated['payment_status'] = $validated['due_amount'] <= 0 ? 'paid' : ($validated['paid_amount'] > 0 ? 'partial' : 'due');
-
         try {
-            DB::transaction(function () use ($validated, $projectExpense) {
+            DB::transaction(function () use ($expense, $validated, $newPaid) {
+                $oldPaid          = (float) $expense->paid_amount;
+                $oldAccountId     = $expense->account_id;
+                $oldAdvanceUserId = $expense->advance_user_id;
 
-                // Step 1: reverse whatever the old payment did
-                if ($projectExpense->paid_amount > 0) {
-                    if ($projectExpense->advance_id) {
-                        $oldAdvance = Advance::find($projectExpense->advance_id);
-                        if ($oldAdvance) {
-                            $oldAdvance->settled_amount -= $projectExpense->paid_amount;
-                            if (($oldAdvance->settled_amount + $oldAdvance->returned_amount) < $oldAdvance->amount) {
-                                $oldAdvance->status = 'unsettled';
-                            }
-                            $oldAdvance->save();
-                        }
-                    } elseif ($projectExpense->account_id) {
-                        $oldAccount = Account::find($projectExpense->account_id);
-                        if ($oldAccount) {
-                            $oldAccount->increment('current_balance', $projectExpense->paid_amount);
-                        }
-                        if ($projectExpense->transaction) {
-                            $projectExpense->transaction()->delete();
-                        }
+                $newAccountId     = $validated['account_id'] ?? null;
+                $newAdvanceUserId = $validated['advance_user_id'] ?? null;
+
+                $sourceChanged = ($oldAccountId != $newAccountId) || ($oldAdvanceUserId != $newAdvanceUserId);
+
+                if ($sourceChanged) {
+                    // সোর্স বদলেছে (account<->advance অথবা ভিন্ন account/ভিন্ন employee) — পুরনোটা পুরো ফেরত, নতুনটা পুরো কাটা
+                    $this->refundToSource($oldAccountId, $oldAdvanceUserId, $oldPaid);
+                    $this->deductFromSource($newAccountId, $newAdvanceUserId, $newPaid);
+                } else {
+                    // একই সোর্স, শুধু amount কমবেশি হয়েছে
+                    $diff = $newPaid - $oldPaid;
+                    if ($diff > 0) {
+                        $this->deductFromSource($newAccountId, $newAdvanceUserId, $diff);
+                    } elseif ($diff < 0) {
+                        $this->refundToSource($newAccountId, $newAdvanceUserId, abs($diff));
                     }
                 }
 
-                // Step 2: validate and apply the new payment
-                if ($validated['paid_amount'] > 0) {
-                    if (!empty($validated['advance_id'])) {
-                        $newAdvance = Advance::findOrFail($validated['advance_id']);
-                        $availableDue = $newAdvance->amount - $newAdvance->settled_amount - $newAdvance->returned_amount;
-
-                        if ($validated['paid_amount'] > $availableDue) {
-                            throw new \Exception('Paid amount exceeds the available advance balance!');
-                        }
-
-                        $newAdvance->settled_amount += $validated['paid_amount'];
-                        if (($newAdvance->settled_amount + $newAdvance->returned_amount) >= $newAdvance->amount) {
-                            $newAdvance->status = 'settled';
-                        }
-                        $newAdvance->save();
-                    } elseif (!empty($validated['account_id'])) {
-                        $newAccount = Account::findOrFail($validated['account_id']);
-
-                        if ($newAccount->current_balance < $validated['paid_amount']) {
-                            throw new \Exception('Selected account does not have sufficient balance!');
-                        }
-
-                        $newAccount->decrement('current_balance', $validated['paid_amount']);
-
-                        $projectExpense->transaction()->create([
-                            'account_id' => $newAccount->id,
-                            'type' => 'debit',
-                            'amount' => $validated['paid_amount'],
-                            'transaction_date' => $validated['date'],
-                            'description' => 'Project Vendor Bill Paid: ' . $validated['title'],
-                        ]);
-                    }
-                }
-
-                $projectExpense->update($validated);
+                $expense->update([
+                    ...$validated,
+                    'paid_amount'    => $newPaid,
+                    'due_amount'     => round($validated['total_bill'] - $newPaid, 2),
+                    'payment_status' => $this->resolveStatus($validated['total_bill'], $newPaid),
+                ]);
             });
 
-            return back()->with('success', 'Project Expense updated successfully.');
+            return redirect()->back()->with('success', 'Expense updated successfully.');
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => $e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
         }
     }
 
-    public function destroy($id)
+    public function destroy(string $id)
     {
-        $projectExpense = ProjectExpense::findOrFail($id);
+        $expense = ProjectExpense::findOrFail($id);
 
         try {
-            DB::transaction(function () use ($projectExpense) {
-                if ($projectExpense->paid_amount > 0) {
-                    if ($projectExpense->advance_id) {
-                        $advance = Advance::find($projectExpense->advance_id);
-                        if ($advance) {
-                            $advance->settled_amount -= $projectExpense->paid_amount;
-                            if (($advance->settled_amount + $advance->returned_amount) < $advance->amount) {
-                                $advance->status = 'unsettled';
-                            }
-                            $advance->save();
-                        }
-                    } elseif ($projectExpense->account_id) {
-                        $account = Account::find($projectExpense->account_id);
-                        if ($account) {
-                            $account->increment('current_balance', $projectExpense->paid_amount);
-                        }
-                        if ($projectExpense->transaction) {
-                            $projectExpense->transaction()->delete();
-                        }
-                    }
-                }
-
-                $projectExpense->delete();
+            DB::transaction(function () use ($expense) {
+                $this->refundToSource($expense->account_id, $expense->advance_user_id, (float) $expense->paid_amount);
+                $expense->delete();
             });
 
-            return back()->with('success', 'Project Expense deleted successfully.');
+            return redirect()->back()->with('success', 'Expense deleted and balance restored.');
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => $e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
+  
+    private function validateData(Request $request): array
+    {
+        return $request->validate([
+            'project_id'            => 'required|exists:projects,id',
+            'expense_category_id'   => 'required|exists:expense_categories,id',
+            'account_id'            => 'nullable|exists:accounts,id',
+            'advance_user_id'       => 'nullable|exists:users,id',
+            'title'                 => 'required|string|max:255',
+            'vendor_id'             => 'nullable|exists:vendors,id',
+            'total_bill'            => 'required|numeric|min:0',
+            'paid_amount'           => 'nullable|numeric|min:0',
+            'date'                  => 'required|date',
+            'description'           => 'nullable|string',
+        ]);
+    }
+
+    private function validateSource(array $validated, float $paid): ?string
+    {
+        $hasAccount = !empty($validated['account_id']);
+        $hasAdvance = !empty($validated['advance_user_id']);
+
+        if ($hasAccount && $hasAdvance) {
+            return 'একসাথে Account এবং Advance উভয় সোর্স সিলেক্ট করা যাবে না।';
+        }
+        if ($paid > 0 && !$hasAccount && !$hasAdvance) {
+            return 'পেমেন্ট সোর্স (Account অথবা Advance) নির্বাচন করুন।';
+        }
+        return null;
+    }
+
+    private function resolveStatus($bill, $paid): string
+    {
+        $bill = (float) $bill;
+        $paid = (float) $paid;
+        if ($bill > 0 && $paid >= $bill) return 'paid';
+        if ($paid > 0 && $paid < $bill) return 'partial';
+        return 'due';
+    }
+
+    private function deductFromSource(?int $accountId, ?int $advanceUserId, float $amount): void
+    {
+        if ($amount <= 0) return;
+
+        if ($accountId) {
+            $account = Account::findOrFail($accountId);
+            if ($account->current_balance < $amount) {
+                throw new \Exception('অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
+            }
+            $account->current_balance -= $amount;
+            $account->save();
+        } elseif ($advanceUserId) {
+            $this->consumeAdvance($advanceUserId, $amount);
+        }
+    }
+
+    private function refundToSource(?int $accountId, ?int $advanceUserId, float $amount): void
+    {
+        if ($amount <= 0) return;
+
+        if ($accountId) {
+            $account = Account::find($accountId);
+            if ($account) {
+                $account->current_balance += $amount;
+                $account->save();
+            }
+        } elseif ($advanceUserId) {
+            $this->refundAdvance($advanceUserId, $amount);
+        }
+    }
+
+  
+    private function consumeAdvance(int $userId, float $amount): void
+    {
+        $remaining = $amount;
+
+        $advanceRecords = Advance::where('user_id', $userId)
+            ->where('status', 'unsettled')
+            ->orderBy('date')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($advanceRecords as $advance) {
+            if ($remaining <= 0) break;
+
+            $available = $advance->amount - $advance->settled_amount - $advance->returned_amount;
+            if ($available <= 0) continue;
+
+            $take = min($available, $remaining);
+            $advance->settled_amount += $take;
+            if (($advance->settled_amount + $advance->returned_amount) >= $advance->amount) {
+                $advance->status = 'settled';
+            }
+            $advance->save();
+
+            $remaining -= $take;
+        }
+
+        if ($remaining > 0.01) {
+            throw new \Exception('নির্বাচিত এমপ্লয়ির পর্যাপ্ত Advance ব্যালেন্স নেই।');
+        }
+
+        AdvanceBalance::where('user_id', $userId)->increment('total_used', $amount);
+    }
+
+ 
+    private function refundAdvance(int $userId, float $amount): void
+    {
+        $remaining = $amount;
+
+        $advanceRecords = Advance::where('user_id', $userId)
+            ->where('settled_amount', '>', 0)
+            ->orderByDesc('date')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($advanceRecords as $advance) {
+            if ($remaining <= 0) break;
+
+            $refundable = min($advance->settled_amount, $remaining);
+            $advance->settled_amount -= $refundable;
+
+            if ($advance->status === 'settled' && ($advance->settled_amount + $advance->returned_amount) < $advance->amount) {
+                $advance->status = 'unsettled';
+            }
+            $advance->save();
+
+            $remaining -= $refundable;
+        }
+
+        $actuallyRefunded = $amount - max($remaining, 0);
+        if ($actuallyRefunded > 0) {
+            AdvanceBalance::where('user_id', $userId)->decrement('total_used', $actuallyRefunded);
         }
     }
 
@@ -276,25 +290,28 @@ class ProjectExpenseController extends Controller
         $perPage = $request->input('per_page', 10);
         $search = $request->input('search');
 
-        $query = ProjectExpense::with('vendor')
-            ->select('vendor_id', DB::raw('MIN(id) as id'), DB::raw('SUM(due_amount) as total_due'))
-            ->where('due_amount', '>', 0)
-            ->whereNotNull('vendor_id')
-            ->groupBy('vendor_id')
-            ->orderByDesc('total_due');
+        $query = Vendor::select('id', 'name as vendor_name', 'company_name')
+            ->withSum('projectExpenses as total_due', 'due_amount')
+            ->whereHas('projectExpenses', function ($q) {
+                $q->where('due_amount', '>', 0);
+            });
 
         if ($search) {
-            $query->whereHas('vendor', function ($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%");
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('company_name', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
             });
         }
 
-        if ($perPage === 'all') {
-            $perPage = $query->count() ?: 10;
-        }
+        $grandTotal = ProjectExpense::whereIn('vendor_id', $query->pluck('id'))
+                                    ->sum('due_amount');
 
-        $vendorDues = $query->paginate($perPage)->withQueryString();
+        $vendorDues = $query->latest('id')->paginate($perPage)->withQueryString();
 
-        return Inertia::render('Admin/Reports/VendorDues', compact('vendorDues'));
+        return Inertia::render('Admin/Reports/VendorDues', [
+            'vendorDues' => $vendorDues,
+            'grandTotal' => $grandTotal 
+        ]);
     }
 }

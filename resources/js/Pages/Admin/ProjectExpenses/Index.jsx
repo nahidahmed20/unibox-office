@@ -44,7 +44,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         project_id: '',
         expense_category_id: '',
         account_id: '', 
-        advance_id: '', // New Field added
+        advance_user_id: '', // Pooled advance owner (user-level), replaces old advance_id
         title: '', 
         vendor_id: '', 
         total_bill: '',
@@ -112,7 +112,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const handleExportCSV = () => {
         if (!expList.length) return Swal.fire("Empty!", "No data to export", "warning");
         const headers = ["Date,Project,Expense Title,Vendor,Account/Source,Total Bill,Paid,Due,Status\n"];
-        const rows = expList.map(e => `"${e.date}","${e.project?.title || ''}","${e.title}","${e.vendor?.name || ''}","${e.account_id ? e.account?.name : (e.advance_id ? 'Advance' : '')}","${e.total_bill}","${e.paid_amount}","${e.due_amount}","${e.payment_status}"`);
+        const rows = expList.map(e => `"${e.date}","${e.project?.title || ''}","${e.title}","${e.vendor?.name || ''}","${e.account_id ? e.account?.name : (e.advance_user_id ? 'Advance' : '')}","${e.total_bill}","${e.paid_amount}","${e.due_amount}","${e.payment_status}"`);
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -167,7 +167,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             project_id: expense.project_id || '',
             expense_category_id: expense.expense_category_id || '',
             account_id: expense.account_id || '', 
-            advance_id: expense.advance_id || '', // Load advance ID
+            advance_user_id: expense.advance_user_id || '', // Load pooled advance owner
             title: expense.title || '', 
             vendor_id: expense.vendor_id || '',
             total_bill: expense.total_bill || '',
@@ -176,7 +176,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             description: expense.description || ''
         });
         // Auto select the correct payment source tab
-        setPaymentType(expense.advance_id ? 'advance' : 'account');
+        setPaymentType(expense.advance_user_id ? 'advance' : 'account');
         setEditMode(true); 
         closeAllDropdowns();
         setShowModal(true);
@@ -193,7 +193,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         
         if (!data.project_id) return Swal.fire("Required", "Please select a project.", "warning");
         if (!data.expense_category_id) return Swal.fire("Required", "Please select an expense category.", "warning");
-        if (parseFloat(data.paid_amount) > 0 && !data.account_id && !data.advance_id) {
+        if (parseFloat(data.paid_amount) > 0 && !data.account_id && !data.advance_user_id) {
             return Swal.fire("Required", "Please select a Payment Source (Account or Advance) to pay the amount.", "warning");
         }
         
@@ -336,8 +336,8 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                 <td style={{ padding: "16px 24px" }}>
                                                     <div style={{ fontWeight: '500', color: '#334155' }}>{exp.vendor?.name || '-'}</div>
                                                     <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
-                                                        <i className={exp.advance_id ? "fa-solid fa-hand-holding-dollar me-1" : "fa-solid fa-building-columns me-1"}></i> 
-                                                        {exp.account_id ? (exp.account?.name || 'Account') : (exp.advance_id ? 'Advance' : 'N/A')}
+                                                        <i className={exp.advance_user_id ? "fa-solid fa-hand-holding-dollar me-1" : "fa-solid fa-building-columns me-1"}></i> 
+                                                        {exp.account_id ? (exp.account?.name || 'Account') : (exp.advance_user_id ? 'Advance' : 'N/A')}
                                                     </div>
                                                 </td>
                                                 <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '600', color: '#0f172a' }}>{parseFloat(exp.total_bill).toLocaleString('en-IN')}</td>
@@ -411,8 +411,8 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                     <div style={{ fontWeight: "600", color: "#334155" }}>
                                         {selectedExpense.account_id ? (
                                             <><i className="fa-solid fa-building-columns text-purple-500" style={{ marginRight: "6px" }}></i>{selectedExpense.account?.name}</>
-                                        ) : selectedExpense.advance_id ? (
-                                            <><i className="fa-solid fa-hand-holding-dollar text-teal-500" style={{ marginRight: "6px" }}></i>Paid via Advance</>
+                                        ) : selectedExpense.advance_user_id ? (
+                                            <><i className="fa-solid fa-hand-holding-dollar text-teal-500" style={{ marginRight: "6px" }}></i>Paid via Advance{selectedExpense.advance_user?.name ? ` (${selectedExpense.advance_user.name})` : ''}</>
                                         ) : "N/A"}
                                     </div>
                                 </div>
@@ -534,7 +534,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                             <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", margin: 0 }}>Payment Source</label>
                                             <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem' }}>
                                                 <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                                    <input type="radio" name="payType" checked={paymentType === 'account'} onChange={() => { setPaymentType('account'); setData('advance_id', ''); }} />
+                                                    <input type="radio" name="payType" checked={paymentType === 'account'} onChange={() => { setPaymentType('account'); setData('advance_user_id', ''); }} />
                                                     Account
                                                 </label>
                                                 <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -576,16 +576,14 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                             </>
                                         )}
 
-                                        {/* Dropdown for Staff Advance */}
+                                        {/* Dropdown for Staff Advance (pooled per-employee balance) */}
                                         {paymentType === 'advance' && (
                                             <>
                                                 <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowAdvanceDropdown(!showAdvanceDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                                    <span style={{ color: data.advance_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
-                                                        {data.advance_id ? (() => {
-                                                            const adv = advances.find(a => a.id == data.advance_id);
-                                                            if (!adv) return "Unknown";
-                                                            const rem = parseFloat(adv.amount) - (parseFloat(adv.settled_amount) + parseFloat(adv.returned_amount));
-                                                            return `${adv.user?.name} (Rem: ${rem})`;
+                                                    <span style={{ color: data.advance_user_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
+                                                        {data.advance_user_id ? (() => {
+                                                            const adv = advances.find(a => a.user_id == data.advance_user_id);
+                                                            return adv ? `${adv.user?.name} (Rem: ${adv.balance})` : "Unknown";
                                                         })() : "Select Advance"}
                                                     </span>
                                                     <i className={`fa-solid fa-chevron-${showAdvanceDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem" }}></i>
@@ -597,19 +595,16 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                         </div>
                                                         <div style={{ overflowY: "auto", padding: "4px 0" }}>
                                                             {advances.filter(a => a.user?.name?.toLowerCase().includes(advanceSearch.toLowerCase())).length > 0 ? (
-                                                                advances.filter(a => a.user?.name?.toLowerCase().includes(advanceSearch.toLowerCase())).map(a => {
-                                                                    const remaining = parseFloat(a.amount) - (parseFloat(a.settled_amount) + parseFloat(a.returned_amount));
-                                                                    return (
-                                                                        <div key={a.id} onClick={() => { setData("advance_id", a.id); setShowAdvanceDropdown(false); setAdvanceSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.advance_id == a.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.advance_id == a.id ? "#f0fdf4" : "transparent"}>
-                                                                            {a.user?.name} <span style={{color: '#64748b', fontSize: '0.8rem'}}>(Rem: {remaining})</span>
-                                                                        </div>
-                                                                    );
-                                                                })
+                                                                advances.filter(a => a.user?.name?.toLowerCase().includes(advanceSearch.toLowerCase())).map(a => (
+                                                                    <div key={a.user_id} onClick={() => { setData("advance_user_id", a.user_id); setShowAdvanceDropdown(false); setAdvanceSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.advance_user_id == a.user_id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.advance_user_id == a.user_id ? "#f0fdf4" : "transparent"}>
+                                                                        {a.user?.name} <span style={{color: '#64748b', fontSize: '0.8rem'}}>(Rem: {a.balance})</span>
+                                                                    </div>
+                                                                ))
                                                             ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No active advance found.</div>)}
                                                         </div>
                                                     </div>
                                                 )}
-                                                {errors.advance_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.advance_id}</p>}
+                                                {errors.advance_user_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.advance_user_id}</p>}
                                             </>
                                         )}
                                     </div>
