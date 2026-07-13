@@ -4,6 +4,8 @@ body {
     padding: 0;
 }
 
+
+
 /* Slider.css */
 .slider-page-wrapper {
     padding: 12px;
@@ -389,21 +391,20 @@ body {
     background: #727b87 !important;
 }
 
-/* Unibox Premium Login Theme */
+/* Unibox Premium Admin Login Theme */
 .unibox-wrapper {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(135deg, #f0f4ff 0%, #e6e9ff 100%);
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
     position: relative;
     overflow: hidden;
     padding: 20px;
     box-sizing: border-box;
 }
 
-/* Background Decorative Shapes */
 .unibox-wrapper::before, .unibox-wrapper::after {
     content: "";
     position: absolute;
@@ -413,47 +414,48 @@ body {
 .unibox-wrapper::before {
     top: -10%; left: -10%;
     width: 50vw; height: 50vw;
-    background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, rgba(255,255,255,0) 70%);
+    background: radial-gradient(circle, rgba(100, 116, 139, 0.08) 0%, rgba(255,255,255,0) 70%);
 }
 .unibox-wrapper::after {
     bottom: -10%; right: -10%;
     width: 40vw; height: 40vw;
-    background: radial-gradient(circle, rgba(168,85,247,0.15) 0%, rgba(255,255,255,0) 70%);
+    background: radial-gradient(circle, rgba(71, 85, 105, 0.08) 0%, rgba(255,255,255,0) 70%);
 }
 
 .unibox-card {
     width: 100%;
     max-width: 420px;
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     padding: 40px;
-    border-radius: 20px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05); /* শ্যাডো আরো সফট করা হয়েছে */
+    border: 1px solid rgba(255, 255, 255, 1);
     z-index: 10;
     box-sizing: border-box;
 }
 
 /* Header Styles */
 .unibox-logo {
-    font-size: 32px;
+    font-size: 28px;
     font-weight: 800;
     text-align: center;
-    margin: 0 0 10px 0;
-    background: linear-gradient(to right, #4f46e5, #3b82f6);
+    margin: 0 0 8px 0;
+    background: linear-gradient(to right, #0f172a, #334155);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 .unibox-title {
-    font-size: 20px;
-    color: #1f2937;
+    font-size: 18px;
+    font-weight: 600;
+    color: #334155;
     text-align: center;
     margin: 0;
 }
 .unibox-subtitle {
     font-size: 14px;
-    color: #6b7280;
+    color: #64748b;
     text-align: center;
     margin: 5px 0 25px 0;
 }
@@ -466,38 +468,42 @@ body {
     display: block;
     font-size: 14px;
     font-weight: 600;
-    color: #374151;
+    color: #334155;
     margin-bottom: 8px;
 }
 .unibox-input {
     width: 100%;
     padding: 12px 15px;
-    border: 1px solid #d1d5db;
+    border: 1px solid #cbd5e1;
     border-radius: 8px;
     font-size: 15px;
     box-sizing: border-box;
     transition: all 0.3s ease;
     outline: none;
+    color: #0f172a;
+    background-color: #f8fafc;
 }
 .unibox-input:focus {
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+    border-color: #0f172a;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1); 
 }
 .unibox-btn {
     width: 100%;
     padding: 12px;
-    background-color: #4f46e5;
+    background-color: #0f172a; 
     color: white;
     border: none;
     border-radius: 8px;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: all 0.3s ease;
     margin-top: 10px;
 }
 .unibox-btn:hover {
-    background-color: #4338ca;
+    background-color: #1e293b;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
 }
 .unibox-btn:disabled {
     opacity: 0.7;
@@ -506,7 +512,7 @@ body {
 .unibox-footer {
     text-align: center;
     font-size: 13px;
-    color: #9ca3af;
+    color: #94a3b8;
     margin-top: 30px;
     z-index: 10;
 }

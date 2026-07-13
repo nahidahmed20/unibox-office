@@ -72,25 +72,40 @@ class InvoicePaymentController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'invoice_id' => 'required|exists:invoices,id',
-            'account_id' => 'required|exists:accounts,id',
-            'amount' => 'required|numeric|min:1',
-            'payment_date' => 'required|date',
-            'note' => 'nullable|string'
+            'invoice_id'      => 'required|exists:invoices,id',
+            'account_id'      => 'required|exists:accounts,id',
+            'amount'          => 'required|numeric|min:1',
+            'discount_amount' => 'nullable|numeric|min:0', 
+            'payment_date'    => 'required|date',
+            'note'            => 'nullable|string'
         ]);
 
         DB::transaction(function () use ($validated, $request) {
-            $payment = InvoicePayment::create($validated);
+            $invoice = Invoice::findOrFail($request->invoice_id);
+
+            if (!empty($validated['discount_amount']) && $validated['discount_amount'] > 0) {
+                $invoice->discount = ($invoice->discount ?? 0) + $validated['discount_amount'];
+                $invoice->grand_total = max(0, $invoice->grand_total - $validated['discount_amount']);
+                $invoice->save();
+            }
+
+            $payment = InvoicePayment::create([
+                'invoice_id'   => $request->invoice_id,
+                'account_id'   => $request->account_id,
+                'amount'       => $request->amount,
+                'payment_date' => $request->payment_date,
+                'note'         => $request->note
+            ]);
 
             $account = Account::findOrFail($request->account_id);
             $account->increment('current_balance', $request->amount);
 
             $payment->transaction()->create([
-                'account_id' => $account->id,
-                'type' => 'credit',
-                'amount' => $request->amount,
+                'account_id'       => $account->id,
+                'type'             => 'credit',
+                'amount'           => $request->amount,
                 'transaction_date' => $request->payment_date,
-                'description' => 'Invoice Payment Received. Invoice ID: ' . $request->invoice_id,
+                'description'      => 'Invoice Payment Received. Invoice ID: ' . $request->invoice_id,
             ]);
 
             $this->updateInvoiceStatus($request->invoice_id);
@@ -106,9 +121,9 @@ class InvoicePaymentController extends Controller
         $validated = $request->validate([
             'invoice_id' => 'required|exists:invoices,id',
             'account_id' => 'required|exists:accounts,id',
-            'amount' => 'required|numeric|min:1',
-            'payment_date' => 'required|date',
-            'note' => 'nullable|string'
+            'amount'     => 'required|numeric|min:1',
+            'payment_date'=> 'required|date',
+            'note'       => 'nullable|string'
         ]);
 
         DB::transaction(function () use ($validated, $request, $payment) {
@@ -124,8 +139,8 @@ class InvoicePaymentController extends Controller
 
             if ($payment->transaction) {
                 $payment->transaction()->update([
-                    'account_id' => $request->account_id,
-                    'amount' => $request->amount,
+                    'account_id'       => $request->account_id,
+                    'amount'           => $request->amount,
                     'transaction_date' => $request->payment_date,
                 ]);
             }

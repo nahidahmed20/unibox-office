@@ -294,42 +294,55 @@ export default function Index({ users = { data: [], links: [] }, roles = [] }) {
                             </thead>
                             <tbody style={{ color: "#334155", fontSize: "0.915rem" }}>
                                 {recordList.length > 0 ? (
-                                    recordList.map((user, index) => (
-                                        <tr key={user.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                                            <td style={{ padding: "16px 24px", color: "#64748b", fontWeight: "500" }}>
-                                                {users.from ? users.from + index : index + 1}
-                                            </td>
-                                            <td style={{ padding: "16px 24px", fontWeight: '700', color: '#0f172a' }}>{user.name}</td>
-                                            <td style={{ padding: "16px 24px", color: '#475569', fontWeight: '500' }}>{user.email}</td>
-                                            <td style={{ padding: "16px 24px" }}>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                                    {user.roles && user.roles.length > 0 ? user.roles.map(r => (
-                                                        <span key={r.id} style={{ padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '700', background: '#e0e7ff', color: '#4338ca' }}>
-                                                            {r.name}
-                                                        </span>
-                                                    )) : <span style={{ fontSize: "0.85rem", color: "#94a3b8", fontStyle: "italic" }}>No Roles</span>}
-                                                </div>
-                                            </td>
-                                            <td style={{ padding: "16px 24px", textAlign: 'center' }}>
-                                                <span style={{ padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "700", textTransform: 'uppercase', background: '#dcfce7', color: '#15803d' }}>
-                                                    Active
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: "16px 24px", textAlign: "center" }}>
-                                                <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
-                                                    <button onClick={() => openViewModal(user)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
-                                                        <i className="fa-regular fa-eye"></i>
-                                                    </button>
-                                                    <button onClick={() => openEditModal(user)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit">
-                                                        <i className="fa-regular fa-pen-to-square"></i>
-                                                    </button>
-                                                    <button onClick={() => handleDelete(user.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
-                                                        <i className="fa-regular fa-trash-can"></i>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
+                                    recordList.map((user, index) => {
+                                        const isSuperAdmin = user.roles && user.roles.some(r => r.name === 'Super Admin');
+
+                                        return (
+                                            <tr key={user.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                                                <td style={{ padding: "16px 24px", color: "#64748b", fontWeight: "500" }}>
+                                                    {users.from ? users.from + index : index + 1}
+                                                </td>
+                                                <td style={{ padding: "16px 24px", fontWeight: '700', color: '#0f172a' }}>{user.name}</td>
+                                                <td style={{ padding: "16px 24px", color: '#475569', fontWeight: '500' }}>{user.email}</td>
+                                                <td style={{ padding: "16px 24px" }}>
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                                        {user.roles && user.roles.length > 0 ? user.roles.map(r => (
+                                                            <span key={r.id} style={{ padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '700', background: '#e0e7ff', color: '#4338ca' }}>
+                                                                {r.name}
+                                                            </span>
+                                                        )) : <span style={{ fontSize: "0.85rem", color: "#94a3b8", fontStyle: "italic" }}>No Roles</span>}
+                                                    </div>
+                                                </td>
+                                                <td style={{ padding: "16px 24px", textAlign: 'center' }}>
+                                                    <span style={{ padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "700", textTransform: 'uppercase', background: '#dcfce7', color: '#15803d' }}>
+                                                        Active
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: "16px 24px", textAlign: "center" }}>
+                                                    <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                        <button onClick={() => openViewModal(user)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
+                                                            <i className="fa-regular fa-eye"></i>
+                                                        </button>
+                                                        
+                                                        {!isSuperAdmin ? (
+                                                            <>
+                                                                <button onClick={() => openEditModal(user)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit">
+                                                                    <i className="fa-regular fa-pen-to-square"></i>
+                                                                </button>
+                                                                <button onClick={() => handleDelete(user.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
+                                                                    <i className="fa-regular fa-trash-can"></i>
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <div title="Super Admin cannot be modified" style={{ padding: "6px 10px", color: "#94a3b8", display: "flex", alignItems: "center", gap: "5px", fontSize: "0.8rem", background: "#f8fafc", borderRadius: "6px" }}>
+                                                                <i className="fa-solid fa-lock"></i> Locked
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 ) : (
                                     <tr>
                                         <td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No users found.</td>

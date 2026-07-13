@@ -1,7 +1,56 @@
 import React, { useState, useEffect, useRef } from 'react';
-import AdminLayout from '@/Layouts/AdminLayout'; // আপনার প্রজেক্টের লেআউট পাথ অনুযায়ী পরিবর্তন লাগলে করে নেবেন
+import AdminLayout from '@/Layouts/AdminLayout'; 
 import { useForm, Head, router, Link } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+
+const COMPANY = {
+    name: 'UNIBOX',
+    tagline: "Let's Create Together",
+    logo: `${window.location.origin}/images/logo.png`,
+    phone: '+8801627188836',
+    email: 'uniboxbd4u@gmail.com',
+    website: 'www.uniboxbd4u.com',
+    address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
+};
+
+function numberToWords(amount) {
+    const num = Math.round(Number(amount) || 0);
+    if (num === 0) return 'Zero Taka Only';
+
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+        'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    const twoDigits = (n) => {
+        if (n < 20) return ones[n];
+        const t = Math.floor(n / 10);
+        const o = n % 10;
+        return tens[t] + (o ? ' ' + ones[o] : '');
+    };
+
+    const threeDigits = (n) => {
+        const h = Math.floor(n / 100);
+        const rest = n % 100;
+        let str = '';
+        if (h) str += ones[h] + ' Hundred';
+        if (rest) str += (str ? ' ' : '') + twoDigits(rest);
+        return str;
+    };
+
+    let n = num;
+    const crore = Math.floor(n / 10000000); n %= 10000000;
+    const lakh = Math.floor(n / 100000); n %= 100000;
+    const thousand = Math.floor(n / 1000); n %= 1000;
+    const hundred = n;
+
+    const parts = [];
+    if (crore) parts.push(threeDigits(crore) + ' Crore');
+    if (lakh) parts.push(threeDigits(lakh) + ' Lakh');
+    if (thousand) parts.push(threeDigits(thousand) + ' Thousand');
+    if (hundred) parts.push(threeDigits(hundred));
+
+    return parts.join(' ') + ' Taka Only';
+}
 
 export default function Index({ clientWithAdvances = { data: [], links: [] }, clients = [], accounts = [] }) {
     // Modal & Mode States
@@ -89,6 +138,93 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+    };
+
+    // --- Print a single Money Receipt (styled like the UNIBOX paper receipt book) ---
+    const handlePrintReceipt = (advance) => {
+        const client = clients.find(c => c.id == advance.client_id);
+        const receiptNo = String(advance.id).padStart(3, '0');
+        const printWindow = window.open('', '_blank', `width=${window.screen.width},height=${window.screen.height}`);
+        
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Money Receipt - ${receiptNo}</title>
+                    <style>
+                        @page { margin: 12mm; }
+                        * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        html, body { margin: 0; padding: 0; }
+                        body { font-family: Georgia, 'Times New Roman', serif; padding: 24px; color: #1e293b; }
+                        .receipt { max-width: 720px; margin: 0 auto; border: 2px solid #10b981; border-radius: 6px; padding: 24px 32px; page-break-inside: avoid; break-inside: avoid; }
+                        .header-table { width: 100%; border-collapse: collapse; border-bottom: 3px solid #10b981; margin-bottom: 20px; }
+                        .header-table td { vertical-align: middle; padding-bottom: 14px; }
+                        .header-table td:last-child { text-align: right; vertical-align: top; }
+                        .brand-table { border-collapse: collapse; }
+                        .brand-table td { padding: 0; vertical-align: middle; }
+                        .brand-logo { width: 150px; max-width: 150px; height: auto; display: block; margin-right: 14px; }
+                        .brand h1 { margin: 0; font-size: 28px; letter-spacing: 1px; color: #0f172a; line-height: 1.1; }
+                        .brand p { margin: 4px 0 0; font-size: 11px; color: #10b981; letter-spacing: 3px; text-transform: uppercase; }
+                        .contact { font-size: 11px; color: #475569; line-height: 1.6; }
+                        .title { text-align: center; font-size: 20px; font-weight: bold; letter-spacing: 4px; margin: 6px 0 26px; text-transform: uppercase; color: #0f172a; }
+                        .field-table { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 14px; }
+                        .field-table td { border-bottom: 1px dotted #94a3b8; padding: 0 24px 5px 0; }
+                        .field-table td:last-child { padding-right: 0; }
+                        .label { color: #64748b; margin-right: 6px; }
+                        .value { font-weight: 600; color: #0f172a; }
+                        .footer-table { width: 100%; border-collapse: collapse; margin-top: 36px; }
+                        .footer-table td { vertical-align: bottom; width: 33.33%; }
+                        .taka-box { display: inline-block; border: 2px solid #0f172a; border-radius: 4px; padding: 10px 22px; font-weight: bold; font-size: 16px; }
+                        .sign { text-align: center; font-size: 12px; color: #475569; }
+                        .sign .line { border-top: 1px solid #334155; width: 150px; margin: 0 auto 6px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="receipt">
+                        <table class="header-table"><tr>
+                            <td>
+                                <table class="brand-table">
+                                    <tr>
+                                        <td>
+                                            <img src="${COMPANY.logo}" class="brand-logo" alt="Logo" />
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                            <td class="contact">
+                                ${COMPANY.phone}<br/>
+                                ${COMPANY.email}<br/>
+                                ${COMPANY.website}<br/>
+                                ${COMPANY.address}
+                            </td>
+                        </tr></table>
+                        <div class="title">Money Receipt</div>
+                        <table class="field-table"><tr>
+                            <td style="width:220px;"><span class="label">SL NO:</span><span class="value">${receiptNo}</span></td>
+                            <td><span class="label">Date:</span><span class="value">${advance.date || ''}</span></td>
+                        </tr></table>
+                        <table class="field-table"><tr><td><span class="label">Received with thanks from:</span><span class="value">${client?.name || 'N/A'}</span></td></tr></table>
+                        <table class="field-table"><tr><td><span class="label">Address:</span><span class="value">${client?.address || '-'}</span></td></tr></table>
+                        <table class="field-table"><tr><td><span class="label">In Words:</span><span class="value">${numberToWords(advance.amount)}</span></td></tr></table>
+                        <table class="field-table"><tr>
+                            <td><span class="label">Note:</span><span class="value">${advance.note || '-'}</span></td>
+                            <td><span class="label">Deposited To:</span><span class="value">${advance.account?.name || '-'}</span></td>
+                        </tr></table>
+                        <table class="footer-table"><tr>
+                            <td><div class="taka-box">Taka: ${Number(advance.amount).toLocaleString()}</div></td>
+                            <td class="sign"><div class="line"></div>Received By</td>
+                            <td class="sign"><div class="line"></div>For ${COMPANY.name}</td>
+                        </tr></table>
+                    </div>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        
+        setTimeout(() => { 
+            printWindow.print(); 
+            printWindow.close(); 
+        }, 500);
     };
 
     // --- Modals Logic ---
@@ -305,6 +441,9 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
                                                                                         <button onClick={() => openViewModal(adv)} style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "6px", borderRadius: "4px", cursor: "pointer", color: "#16a34a" }} title="View">
                                                                                             <i className="fa-regular fa-eye"></i>
                                                                                         </button>
+                                                                                        <button onClick={() => handlePrintReceipt(adv)} style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "6px", borderRadius: "4px", cursor: "pointer", color: "#2563eb" }} title="Print Receipt">
+                                                                                            <i className="fa-solid fa-print"></i>
+                                                                                        </button>
                                                                                         <button onClick={() => openEditModal(adv)} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: "6px", borderRadius: "4px", cursor: "pointer", color: "#334155" }} title="Edit">
                                                                                             <i className="fa-regular fa-pen-to-square"></i>
                                                                                         </button>
@@ -386,7 +525,10 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
                             <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px", color: "#475569", fontSize: "0.9rem" }}>
                                 <b>Note:</b> {selectedAdvance.note || "No additional note."}
                             </div>
-                            <div style={{ marginTop: "24px", textAlign: "right" }}>
+                            <div style={{ marginTop: "24px", textAlign: "right", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                                <button onClick={() => handlePrintReceipt(selectedAdvance)} style={{ background: "#2563eb", color: "#fff", padding: "8px 20px", borderRadius: "6px", cursor: "pointer", border: "none", display: "flex", alignItems: "center", gap: "6px" }}>
+                                    <i className="fa-solid fa-print"></i> Print Receipt
+                                </button>
                                 <button onClick={() => setShowViewModal(false)} style={{ background: "#1e293b", color: "#fff", padding: "8px 20px", borderRadius: "6px", cursor: "pointer", border: "none" }}>Close</button>
                             </div>
                         </div>

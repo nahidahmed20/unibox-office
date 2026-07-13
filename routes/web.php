@@ -54,6 +54,7 @@ Route::middleware('auth')->group(function () {
     Route::get('admin/users/export/excel', [UserController::class, 'exportExcel'])->name('admin.users.export.excel');
 
     // 1. CRM & Projects
+    Route::patch('/admin/projects/{id}/status', [ProjectController::class, 'updateStatus'])->name('admin.projects.update-status');
     Route::post('/admin/vendors/{vendor}/pay', [VendorController::class, 'payVendor'])->name('admin.vendors.pay');
     Route::resource('clients', ClientController::class)->names('admin.clients');
     Route::resource('vendors', VendorController::class)->names('admin.vendors');

@@ -3,7 +3,7 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { useForm, Head, router, Link } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
-export default function Index({ projects = { data: [], links: [] }, clients = [] }) {
+export default function Index({ projects = { data: [], links: [] }, clients = [], is_super_admin = false }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
@@ -119,6 +119,19 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
         }, 250);
     };
 
+    // --- QUICK STATUS UPDATE HANDLER ---
+    const handleQuickStatusChange = (projectId, newStatus) => {
+        router.patch(route("admin.projects.update-status", projectId), { status: newStatus }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Status updated!', showConfirmButton: false, timer: 1500 });
+            },
+            onError: () => {
+                Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Failed to update status', showConfirmButton: false, timer: 2000 });
+            }
+        });
+    };
+
     const openCreateModal = () => {
         reset();
         clearErrors();
@@ -154,7 +167,6 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        // Check if Client is selected
         if (!data.client_id) {
             Swal.fire("Required", "Please select a client from the dropdown.", "warning");
             return;
@@ -199,14 +211,15 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
         });
     };
 
-    const getStatusBadge = (status) => {
+    // স্ট্যাটাস অনুযায়ী ড্রপডাউনের কালার
+    const getStatusStyles = (status) => {
         const styles = {
-            planning: "bg-slate-100 text-slate-800 border border-slate-300",
-            in_progress: "bg-amber-100 text-amber-800 border border-amber-300",
-            completed: "bg-emerald-100 text-emerald-800 border border-emerald-300",
-            on_hold: "bg-red-100 text-red-800 border border-red-300 animate-pulse"
+            planning: { bg: "#f1f5f9", color: "#1e293b", border: "1px solid #cbd5e1" },
+            in_progress: { bg: "#fef3c7", color: "#92400e", border: "1px solid #fbd38d" },
+            completed: { bg: "#d1fae5", color: "#065f46", border: "1px solid #6ee7b7" },
+            on_hold: { bg: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5" }
         };
-        return styles[status] || "bg-gray-100 text-gray-800";
+        return styles[status] || styles.planning;
     };
 
     return (
@@ -276,40 +289,79 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                             </thead>
                             <tbody style={{ color: "#334155", fontSize: "0.915rem" }}>
                                 {projects.data && projects.data.length > 0 ? (
-                                    projects.data.map((project, index) => (
-                                        <tr key={project.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                                            <td style={{ padding: "16px 24px", color: "#64748b", fontWeight: "500" }}>
-                                                {projects.from ? projects.from + index : index + 1}
-                                            </td>
-                                            <td style={{ padding: "16px 24px", fontWeight: "600", color: "#0f172a" }}>
-                                                <div>{project.title}</div>
-                                                {project.description && <span style={{ fontSize: "0.75rem", fontWeight: "400", color: "#64748b", display: "block", marginTop: "2px" }}>{project.description.substring(0, 40)}...</span>}
-                                            </td>
-                                            <td style={{ padding: "16px 24px", color: "#475569" }}>{project.client?.name || "N/A"}</td>
-                                            <td style={{ padding: "16px 24px" }}>
-                                                {project.budget ? `TK. ${Number(project.budget).toLocaleString()}` : "-"}
-                                            </td>
-                                            <td style={{ padding: "16px 24px" }}>
-                                                <span className={getStatusBadge(project.status)} style={{ padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "600", textTransform: "uppercase" }}>
-                                                    {project.status ? project.status.replace("_", " ") : ""}
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: "16px 24px", color: "#64748b" }}>{project.deadline || "-"}</td>
-                                            <td style={{ padding: "16px 24px", textAlign: "right" }}>
-                                                <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
-                                                    <button onClick={() => openViewModal(project)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
-                                                        <i className="fa-regular fa-eye"></i>
-                                                    </button>
-                                                    <button onClick={() => openEditModal(project)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit Project">
-                                                        <i className="fa-regular fa-pen-to-square"></i>
-                                                    </button>
-                                                    <button onClick={() => handleDelete(project.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete Project">
-                                                        <i className="fa-regular fa-trash-can"></i>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
+                                    projects.data.map((project, index) => {
+                                        // Edit & Delete Restriction Logic
+                                        const isCompleted = project.status === 'completed';
+                                        const canModify = !isCompleted || is_super_admin;
+                                        const statusStyle = getStatusStyles(project.status);
+
+                                        return (
+                                            <tr key={project.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                                                <td style={{ padding: "16px 24px", color: "#64748b", fontWeight: "500" }}>
+                                                    {projects.from ? projects.from + index : index + 1}
+                                                </td>
+                                                <td style={{ padding: "16px 24px", fontWeight: "600", color: "#0f172a" }}>
+                                                    <div>{project.title}</div>
+                                                    {project.description && <span style={{ fontSize: "0.75rem", fontWeight: "400", color: "#64748b", display: "block", marginTop: "2px" }}>{project.description.substring(0, 40)}...</span>}
+                                                </td>
+                                                <td style={{ padding: "16px 24px", color: "#475569" }}>{project.client?.name || "N/A"}</td>
+                                                <td style={{ padding: "16px 24px" }}>
+                                                    {project.budget ? `TK. ${Number(project.budget).toLocaleString()}` : "-"}
+                                                </td>
+                                                
+                                                {/* --- QUICK STATUS CHANGE DROPDOWN --- */}
+                                                <td style={{ padding: "16px 24px" }}>
+                                                    <select 
+                                                        value={project.status} 
+                                                        onChange={(e) => handleQuickStatusChange(project.id, e.target.value)}
+                                                        disabled={!canModify}
+                                                        style={{ 
+                                                            background: statusStyle.bg, 
+                                                            color: statusStyle.color, 
+                                                            border: statusStyle.border,
+                                                            padding: "4px 8px", 
+                                                            borderRadius: "6px", 
+                                                            fontSize: "0.75rem", 
+                                                            fontWeight: "700", 
+                                                            textTransform: "uppercase",
+                                                            outline: "none",
+                                                            cursor: canModify ? "pointer" : "not-allowed",
+                                                            appearance: canModify ? "auto" : "none" // Hides arrow if disabled
+                                                        }}
+                                                    >
+                                                        <option value="planning">Planning</option>
+                                                        <option value="in_progress">In Progress</option>
+                                                        <option value="on_hold">On Hold</option>
+                                                        <option value="completed">Completed</option>
+                                                    </select>
+                                                </td>
+
+                                                <td style={{ padding: "16px 24px", color: "#64748b" }}>{project.deadline || "-"}</td>
+                                                <td style={{ padding: "16px 24px", textAlign: "right" }}>
+                                                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                                        <button onClick={() => openViewModal(project)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
+                                                            <i className="fa-regular fa-eye"></i>
+                                                        </button>
+                                                        
+                                                        {canModify ? (
+                                                            <>
+                                                                <button onClick={() => openEditModal(project)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit Project">
+                                                                    <i className="fa-regular fa-pen-to-square"></i>
+                                                                </button>
+                                                                <button onClick={() => handleDelete(project.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete Project">
+                                                                    <i className="fa-regular fa-trash-can"></i>
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <div title="Completed projects are locked" style={{ padding: "6px 10px", color: "#94a3b8", display: "flex", alignItems: "center", gap: "5px", fontSize: "0.8rem", background: "#f8fafc", borderRadius: "6px" }}>
+                                                                <i className="fa-solid fa-lock"></i> Locked
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 ) : (
                                     <tr>
                                         <td colSpan="7" style={{ textAlign: "center", padding: "32px", color: "#94a3b8" }}>No projects found.</td>
@@ -391,7 +443,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                 </div>
                                 <div>
                                     <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Project Status</span>
-                                    <span className={getStatusBadge(selectedProject.status)} style={{ padding: "4px 12px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "600", textTransform: "uppercase", display: "inline-block" }}>
+                                    <span style={{ ...getStatusStyles(selectedProject.status), padding: "4px 12px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "700", textTransform: "uppercase", display: "inline-block" }}>
                                         {selectedProject.status ? selectedProject.status.replace("_", " ") : "PLANNING"}
                                     </span>
                                 </div>
@@ -427,7 +479,6 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                             </button>
                         </div>
                         
-                        {/* Outside Click Wrapper for Custom Dropdown */}
                         <div onClick={() => showClientDropdown && setShowClientDropdown(false)} style={{ padding: "24px", maxHeight: "80vh", overflowY: "auto" }}>
                             <form onSubmit={handleSubmit}>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
@@ -503,7 +554,6 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                         )}
                                         {errors.client_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.client_id}</p>}
                                     </div>
-                                    {/* ------------------------------------------- */}
 
                                     <div style={{ gridColumn: "span 1" }}>
                                         <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Budget</label>

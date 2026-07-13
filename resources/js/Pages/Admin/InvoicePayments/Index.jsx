@@ -3,6 +3,55 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { useForm, Head, router } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
+const COMPANY = {
+    name: 'UNIBOX',
+    tagline: "Let's Create Together",
+    logo: `${window.location.origin}/images/logo.png`, 
+    phone: '+8801627188836',
+    email: 'uniboxbd4u@gmail.com',
+    website: 'www.uniboxbd4u.com',
+    address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
+};
+
+function numberToWords(amount) {
+    const num = Math.round(Number(amount) || 0);
+    if (num === 0) return 'Zero Taka Only';
+
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+        'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    const twoDigits = (n) => {
+        if (n < 20) return ones[n];
+        const t = Math.floor(n / 10);
+        const o = n % 10;
+        return tens[t] + (o ? ' ' + ones[o] : '');
+    };
+
+    const threeDigits = (n) => {
+        const h = Math.floor(n / 100);
+        const rest = n % 100;
+        let str = '';
+        if (h) str += ones[h] + ' Hundred';
+        if (rest) str += (str ? ' ' : '') + twoDigits(rest);
+        return str;
+    };
+
+    let n = num;
+    const crore = Math.floor(n / 10000000); n %= 10000000;
+    const lakh = Math.floor(n / 100000); n %= 100000;
+    const thousand = Math.floor(n / 1000); n %= 1000;
+    const hundred = n;
+
+    const parts = [];
+    if (crore) parts.push(threeDigits(crore) + ' Crore');
+    if (lakh) parts.push(threeDigits(lakh) + ' Lakh');
+    if (thousand) parts.push(threeDigits(thousand) + ' Thousand');
+    if (hundred) parts.push(threeDigits(hundred));
+
+    return parts.join(' ') + ' Taka Only';
+}
+
 /* =========================================
    REUSABLE SEARCHABLE SELECT COMPONENT
 ========================================= */
@@ -130,6 +179,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
         invoice_id: "",
         account_id: "",
         amount: "",
+        discount_amount: "", 
         payment_date: "",
         note: "",
         _method: "post",
@@ -161,9 +211,6 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
         );
     };
 
-    /* =========================================
-       EXPORT FUNCTIONS (Copy, CSV, Print)
-    ========================================= */
     const handleCopy = () => {
         if (!paymentList.length) return Swal.fire("Empty!", "No data to copy", "warning");
         
@@ -206,11 +253,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                         table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; }
                         th, td { padding: 12px 16px; border: 1px solid #cbd5e1; font-size: 13px; }
                         th { background-color: #f1f5f9; font-weight: 600; color: #475569; text-transform: uppercase; }
-                        
-                        /* Hide the last column (Action buttons) during print */
                         th:last-child, td:last-child { display: none !important; }
-                        
-                        /* Add a Serial Number column visually only for print using CSS counters */
                         table { counter-reset: rowNumber; }
                         tbody tr { counter-increment: rowNumber; }
                         tbody tr td:first-child::before { content: counter(rowNumber) ". "; font-weight: bold; margin-right: 5px; }
@@ -227,7 +270,93 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
         printWindow.focus();
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
     };
-    /* ========================================= */
+
+    const handlePrintReceipt = (payment) => {
+        const client = payment.invoice?.client;
+        const receiptNo = String(payment.id).padStart(3, '0');
+        const printWindow = window.open('', '_blank', `width=${window.screen.width},height=${window.screen.height}`);
+        
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Money Receipt - ${receiptNo}</title>
+                    <style>
+                        @page { margin: 12mm; }
+                        * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        html, body { margin: 0; padding: 0; }
+                        body { font-family: Georgia, 'Times New Roman', serif; padding: 24px; color: #1e293b; }
+                        .receipt { max-width: 720px; margin: 0 auto; border: 2px solid #10b981; border-radius: 6px; padding: 24px 32px; page-break-inside: avoid; break-inside: avoid; }
+                        .header-table { width: 100%; border-collapse: collapse; border-bottom: 3px solid #10b981; margin-bottom: 20px; }
+                        .header-table td { vertical-align: middle; padding-bottom: 14px; }
+                        .header-table td:last-child { text-align: right; vertical-align: top; }
+                        .brand-table { border-collapse: collapse; }
+                        .brand-table td { padding: 0; vertical-align: middle; }
+                        .brand-logo { width: 150px; max-width: 150px;  height: auto; display: block; margin-right: 14px; }
+                        .brand h1 { margin: 0; font-size: 28px; letter-spacing: 1px; color: #0f172a; line-height: 1.1; }
+                        .brand p { margin: 4px 0 0; font-size: 11px; color: #10b981; letter-spacing: 3px; text-transform: uppercase; }
+                        .contact { font-size: 11px; color: #475569; line-height: 1.6; }
+                        .title { text-align: center; font-size: 20px; font-weight: bold; letter-spacing: 4px; margin: 6px 0 26px; text-transform: uppercase; color: #0f172a; }
+                        .field-table { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 14px; }
+                        .field-table td { border-bottom: 1px dotted #94a3b8; padding: 0 24px 5px 0; }
+                        .field-table td:last-child { padding-right: 0; }
+                        .label { color: #64748b; margin-right: 6px; }
+                        .value { font-weight: 600; color: #0f172a; }
+                        .footer-table { width: 100%; border-collapse: collapse; margin-top: 36px; }
+                        .footer-table td { vertical-align: bottom; width: 33.33%; }
+                        .taka-box { display: inline-block; border: 2px solid #0f172a; border-radius: 4px; padding: 10px 22px; font-weight: bold; font-size: 16px; }
+                        .sign { text-align: center; font-size: 12px; color: #475569; }
+                        .sign .line { border-top: 1px solid #334155; width: 150px; margin: 0 auto 6px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="receipt">
+                        <table class="header-table"><tr>
+                            <td>
+                                <table class="brand-table">
+                                    <tr>
+                                        <td>
+                                            <img src="${COMPANY.logo}" class="brand-logo" alt="Logo" />
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                            <td class="contact">
+                                ${COMPANY.phone}<br/>
+                                ${COMPANY.email}<br/>
+                                ${COMPANY.website}<br/>
+                                ${COMPANY.address}
+                            </td>
+                        </tr></table>
+                        <div class="title">Money Receipt</div>
+                        <table class="field-table"><tr>
+                            <td style="width:220px;"><span class="label">SL NO:</span><span class="value">${receiptNo}</span></td>
+                            <td><span class="label">Date:</span><span class="value">${payment.payment_date || ''}</span></td>
+                        </tr></table>
+                        <table class="field-table"><tr><td><span class="label">Received with thanks from:</span><span class="value">${client?.name || 'N/A'}</span></td></tr></table>
+                        <table class="field-table"><tr><td><span class="label">Address:</span><span class="value">${client?.address || '-'}</span></td></tr></table>
+                        <table class="field-table"><tr><td><span class="label">In Words:</span><span class="value">${numberToWords(payment.amount)}</span></td></tr></table>
+                        <table class="field-table"><tr>
+                            <td><span class="label">Against Invoice:</span><span class="value">${payment.invoice?.invoice_number || '-'}</span></td>
+                            <td><span class="label">Deposited To:</span><span class="value">${payment.account?.name || '-'}</span></td>
+                        </tr></table>
+                        <table class="footer-table"><tr>
+                            <td><div class="taka-box">Taka: ${Number(payment.amount).toLocaleString('en-IN')}</div></td>
+                            <td class="sign"><div class="line"></div>Received By</td>
+                            <td class="sign"><div class="line"></div>For ${COMPANY.name}</td>
+                        </tr></table>
+                    </div>
+                </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        printWindow.focus();
+        
+        setTimeout(() => { 
+            printWindow.print(); 
+            printWindow.close(); 
+        }, 500);
+    };
 
     const openCreateModal = () => {
         reset(); clearErrors(); setData("_method", "post"); setEditMode(false); setShowModal(true);
@@ -235,20 +364,32 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
 
     const handleInvoiceSelect = (val) => {
         const inv = invoices.find((i) => String(i.id) === String(val));
-        setData((prevData) => ({
-            ...prevData,
-            invoice_id: val,
-            // Auto-fill the remaining due amount only for a brand new payment,
-            // never overwrite an amount that's already set while editing.
-            amount: !editMode && inv ? String(inv.due_amount ?? inv.grand_total) : prevData.amount,
-        }));
+        setData((prevData) => {
+            let newAmount = prevData.amount;
+            if (!editMode && inv) {
+                const due = parseFloat(inv.due_amount ?? inv.grand_total) || 0;
+                const discount = parseFloat(prevData.discount_amount) || 0;
+                newAmount = Math.max(due - discount, 0).toString();
+            }
+            return {
+                ...prevData,
+                invoice_id: val,
+                amount: newAmount,
+            };
+        });
     };
 
     const openEditModal = (payment) => {
         clearErrors();
         setData({
-            id: payment.id, invoice_id: payment.invoice_id, account_id: payment.account_id || "",
-            amount: payment.amount, payment_date: payment.payment_date, note: payment.note || "", _method: "put",
+            id: payment.id, 
+            invoice_id: payment.invoice_id, 
+            account_id: payment.account_id || "",
+            amount: payment.amount, 
+            discount_amount: "", 
+            payment_date: payment.payment_date, 
+            note: payment.note || "", 
+            _method: "put",
         });
         setEditMode(true); setShowModal(true);
     };
@@ -298,9 +439,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                         </button>
                     </div>
 
-                    {/* TOOLBAR */}
                     <div className="table-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '16px' }}>
-                        
                         <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
                             Show 
                             <select value={perPage} onChange={handlePerPageChange} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", outline: "none", cursor: "pointer" }}>
@@ -311,7 +450,6 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                             </select>
                         </div>
 
-                        {/* ATTACHED FUNCTIONS TO EXPORT BUTTONS */}
                         <div className="export-buttons" style={{ display: 'flex', gap: '8px' }}>
                             <button onClick={handleCopy} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}><i className="fas fa-copy"></i> Copy</button>
                             <button onClick={handleExportCSV} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}><i className="fas fa-file-excel text-green-600"></i> Excel</button>
@@ -328,7 +466,6 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                         </div>
                     </div>
 
-                    {/* ADDED ID: printable-payment-table HERE */}
                     <table id="printable-payment-table" className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.875rem" }}>
                         <thead>
                             <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
@@ -361,6 +498,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                                         <td style={{ padding: "16px 24px", textAlign: "right" }}>
                                             <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
                                                 <button onClick={() => openShowModal(payment)} style={{ border: "none", background: "#f0f5ff", color: "#2563eb", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }}><i className="fa-regular fa-eye"></i></button>
+                                                <button onClick={() => handlePrintReceipt(payment)} style={{ border: "none", background: "#f0fdf4", color: "#16a34a", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }} title="Print Receipt"><i className="fa-solid fa-print"></i></button>
                                                 <button onClick={() => openEditModal(payment)} style={{ border: "none", background: "#fff7ed", color: "#ea580c", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }}><i className="fa-regular fa-pen-to-square"></i></button>
                                                 <button onClick={() => handleDelete(payment.id)} style={{ border: "none", background: "#fef2f2", color: "#dc2626", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }}><i className="fa-regular fa-trash-can"></i></button>
                                             </div>
@@ -371,7 +509,6 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                         </tbody>
                     </table>
 
-                    {/* PAGINATION */}
                     {payments.links && payments.links.length > 3 && (
                         <div className="pagination-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc' }}>
                             <div style={{ fontSize: '0.875rem', color: '#64748b', fontWeight: '500' }}>
@@ -427,7 +564,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                                         placeholder="-- Select Account --"
                                         error={errors.account_id}
                                         getValue={(acc) => acc.id}
-                                        getLabel={(acc) => `${acc.name} (Bal: TK. ${parseFloat(acc.current_balance).toLocaleString('en-IN')})`}
+                                        getLabel={(acc) => `${acc.name} (Balance: TK. ${parseFloat(acc.current_balance).toLocaleString('en-IN')})`}
                                     />
                                     {errors.account_id && <span style={{ color: "#ef4444", fontSize: "0.75rem", display: "block" }}>{errors.account_id}</span>}
                                 </div>
@@ -445,18 +582,59 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                                 );
                             })()}
 
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginTop: "16px" }}>
                                 <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount (TK.) *</label>
-                                    <input type="number" step="0.01" value={data.amount} onChange={(e) => setData("amount", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }} required />
-                                    {errors.amount && <span style={{ color: "#ef4444", fontSize: "0.75rem", display: "block" }}>{errors.amount}</span>}
+    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>
+        Cash Received (TK.) *
+    </label>
+    <input 
+        type="number" 
+        step="0.01" 
+        value={data.amount} 
+        onChange={(e) => setData("amount", e.target.value)} 
+        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", background: "#f0fdf4", color: "#166534", fontWeight: "bold" }} 
+        required 
+    />
+    {errors.amount && <span style={{ color: "#ef4444", fontSize: "0.75rem", display: "block" }}>{errors.amount}</span>}
+</div>
+
+                                <div className="form-group">
+                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>
+                                        Discount / Waiver (TK.)
+                                    </label>
+                                    <input 
+                                        type="number" 
+                                        step="0.01" 
+                                        value={data.discount_amount} 
+                                        onChange={(e) => {
+                                            const discValue = e.target.value;
+                                            setData(prevData => {
+                                                const selectedInvoice = invoices.find(i => String(i.id) === String(prevData.invoice_id));
+                                                let newAmount = prevData.amount;
+                                                
+                                                if (!editMode && selectedInvoice) {
+                                                    const due = parseFloat(selectedInvoice.due_amount ?? selectedInvoice.grand_total) || 0;
+                                                    const discount = parseFloat(discValue) || 0;
+                                                    newAmount = Math.max(due - discount, 0).toString();
+                                                }
+
+                                                return { ...prevData, discount_amount: discValue, amount: newAmount };
+                                            });
+                                        }} 
+                                        placeholder="Leave empty if none" 
+                                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", background: editMode ? "#f1f5f9" : "#fff" }} 
+                                        disabled={editMode} 
+                                    />
+                                    {errors.discount_amount && <span style={{ color: "#ef4444", fontSize: "0.75rem", display: "block" }}>{errors.discount_amount}</span>}
                                 </div>
+
                                 <div className="form-group">
                                     <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Payment Date *</label>
                                     <input type="date" value={data.payment_date} onChange={(e) => setData("payment_date", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }} required />
                                     {errors.payment_date && <span style={{ color: "#ef4444", fontSize: "0.75rem", display: "block" }}>{errors.payment_date}</span>}
                                 </div>
                             </div>
+
                             <div className="form-group" style={{ marginTop: "16px" }}>
                                 <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Note (Optional)</label>
                                 <textarea value={data.note} onChange={(e) => setData("note", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }} rows="2" />
@@ -489,8 +667,11 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                                     <p style={{ fontSize: "1.75rem", fontWeight: "800", color: "#16a34a", margin: 0 }}>TK. {parseFloat(selectedPayment.amount).toLocaleString('en-IN')}</p>
                                 </div>
                             </div>
-                            <div style={{ marginTop: '24px' }}>
-                                <button type="button" onClick={() => setShowDetailsModal(false)} style={{ width: '100%', padding: "10px", background: "#64748b", color: "#fff", border: "none", borderRadius: "6px", fontWeight: "600", cursor: "pointer" }}>Close Receipt</button>
+                            <div style={{ marginTop: '24px', display: 'flex', gap: '10px' }}>
+                                <button type="button" onClick={() => handlePrintReceipt(selectedPayment)} style={{ flex: 1, padding: "10px", background: "#16a34a", color: "#fff", border: "none", borderRadius: "6px", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                                    <i className="fa-solid fa-print"></i> Print Receipt
+                                </button>
+                                <button type="button" onClick={() => setShowDetailsModal(false)} style={{ flex: 1, padding: "10px", background: "#64748b", color: "#fff", border: "none", borderRadius: "6px", fontWeight: "600", cursor: "pointer" }}>Close</button>
                             </div>
                         </div>
                     </div>
