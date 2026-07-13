@@ -3,14 +3,12 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link } from '@inertiajs/react';
 import Swal from 'sweetalert2'; 
 
-export default function Index({ investments = {}, filters = {} }) {
+export default function Index({ investments = {}, accounts = [], filters = {} }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
-    // পেজিনেটেড অবজেক্ট থেকে আসল ডেটা অ্যারে বের করা
     const investmentList = investments.data || [];
     
-    // --- Live Search & Per Page State Setup ---
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get('search') || filters.search || '';
     });
@@ -23,6 +21,7 @@ export default function Index({ investments = {}, filters = {} }) {
 
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
         id: '', 
+        account_id: '', 
         amount: '', 
         investor_name: '', 
         investment_date: '', 
@@ -30,13 +29,11 @@ export default function Index({ investments = {}, filters = {} }) {
         notes: ''
     });
 
-    // --- Live Search, Per Page Change & Debounce Effect ---
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
             return;
         }
-
         const delayDebounceFn = setTimeout(() => {
             router.get(
                 route('admin.investments.index'), 
@@ -48,7 +45,6 @@ export default function Index({ investments = {}, filters = {} }) {
         return () => clearTimeout(delayDebounceFn);
     }, [searchTerm, perPage]);
 
-    // --- Export Utilities ---
     const handleCopy = () => {
         if (!investmentList.length) return Swal.fire("Empty!", "No data to copy", "warning");
         const text = investmentList
@@ -58,18 +54,20 @@ export default function Index({ investments = {}, filters = {} }) {
         Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1200, showConfirmButton: false, toast: true, position: 'top-end' });
     };
 
- 
     const handleExportCSV = () => {
-            if (!advanceList.length) return Swal.fire("Empty!", "No data to export", "warning");
-            const headers = ["SL,Given To,Date,Purpose,Status,Amount\n"];
-            const rows = advanceList.map((adv, idx) => `"${idx + 1}","${adv.given_to}","${adv.date}","${adv.purpose}","${adv.status}","${adv.amount}"`);
-            const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.setAttribute("download", `Advance_Report_${new Date().toISOString().slice(0,10)}.csv`);
-            link.click();
-        };
+        if (!investmentList.length) return Swal.fire("Empty!", "No data to export", "warning");
+        const headers = ["SL,Investor Name,Date,Purpose,Account,Amount\n"];
+        const rows = investmentList.map((inv, idx) => {
+            const accountName = inv.account ? inv.account.name : 'N/A';
+            return `"${idx + 1}","${inv.investor_name}","${inv.investment_date}","${inv.purpose}","${accountName}","${inv.amount}"`;
+        });
+        const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `Investment_Report_${new Date().toISOString().slice(0,10)}.csv`);
+        link.click();
+    };
 
     const handlePrint = () => {
         const tableContent = document.getElementById("printable-investment-table");
@@ -102,7 +100,6 @@ export default function Index({ investments = {}, filters = {} }) {
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
     };
 
-    // --- Modal Management ---
     const openCreateModal = () => {
         reset(); 
         clearErrors(); 
@@ -114,6 +111,7 @@ export default function Index({ investments = {}, filters = {} }) {
         clearErrors(); 
         setData({
             id: inv.id,
+            account_id: inv.account_id || '',
             amount: inv.amount,
             investor_name: inv.investor_name,
             investment_date: inv.investment_date,
@@ -147,7 +145,7 @@ export default function Index({ investments = {}, filters = {} }) {
     const handleDelete = (id) => {
         Swal.fire({
             title: 'Are you sure?',
-            text: 'This investment record will be permanently deleted!',
+            text: 'This investment record will be permanently deleted and account balance will be updated!',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonText: 'Yes, delete it',
@@ -179,7 +177,6 @@ export default function Index({ investments = {}, filters = {} }) {
                         <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Track and manage asset allocations, seed funding, and corporate capitals.</p>
                     </div>
                     
-                    {/* Total Capital Badge */}
                     <div style={{ fontSize: '1.05rem', fontWeight: '700', color: '#0f766e', padding: '12px 20px', background: '#f0fdfa', borderRadius: '8px', border: "1px solid #ccfbf1", boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" }}>
                         <i className="fa-solid fa-chart-line" style={{ marginRight: "8px", color: "#0d9488" }}></i>
                         Page Total: <span style={{ fontSize: "1.2rem" }}>${totalInvestment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -189,7 +186,6 @@ export default function Index({ investments = {}, filters = {} }) {
                 {/* Main Card Container */}
                 <div style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
                     
-                    {/* Card Header */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
                         <div style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-money-bill-trend-up" style={{ marginRight: "8px", color: "#2563eb" }}></i> Capital & Investments Directory
@@ -199,10 +195,7 @@ export default function Index({ investments = {}, filters = {} }) {
                         </button>
                     </div>
 
-                    {/* Toolbar Panel (Search + Per Page Dropdown) */}
                     <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
-                        
-                        {/* Dynamic Per Page Entries Selector */}
                         <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
                             Show 
                             <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
@@ -213,12 +206,11 @@ export default function Index({ investments = {}, filters = {} }) {
                             </select>
                         </div>
 
-                        {/* Export Action Tools */}
                         <div style={{ display: 'flex', gap: '8px' }}>
                             <button type="button" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
                                 <i className="fas fa-copy text-blue-500"></i> Copy
                             </button>
-                            <button type="button" onClick={() => handleExportCSV('excel')} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
+                            <button type="button" onClick={handleExportCSV} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
                                 <i className="fas fa-file-excel text-emerald-500"></i> Excel
                             </button>
                             <button type="button" onClick={handlePrint} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
@@ -226,7 +218,6 @@ export default function Index({ investments = {}, filters = {} }) {
                             </button>
                         </div>
 
-                        {/* Search Component */}
                         <div style={{ position: "relative" }}>
                             <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
                             <input 
@@ -239,7 +230,6 @@ export default function Index({ investments = {}, filters = {} }) {
                         </div>
                     </div>
 
-                    {/* Main Data Table */}
                     <div style={{ overflowX: 'auto' }}>
                         <table id="printable-investment-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
                             <thead>
@@ -261,7 +251,13 @@ export default function Index({ investments = {}, filters = {} }) {
                                             </td>
                                             <td style={{ padding: "16px 24px" }}>
                                                 <div style={{ fontWeight: '600', color: '#0f172a' }}>{inv.investor_name}</div>
-                                                {inv.notes && <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "2px" }}>{inv.notes}</div>}
+                                                {inv.account && (
+                                                    <div style={{ fontSize: "0.75rem", color: "#6366f1", marginTop: "4px", display: "inline-block", background: "#e0e7ff", padding: "2px 8px", borderRadius: "12px", fontWeight: "600" }}>
+                                                        <i className="fa-solid fa-building-columns" style={{ marginRight: "4px" }}></i>
+                                                        {inv.account.name}
+                                                    </div>
+                                                )}
+                                                {inv.notes && <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "4px" }}>{inv.notes}</div>}
                                             </td>
                                             <td style={{ padding: "16px 24px", color: "#475569" }}>{inv.investment_date}</td>
                                             <td style={{ padding: "16px 24px" }}>
@@ -274,7 +270,7 @@ export default function Index({ investments = {}, filters = {} }) {
                                                 </span>
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '700', color: '#0d9488' }}>
-                                                ${parseFloat(inv.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                Tk. {parseFloat(inv.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: 'center' }}>
                                                 <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
@@ -297,15 +293,10 @@ export default function Index({ investments = {}, filters = {} }) {
                         </table>
                     </div>
 
-                    {/* Pagination Footer & Info Summary */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderTop: "1px solid #f1f5f9", background: "#f8fafc", flexWrap: "wrap", gap: "16px" }}>
-                        
-                        {/* Data Context Entry Summary */}
                         <div style={{ color: "#64748b", fontSize: "0.85rem" }}>
                             Showing <b>{investments.from || 0}</b> to <b>{investments.to || 0}</b> of <b>{investments.total || 0}</b> entries
                         </div>
-
-                        {/* Dynamic Inertia Pagination Buttons */}
                         {investments.links && investments.links.length > 3 && (
                             <div style={{ display: "flex", gap: "4px" }}>
                                 {investments.links.map((link, i) => {
@@ -338,16 +329,14 @@ export default function Index({ investments = {}, filters = {} }) {
                             </div>
                         )}
                     </div>
-
                 </div>
             </div>
 
             {/* --- CREATE / EDIT FORM MODAL SECTION --- */}
             {showModal && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
+                    <div style={{ background: "#fff", width: "100%", maxWidth: "750px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
                         
-                        {/* Modal Header */}
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
                             <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
                                 {editMode ? '📝 Edit Investment Info' : '✨ Log New Investment'}
@@ -357,8 +346,8 @@ export default function Index({ investments = {}, filters = {} }) {
                             </button>
                         </div>
                         
-                        {/* Modal Form */}
                         <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
+                            {/* 1st Row: Investor Name and Select Account */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>
                                 <div style={{ flexDirection: "column", display: "flex" }}>
                                     <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Investor Name *</label>
@@ -374,6 +363,27 @@ export default function Index({ investments = {}, filters = {} }) {
                                 </div>
 
                                 <div style={{ flexDirection: "column", display: "flex" }}>
+                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Deposit To Account *</label>
+                                    <select 
+                                        value={data.account_id} 
+                                        onChange={e => setData('account_id', e.target.value)} 
+                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", background: "#fff", color: "#334155", height: "42px" }}
+                                        required
+                                    >
+                                        <option value="">-- Select Account --</option>
+                                        {accounts.map(acc => (
+                                            <option key={acc.id} value={acc.id}>
+                                                {acc.name} (Balance: {parseFloat(acc.current_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {errors.account_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.account_id}</p>}
+                                </div>
+                            </div>
+
+                            {/* 2nd Row: Amount and Date */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>
+                                <div style={{ flexDirection: "column", display: "flex" }}>
                                     <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount ($) *</label>
                                     <input 
                                         type="number" 
@@ -386,27 +396,27 @@ export default function Index({ investments = {}, filters = {} }) {
                                     />
                                     {errors.amount && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.amount}</p>}
                                 </div>
-                            </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>
                                 <div style={{ flexDirection: "column", display: "flex" }}>
                                     <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Investment Date *</label>
                                     <input 
                                         type="date" 
                                         value={data.investment_date} 
                                         onChange={e => setData('investment_date', e.target.value)} 
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", color: "#334155" }}
+                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", color: "#334155", height: "42px" }}
                                         required
                                     />
                                     {errors.investment_date && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.investment_date}</p>}
                                 </div>
+                            </div>
 
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: "16px" }}>
                                 <div style={{ flexDirection: "column", display: "flex" }}>
                                     <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Purpose *</label>
                                     <select 
                                         value={data.purpose} 
                                         onChange={e => setData('purpose', e.target.value)} 
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", background: "#fff", color: "#334155", height: "38px" }}
+                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", background: "#fff", color: "#334155", height: "42px" }}
                                     >
                                         <option value="Office Purpose">Office Purpose</option>
                                         <option value="Work Purpose">Work Purpose</option>
@@ -428,7 +438,6 @@ export default function Index({ investments = {}, filters = {} }) {
                                 {errors.notes && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.notes}</p>}
                             </div>
 
-                            {/* Modal Footer Control */}
                             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
                                 <button type="button" onClick={() => setShowModal(false)} style={{ background: "#f1f5f9", color: "#334155", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500" }}>Cancel</button>
                                 <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", opacity: processing ? 0.7 : 1 }}>

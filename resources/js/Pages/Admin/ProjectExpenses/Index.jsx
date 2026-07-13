@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link } from '@inertiajs/react'; 
 import Swal from 'sweetalert2'; 
+import axios from 'axios';
 
-export default function Index({ project_expenses = { data: [], links: [] }, projects = [], categories = [], accounts = [], vendors = [], advances = [] }) {
+export default function Index({ project_expenses = { data: [], links: [] }, projects = [], categories = [], accounts = [], vendors = [], advances = [], totals = null, filters = {} }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
@@ -36,6 +37,21 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const [perPage, setPerPage] = useState(() => {
         return Number(new URLSearchParams(window.location.search).get("per_page")) || 10;
     });
+
+    const [projectFilter, setProjectFilter] = useState(() => {
+        return new URLSearchParams(window.location.search).get('project_id') || '';
+    });
+    const [projectFilterSearch, setProjectFilterSearch] = useState("");
+    const [showProjectFilterDropdown, setShowProjectFilterDropdown] = useState(false);
+
+    const [vendorList, setVendorList] = useState(vendors);
+    useEffect(() => {
+        setVendorList(vendors);
+    }, [vendors]);
+
+    const [showAddVendorForm, setShowAddVendorForm] = useState(false);
+    const [newVendor, setNewVendor] = useState({ name: '', company_name: '', phone: '' });
+    const [creatingVendor, setCreatingVendor] = useState(false);
     
     const isFirstRender = useRef(true);
 
@@ -44,7 +60,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         project_id: '',
         expense_category_id: '',
         account_id: '', 
-        advance_user_id: '', // Pooled advance owner (user-level), replaces old advance_id
+        advance_user_id: '', 
         title: '', 
         vendor_id: '', 
         total_bill: '',
@@ -60,6 +76,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         setShowAccountDropdown(false);
         setShowVendorDropdown(false);
         setShowAdvanceDropdown(false);
+        setShowAddVendorForm(false);
     };
 
     // --- Auto Calculate Due & Status in UI ---
@@ -87,6 +104,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
             if (perPage !== 10) params.per_page = perPage;
+            if (projectFilter) params.project_id = projectFilter;
 
             router.get(
                 route('admin.project-expenses.index'), 
@@ -95,7 +113,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             );
         }, 400);
         return () => clearTimeout(delayDebounceFn);
-    }, [searchTerm, perPage]);
+    }, [searchTerm, perPage, projectFilter]);
 
     // --- Export Tools ---
     const expList = project_expenses.data || project_expenses || [];
@@ -175,7 +193,6 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             date: expense.date || '',
             description: expense.description || ''
         });
-        // Auto select the correct payment source tab
         setPaymentType(expense.advance_user_id ? 'advance' : 'account');
         setEditMode(true); 
         closeAllDropdowns();
@@ -240,8 +257,40 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         return { bg: '#fee2e2', text: '#b91c1c' };
     };
 
-    const totalBilled = expList.reduce((sum, item) => sum + parseFloat(item.total_bill || 0), 0);
-    const totalDue = expList.reduce((sum, item) => sum + parseFloat(item.due_amount || 0), 0);
+    const handleCreateVendor = async () => {
+        if (!newVendor.name.trim()) {
+            return Swal.fire("Required", "Vendor name is required.", "warning");
+        }
+        setCreatingVendor(true);
+        try {
+            const res = await axios.post(route('admin.vendors.store'), {
+                name: newVendor.name.trim(),
+                company_name: newVendor.company_name.trim() || null,
+                phone: newVendor.phone.trim() || null,
+            });
+
+            const created = res.data.vendor;
+            setVendorList(prev => [created, ...prev]);
+            setData('vendor_id', created.id);
+            setNewVendor({ name: '', company_name: '', phone: '' });
+            setShowAddVendorForm(false);
+            setShowVendorDropdown(false);
+            setVendorSearch("");
+            Swal.fire({ icon: "success", title: "Vendor Created & Selected!", timer: 1200, showConfirmButton: false });
+        } catch (err) {
+            const message = err.response?.data?.errors
+                ? Object.values(err.response.data.errors).flat().join(' ')
+                : "Could not create vendor.";
+            Swal.fire("Error", message, "error");
+        } finally {
+            setCreatingVendor(false);
+        }
+    };
+
+    const totalBilled = totals ? totals.total_bill : expList.reduce((sum, item) => sum + parseFloat(item.total_bill || 0), 0);
+    const totalPaid = totals ? totals.paid_amount : expList.reduce((sum, item) => sum + parseFloat(item.paid_amount || 0), 0);
+    const totalDue = totals ? totals.due_amount : expList.reduce((sum, item) => sum + parseFloat(item.due_amount || 0), 0);
+    const filteredProjectTitle = projectFilter ? projects.find(p => p.id == projectFilter)?.title : null;
 
     return (
         <AdminLayout>
@@ -252,11 +301,18 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                 <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '15px' }}>
                     <div>
                         <h1 className="page-title" style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Project Accounts Payable</h1>
-                        <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Manage vendor bills and track project costs.</p>
+                        <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>
+                            {filteredProjectTitle
+                                ? <>Showing totals for <strong>{filteredProjectTitle}</strong> only.</>
+                                : "Manage vendor bills and track project costs."}
+                        </p>
                     </div>
-                    <div style={{ display: 'flex', gap: '15px' }}>
+                    <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
                         <div style={{ fontSize: '14px', fontWeight: '600', color: '#15803d', padding: '10px 16px', background: '#dcfce7', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
                             Total Billed: <span style={{ fontSize: '16px' }}>BDT {totalBilled.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#1d4ed8', padding: '10px 16px', background: '#dbeafe', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                            Total Paid: <span style={{ fontSize: '16px' }}>BDT {totalPaid.toLocaleString('en-IN')}</span>
                         </div>
                         <div style={{ fontSize: '14px', fontWeight: '600', color: '#b91c1c', padding: '10px 16px', background: '#fee2e2', borderRadius: '8px', border: '1px solid #fecaca' }}>
                             Total Due: <span style={{ fontSize: '16px' }}>BDT {totalDue.toLocaleString('en-IN')}</span>
@@ -284,6 +340,25 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                 <option value={50}>50 Entries</option>
                                 <option value={100}>100 Entries</option>
                             </select>
+                        </div>
+
+                        <div className="project-filter" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
+                            <i className="fa-solid fa-folder-open" style={{ color: "#3b82f6" }}></i>
+                            <select
+                                value={projectFilter}
+                                onChange={(e) => setProjectFilter(e.target.value)}
+                                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", minWidth: "180px" }}
+                            >
+                                <option value="">All Projects (Total)</option>
+                                {projects.map(p => (
+                                    <option key={p.id} value={p.id}>{p.title}</option>
+                                ))}
+                            </select>
+                            {projectFilter && (
+                                <button type="button" onClick={() => setProjectFilter('')} title="Clear project filter" style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#64748b" }}>
+                                    <i className="fa-solid fa-xmark"></i>
+                                </button>
+                            )}
                         </div>
 
                         <div className="export-buttons" style={{ display: "flex", gap: "8px" }}>
@@ -388,7 +463,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                     <div style={{ background: "#fff", width: "100%", maxWidth: "650px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
                             <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
-                                <i className="fa-regular fa-file-invoice-dollar" style={{ marginRight: "8px", color: "#2563eb" }}></i> Expense Details
+                                <i className="fas fa-file-invoice-dollar"></i> Expense Details
                             </h3>
                             <button type="button" onClick={() => setShowViewModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}><i className="fa-solid fa-xmark"></i></button>
                         </div>
@@ -623,7 +698,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                             <span style={{ color: data.vendor_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
                                                 {data.vendor_id 
                                                     ? (() => {
-                                                        const v = vendors.find(vd => vd.id == data.vendor_id);
+                                                        const v = vendorList.find(vd => vd.id == data.vendor_id);
                                                         return v ? `${v.name} ${v.company_name ? `(${v.company_name})` : ''}` : "Choose Vendor";
                                                     })()
                                                     : "Search & Select Vendor"
@@ -632,22 +707,54 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                             <i className={`fa-solid fa-chevron-${showVendorDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem" }}></i>
                                         </div>
                                         {showVendorDropdown && (
-                                            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", display: "flex", flexDirection: "column" }}>
-                                                <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
-                                                    <input type="text" placeholder="Search vendor..." value={vendorSearch} onChange={(e) => setVendorSearch(e.target.value)} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }} autoFocus />
-                                                </div>
-                                                <div style={{ overflowY: "auto", padding: "4px 0" }}>
-                                                    <div onClick={() => { setData("vendor_id", ""); setShowVendorDropdown(false); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#94a3b8", borderBottom: "1px solid #f1f5f9" }}>
-                                                        -- No Vendor --
+                                            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: showAddVendorForm ? "none" : "200px", display: "flex", flexDirection: "column" }}>
+                                                {!showAddVendorForm && (
+                                                    <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
+                                                        <input type="text" placeholder="Search vendor..." value={vendorSearch} onChange={(e) => setVendorSearch(e.target.value)} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }} autoFocus />
                                                     </div>
-                                                    {vendors.filter(v => v.name?.toLowerCase().includes(vendorSearch.toLowerCase()) || v.company_name?.toLowerCase().includes(vendorSearch.toLowerCase())).length > 0 ? (
-                                                        vendors.filter(v => v.name?.toLowerCase().includes(vendorSearch.toLowerCase()) || v.company_name?.toLowerCase().includes(vendorSearch.toLowerCase())).map(v => (
-                                                            <div key={v.id} onClick={() => { setData("vendor_id", v.id); setShowVendorDropdown(false); setVendorSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.vendor_id == v.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.vendor_id == v.id ? "#f0fdf4" : "transparent"}>
-                                                                {v.name} {v.company_name ? <span style={{ color: "#64748b", fontSize: "0.8rem" }}>({v.company_name})</span> : ''}
+                                                )}
+
+                                                {showAddVendorForm ? (
+                                                    <div style={{ padding: "12px" }}>
+                                                        <div style={{ fontSize: "0.8rem", fontWeight: "600", color: "#334155", marginBottom: "8px" }}>
+                                                            <i className="fa-solid fa-user-plus" style={{ marginRight: "6px", color: "#2563eb" }}></i> New Vendor
+                                                        </div>
+                                                        <input type="text" placeholder="Vendor name *" value={newVendor.name} onChange={(e) => setNewVendor({ ...newVendor, name: e.target.value })} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem", marginBottom: "6px" }} autoFocus />
+                                                        <input type="text" placeholder="Company name (optional)" value={newVendor.company_name} onChange={(e) => setNewVendor({ ...newVendor, company_name: e.target.value })} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem", marginBottom: "6px" }} />
+                                                        <input type="text" placeholder="Phone (optional)" value={newVendor.phone} onChange={(e) => setNewVendor({ ...newVendor, phone: e.target.value })} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem", marginBottom: "10px" }} />
+                                                        <div style={{ display: "flex", gap: "8px" }}>
+                                                            <button type="button" onClick={handleCreateVendor} disabled={creatingVendor} style={{ flex: 1, background: "#2563eb", color: "#fff", border: "none", padding: "7px 10px", borderRadius: "5px", cursor: "pointer", fontSize: "0.8rem", fontWeight: "500", opacity: creatingVendor ? 0.7 : 1 }}>
+                                                                {creatingVendor ? "Saving..." : "Save & Select"}
+                                                            </button>
+                                                            <button type="button" onClick={() => { setShowAddVendorForm(false); setNewVendor({ name: '', company_name: '', phone: '' }); }} style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "7px 10px", borderRadius: "5px", cursor: "pointer", fontSize: "0.8rem" }}>
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <div
+                                                            onClick={() => setShowAddVendorForm(true)}
+                                                            style={{ padding: "9px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#2563eb", fontWeight: "600", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: "6px" }}
+                                                            onMouseEnter={(e) => e.target.style.background = "#eff6ff"}
+                                                            onMouseLeave={(e) => e.target.style.background = "transparent"}
+                                                        >
+                                                            <i className="fa-solid fa-plus"></i> Create New Vendor
+                                                        </div>
+                                                        <div style={{ overflowY: "auto", padding: "4px 0" }}>
+                                                            <div onClick={() => { setData("vendor_id", ""); setShowVendorDropdown(false); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#94a3b8", borderBottom: "1px solid #f1f5f9" }}>
+                                                                -- No Vendor --
                                                             </div>
-                                                        ))
-                                                    ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No vendor found.</div>)}
-                                                </div>
+                                                            {vendorList.filter(v => v.name?.toLowerCase().includes(vendorSearch.toLowerCase()) || v.company_name?.toLowerCase().includes(vendorSearch.toLowerCase())).length > 0 ? (
+                                                                vendorList.filter(v => v.name?.toLowerCase().includes(vendorSearch.toLowerCase()) || v.company_name?.toLowerCase().includes(vendorSearch.toLowerCase())).map(v => (
+                                                                    <div key={v.id} onClick={() => { setData("vendor_id", v.id); setShowVendorDropdown(false); setVendorSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.vendor_id == v.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.vendor_id == v.id ? "#f0fdf4" : "transparent"}>
+                                                                        {v.name} {v.company_name ? <span style={{ color: "#64748b", fontSize: "0.8rem" }}>({v.company_name})</span> : ''}
+                                                                    </div>
+                                                                ))
+                                                            ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No vendor found.</div>)}
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                         )}
                                         {errors.vendor_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.vendor_id}</p>}

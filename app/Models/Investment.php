@@ -9,11 +9,10 @@ class Investment extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'amount',
-        'investor_name',
-        'investment_date',
-        'purpose',
-        'notes',
-    ];
+    protected $guarded = ['id'];
+
+    public function account()
+    {
+        return $this->belongsTo(Account::class);
+    }
 }

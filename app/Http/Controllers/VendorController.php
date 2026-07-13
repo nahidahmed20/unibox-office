@@ -143,7 +143,7 @@ class VendorController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->withErrors(['error' => 'পেমেন্ট সম্পন্ন করতে সমস্যা হয়েছে: ' . $e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => 'পেমেন্ট সম্পন্ন করতে সমস্যা হয়েছে: ' . $e->getMessage()]);
         }
     }
 
@@ -157,7 +157,12 @@ class VendorController extends Controller
             'opening_balance' => 'nullable|numeric',
         ]);
 
-        Vendor::create($validated);
+        $vendor = Vendor::create($validated);
+        if ($request->wantsJson()) {
+            return response()->json([
+                'vendor' => $vendor->only(['id', 'name', 'company_name']),
+            ]);
+        }
 
         return redirect()->back();
     }

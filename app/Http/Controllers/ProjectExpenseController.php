@@ -28,6 +28,16 @@ class ProjectExpenseController extends Controller
             });
         }
 
+        if ($request->filled('project_id')) {
+            $query->where('project_id', $request->project_id);
+        }
+
+        $totals = [
+            'total_bill'  => (float) (clone $query)->sum('total_bill'),
+            'paid_amount' => (float) (clone $query)->sum('paid_amount'),
+            'due_amount'  => (float) (clone $query)->sum('due_amount'),
+        ];
+
         $perPage = $request->input('per_page', 10);
         if ($perPage === 'all') {
             $perPage = $query->count() ?: 10;
@@ -40,7 +50,6 @@ class ProjectExpenseController extends Controller
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->orderBy('name')->get();
         $vendors = Vendor::select('id', 'name', 'company_name')->get();
 
-        // --- Pooled advance balance, user-wise (একই ইউজার বারবার আসবে না) ---
         $advances = AdvanceBalance::with('user:id,name')
             ->get()
             ->filter(fn ($b) => $b->balance > 0.009)
@@ -53,8 +62,10 @@ class ProjectExpenseController extends Controller
             ]);
 
         return Inertia::render('Admin/ProjectExpenses/Index', compact(
-            'project_expenses', 'projects', 'categories', 'accounts', 'vendors', 'advances'
-        ));
+            'project_expenses', 'projects', 'categories', 'accounts', 'vendors', 'advances', 'totals'
+        ) + [
+            'filters' => $request->only(['search', 'project_id', 'per_page']),
+        ]);
     }
 
     public function store(Request $request)
@@ -106,11 +117,9 @@ class ProjectExpenseController extends Controller
                 $sourceChanged = ($oldAccountId != $newAccountId) || ($oldAdvanceUserId != $newAdvanceUserId);
 
                 if ($sourceChanged) {
-                    // সোর্স বদলেছে (account<->advance অথবা ভিন্ন account/ভিন্ন employee) — পুরনোটা পুরো ফেরত, নতুনটা পুরো কাটা
                     $this->refundToSource($oldAccountId, $oldAdvanceUserId, $oldPaid);
                     $this->deductFromSource($newAccountId, $newAdvanceUserId, $newPaid);
                 } else {
-                    // একই সোর্স, শুধু amount কমবেশি হয়েছে
                     $diff = $newPaid - $oldPaid;
                     if ($diff > 0) {
                         $this->deductFromSource($newAccountId, $newAdvanceUserId, $diff);
