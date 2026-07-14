@@ -504,7 +504,7 @@ export default function Index({
 
             {/* CREATE / EDIT MODAL */}
             {showFormModal && (
-                <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
+                <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.5)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
                     <div className="modal-content" style={{ background: "#fff", width: "100%", maxWidth: "800px", maxHeight: "90vh", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)", overflowY: "auto" }}>
                         <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', padding: '18px 24px' }}>
                             <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '700', color: '#0f172a' }}>
@@ -597,7 +597,7 @@ export default function Index({
 
             {/* SHOW / VIEW MODAL */}
             {showViewModal && viewData && (
-                <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60 }}>
+                <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.5)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60 }}>
                     <div className="modal-content" style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)", overflow: "hidden" }}>
                         <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: "#f8fafc", borderBottom: '1px solid #e2e8f0', padding: '16px 24px' }}>
                             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>

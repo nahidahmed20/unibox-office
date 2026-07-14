@@ -18,12 +18,12 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
     const [selectedRecord, setSelectedRecord] = useState(null);
 
     const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get('search') || '');
+    const [filterMonth, setFilterMonth] = useState(() => new URLSearchParams(window.location.search).get('month') || '');
     const [perPage, setPerPage] = useState(() => Number(new URLSearchParams(window.location.search).get("per_page")) || 25);
     const isFirstRender = useRef(true);
 
     const today = new Date();
     const defaultMonthYear = `${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
-
 
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
         id: '', 
@@ -49,7 +49,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
         setData('net_pay', (basic + allow + bns - ded).toFixed(2));
     }, [data.basic_salary, data.allowances, data.bonus, data.deductions]);
 
-    // --- Live Search & Pagination Sync ---
+    // --- Live Search, Filter & Pagination Sync ---
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -58,6 +58,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
         const delayDebounceFn = setTimeout(() => {
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
+            if (filterMonth.trim()) params.month = filterMonth;
             if (perPage !== 25) params.per_page = perPage;
 
             router.get(
@@ -67,9 +68,17 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
             );
         }, 400);
         return () => clearTimeout(delayDebounceFn);
-    }, [searchTerm, perPage]);
+    }, [searchTerm, filterMonth, perPage]);
 
     const recordList = salaries.data || (Array.isArray(salaries) ? salaries : []);
+
+    // Helper to get Account Name
+    const getAccountName = (record) => {
+        if (record?.transactions?.length > 0 && record.transactions[0].account) {
+            return record.transactions[0].account.name;
+        }
+        return "N/A";
+    };
 
     // --- Export Tools ---
     const formatCurrency = (val) => `BDT ${parseFloat(val || 0).toLocaleString('en-IN')}`;
@@ -163,7 +172,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                     </style>
                 </head>
                 <body>
-                    <h2>Company Payroll Ledger</h2>
+                    <h2>Company Payroll Report ${filterMonth ? `(${filterMonth})` : ''}</h2>
                     ${tableContent.outerHTML}
                 </body>
             </html>
@@ -183,6 +192,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
 
     const openEditModal = (sal) => {
         clearErrors(); 
+        const existingAccountId = sal.transactions?.length > 0 ? sal.transactions[0].account_id : '';
         setData({ 
             id: sal.id,
             user_id: sal.user_id || '',
@@ -194,7 +204,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
             net_pay: sal.net_pay || 0,
             status: sal.status || 'unpaid',
             payment_date: sal.payment_date || '',
-            payment_method: sal.payment_method || ''
+            account_id: existingAccountId 
         });
         setEditMode(true); 
         setShowModal(true);
@@ -250,21 +260,12 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
         return { bg: '#fee2e2', color: '#b91c1c', label: 'Unpaid' };
     };
 
-    // React-Select Custom Styles
     const selectStyles = {
         control: (provided, state) => ({
             ...provided, minHeight: "38px", borderRadius: "6px",
             border: state.isFocused ? "1px solid #3b82f6" : "1px solid #cbd5e1",
             boxShadow: state.isFocused ? "0 0 0 1px #3b82f6" : "none",
             "&:hover": { borderColor: "#94a3b8" },
-        }),
-        valueContainer: (provided) => ({ ...provided, padding: "2px 8px" }),
-        placeholder: (provided) => ({ ...provided, color: "#9ca3af", fontSize: "0.875rem" }),
-        singleValue: (provided) => ({ ...provided, color: "#1e293b", fontSize: "0.875rem" }),
-        option: (provided, state) => ({
-            ...provided, fontSize: "0.875rem",
-            backgroundColor: state.isSelected ? "#2563eb" : state.isFocused ? "#eff6ff" : "#fff",
-            color: state.isSelected ? "#fff" : "#1e293b", cursor: "pointer",
         }),
     };
 
@@ -278,13 +279,12 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                 <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '15px' }}>
                     <div>
                         <h1 className="page-title" style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Employee Salaries</h1>
-                        <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Manage payroll records, allowances, and deductions.</p>
+                        <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Manage payroll records, view reports, and process payments.</p>
                     </div>
                 </div>
 
                 <div className="card-container" style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
                     
-                    {/* Card Header */}
                     <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
                         <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-money-check-dollar" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Payroll Records
@@ -294,39 +294,49 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                         </button>
                     </div>
 
-                    {/* Toolbar */}
+                    {/* Toolbar / Filters */}
                     <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
                         <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
                             Show 
-                            <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
+                            <select value={perPage} onChange={(e) => setPerPage(e.target.value)} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
                                 <option value={10}>10 Entries</option>
                                 <option value={25}>25 Entries</option>
                                 <option value={50}>50 Entries</option>
                                 <option value={100}>100 Entries</option>
+                                {/* All Option Added Below */}
+                                <option value={100000}>All</option>
                             </select>
                         </div>
 
                         <div className="export-buttons" style={{ display: "flex", gap: "8px" }}>
-                            <button type="button" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-copy text-blue-500"></i> Copy
-                            </button>
-                            <button type="button" onClick={handleExcel} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-file-excel text-emerald-500"></i> Excel
-                            </button>
-                            <button type="button" onClick={handleCSV} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-file-csv text-teal-500"></i> CSV
-                            </button>
-                            <button type="button" onClick={handlePDF} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-file-pdf text-rose-500"></i> PDF
-                            </button>
-                            <button type="button" onClick={handlePrint} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-print text-slate-500"></i> Print
-                            </button>
+                            <button type="button" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", color: "#475569" }}><i className="fas fa-copy text-blue-500"></i> Copy</button>
+                            <button type="button" onClick={handleExcel} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", color: "#475569" }}><i className="fas fa-file-excel text-emerald-500"></i> Excel</button>
+                            <button type="button" onClick={handleCSV} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", color: "#475569" }}><i className="fas fa-file-csv text-teal-500"></i> CSV</button>
+                            <button type="button" onClick={handlePDF} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", color: "#475569" }}><i className="fas fa-file-pdf text-rose-500"></i> PDF</button>
+                            <button type="button" onClick={handlePrint} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", color: "#475569" }}><i className="fas fa-print text-slate-500"></i> Print</button>
                         </div>
 
-                        <div className="search-box" style={{ position: "relative" }}>
-                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
-                            <input type="text" placeholder="Search month or employee..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "260px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            {/* Monthly Report Filter Added Here */}
+                            <div className="search-box" style={{ position: "relative" }}>
+                                <input 
+                                    type="month" 
+                                    value={filterMonth} 
+                                    onChange={(e) => setFilterMonth(e.target.value)} 
+                                    style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem", color: "#475569" }} 
+                                    title="Filter by Month"
+                                />
+                                {filterMonth && (
+                                    <button onClick={() => setFilterMonth('')} style={{position: 'absolute', right: '5px', top: '9px', background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444'}}>
+                                        <i className="fa-solid fa-times"></i>
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="search-box" style={{ position: "relative" }}>
+                                <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
+                                <input type="text" placeholder="Search employee..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "200px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
+                            </div>
                         </div>
                     </div>
 
@@ -348,6 +358,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                 {recordList.length > 0 ? (
                                     recordList.map((sal, index) => {
                                         const statusStyle = getStatusStyles(sal.status);
+                                        const accName = getAccountName(sal);
                                         return (
                                             <tr key={sal.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
                                                 <td style={{ padding: "16px 24px", color: "#64748b", fontWeight: "500" }}>
@@ -359,13 +370,14 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                                     {formatCurrency(sal.net_pay)}
                                                 </td>
                                                 <td style={{ padding: "16px 24px", textAlign: 'center' }}>
-                                                    <span style={{ 
-                                                        padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "700", textTransform: 'uppercase',
-                                                        background: statusStyle.bg,
-                                                        color: statusStyle.color
-                                                    }}>
+                                                    <span style={{ padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "700", textTransform: 'uppercase', background: statusStyle.bg, color: statusStyle.color }}>
                                                         {statusStyle.label}
                                                     </span>
+                                                    {sal.status === 'paid' && accName !== 'N/A' && (
+                                                        <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '4px', background: '#f1f5f9', padding: '2px', borderRadius: '4px' }}>
+                                                            Via: {accName}
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td style={{ padding: "16px 24px", textAlign: 'center', color: '#64748b', fontStyle: sal.payment_date ? 'normal' : 'italic' }}>
                                                     {sal.payment_date || 'Pending'}
@@ -402,7 +414,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                 {salaries.total > 0 && `Showing ${salaries.from || 0} to ${salaries.to || 0} of ${salaries.total || 0} entries`}
                             </div>
                             {salaries.links && salaries.links.length > 3 && (
-                                <div style={{ display: "flex", gap: "6px" }}>
+                                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                                     {salaries.links.map((link, index) => (
                                         <Link 
                                             key={index} 
@@ -415,7 +427,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                             }} 
                                             preserveState
                                         >
-                                            {link.label.includes("Previous") ? <i className="fa-solid fa-chevron-left"></i> : link.label.includes("Next") ? <i className="fa-solid fa-chevron-right"></i> : link.label.replace("&laquo;", "").replace("&raquo;", "")}
+                                            <span dangerouslySetInnerHTML={{__html: link.label}}></span>
                                         </Link>
                                     ))}
                                 </div>
@@ -427,7 +439,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
 
             {/* --- VIEW DETAILS MODAL --- */}
             {showViewModal && selectedRecord && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
                     <div style={{ background: "#fff", width: "100%", maxWidth: "550px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
                             <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
@@ -477,9 +489,15 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                             </div>
 
                             {selectedRecord.status === 'paid' && (
-                                <div style={{ marginTop: '16px', padding: '12px', background: '#f1f5f9', borderRadius: '6px', fontSize: '0.85rem', color: '#475569', display: 'flex', justifyContent: 'space-between' }}>
-                                    <span><strong>Paid On:</strong> {selectedRecord.payment_date}</span>
-                                    <span><strong>Method:</strong> {selectedRecord.payment_method}</span>
+                                <div style={{ marginTop: '16px', padding: '12px', background: '#f1f5f9', borderRadius: '6px', fontSize: '0.85rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                                        <span><strong>Paid On:</strong></span>
+                                        <span>{selectedRecord.payment_date}</span>
+                                    </div>
+                                    <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                                        <span><strong>Paid From Account:</strong></span>
+                                        <span style={{fontWeight: 'bold', color: '#0f766e'}}>{getAccountName(selectedRecord)}</span>
+                                    </div>
                                 </div>
                             )}
 
@@ -493,7 +511,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
 
             {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
                     <div style={{ background: "#fff", width: "100%", maxWidth: "650px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
                             <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
@@ -555,7 +573,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                     </div>
                                     <div>
                                         <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Payment Status *</label>
-                                        <select value={data.status} onChange={e => setData('status', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", height: "38px", background: "#fff" }} required>
+                                        <select value={data.status} onChange={e => setData('status', e.target.value)} style={{ width: "100%", padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", height: "38px", background: "#fff" }} required>
                                             <option value="unpaid">Unpaid</option>
                                             <option value="paid">Paid</option>
                                         </select>
@@ -598,7 +616,6 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                 {processing ? "Saving..." : (editMode ? "Update Record" : "Save Payroll")}
                             </button>
                         </div>
-
                     </div>
                 </div>
             )}

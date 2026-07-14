@@ -8,27 +8,35 @@ use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class SalaryController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Salary::with('user');
+        $query = Salary::with(['user', 'transactions.account']);
 
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('month_year', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('user', function ($uq) use ($searchTerm) {
-                      $uq->where('name', 'like', "%{$searchTerm}%");
-                  });
+                ->orWhereHas('user', function ($uq) use ($searchTerm) {
+                    $uq->where('name', 'like', "%{$searchTerm}%");
+                });
             });
         }
 
-        $perPage = $request->input('per_page', 10);
+        if ($request->filled('month')) {
+            $parts = explode('-', $request->month);
+            if (count($parts) === 2) {
+                $formattedMonth = $parts[1] . '-' . $parts[0]; 
+                $query->where('month_year', $formattedMonth);
+            }
+        }
+
+        $perPage = $request->input('per_page', 25);
         $salaries = $query->latest()->paginate($perPage)->withQueryString();
+        
         $users = User::select('id', 'name')->orderBy('name')->get();
         $accounts = Account::where('is_active', true)->get();
 
@@ -92,7 +100,6 @@ class SalaryController extends Controller
         $validated['net_pay'] = $validated['basic_salary'] + ($validated['allowances'] ?? 0) + ($validated['bonus'] ?? 0) - ($validated['deductions'] ?? 0);
 
         DB::transaction(function () use ($salary, $validated, $request) {
-            
             if ($salary->status === 'unpaid' && $validated['status'] === 'paid') {
                 $account = Account::findOrFail($request->account_id);
                 $account->decrement('current_balance', $validated['net_pay']);
@@ -115,7 +122,6 @@ class SalaryController extends Controller
                 if ($diff != 0) {
                     $lastTransaction = $salary->transactions()->latest()->first();
                     $account = Account::find($lastTransaction->account_id);
-                    
                     $account->decrement('current_balance', $diff);
                     $lastTransaction->update(['amount' => $validated['net_pay']]);
                 }

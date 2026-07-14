@@ -4,7 +4,11 @@ import { useForm, Head, router, Link } from "@inertiajs/react";
 import Swal from "sweetalert2";
 import Select from "react-select";
 
-// advances প্রপস যুক্ত করা হলো
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
 export default function Index({ expenses = { data: [], links: [] }, categories = [], accounts = [], advances = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
@@ -16,25 +20,22 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
     // Payment Source Type Toggle (Account or Advance)
     const [paymentType, setPaymentType] = useState('account');
 
+    // Filter States
     const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get("search") || "");
-    const [perPage, setPerPage] = useState(() => Number(new URLSearchParams(window.location.search).get("per_page")) || 10);
+    const [perPage, setPerPage] = useState(() => new URLSearchParams(window.location.search).get("per_page") || "10");
+    
+    // New Date Filter States
+    const [dateFilter, setDateFilter] = useState(() => new URLSearchParams(window.location.search).get("date_filter") || "all");
+    const [startDate, setStartDate] = useState(() => new URLSearchParams(window.location.search).get("start_date") || "");
+    const [endDate, setEndDate] = useState(() => new URLSearchParams(window.location.search).get("end_date") || "");
 
     const isFirstRender = useRef(true);
 
     const { data, setData, post, delete: destroy, reset, processing, errors, clearErrors } = useForm({
-        id: "",
-        title: "",
-        expense_category_id: "",
-        account_id: "",
-        advance_id: "", // নতুন ফিল্ড
-        amount: "",
-        date: "",
-        description: "",
-        attachment: null,
-        _method: "post",
+        id: "", title: "", expense_category_id: "", account_id: "", advance_id: "", amount: "", date: "", description: "", attachment: null, _method: "post",
     });
 
-    // --- Live Search & Pagination ---
+    // --- Live Search, Filters & Pagination ---
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -43,7 +44,15 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
         const delay = setTimeout(() => {
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
-            if (perPage !== 10) params.per_page = perPage;
+            if (perPage !== "10") params.per_page = perPage;
+            
+            if (dateFilter !== "all") {
+                params.date_filter = dateFilter;
+                if (dateFilter === "custom") {
+                    if (startDate) params.start_date = startDate;
+                    if (endDate) params.end_date = endDate;
+                }
+            }
 
             router.get(route("admin.expenses.index"), params, {
                 preserveState: true,
@@ -52,16 +61,14 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
         }, 400);
 
         return () => clearTimeout(delay);
-    }, [searchTerm, perPage]);
+    }, [searchTerm, perPage, dateFilter, startDate, endDate]);
 
-    // --- Export Tools ---
     const expList = expenses.data || [];
 
+    // --- Export Tools ---
     const handleCopy = () => {
         if (!expList.length) return Swal.fire("Empty!", "No data to copy", "warning");
-        const text = expList
-            .map((e) => `${e.date}\t${e.title}\t${e.category?.name || "N/A"}\t${e.account_id ? e.account?.name : (e.advance_id ? 'Advance' : 'N/A')}\t${e.amount}`)
-            .join("\n");
+        const text = expList.map((e) => `${e.date}\t${e.title}\t${e.category?.name || "N/A"}\t${e.account_id ? e.account?.name : (e.advance_id ? 'Advance' : 'N/A')}\t${e.amount}`).join("\n");
         navigator.clipboard.writeText(text);
         Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false });
     };
@@ -72,25 +79,30 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
         const rows = expList.map(e => `"${e.date}","${e.title}","${e.category?.name || ''}","${e.account_id ? e.account?.name : (e.advance_id ? 'Advance' : '')}","${e.amount}","${e.description || ''}"`);
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `Office_Expenses_${new Date().toISOString().slice(0, 10)}.csv`);
-        link.click();
+        const link = document.createElement("a"); link.href = url; link.setAttribute("download", `Office_Expenses_${new Date().toISOString().slice(0, 10)}.csv`); link.click();
     };
 
     const handlePrint = () => {
         const tableContent = document.getElementById("printable-table");
         if (!tableContent) return;
 
+        // Generate Report Title based on filter
+        let reportTime = "All Time";
+        if (dateFilter === 'today') reportTime = "Today's";
+        else if (dateFilter === 'this_week') reportTime = "This Week's";
+        else if (dateFilter === 'this_month') reportTime = "This Month's";
+        else if (dateFilter === 'this_year') reportTime = "This Year's";
+        else if (dateFilter === 'custom') reportTime = `From ${startDate || '?'} to ${endDate || '?'}`;
+
         const printWindow = window.open('', '_blank', `width=${window.screen.width},height=${window.screen.height},top=0,left=0`);
-        
         printWindow.document.write(`
             <html>
                 <head>
                     <title>Office Expenses Report</title>
                     <style>
                         body { font-family: Arial, sans-serif; padding: 20px; color: #334155; }
-                        h2 { text-align: center; color: #1e293b; margin-bottom: 20px; }
+                        h2 { text-align: center; color: #1e293b; margin-bottom: 5px; }
+                        p { text-align: center; color: #64748b; margin-bottom: 20px; font-size: 14px; }
                         table { width: 100%; border-collapse: collapse; text-align: left; }
                         th, td { padding: 12px; border: 1px solid #cbd5e1; font-size: 13px; }
                         th { background-color: #f1f5f9; font-weight: 600; text-transform: uppercase; }
@@ -99,114 +111,60 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                 </head>
                 <body>
                     <h2>Office Expenses Report</h2>
+                    <p>Report Period: <b>${reportTime}</b></p>
                     ${tableContent.outerHTML}
                 </body>
             </html>
         `);
-        
-        printWindow.document.close();
-        printWindow.focus();
+        printWindow.document.close(); printWindow.focus();
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
     };
 
     // --- Modals & Actions ---
     const openCreateModal = () => {
-        reset();
-        clearErrors();
-        setData("_method", "post");
-        setPaymentType('account'); // Default Payment Source
-        setEditMode(false);
-        setShowModal(true);
+        reset(); clearErrors(); setData("_method", "post"); setPaymentType('account'); setEditMode(false); setShowModal(true);
     };
 
     const openEditModal = (expense) => {
         clearErrors();
         setData({
-            id: expense.id,
-            title: expense.title || "",
-            expense_category_id: expense.expense_category_id || "",
-            account_id: expense.account_id || "",
-            advance_id: expense.advance_id || "",
-            amount: expense.amount || "",
-            date: expense.date || "",
-            description: expense.description || "",
-            attachment: null, 
-            _method: "put", 
+            id: expense.id, title: expense.title || "", expense_category_id: expense.expense_category_id || "",
+            account_id: expense.account_id || "", advance_id: expense.advance_id || "", amount: expense.amount || "",
+            date: expense.date || "", description: expense.description || "", attachment: null, _method: "put", 
         });
-        setPaymentType(expense.advance_id ? 'advance' : 'account'); // Set correct toggle
-        setEditMode(true);
-        setShowModal(true);
+        setPaymentType(expense.advance_id ? 'advance' : 'account'); setEditMode(true); setShowModal(true);
     };
 
-    const openViewModal = (expense) => {
-        setSelectedExpense(expense);
-        setShowViewModal(true);
-    };
+    const openViewModal = (expense) => { setSelectedExpense(expense); setShowViewModal(true); };
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        if (!data.account_id && !data.advance_id) return Swal.fire("Required", "Please select a Payment Source.", "warning");
 
-        // Custom validation for source
-        if (!data.account_id && !data.advance_id) {
-            return Swal.fire("Required", "Please select a Payment Source (Account or Advance).", "warning");
-        }
-
-        post(
-            editMode ? route("admin.expenses.update", data.id) : route("admin.expenses.store"),
-            {
-                onSuccess: () => {
-                    reset();
-                    setShowModal(false);
-                    Swal.fire({
-                        icon: "success",
-                        title: editMode ? "Updated Successfully!" : "Logged Successfully!",
-                        timer: 1500,
-                        showConfirmButton: false,
-                    });
-                },
-                forceFormData: true, 
-            }
-        );
+        post(editMode ? route("admin.expenses.update", data.id) : route("admin.expenses.store"), {
+            onSuccess: () => {
+                reset(); setShowModal(false);
+                Swal.fire({ icon: "success", title: editMode ? "Updated Successfully!" : "Logged Successfully!", timer: 1500, showConfirmButton: false });
+            },
+            forceFormData: true, 
+        });
     };
 
     const handleDelete = (id) => {
         Swal.fire({
-            title: "Delete Expense?",
-            text: "This will restore the amount to your account or advance balance.",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#ef4444",
-            cancelButtonColor: "#6b7280",
-            confirmButtonText: "Yes, Delete It",
+            title: "Delete Expense?", text: "This will restore the amount to your account or advance balance.", icon: "warning",
+            showCancelButton: true, confirmButtonColor: "#ef4444", cancelButtonColor: "#6b7280", confirmButtonText: "Yes, Delete It",
         }).then((res) => {
-            if (res.isConfirmed) {
-                destroy(route("admin.expenses.destroy", id), {
-                    preserveScroll: true,
-                    onSuccess: () => Swal.fire({ icon: "success", title: "Deleted!", text: "Expense removed and balance restored.", timer: 1500, showConfirmButton: false })
-                });
-            }
+            if (res.isConfirmed) destroy(route("admin.expenses.destroy", id), { preserveScroll: true, onSuccess: () => Swal.fire({ icon: "success", title: "Deleted!", timer: 1500, showConfirmButton: false }) });
         });
     };
 
-    // React-Select Custom Styles
     const selectStyles = {
-        control: (provided, state) => ({
-            ...provided, minHeight: "38px", borderRadius: "6px",
-            border: state.isFocused ? "1px solid #3b82f6" : "1px solid #cbd5e1",
-            boxShadow: state.isFocused ? "0 0 0 1px #3b82f6" : "none",
-            "&:hover": { borderColor: "#94a3b8" },
-        }),
-        valueContainer: (provided) => ({ ...provided, padding: "2px 8px" }),
-        placeholder: (provided) => ({ ...provided, color: "#9ca3af", fontSize: "0.875rem" }),
-        singleValue: (provided) => ({ ...provided, color: "#1e293b", fontSize: "0.875rem" }),
-        option: (provided, state) => ({
-            ...provided, fontSize: "0.875rem",
-            backgroundColor: state.isSelected ? "#2563eb" : state.isFocused ? "#eff6ff" : "#fff",
-            color: state.isSelected ? "#fff" : "#1e293b", cursor: "pointer",
-        }),
+        control: (provided, state) => ({ ...provided, minHeight: "38px", borderRadius: "6px", border: state.isFocused ? "1px solid #3b82f6" : "1px solid #cbd5e1", boxShadow: state.isFocused ? "0 0 0 1px #3b82f6" : "none", "&:hover": { borderColor: "#94a3b8" } }),
+        valueContainer: (provided) => ({ ...provided, padding: "2px 8px" }), placeholder: (provided) => ({ ...provided, color: "#9ca3af", fontSize: "0.875rem" }), singleValue: (provided) => ({ ...provided, color: "#1e293b", fontSize: "0.875rem" }),
+        option: (provided, state) => ({ ...provided, fontSize: "0.875rem", backgroundColor: state.isSelected ? "#2563eb" : state.isFocused ? "#eff6ff" : "#fff", color: state.isSelected ? "#fff" : "#1e293b", cursor: "pointer" }),
     };
 
-    // --- Advance dropdown options (built once, reused for options + selected value) ---
     const advanceOptions = advances.map((a) => {
         const rem = parseFloat(a.amount) - (parseFloat(a.settled_amount) + parseFloat(a.returned_amount));
         return { value: a.id, label: `${a.user?.name || 'Unknown'} (Rem: TK. ${rem})` };
@@ -216,7 +174,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
         <AdminLayout>
             <Head title="Office Expenses" />
 
-            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc" }}>
+            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc", minHeight: "100vh" }}>
                 
                 {/* Header */}
                 <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
@@ -228,7 +186,6 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
 
                 <div className="card-container" style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
                     
-                    {/* Card Header */}
                     <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
                         <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-receipt" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Expense List
@@ -238,34 +195,63 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                         </button>
                     </div>
 
-                    {/* Toolbar */}
+                    {/* Toolbar & Filters */}
                     <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
-                        <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                            Show 
-                            <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
-                                <option value={10}>10 Entries</option>
-                                <option value={25}>25 Entries</option>
-                                <option value={50}>50 Entries</option>
-                                <option value={100}>100 Entries</option>
-                            </select>
+                        
+                        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                            <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
+                                Show 
+                                <select value={perPage} onChange={(e) => setPerPage(e.target.value)} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", outline: "none" }}>
+                                    <option value="10">10</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                    <option value="all">All</option>
+                                </select>
+                            </div>
+
+                            <div className="export-buttons" style={{ display: "flex", gap: "8px", borderLeft: "1px solid #e2e8f0", paddingLeft: "12px" }}>
+                                <button type="button" onClick={handleExportCSV} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
+                                    <i className="fas fa-file-csv text-teal-500"></i> CSV
+                                </button>
+                                <button type="button" onClick={handlePrint} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
+                                    <i className="fas fa-print text-slate-500"></i> Print Report
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="export-buttons" style={{ display: "flex", gap: "8px" }}>
-                            <button type="button" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-copy text-blue-500"></i> Copy
-                            </button>
-                            <button type="button" onClick={handleExportCSV} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-file-excel text-emerald-500"></i> CSV
-                            </button>
-                            <button type="button" onClick={handlePrint} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-print text-slate-500"></i> Print
-                            </button>
+                        <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+                            {/* --- NEW DATE FILTER DROPDOWN --- */}
+                            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                <select 
+                                    value={dateFilter} 
+                                    onChange={(e) => { setDateFilter(e.target.value); if(e.target.value !== 'custom') { setStartDate(''); setEndDate(''); } }} 
+                                    style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem", color: "#334155", background: "#fff" }}
+                                >
+                                    <option value="all">All Time</option>
+                                    <option value="today">Today</option>
+                                    <option value="this_week">This Week</option>
+                                    <option value="this_month">This Month</option>
+                                    <option value="this_year">This Year</option>
+                                    <option value="custom">Custom Range</option>
+                                </select>
+
+                                {/* Custom Date Inputs */}
+                                {dateFilter === "custom" && (
+                                    <div style={{ display: "flex", gap: "6px" }}>
+                                        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ padding: "7px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.8rem" }} />
+                                        <span style={{ color: "#94a3b8", alignSelf: "center" }}>to</span>
+                                        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ padding: "7px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.8rem" }} />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Search Box */}
+                            <div className="search-box" style={{ position: "relative" }}>
+                                <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
+                                <input type="text" placeholder="Search expenses..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "220px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
+                            </div>
                         </div>
 
-                        <div className="search-box" style={{ position: "relative" }}>
-                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
-                            <input type="text" placeholder="Search expenses..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "260px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
-                        </div>
                     </div>
 
                     {/* Table */}
@@ -322,7 +308,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="6" style={{ textAlign: "center", padding: "32px", color: "#94a3b8" }}>No expenses found.</td>
+                                        <td colSpan="6" style={{ textAlign: "center", padding: "32px", color: "#94a3b8" }}>No expenses found for this period.</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -349,7 +335,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                                             }} 
                                             preserveState
                                         >
-                                            {link.label.includes("Previous") ? <i className="fa-solid fa-chevron-left"></i> : link.label.includes("Next") ? <i className="fa-solid fa-chevron-right"></i> : link.label.replace("&laquo;", "").replace("&raquo;", "")}
+                                            <span dangerouslySetInnerHTML={{__html: link.label}}></span>
                                         </Link>
                                     ))}
                                 </div>
@@ -361,7 +347,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
 
             {/* --- VIEW DETAILS MODAL --- */}
             {showViewModal && selectedExpense && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
                     <div style={{ background: "#fff", width: "100%", maxWidth: "550px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
                             <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
@@ -429,7 +415,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
 
             {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
                     <div style={{ background: "#fff", width: "100%", maxWidth: "650px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden", maxHeight: "95vh", display: "flex", flexDirection: "column" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
                             <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>

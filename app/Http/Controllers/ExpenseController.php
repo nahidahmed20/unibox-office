@@ -3,11 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\Expense;
-use App\Models\ExpenseCategory;
 use App\Models\Account;
 use App\Models\Advance;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
 use App\Models\Transaction;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -19,23 +20,41 @@ class ExpenseController extends Controller
     {
         $query = Expense::with(['category', 'account', 'logger']);
 
-        // Search Logic
+        // --- Search Logic ---
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('title', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('category', function ($cq) use ($searchTerm) {
-                      $cq->where('name', 'like', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('account', function ($aq) use ($searchTerm) {
-                      $aq->where('name', 'like', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('logger', function ($lq) use ($searchTerm) {
-                      $lq->where('name', 'like', "%{$searchTerm}%");
-                  });
+                ->orWhereHas('category', function ($cq) use ($searchTerm) {
+                    $cq->where('name', 'like', "%{$searchTerm}%");
+                })
+                ->orWhereHas('account', function ($aq) use ($searchTerm) {
+                    $aq->where('name', 'like', "%{$searchTerm}%");
+                })
+                ->orWhereHas('logger', function ($lq) use ($searchTerm) {
+                    $lq->where('name', 'like', "%{$searchTerm}%");
+                });
             });
         }
 
+        // --- Date Filter Logic ---
+        if ($request->filled('date_filter')) {
+            $filter = $request->date_filter;
+            
+            if ($filter === 'today') {
+                $query->whereDate('date', Carbon::today());
+            } elseif ($filter === 'this_week') {
+                $query->whereBetween('date', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
+            } elseif ($filter === 'this_month') {
+                $query->whereMonth('date', Carbon::now()->month)->whereYear('date', Carbon::now()->year);
+            } elseif ($filter === 'this_year') {
+                $query->whereYear('date', Carbon::now()->year);
+            } elseif ($filter === 'custom' && $request->filled('start_date') && $request->filled('end_date')) {
+                $query->whereBetween('date', [$request->start_date, $request->end_date]);
+            }
+        }
+
+        // --- Pagination Logic ---
         $perPage = $request->input('per_page', 10);
         if ($perPage === 'all') {
             $perPage = $query->count() ?: 10;
@@ -43,14 +62,13 @@ class ExpenseController extends Controller
 
         $expenses = $query->latest()->paginate($perPage)->withQueryString();
 
-        // Dropdown Data
+        // --- Dropdown Data ---
         $categories = ExpenseCategory::select('id', 'name')->orderBy('name')->get();
 
         $accounts = Account::where('is_active', true)
             ->select('id', 'name', 'current_balance')
             ->orderBy('name')->get();
 
-        // NOTE: Advance no longer has a `given_to` column — it's tied to a user via `user_id`.
         $advances = Advance::with('user:id,name')
             ->where('status', 'unsettled')
             ->select('id', 'user_id', 'amount', 'settled_amount', 'returned_amount')
@@ -59,14 +77,13 @@ class ExpenseController extends Controller
             ->values();
 
         return Inertia::render('Admin/Expenses/Index', [
-            'expenses' => $expenses,
+            'expenses'   => $expenses,
             'categories' => $categories,
-            'accounts' => $accounts,
-            'advances' => $advances,
-            'filters' => $request->only('search', 'per_page'),
+            'accounts'   => $accounts,
+            'advances'   => $advances,
+            'filters'    => $request->only('search', 'per_page', 'date_filter', 'start_date', 'end_date'),
         ]);
     }
-
     public function store(Request $request)
     {
         $validated = $request->validate([

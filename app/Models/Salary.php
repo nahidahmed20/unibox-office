@@ -10,6 +10,6 @@ class Salary extends Model {
 
     public function transactions()
     {
-        return $this->morphMany(\App\Models\Transaction::class, 'transactionable');
+        return $this->morphMany(Transaction::class, 'transactionable');
     }
 }
