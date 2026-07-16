@@ -11,7 +11,6 @@ use Inertia\Inertia;
 
 class AccountController extends Controller
 {
-    
     public function index(Request $request)
     {
         $query = Account::query();
@@ -21,8 +20,8 @@ class AccountController extends Controller
 
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                ->orWhere('account_number', 'like', "%{$search}%")
-                ->orWhere('type', 'like', "%{$search}%");
+                  ->orWhere('account_number', 'like', "%{$search}%")
+                  ->orWhere('type', 'like', "%{$search}%");
             });
         }
 
@@ -78,10 +77,46 @@ class AccountController extends Controller
             'name' => 'required|string|max:255',
             'type' => 'required|in:cash,bank,mobile_banking',
             'account_number' => 'nullable|string|max:100',
+            'opening_balance' => 'nullable|numeric|min:0', 
             'is_active' => 'required|boolean',
         ]);
 
-        $account->update($validated);
+        DB::transaction(function () use ($request, $account, &$validated) {
+            if (auth()->user()->hasAnyRole(['Super Admin', 'super-admin']) && isset($validated['opening_balance'])) {
+                $newOpeningBalance = $validated['opening_balance'];
+
+                if ($newOpeningBalance != $account->opening_balance) {
+                    
+                    $difference = $newOpeningBalance - $account->opening_balance;
+                    
+                    $transaction = Transaction::where('account_id', $account->id)
+                        ->where('description', 'Opening Balance')
+                        ->first();
+
+                    if ($transaction) {
+                        if ($newOpeningBalance > 0) {
+                            $transaction->update(['amount' => $newOpeningBalance]);
+                        } else {
+                            $transaction->delete(); 
+                        }
+                    } elseif ($newOpeningBalance > 0) {
+                        Transaction::create([
+                            'account_id' => $account->id,
+                            'type' => 'credit',
+                            'amount' => $newOpeningBalance,
+                            'transaction_date' => $account->created_at->toDateString(),
+                            'description' => 'Opening Balance',
+                        ]);
+                    }
+
+                    $validated['current_balance'] = $account->current_balance + $difference;
+                }
+            } else {
+                unset($validated['opening_balance']);
+            }
+
+            $account->update($validated);
+        });
 
         return back()->with('success', 'Account updated successfully.');
     }

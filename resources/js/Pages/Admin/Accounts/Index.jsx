@@ -1,9 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react'; 
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router, Link } from '@inertiajs/react'; 
+import { useForm, Head, router, Link, usePage } from '@inertiajs/react'; 
 import Swal from 'sweetalert2'; 
 
 export default function Index({ accounts = { data: [], links: [] }, totalBalance }) {
+    // 1. Inertia props থেকে auth ডেটা নিচ্ছি
+    const { auth } = usePage().props;
+    
+    // 2. Spatie Role Check: ইউজারের রোলের মধ্যে 'Super Admin' আছে কিনা চেক করা হচ্ছে
+    // (আপনার ডেটাবেজে যদি 'super-admin' বা ছোট হাতের থাকে, তবে সেভাবে নাম পরিবর্তন করে নেবেন)
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
@@ -178,9 +185,12 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
                         <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-vault" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Account List
                         </div>
-                        <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
-                            <i className="fa-solid fa-plus"></i> Add Account
-                        </button>
+                        {/* 3. শুধুমাত্র Super Admin "Add Account" বাটনটি দেখতে পাবে */}
+                        {isSuperAdmin && (
+                            <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
+                                <i className="fa-solid fa-plus"></i> Add Account
+                            </button>
+                        )}
                     </div>
 
                     {/* Toolbar */}
@@ -225,7 +235,11 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>OPENING BAL.</th>
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>CURRENT BAL.</th>
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>STATUS</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>ACTIONS</th>
+                                    
+                                    {/* 4. শুধুমাত্র Super Admin 'ACTIONS' কলামটি দেখতে পাবে */}
+                                    {isSuperAdmin && (
+                                        <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>ACTIONS</th>
+                                    )}
                                 </tr>
                             </thead>
                             <tbody style={{ color: "#334155", fontSize: "0.915rem" }}>
@@ -257,21 +271,28 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
                                                     {acc.is_active ? '● Active' : '● Inactive'}
                                                 </span>
                                             </td>
-                                            <td style={{ padding: "16px 24px", textAlign: "center" }}>
-                                                <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
-                                                    <button onClick={() => openEditModal(acc)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit">
-                                                        <i className="fa-regular fa-pen-to-square"></i>
-                                                    </button>
-                                                    <button onClick={() => handleDelete(acc.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
-                                                        <i className="fa-regular fa-trash-can"></i>
-                                                    </button>
-                                                </div>
-                                            </td>
+                                            
+                                            {/* 5. শুধুমাত্র Super Admin Edit/Delete অ্যাকশন করতে পারবে */}
+                                            {isSuperAdmin && (
+                                                <td style={{ padding: "16px 24px", textAlign: "center" }}>
+                                                    <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                        <button onClick={() => openEditModal(acc)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit">
+                                                            <i className="fa-regular fa-pen-to-square"></i>
+                                                        </button>
+                                                        <button onClick={() => handleDelete(acc.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
+                                                            <i className="fa-regular fa-trash-can"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No accounts found.</td>
+                                        {/* isSuperAdmin এর উপর ভিত্তি করে colSpan ডাইনামিক করা হলো */}
+                                        <td colSpan={isSuperAdmin ? "8" : "7"} style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>
+                                            No accounts found.
+                                        </td>
                                     </tr>
                                 )}
                             </tbody>
@@ -308,7 +329,7 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
                             )}
                         </div>
 
-                        {/* Showing Info (If Pagination exists) */}
+                        {/* Showing Info */}
                         {accounts.total > 0 && (
                             <div style={{ color: "#64748b", fontSize: "0.875rem", marginTop: "12px", textAlign: "right" }}>
                                 Showing {accounts.from || 0} to {accounts.to || 0} of {accounts.total || 0} entries
@@ -319,7 +340,8 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
             </div>
 
             {/* --- CREATE / EDIT FORM MODAL --- */}
-            {showModal && (
+            {/* Modal টি শুধুমাত্র তখনই ওপেন হবে যদি ইউজারের কাছে এক্সেস থাকে */}
+            {showModal && isSuperAdmin && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
                     <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
@@ -354,8 +376,28 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                                 <div>
                                     <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Opening Balance</label>
-                                    <input type="number" step="0.01" value={data.opening_balance} onChange={e => setData('opening_balance', e.target.value)} disabled={editMode} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", background: editMode ? "#f1f5f9" : "#fff" }} placeholder="0.00" />
-                                    {editMode && <p style={{ fontSize: "0.7rem", color: "#94a3b8", marginTop: "4px" }}>Opening balance cannot be edited later.</p>}
+                                    <input 
+                                        type="number" 
+                                        step="0.01" 
+                                        value={data.opening_balance} 
+                                        onChange={e => setData('opening_balance', e.target.value)} 
+                                        disabled={editMode && !isSuperAdmin} 
+                                        style={{ 
+                                            width: "100%", 
+                                            padding: "8px 12px", 
+                                            borderRadius: "6px", 
+                                            border: "1px solid #cbd5e1", 
+                                            outline: "none", 
+                                            background: (editMode && !isSuperAdmin) ? "#f1f5f9" : "#fff" 
+                                        }} 
+                                        placeholder="0.00" 
+                                    />
+
+                                    {editMode && !isSuperAdmin && (
+                                        <p style={{ fontSize: "0.7rem", color: "#94a3b8", marginTop: "4px" }}>
+                                            Opening balance cannot be edited by your role.
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Status</label>

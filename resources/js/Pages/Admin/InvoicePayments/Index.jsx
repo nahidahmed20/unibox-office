@@ -650,7 +650,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
 
             {/* DETAILS MODAL */}
             {showDetailsModal && selectedPayment && (
-                <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", b display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
+                <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
                     <div className="modal-content" style={{ background: "#fff", width: "100%", maxWidth: "480px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)", overflow: "hidden" }}>
                         <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', padding: '18px 24px' }}>
                             <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '700', color: '#0f172a' }}>📄 Payment Receipt</h3>

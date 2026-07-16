@@ -7,7 +7,6 @@ use App\Models\Account;
 use App\Models\Advance;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
-use App\Models\Transaction;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -50,9 +49,18 @@ class ExpenseController extends Controller
             } elseif ($filter === 'this_year') {
                 $query->whereYear('date', Carbon::now()->year);
             } elseif ($filter === 'custom' && $request->filled('start_date') && $request->filled('end_date')) {
-                $query->whereBetween('date', [$request->start_date, $request->end_date]);
+                $query->whereBetween('date', [
+                    $request->start_date . ' 00:00:00', 
+                    $request->end_date . ' 23:59:59'
+                ]);
             }
         }
+
+        $thisMonthTotal = Expense::whereMonth('date', Carbon::now()->month)
+                                 ->whereYear('date', Carbon::now()->year)
+                                 ->sum('amount');
+
+        $totalAmount = (clone $query)->sum('amount');
 
         // --- Pagination Logic ---
         $perPage = $request->input('per_page', 10);
@@ -64,26 +72,20 @@ class ExpenseController extends Controller
 
         // --- Dropdown Data ---
         $categories = ExpenseCategory::select('id', 'name')->orderBy('name')->get();
-
-        $accounts = Account::where('is_active', true)
-            ->select('id', 'name', 'current_balance')
-            ->orderBy('name')->get();
-
-        $advances = Advance::with('user:id,name')
-            ->where('status', 'unsettled')
-            ->select('id', 'user_id', 'amount', 'settled_amount', 'returned_amount')
-            ->get()
-            ->sortBy('user.name')
-            ->values();
+        $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->orderBy('name')->get();
+        $advances = Advance::with('user:id,name')->where('status', 'unsettled')->select('id', 'user_id', 'amount', 'settled_amount', 'returned_amount')->get()->sortBy('user.name')->values();
 
         return Inertia::render('Admin/Expenses/Index', [
-            'expenses'   => $expenses,
-            'categories' => $categories,
-            'accounts'   => $accounts,
-            'advances'   => $advances,
-            'filters'    => $request->only('search', 'per_page', 'date_filter', 'start_date', 'end_date'),
+            'expenses'       => $expenses,
+            'totalAmount'    => $totalAmount,
+            'thisMonthTotal' => $thisMonthTotal, 
+            'categories'     => $categories,
+            'accounts'       => $accounts,
+            'advances'       => $advances,
+            'filters'        => $request->only('search', 'per_page', 'date_filter', 'start_date', 'end_date'),
         ]);
     }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -105,14 +107,14 @@ class ExpenseController extends Controller
             $validated['attachment'] = $request->file('attachment')->store('expenses', 'public');
         }
 
-        $validated['user_id'] = auth()->id();
+        // 🟢 FIXED: Changed 'user_id' to 'logged_by' to match your database schema
+        $validated['logged_by'] = auth()->id();
 
         try {
             DB::transaction(function () use ($validated) {
                 $advance = null;
                 $account = null;
 
-                // Validate the payment source BEFORE writing anything
                 if (!empty($validated['advance_id'])) {
                     $advance = Advance::findOrFail($validated['advance_id']);
                     $availableDue = $advance->amount - $advance->settled_amount - $advance->returned_amount;
@@ -151,7 +153,6 @@ class ExpenseController extends Controller
 
             return back()->with('success', 'Expense logged successfully.');
         } catch (\Exception $e) {
-            // Clean up the uploaded file since the transaction never went through
             if (!empty($validated['attachment'])) {
                 Storage::disk('public')->delete($validated['attachment']);
             }
@@ -184,12 +185,14 @@ class ExpenseController extends Controller
         if ($request->hasFile('attachment')) {
             $newAttachmentPath = $request->file('attachment')->store('expenses', 'public');
             $validated['attachment'] = $newAttachmentPath;
+        } else {
+            unset($validated['attachment']);
         }
 
         try {
             DB::transaction(function () use ($validated, $expense) {
 
-                // Step 1: reverse whatever the old payment did
+                // Step 1: Reverse old payment
                 if ($expense->advance_id) {
                     $oldAdvance = Advance::find($expense->advance_id);
                     if ($oldAdvance) {
@@ -209,7 +212,7 @@ class ExpenseController extends Controller
                     }
                 }
 
-                // Step 2: validate and apply the new payment
+                // Step 2: Apply new payment
                 if (!empty($validated['advance_id'])) {
                     $newAdvance = Advance::findOrFail($validated['advance_id']);
                     $availableDue = $newAdvance->amount - $newAdvance->settled_amount - $newAdvance->returned_amount;
@@ -247,14 +250,12 @@ class ExpenseController extends Controller
                 $expense->update($validated);
             });
 
-            // Only remove the old file once the new record has actually saved
             if ($newAttachmentPath && $oldAttachment) {
                 Storage::disk('public')->delete($oldAttachment);
             }
 
             return back()->with('success', 'Expense updated successfully.');
         } catch (\Exception $e) {
-            // Roll back the newly uploaded file since the transaction never went through
             if ($newAttachmentPath) {
                 Storage::disk('public')->delete($newAttachmentPath);
             }

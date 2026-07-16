@@ -4,12 +4,7 @@ import { useForm, Head, router, Link } from "@inertiajs/react";
 import Swal from "sweetalert2";
 import Select from "react-select";
 
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-
-export default function Index({ expenses = { data: [], links: [] }, categories = [], accounts = [], advances = [] }) {
+export default function Index({ expenses = { data: [], links: [] }, totalAmount = 0, thisMonthTotal = 0, categories = [], accounts = [], advances = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
 
@@ -24,7 +19,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
     const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get("search") || "");
     const [perPage, setPerPage] = useState(() => new URLSearchParams(window.location.search).get("per_page") || "10");
     
-    // New Date Filter States
+    // Date Filter States
     const [dateFilter, setDateFilter] = useState(() => new URLSearchParams(window.location.search).get("date_filter") || "all");
     const [startDate, setStartDate] = useState(() => new URLSearchParams(window.location.search).get("start_date") || "");
     const [endDate, setEndDate] = useState(() => new URLSearchParams(window.location.search).get("end_date") || "");
@@ -63,20 +58,26 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
         return () => clearTimeout(delay);
     }, [searchTerm, perPage, dateFilter, startDate, endDate]);
 
+    // --- Clear All Filters ---
+    const clearFilters = () => {
+        setSearchTerm("");
+        setPerPage("10");
+        setDateFilter("all");
+        setStartDate("");
+        setEndDate("");
+        router.get(route("admin.expenses.index"), {}, { replace: true });
+    };
+
     const expList = expenses.data || [];
 
     // --- Export Tools ---
-    const handleCopy = () => {
-        if (!expList.length) return Swal.fire("Empty!", "No data to copy", "warning");
-        const text = expList.map((e) => `${e.date}\t${e.title}\t${e.category?.name || "N/A"}\t${e.account_id ? e.account?.name : (e.advance_id ? 'Advance' : 'N/A')}\t${e.amount}`).join("\n");
-        navigator.clipboard.writeText(text);
-        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false });
-    };
-
     const handleExportCSV = () => {
         if (!expList.length) return Swal.fire("Empty!", "No data to export", "warning");
         const headers = ["Date,Title,Category,Payment Source,Amount,Description\n"];
-        const rows = expList.map(e => `"${e.date}","${e.title}","${e.category?.name || ''}","${e.account_id ? e.account?.name : (e.advance_id ? 'Advance' : '')}","${e.amount}","${e.description || ''}"`);
+        const rows = expList.map(e => {
+            const safeDescription = (e.description || '').replace(/\r?\n|\r/g, ' ').replace(/"/g, '""');
+            return `"${e.date}","${e.title}","${e.category?.name || ''}","${e.account_id ? e.account?.name : (e.advance_id ? 'Advance' : '')}","${e.amount}","${safeDescription}"`;
+        });
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a"); link.href = url; link.setAttribute("download", `Office_Expenses_${new Date().toISOString().slice(0, 10)}.csv`); link.click();
@@ -86,7 +87,6 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
         const tableContent = document.getElementById("printable-table");
         if (!tableContent) return;
 
-        // Generate Report Title based on filter
         let reportTime = "All Time";
         if (dateFilter === 'today') reportTime = "Today's";
         else if (dateFilter === 'this_week') reportTime = "This Week's";
@@ -166,7 +166,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
     };
 
     const advanceOptions = advances.map((a) => {
-        const rem = parseFloat(a.amount) - (parseFloat(a.settled_amount) + parseFloat(a.returned_amount));
+        const rem = parseFloat(a.amount || 0) - (parseFloat(a.settled_amount || 0) + parseFloat(a.returned_amount || 0));
         return { value: a.id, label: `${a.user?.name || 'Unknown'} (Rem: TK. ${rem})` };
     });
 
@@ -181,6 +181,29 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                     <div>
                         <h1 className="page-title" style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Office Expenses</h1>
                         <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Monitor and manage internal company expenses.</p>
+                    </div>
+                </div>
+
+                {/* 🟢 NEW: Summary Stat Cards */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "20px", marginBottom: "24px" }}>
+                    <div style={{ background: "#fff", padding: "20px", borderRadius: "10px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.05)", display: "flex", alignItems: "center", gap: "16px" }}>
+                        <div style={{ background: "#eff6ff", width: "48px", height: "48px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#3b82f6", fontSize: "1.25rem" }}>
+                            <i className="fa-solid fa-calendar-check"></i>
+                        </div>
+                        <div>
+                            <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>This Month's Total</p>
+                            <h3 style={{ margin: 0, fontSize: "1.4rem", fontWeight: "800", color: "#0f172a" }}>TK. {parseFloat(thisMonthTotal || 0).toLocaleString('en-IN')}</h3>
+                        </div>
+                    </div>
+                    
+                    <div style={{ background: "#fff", padding: "20px", borderRadius: "10px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.05)", display: "flex", alignItems: "center", gap: "16px" }}>
+                        <div style={{ background: "#fef2f2", width: "48px", height: "48px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#ef4444", fontSize: "1.25rem" }}>
+                            <i className="fa-solid fa-filter"></i>
+                        </div>
+                        <div>
+                            <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: "600", color: "#64748b", textTransform: "uppercase" }}>Filtered Total</p>
+                            <h3 style={{ margin: 0, fontSize: "1.4rem", fontWeight: "800", color: "#dc2626" }}>TK. {parseFloat(totalAmount || 0).toLocaleString('en-IN')}</h3>
+                        </div>
                     </div>
                 </div>
 
@@ -220,7 +243,6 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                         </div>
 
                         <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-                            {/* --- NEW DATE FILTER DROPDOWN --- */}
                             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                                 <select 
                                     value={dateFilter} 
@@ -235,7 +257,6 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                                     <option value="custom">Custom Range</option>
                                 </select>
 
-                                {/* Custom Date Inputs */}
                                 {dateFilter === "custom" && (
                                     <div style={{ display: "flex", gap: "6px" }}>
                                         <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ padding: "7px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.8rem" }} />
@@ -245,13 +266,18 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                                 )}
                             </div>
 
-                            {/* Search Box */}
                             <div className="search-box" style={{ position: "relative" }}>
                                 <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
                                 <input type="text" placeholder="Search expenses..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "220px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
                             </div>
-                        </div>
 
+                            {/* CLEAR FILTERS BUTTON */}
+                            {(searchTerm || dateFilter !== 'all' || perPage !== '10') && (
+                                <button onClick={clearFilters} style={{ background: "#fee2e2", color: "#ef4444", border: "none", padding: "8px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px" }}>
+                                    <i className="fa-solid fa-xmark"></i> Clear Filters
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {/* Table */}
@@ -312,6 +338,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                                     </tr>
                                 )}
                             </tbody>
+                            
                         </table>
                     </div>
 
@@ -323,21 +350,33 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                                     Showing {expenses.from || 0} to {expenses.to || 0} of {expenses.total || 0} entries
                                 </div>
                                 <div style={{ display: "flex", gap: "6px" }}>
-                                    {expenses.links.map((link, index) => (
-                                        <Link 
-                                            key={index} 
-                                            href={link.url || "#"} 
-                                            style={{ 
-                                                padding: "6px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.875rem", 
-                                                color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"), 
-                                                backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"), 
-                                                pointerEvents: link.url ? "auto" : "none", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "32px"
-                                            }} 
-                                            preserveState
-                                        >
-                                            <span dangerouslySetInnerHTML={{__html: link.label}}></span>
-                                        </Link>
-                                    ))}
+                                    {expenses.links.map((link, index) => {
+                                        // 🟢 FIXED: Pagination Icon Logic
+                                        let labelContent;
+                                        if (link.label.includes('Previous')) {
+                                            labelContent = <i className="fa-solid fa-chevron-left"></i>;
+                                        } else if (link.label.includes('Next')) {
+                                            labelContent = <i className="fa-solid fa-chevron-right"></i>;
+                                        } else {
+                                            labelContent = <span dangerouslySetInnerHTML={{__html: link.label}}></span>;
+                                        }
+
+                                        return (
+                                            <Link 
+                                                key={index} 
+                                                href={link.url || "#"} 
+                                                style={{ 
+                                                    padding: "6px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.875rem", 
+                                                    color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"), 
+                                                    backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"), 
+                                                    pointerEvents: link.url ? "auto" : "none", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "32px"
+                                                }} 
+                                                preserveState
+                                            >
+                                                {labelContent}
+                                            </Link>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
@@ -426,6 +465,14 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                         <div style={{ overflowY: "auto", flex: 1 }}>
                             <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
                                 
+                                {/* ERROR DISPLAY */}
+                                {errors.error && (
+                                    <div style={{ background: "#fee2e2", color: "#b91c1c", padding: "12px", borderRadius: "6px", marginBottom: "16px", fontSize: "0.85rem", fontWeight: "600", display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <i className="fa-solid fa-circle-exclamation"></i> 
+                                        {errors.error}
+                                    </div>
+                                )}
+
                                 <div style={{ marginBottom: "16px" }}>
                                     <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Expense Title *</label>
                                     <input type="text" value={data.title} onChange={e => setData('title', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: "500" }} placeholder="e.g. Monthly Electricity Bill" required />
@@ -494,6 +541,7 @@ export default function Index({ expenses = { data: [], links: [] }, categories =
                                     <div>
                                         <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Date *</label>
                                         <input type="date" value={data.date} onChange={e => setData('date', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} required />
+                                        {errors.date && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.date}</p>}
                                     </div>
                                 </div>
 
