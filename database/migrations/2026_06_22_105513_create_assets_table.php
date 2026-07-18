@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('assets', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('account_id')->nullable();
             $table->string('name');
             $table->string('asset_code')->unique(); // e.g., AST-501
             $table->string('serial_number')->nullable();

@@ -23,7 +23,8 @@ export default function AdminLayout({ children }) {
         hr: route().current('admin.departments.*') || route().current('admin.designations.*') || route().current('admin.employees.*') || route().current('admin.attendances.*') || route().current('admin.leaves.*') || route().current('admin.salaries.*'),
         finance: route().current('admin.accounts.*') || route().current('admin.transactions.*') || route().current('admin.investments.*') || route().current('admin.invoices.*') || route().current('invoice-payments.*') || route().current('admin.client-advances.*') || route().current('admin.expenses.*') || route().current('admin.expense-categories.*') || route().current('admin.advances.*') || route().current('admin.client-dues') || route().current('admin.vendor-dues'),
         office: route().current('admin.assets.*') || route().current('admin.requisitions.*') || route().current('admin.notices.*'), 
-        access: route().current('admin.users.*') || route().current('admin.roles.*') || route().current('admin.permissions.*')
+        access: route().current('admin.users.*') || route().current('admin.roles.*') || route().current('admin.permissions.*'),
+        report: route().current('admin.reports.financial') 
     });
 
     const toggleMenu = (menuName) => {
@@ -289,6 +290,24 @@ export default function AdminLayout({ children }) {
                                         <li>
                                             <Link href={route('admin.notices.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.notices.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                 <i className="fa-solid fa-bullhorn mr-2 text-[10px]"></i> Notices
+                                            </Link>
+                                        </li>
+                                    </ul>
+                                )}
+                            </li>
+                        )}
+
+                        {hasPermission('view_report') && ( 
+                            <li className="mx-3 mt-1">
+                                <button onClick={() => toggleMenu('report')} className={`w-full flex items-center px-4 py-2.5 text-[14px] rounded-md font-medium transition-colors ${openMenus.report ? 'text-white' : 'text-[#b5b9bc] hover:text-white hover:bg-white/5'}`}>
+                                    <i className="fa-solid fa-chart-line w-6 text-left opacity-80"></i> Reports
+                                    <i className={`fa-solid fa-chevron-right ml-auto text-[11px] transition-transform duration-200 ${openMenus.report ? 'rotate-90' : ''}`}></i>
+                                </button>
+                                {openMenus.report && (
+                                    <ul className="list-none p-0 mt-1 mb-2 bg-[#021528] rounded-md py-2 space-y-1 px-2">
+                                        <li>
+                                            <Link href={route('admin.reports.financial')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.reports.financial') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                <i className="fa-solid fa-file-invoice-dollar mr-2 text-[10px]"></i> Financial Report
                                             </Link>
                                         </li>
                                     </ul>

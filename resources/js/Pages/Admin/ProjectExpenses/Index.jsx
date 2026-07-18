@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react'; 
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router, Link } from '@inertiajs/react'; 
+import { useForm, Head, router, Link, usePage } from '@inertiajs/react'; 
 import Swal from 'sweetalert2'; 
 import axios from 'axios';
 
 export default function Index({ project_expenses = { data: [], links: [] }, projects = [], categories = [], accounts = [], vendors = [], advances = [], totals = null, filters = {} }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
+
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
@@ -31,29 +36,30 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const [advanceSearch, setAdvanceSearch] = useState("");
     const [showAdvanceDropdown, setShowAdvanceDropdown] = useState(false);
 
-    const [searchTerm, setSearchTerm] = useState(() => {
-        return new URLSearchParams(window.location.search).get('search') || '';
-    });
-    const [perPage, setPerPage] = useState(() => {
-        return Number(new URLSearchParams(window.location.search).get("per_page")) || 10;
-    });
-
-    const [projectFilter, setProjectFilter] = useState(() => {
-        return new URLSearchParams(window.location.search).get('project_id') || '';
-    });
+    // Toolbar Filters
+    const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get('search') || '');
+    const [perPage, setPerPage] = useState(() => Number(new URLSearchParams(window.location.search).get("per_page")) || 10);
+    const [projectFilter, setProjectFilter] = useState(() => new URLSearchParams(window.location.search).get('project_id') || '');
+    
     const [projectFilterSearch, setProjectFilterSearch] = useState("");
     const [showProjectFilterDropdown, setShowProjectFilterDropdown] = useState(false);
 
     const [vendorList, setVendorList] = useState(vendors);
-    useEffect(() => {
-        setVendorList(vendors);
-    }, [vendors]);
+    useEffect(() => { setVendorList(vendors); }, [vendors]);
 
     const [showAddVendorForm, setShowAddVendorForm] = useState(false);
     const [newVendor, setNewVendor] = useState({ name: '', company_name: '', phone: '' });
     const [creatingVendor, setCreatingVendor] = useState(false);
     
     const isFirstRender = useRef(true);
+    const filterRef = useRef(null); // Click outside detection
+
+    const [yearFilter, setYearFilter] = useState(() => new URLSearchParams(window.location.search).get('year') || '');
+    const [dateFrom, setDateFrom] = useState(() => new URLSearchParams(window.location.search).get('date_from') || '');
+    const [dateTo, setDateTo] = useState(() => new URLSearchParams(window.location.search).get('date_to') || '');
+    const currentYear = new Date().getFullYear();
+    const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - i);
+
 
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
         id: '', 
@@ -64,8 +70,8 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         title: '', 
         vendor_id: '', 
         total_bill: '',
-        paid_amount: '',
-        date: '',
+        paid_amount: 0,
+        date: new Date().toISOString().slice(0, 10),
         description: ''
     });
 
@@ -78,6 +84,16 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         setShowAdvanceDropdown(false);
         setShowAddVendorForm(false);
     };
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (filterRef.current && !filterRef.current.contains(event.target)) {
+                setShowProjectFilterDropdown(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     // --- Auto Calculate Due & Status in UI ---
     const calculateDue = () => {
@@ -105,6 +121,9 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             if (searchTerm.trim()) params.search = searchTerm;
             if (perPage !== 10) params.per_page = perPage;
             if (projectFilter) params.project_id = projectFilter;
+            if (yearFilter) params.year = yearFilter;
+            if (dateFrom) params.date_from = dateFrom;
+            if (dateTo) params.date_to = dateTo;
 
             router.get(
                 route('admin.project-expenses.index'), 
@@ -113,7 +132,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             );
         }, 400);
         return () => clearTimeout(delayDebounceFn);
-    }, [searchTerm, perPage, projectFilter]);
+    }, [searchTerm, perPage, projectFilter, yearFilter, dateFrom, dateTo]);
 
     // --- Export Tools ---
     const expList = project_expenses.data || project_expenses || [];
@@ -170,10 +189,30 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
     // --- Modals ---
     const openCreateModal = () => {
-        reset(); 
-        clearErrors(); 
-        setEditMode(false); 
-        setPaymentType('account'); // Default to account
+        clearErrors();
+
+        setData({
+            id: '',
+            project_id: '',
+            expense_category_id: '',
+            advance_id: '',
+            advance_user_id: '',
+            account_id: '',
+            title: '',
+            vendor_id: '',
+            description: '',
+            total_bill: 0,
+            paid_amount: 0,        
+            due_amount: 0,
+            amount: 0,
+            discount_amount: 0,
+            payment_status: 'due', 
+            date: new Date().toISOString().slice(0, 10), 
+            attachment: null       
+        });
+
+        setEditMode(false);
+        setPaymentType('account');
         closeAllDropdowns();
         setShowModal(true);
     };
@@ -185,7 +224,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             project_id: expense.project_id || '',
             expense_category_id: expense.expense_category_id || '',
             account_id: expense.account_id || '', 
-            advance_user_id: expense.advance_user_id || '', // Load pooled advance owner
+            advance_user_id: expense.advance_user_id || '',
             title: expense.title || '', 
             vendor_id: expense.vendor_id || '',
             total_bill: expense.total_bill || '',
@@ -290,7 +329,10 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const totalBilled = totals ? totals.total_bill : expList.reduce((sum, item) => sum + parseFloat(item.total_bill || 0), 0);
     const totalPaid = totals ? totals.paid_amount : expList.reduce((sum, item) => sum + parseFloat(item.paid_amount || 0), 0);
     const totalDue = totals ? totals.due_amount : expList.reduce((sum, item) => sum + parseFloat(item.due_amount || 0), 0);
-    const filteredProjectTitle = projectFilter ? projects.find(p => p.id == projectFilter)?.title : null;
+    
+    // Finding project title with client name for UI
+    const filteredProject = projectFilter ? projects.find(p => p.id == projectFilter) : null;
+    const filteredProjectTitle = filteredProject ? `${filteredProject.title} (${filteredProject.client?.name || 'No Client'})` : null;
 
     return (
         <AdminLayout>
@@ -303,7 +345,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                         <h1 className="page-title" style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Project Accounts Payable</h1>
                         <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>
                             {filteredProjectTitle
-                                ? <>Showing totals for <strong>{filteredProjectTitle}</strong> only.</>
+                                ? <>Showing totals for <strong style={{color: '#3b82f6'}}>{filteredProjectTitle}</strong></>
                                 : "Manage vendor bills and track project costs."}
                         </p>
                     </div>
@@ -326,9 +368,11 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                         <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-wallet" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Vendor Bills & Project Cost
                         </div>
+                        {hasPermission('create_project_expenses') && (
                         <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
                             <i className="fa-solid fa-plus"></i> Log Bill/Expense
                         </button>
+                        )}
                     </div>
 
                     <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
@@ -342,22 +386,99 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                             </select>
                         </div>
 
-                        <div className="project-filter" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                            <i className="fa-solid fa-folder-open" style={{ color: "#3b82f6" }}></i>
-                            <select
-                                value={projectFilter}
-                                onChange={(e) => setProjectFilter(e.target.value)}
-                                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", minWidth: "180px" }}
+                        {/* --- Year Filter --- */}
+                        <div className="year-filter" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
+                            <i className="fa-solid fa-calendar" style={{ color: "#3b82f6" }}></i>
+                            <select 
+                                value={yearFilter} 
+                                onChange={(e) => { setYearFilter(e.target.value); if (e.target.value) { setDateFrom(""); setDateTo(""); } }} 
+                                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", fontSize: "0.875rem", color: "#334155" }}
                             >
-                                <option value="">All Projects (Total)</option>
-                                {projects.map(p => (
-                                    <option key={p.id} value={p.id}>{p.title}</option>
+                                <option value="">All Years</option>
+                                {yearOptions.map(y => (
+                                    <option key={y} value={y}>{y}</option>
                                 ))}
                             </select>
-                            {projectFilter && (
-                                <button type="button" onClick={() => setProjectFilter('')} title="Clear project filter" style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#64748b" }}>
+                        </div>
+
+                        {/* --- Date Range Filter --- */}
+                        <div className="date-range-filter" style={{ display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontSize: "0.875rem" }}>
+                            <i className="fa-regular fa-calendar-days" style={{ color: "#3b82f6" }}></i>
+                            <input 
+                                type="date" 
+                                value={dateFrom} 
+                                onChange={(e) => { setDateFrom(e.target.value); if (e.target.value) setYearFilter(""); }} 
+                                style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "0.8rem", color: "#334155" }} 
+                            />
+                            <span style={{ color: "#94a3b8" }}>–</span>
+                            <input 
+                                type="date" 
+                                value={dateTo} 
+                                onChange={(e) => { setDateTo(e.target.value); if (e.target.value) setYearFilter(""); }} 
+                                style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "0.8rem", color: "#334155" }} 
+                            />
+                            {(dateFrom || dateTo) && (
+                                <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }} title="Clear date range" style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "0.8rem", padding: 0 }}>
                                     <i className="fa-solid fa-xmark"></i>
                                 </button>
+                            )}
+                        </div>
+
+                        {/* --- Table Searchable Project Filter --- */}
+                        <div className="project-filter" style={{ position: "relative", width: "280px" }} ref={filterRef}>
+                            <div 
+                                onClick={() => setShowProjectFilterDropdown(!showProjectFilterDropdown)}
+                                style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", fontSize: "0.875rem", color: projectFilter ? "#0f172a" : "#64748b", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                            >
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                                    <i className="fa-solid fa-folder-open" style={{ color: "#3b82f6" }}></i>
+                                    {filteredProjectTitle || "All Projects (Total)"}
+                                </span>
+                                {projectFilter ? (
+                                    <i className="fa-solid fa-times" style={{ color: "#ef4444" }} onClick={(e) => { e.stopPropagation(); setProjectFilter(""); }}></i>
+                                ) : (
+                                    <i className="fa-solid fa-chevron-down" style={{ fontSize: "0.75rem" }}></i>
+                                )}
+                            </div>
+                            
+                            {showProjectFilterDropdown && (
+                                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", maxHeight: "250px", display: "flex", flexDirection: "column" }}>
+                                    <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
+                                        <input 
+                                            type="text" 
+                                            placeholder="Search project or client..." 
+                                            value={projectFilterSearch}
+                                            onChange={(e) => setProjectFilterSearch(e.target.value)}
+                                            style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }}
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div style={{ overflowY: "auto", padding: "4px 0" }}>
+                                        <div 
+                                            onClick={() => { setProjectFilter(""); setShowProjectFilterDropdown(false); }}
+                                            style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.875rem", color: "#334155" }}
+                                            onMouseEnter={(e) => e.target.style.background = "#f1f5f9"}
+                                            onMouseLeave={(e) => e.target.style.background = "transparent"}
+                                        >
+                                            All Projects (Total)
+                                        </div>
+                                        {projects.filter(p => p.title?.toLowerCase().includes(projectFilterSearch.toLowerCase()) || p.client?.name?.toLowerCase().includes(projectFilterSearch.toLowerCase())).map(p => (
+                                            <div 
+                                                key={p.id} 
+                                                onClick={() => { setProjectFilter(p.id); setShowProjectFilterDropdown(false); setProjectFilterSearch(""); }}
+                                                style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.875rem", color: "#334155", background: projectFilter == p.id ? "#f0fdf4" : "transparent" }}
+                                                onMouseEnter={(e) => e.target.style.background = "#f1f5f9"}
+                                                onMouseLeave={(e) => e.target.style.background = projectFilter == p.id ? "#f0fdf4" : "transparent"}
+                                            >
+                                                <div style={{ fontWeight: '600' }}>{p.title}</div>
+                                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                                    <i className="fa-solid fa-user me-1"></i> {p.client?.name || 'No Client'}
+                                                    {p.status === 'completed' && <span style={{ color: '#dc2626', marginLeft: '4px' }}>(Completed)</span>}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             )}
                         </div>
 
@@ -425,9 +546,15 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                 </td>
                                                 <td style={{ padding: "16px 24px", textAlign: "right" }}>
                                                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                                        {hasPermission('view_project_expense') && (
                                                         <button onClick={() => openViewModal(exp)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View"><i className="fa-regular fa-eye"></i></button>
+                                                        )}
+                                                        {hasPermission('edit_project_expense') && (
                                                         <button onClick={() => openEditModal(exp)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit"><i className="fa-regular fa-pen-to-square"></i></button>
+                                                        )}
+                                                        {hasPermission('delete_project_expense') && (
                                                         <button onClick={() => handleDelete(exp.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete"><i className="fa-regular fa-trash-can"></i></button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -547,28 +674,45 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                             <form onSubmit={handleSubmit}>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
                                     
-                                    {/* --- 1. PROJECT DROPDOWN --- */}
-                                    <div style={{ gridColumn: "span 1", position: "relative" }}>
+                                    {/* --- 1. PROJECT DROPDOWN (Hides Completed if New) --- */}
+                                    <div style={{ gridColumn: "span 1", position: "relative", minWidth: 0 }}>
                                         <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Select Project *</label>
-                                        <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowProjectDropdown(!showProjectDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                            <span style={{ color: data.project_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
-                                                {data.project_id ? (projects.find(p => p.id == data.project_id)?.title || "Unknown") : "Choose Project"}
+                                        <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowProjectDropdown(!showProjectDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
+                                            <span style={{ color: data.project_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1, display: "block" }}>
+                                                {data.project_id 
+                                                    ? (() => {
+                                                        const p = projects.find(x => x.id == data.project_id);
+                                                        return p ? `${p.title} (${p.client?.name || 'No Client'})` : "Choose Project";
+                                                    })()
+                                                    : "Choose Project"
+                                                }
                                             </span>
-                                            <i className={`fa-solid fa-chevron-${showProjectDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem" }}></i>
+                                            <i className={`fa-solid fa-chevron-${showProjectDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem", marginLeft: "5px", flexShrink: 0 }}></i>
                                         </div>
                                         {showProjectDropdown && (
                                             <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", display: "flex", flexDirection: "column" }}>
                                                 <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
-                                                    <input type="text" placeholder="Search project..." value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }} autoFocus />
+                                                    <input type="text" placeholder="Search project or client..." value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }} autoFocus />
                                                 </div>
                                                 <div style={{ overflowY: "auto", padding: "4px 0" }}>
-                                                    {projects.filter(p => p.title?.toLowerCase().includes(projectSearch.toLowerCase())).length > 0 ? (
-                                                        projects.filter(p => p.title?.toLowerCase().includes(projectSearch.toLowerCase())).map(p => (
-                                                            <div key={p.id} onClick={() => { setData("project_id", p.id); setShowProjectDropdown(false); setProjectSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.project_id == p.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.project_id == p.id ? "#f0fdf4" : "transparent"}>
-                                                                {p.title}
+                                                    {projects.filter(p => 
+                                                        (p.title?.toLowerCase().includes(projectSearch.toLowerCase()) || 
+                                                         p.client?.name?.toLowerCase().includes(projectSearch.toLowerCase())) &&
+                                                        (editMode || p.status !== 'completed') // Hide completed in create mode
+                                                    ).length > 0 ? (
+                                                        projects.filter(p => 
+                                                            (p.title?.toLowerCase().includes(projectSearch.toLowerCase()) || 
+                                                             p.client?.name?.toLowerCase().includes(projectSearch.toLowerCase())) &&
+                                                            (editMode || p.status !== 'completed')
+                                                        ).map(p => (
+                                                            <div key={p.id} onClick={() => { setData("project_id", p.id); if (p.budget !== undefined && p.budget !== null && p.budget !== '') { setData("total_bill", p.budget); } setShowProjectDropdown(false); setProjectSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.project_id == p.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.project_id == p.id ? "#f0fdf4" : "transparent"}>
+                                                                <div style={{ fontWeight: '600' }}>{p.title}</div>
+                                                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                                                    <i className="fa-solid fa-user me-1"></i> {p.client?.name || 'No Client'}
+                                                                </div>
                                                             </div>
                                                         ))
-                                                    ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No project found.</div>)}
+                                                    ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No active project found.</div>)}
                                                 </div>
                                             </div>
                                         )}
@@ -576,13 +720,13 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                     </div>
 
                                     {/* --- 2. CATEGORY DROPDOWN --- */}
-                                    <div style={{ gridColumn: "span 1", position: "relative" }}>
+                                    <div style={{ gridColumn: "span 1", position: "relative", minWidth: 0 }}>
                                         <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Expense Category *</label>
-                                        <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowCategoryDropdown(!showCategoryDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                            <span style={{ color: data.expense_category_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
+                                        <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowCategoryDropdown(!showCategoryDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
+                                            <span style={{ color: data.expense_category_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1, display: "block" }}>
                                                 {data.expense_category_id ? (categories.find(c => c.id == data.expense_category_id)?.name || "Unknown") : "Choose Category"}
                                             </span>
-                                            <i className={`fa-solid fa-chevron-${showCategoryDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem" }}></i>
+                                            <i className={`fa-solid fa-chevron-${showCategoryDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem", flexShrink: 0 }}></i>
                                         </div>
                                         {showCategoryDropdown && (
                                             <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", display: "flex", flexDirection: "column" }}>
@@ -604,7 +748,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                     </div>
 
                                     {/* --- 3. PAYMENT SOURCE (Account vs Advance) --- */}
-                                    <div style={{ gridColumn: "span 1", position: "relative" }}>
+                                    <div style={{ gridColumn: "span 1", position: "relative", minWidth: 0 }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: "6px" }}>
                                             <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", margin: 0 }}>Payment Source</label>
                                             <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem' }}>
@@ -622,14 +766,14 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                         {/* Dropdown for Main Account */}
                                         {paymentType === 'account' && (
                                             <>
-                                                <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowAccountDropdown(!showAccountDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                                    <span style={{ color: data.account_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
+                                                <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowAccountDropdown(!showAccountDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
+                                                    <span style={{ color: data.account_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1, display: "block" }}>
                                                         {data.account_id ? (() => {
                                                             const acc = accounts.find(a => a.id == data.account_id);
                                                             return acc ? `${acc.name} (Bal: ${acc.current_balance})` : "Unknown";
                                                         })() : "Select Account"}
                                                     </span>
-                                                    <i className={`fa-solid fa-chevron-${showAccountDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem" }}></i>
+                                                    <i className={`fa-solid fa-chevron-${showAccountDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem", flexShrink: 0 }}></i>
                                                 </div>
                                                 {showAccountDropdown && (
                                                     <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", display: "flex", flexDirection: "column" }}>
@@ -651,17 +795,17 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                             </>
                                         )}
 
-                                        {/* Dropdown for Staff Advance (pooled per-employee balance) */}
+                                        {/* Dropdown for Staff Advance */}
                                         {paymentType === 'advance' && (
                                             <>
-                                                <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowAdvanceDropdown(!showAdvanceDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                                    <span style={{ color: data.advance_user_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
+                                                <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowAdvanceDropdown(!showAdvanceDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
+                                                    <span style={{ color: data.advance_user_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1, display: "block" }}>
                                                         {data.advance_user_id ? (() => {
                                                             const adv = advances.find(a => a.user_id == data.advance_user_id);
                                                             return adv ? `${adv.user?.name} (Rem: ${adv.balance})` : "Unknown";
                                                         })() : "Select Advance"}
                                                     </span>
-                                                    <i className={`fa-solid fa-chevron-${showAdvanceDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem" }}></i>
+                                                    <i className={`fa-solid fa-chevron-${showAdvanceDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem", flexShrink: 0 }}></i>
                                                 </div>
                                                 {showAdvanceDropdown && (
                                                     <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", display: "flex", flexDirection: "column" }}>
@@ -692,10 +836,10 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                     </div>
                                     
                                     {/* --- 4. VENDOR DROPDOWN --- */}
-                                    <div style={{ gridColumn: "span 1", position: "relative" }}>
+                                    <div style={{ gridColumn: "span 1", position: "relative", minWidth: 0 }}>
                                         <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Vendor / Contractor Name</label>
-                                        <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowVendorDropdown(!showVendorDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                            <span style={{ color: data.vendor_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
+                                        <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowVendorDropdown(!showVendorDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
+                                            <span style={{ color: data.vendor_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1, display: "block" }}>
                                                 {data.vendor_id 
                                                     ? (() => {
                                                         const v = vendorList.find(vd => vd.id == data.vendor_id);
@@ -704,7 +848,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                     : "Search & Select Vendor"
                                                 }
                                             </span>
-                                            <i className={`fa-solid fa-chevron-${showVendorDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem" }}></i>
+                                            <i className={`fa-solid fa-chevron-${showVendorDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem", flexShrink: 0 }}></i>
                                         </div>
                                         {showVendorDropdown && (
                                             <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: showAddVendorForm ? "none" : "200px", display: "flex", flexDirection: "column" }}>
@@ -765,10 +909,30 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                     <div>
                                         <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#1e293b", marginBottom: "6px" }}>Total Bill (BDT) *</label>
                                         <input type="number" step="0.01" value={data.total_bill} onChange={e => setData('total_bill', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: '600' }} required />
+                                        {!editMode && <div style={{ marginTop: '6px', fontSize: '11px', color: '#64748b' }}>Auto-filled from project budget (editable)</div>}
                                     </div>
                                     <div>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#16a34a", marginBottom: "6px" }}>Paid Amount (BDT) *</label>
-                                        <input type="number" step="0.01" value={data.paid_amount} onChange={e => setData('paid_amount', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: '600', color: '#16a34a' }} required />
+                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#16a34a", marginBottom: "6px" }}>
+                                            Paid Amount (BDT)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={data.paid_amount}
+                                            onChange={e => setData('paid_amount', e.target.value)}
+                                            style={{
+                                                width: "100%", 
+                                                padding: "8px 12px", 
+                                                borderRadius: "6px",
+                                                border: "1px solid #cbd5e1", 
+                                                outline: "none", 
+                                                fontWeight: '600',
+                                                color: '#16a34a', 
+                                                background: '#fff', 
+                                                cursor: 'text' 
+                                            }}
+                                            required
+                                        />
                                     </div>
                                     <div>
                                         <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#dc2626", marginBottom: "6px" }}>Calculated Due</label>

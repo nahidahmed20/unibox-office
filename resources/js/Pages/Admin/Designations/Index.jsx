@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router, Link } from '@inertiajs/react';
+import { useForm, Head, router, Link , usePage} from '@inertiajs/react';
 import Swal from 'sweetalert2';
 
 export default function Index({ designations = { data: [], links: [] } }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
+
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
@@ -112,8 +117,14 @@ export default function Index({ designations = { data: [], links: [] } }) {
 
     // --- Modals ---
     const openCreateModal = () => {
-        reset();
         clearErrors();
+
+        setData({
+            id: '',
+            department_id: '',
+            name: ''
+        });
+
         setEditMode(false);
         setShowModal(true);
     };
@@ -196,9 +207,11 @@ export default function Index({ designations = { data: [], links: [] } }) {
                         <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-id-badge" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Designation Directory
                         </div>
+                        {hasPermission('create_designation') && (
                         <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
                             <i className="fa-solid fa-plus"></i> Add New Designation
                         </button>
+                        )}
                     </div>
 
                     {/* Toolbar */}
@@ -257,15 +270,21 @@ export default function Index({ designations = { data: [], links: [] } }) {
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: "right" }}>
                                                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                                    {hasPermission('view_designation') && (
                                                     <button onClick={() => openViewModal(designation)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
                                                         <i className="fa-regular fa-eye"></i>
                                                     </button>
+                                                    )}
+                                                    {hasPermission('edit_designation') && (
                                                     <button onClick={() => openEditModal(designation)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit Designation">
                                                         <i className="fa-regular fa-pen-to-square"></i>
                                                     </button>
+                                                    )}
+                                                    {hasPermission('delete_designation') && (
                                                     <button onClick={() => handleDelete(designation.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete Designation">
                                                         <i className="fa-regular fa-trash-can"></i>
                                                     </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

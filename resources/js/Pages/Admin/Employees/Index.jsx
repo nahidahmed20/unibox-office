@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
-import { useForm, Head, router } from "@inertiajs/react";
+import { useForm, Head, router,usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
 // Reusable searchable dropdown (replaces plain <select> for long option lists)
@@ -186,6 +186,11 @@ export default function Index({
     departments = [],
     designations = [],
 }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
+
     const employeeList = employees.data || [];
     const paginationLinks = employees.links || [];
 
@@ -289,10 +294,28 @@ export default function Index({
 
     // Open Form Modal for Create
     const openCreateModal = () => {
-        reset();
         clearErrors();
+
+        setData({
+            id: '',
+            user_id: '',
+            department_id: '',
+            designation_id: '',
+            employee_id_code: '',
+            nid_number: '',
+            gender: '', 
+            joining_date: '',
+            basic_salary: 0, 
+            bank_name: '',
+            bank_account_no: '',
+            emergency_contact_name: '',
+            emergency_contact_phone: '',
+            blood_group: '',
+            present_address: ''
+        });
+
         setEditMode(false);
-        setShowFormModal(true);
+        setShowModal(true);
     };
 
     // Open Form Modal for Edit
@@ -378,9 +401,11 @@ export default function Index({
                         <div className="card-title" style={{ fontSize: "1.1rem", fontWeight: "600", color: "#1e293b", display: "flex", alignItems: "center", gap: "10px" }}>
                             <i className="fa-solid fa-users" style={{ color: "#3b82f6" }}></i> Staff Directory
                         </div>
+                        {hasPermission('create_employee') && (
                         <button onClick={openCreateModal} style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "8px", fontWeight: "600", border: "none", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px" }}>
                             <i className="fa-solid fa-plus"></i> Add Employee
                         </button>
+                        )}
                     </div>
 
                     {/* TOOLBAR */}
@@ -457,17 +482,23 @@ export default function Index({
                                             <td style={{ padding: "16px 24px", textAlign: "right" }}>
                                                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
                                                     {/* Show Button */}
+                                                    {hasPermission('view_employee') && (
                                                     <button onClick={() => openViewModal(emp)} style={{ border: "none", background: "#f0fdf4", color: "#16a34a", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }} title="View Details">
                                                         <i className="fa-regular fa-eye"></i>
                                                     </button>
+                                                    )}
                                                     {/* Edit Button */}
+                                                    {hasPermission('edit_employee') && (
                                                     <button onClick={() => openEditModal(emp)} style={{ border: "none", background: "#fff7ed", color: "#ea580c", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }} title="Edit Profile">
                                                         <i className="fa-regular fa-pen-to-square"></i>
                                                     </button>
+                                                    )}
                                                     {/* Delete Button */}
+                                                    {hasPermission('delete_employee') && (
                                                     <button onClick={() => handleDelete(emp.id)} style={{ border: "none", background: "#fef2f2", color: "#dc2626", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }} title="Delete Employee">
                                                         <i className="fa-regular fa-trash-can"></i>
                                                     </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

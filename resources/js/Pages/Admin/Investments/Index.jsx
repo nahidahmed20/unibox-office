@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react'; 
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router, Link } from '@inertiajs/react';
+import { useForm, Head, router, Link , usePage} from '@inertiajs/react';
 import Swal from 'sweetalert2'; 
 
 export default function Index({ investments = {}, accounts = [], filters = {} }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
+
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
@@ -101,9 +106,19 @@ export default function Index({ investments = {}, accounts = [], filters = {} })
     };
 
     const openCreateModal = () => {
-        reset(); 
-        clearErrors(); 
-        setEditMode(false); 
+        clearErrors();
+
+        setData({
+            id: '',
+            account_id: '',
+            amount: 0,
+            investor_name: '',
+            investment_date: new Date().toISOString().slice(0, 10),
+            purpose: '',
+            notes: ''
+        });
+
+        setEditMode(false);
         setShowModal(true);
     };
 
@@ -190,9 +205,11 @@ export default function Index({ investments = {}, accounts = [], filters = {} })
                         <div style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-money-bill-trend-up" style={{ marginRight: "8px", color: "#2563eb" }}></i> Capital & Investments Directory
                         </div>
+                        {hasPermission('create_investment') && (
                         <button onClick={openCreateModal} style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 4px rgba(37, 99, 235, 0.2)" }}>
                             <i className="fa-solid fa-plus"></i> Log Investment
                         </button>
+                        )}
                     </div>
 
                     <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
@@ -274,12 +291,16 @@ export default function Index({ investments = {}, accounts = [], filters = {} })
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: 'center' }}>
                                                 <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                    {hasPermission('edit_investment') && (
                                                     <button onClick={() => openEditModal(inv)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit Record">
                                                         <i className="fa-regular fa-pen-to-square"></i>
                                                     </button>
+                                                    )}
+                                                    {hasPermission('delete_client') && (
                                                     <button onClick={() => handleDelete(inv.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete Record">
                                                         <i className="fa-regular fa-trash-can"></i>
                                                     </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router, Link } from '@inertiajs/react';
+import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 
 import * as XLSX from "xlsx";
@@ -9,6 +9,11 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 export default function Index({ permissions = { data: [], links: [] } }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const userPermissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || userPermissions.includes(permission);
+
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
@@ -141,8 +146,12 @@ export default function Index({ permissions = { data: [], links: [] } }) {
 
     // --- Modals & Actions ---
     const openCreateModal = () => {
-        reset(); 
-        clearErrors(); 
+        clearErrors();
+        setData({
+            id: '',
+            name: '',
+            guard_name: 'web'
+        });
         setEditMode(false);
         setShowModal(true);
     };
@@ -223,9 +232,11 @@ export default function Index({ permissions = { data: [], links: [] } }) {
                         <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-key" style={{ marginRight: "8px", color: "#3b82f6" }}></i> System Capabilities
                         </div>
+                        {hasPermission('create_permission') && (
                         <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
                             <i className="fa-solid fa-plus"></i> Add Permission
                         </button>
+                        )}
                     </div>
 
                     {/* Toolbar */}
@@ -293,15 +304,21 @@ export default function Index({ permissions = { data: [], links: [] } }) {
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: "center" }}>
                                                 <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                    {hasPermission('view_permission') && (
                                                     <button onClick={() => openViewModal(record)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
                                                         <i className="fa-regular fa-eye"></i>
                                                     </button>
+                                                    )}
+                                                    {hasPermission('edit_permission') && (
                                                     <button onClick={() => openEditModal(record)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit">
                                                         <i className="fa-regular fa-pen-to-square"></i>
                                                     </button>
+                                                    )}
+                                                    {hasPermission('delete_permission') && (
                                                     <button onClick={() => handleDelete(record.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
                                                         <i className="fa-regular fa-trash-can"></i>
                                                     </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

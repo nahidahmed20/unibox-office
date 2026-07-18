@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\AdvanceController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AttendanceController;
@@ -97,6 +98,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('attendances', AttendanceController::class)->names('admin.attendances');
     Route::resource('salaries', SalaryController::class)->names('admin.salaries');
     Route::resource('leaves', LeaveController::class)->names('admin.leaves');
+    Route::get('/financial-reports', [ReportController::class, 'financialSummary'])->name('admin.reports.financial');
 
 });
 

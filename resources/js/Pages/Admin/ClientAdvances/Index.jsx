@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout'; 
-import { useForm, Head, router, Link } from '@inertiajs/react';
+import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -58,6 +59,11 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
     const [editMode, setEditMode] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedAdvance, setSelectedAdvance] = useState(null);
+
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
 
     // Searchable Dropdown States
     const [clientSearch, setClientSearch] = useState("");
@@ -229,11 +235,20 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
 
     // --- Modals Logic ---
     const openCreateModal = () => {
-        reset();
         clearErrors();
+
+        setData({
+            id: '',
+            client_id: '',
+            account_id: '',
+            amount: 0,
+            used_amount: 0,
+            date: new Date().toISOString().slice(0, 10),
+            note: '',
+            is_settled: false 
+        });
+
         setEditMode(false);
-        setClientSearch("");
-        setShowClientDropdown(false);
         setShowModal(true);
     };
 
@@ -331,9 +346,11 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
                         <div style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-users-rectangle" style={{ marginRight: "8px", color: "#10b981" }}></i> Advance Summary
                         </div>
-                        <button onClick={openCreateModal} style={{ background: "#10b981", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", transition: "0.3s" }}>
-                            <i className="fa-solid fa-plus"></i> Receive Advance
-                        </button>
+                        {hasPermission('create_client_advance') && (
+                            <button onClick={openCreateModal} style={{ background: "#10b981", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", transition: "0.3s" }}>
+                                <i className="fa-solid fa-plus"></i> Receive Advance
+                            </button>
+                        )}
                     </div>
 
                     {/* Toolbar (Pagination, Print, Search) */}
@@ -438,18 +455,26 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
                                                                                 <td style={{ padding: "12px 16px", color: "#64748b" }}>{adv.note || "—"}</td>
                                                                                 <td style={{ padding: "12px 16px", textAlign: "right" }}>
                                                                                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                                                                        {hasPermission('view_client_advance') && (
                                                                                         <button onClick={() => openViewModal(adv)} style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "6px", borderRadius: "4px", cursor: "pointer", color: "#16a34a" }} title="View">
                                                                                             <i className="fa-regular fa-eye"></i>
                                                                                         </button>
+                                                                                        )}
+                                                                                        {hasPermission('print_client_advance') && (
                                                                                         <button onClick={() => handlePrintReceipt(adv)} style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "6px", borderRadius: "4px", cursor: "pointer", color: "#2563eb" }} title="Print Receipt">
                                                                                             <i className="fa-solid fa-print"></i>
                                                                                         </button>
-                                                                                        <button onClick={() => openEditModal(adv)} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: "6px", borderRadius: "4px", cursor: "pointer", color: "#334155" }} title="Edit">
-                                                                                            <i className="fa-regular fa-pen-to-square"></i>
-                                                                                        </button>
-                                                                                        <button onClick={() => handleDelete(adv)} style={{ background: "#fef2f2", border: "1px solid #fecaca", padding: "6px", borderRadius: "4px", cursor: "pointer", color: "#ef4444" }} title="Delete">
-                                                                                            <i className="fa-regular fa-trash-can"></i>
-                                                                                        </button>
+                                                                                        )}
+                                                                                        {hasPermission('edit_client_advance') && (
+                                                                                            <button onClick={() => openEditModal(adv)} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: "6px", borderRadius: "4px", cursor: "pointer", color: "#334155" }} title="Edit">
+                                                                                                <i className="fa-regular fa-pen-to-square"></i>
+                                                                                            </button>
+                                                                                        )}
+                                                                                        {hasPermission('delete_client_advance') && (
+                                                                                            <button onClick={() => handleDelete(adv)} style={{ background: "#fef2f2", border: "1px solid #fecaca", padding: "6px", borderRadius: "4px", cursor: "pointer", color: "#ef4444" }} title="Delete">
+                                                                                                <i className="fa-regular fa-trash-can"></i>
+                                                                                            </button>
+                                                                                        )}
                                                                                     </div>
                                                                                 </td>
                                                                             </tr>

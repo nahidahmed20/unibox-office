@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router, Link } from '@inertiajs/react';
+import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 
 import * as XLSX from "xlsx";
@@ -9,6 +9,11 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 export default function Index({ notices = { data: [], links: [] } }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
+
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
@@ -146,8 +151,15 @@ export default function Index({ notices = { data: [], links: [] } }) {
 
     // --- Modals & Actions ---
     const openCreateModal = () => {
-        reset(); 
-        clearErrors(); 
+        clearErrors();
+
+        setData({
+            id: '',
+            title: '',
+            content: '',
+            is_active: true 
+        });
+
         setEditMode(false);
         setShowModal(true);
     };
@@ -244,9 +256,11 @@ export default function Index({ notices = { data: [], links: [] } }) {
                         <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-bullhorn" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Company Notices
                         </div>
+                        {hasPermission('create_notice') && (
                         <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
                             <i className="fa-solid fa-plus"></i> Post Notice
                         </button>
+                        )}
                     </div>
 
                     {/* Toolbar */}
@@ -323,15 +337,21 @@ export default function Index({ notices = { data: [], links: [] } }) {
                                                 </td>
                                                 <td style={{ padding: "16px 24px", textAlign: "center" }}>
                                                     <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                        {hasPermission('view_notice') && (
                                                         <button onClick={() => openViewModal(record)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
                                                             <i className="fa-regular fa-eye"></i>
                                                         </button>
+                                                        )}
+                                                        {hasPermission('edit_notice') && (
                                                         <button onClick={() => openEditModal(record)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit">
                                                             <i className="fa-regular fa-pen-to-square"></i>
                                                         </button>
+                                                        )}
+                                                        {hasPermission('delete_notice') && (
                                                         <button onClick={() => handleDelete(record.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
                                                             <i className="fa-regular fa-trash-can"></i>
                                                         </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>

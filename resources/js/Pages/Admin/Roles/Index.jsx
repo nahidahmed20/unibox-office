@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router, Link } from '@inertiajs/react';
+import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 
 import * as XLSX from "xlsx";
@@ -9,9 +9,20 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 export default function Index({ roles = { data: [], links: [] }, permissions = [] }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
+
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
-    
+
+    // Tracks whether the role currently open in the modal is the protected
+    // "Super Admin" role. This is set ONLY when the modal is opened (create/edit),
+    // NOT derived from the live `data.name` value — otherwise a user typing a new
+    // role name that happens to pass through "Super Admin" (e.g. "Super Admin Backup")
+    // would have the input disabled and the permissions section hidden mid-typing.
+    const [isSuperAdminRole, setIsSuperAdminRole] = useState(false);
+
     // View Details Modal State
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState(null);
@@ -21,9 +32,10 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
     const isFirstRender = useRef(true);
 
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
-        id: '', 
-        name: '', 
-        permissions: [] 
+        id: '',
+        name: '',
+        guard_name: 'web',
+        permissions: []
     });
 
     // --- Live Search & Pagination Sync ---
@@ -38,8 +50,8 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
             if (perPage !== 25) params.per_page = perPage;
 
             router.get(
-                route('admin.roles.index'), 
-                params, 
+                route('admin.roles.index'),
+                params,
                 { preserveState: true, replace: true }
             );
         }, 400);
@@ -58,13 +70,20 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
         Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false });
     };
 
+    // Escapes a value for safe inclusion inside a double-quoted CSV field:
+    // wraps in quotes and doubles any internal quote characters.
+    const csvEscape = (value) => {
+        const str = String(value ?? '');
+        return `"${str.replace(/"/g, '""')}"`;
+    };
+
     const handleCSV = () => {
         if (!recordList.length) return Swal.fire("Empty!", "No data to export", "warning");
         const rows = [
             ['SL', 'Role Title', 'Permissions Count', 'Status'],
             ...recordList.map((r, index) => [
                 index + 1,
-                `"${r.name}"`,
+                csvEscape(r.name),
                 r.name === 'Super Admin' ? 'All Access' : (r.permissions?.length || 0),
                 "Active"
             ])
@@ -141,20 +160,30 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
 
     // --- Modals & Actions ---
     const openCreateModal = () => {
-        reset(); 
-        clearErrors(); 
-        setEditMode(false); 
+        clearErrors();
+        setData({
+            id: '',
+            name: '',
+            guard_name: 'web',
+            permissions: []
+        });
+        setIsSuperAdminRole(false);
+        setEditMode(false);
         setShowModal(true);
     };
 
     const openEditModal = (role) => {
-        clearErrors(); 
+        clearErrors();
         setData({
-            id: role?.id || '', 
-            name: role?.name || '', 
+            id: role?.id || '',
+            name: role?.name || '',
+            guard_name: role?.guard_name || 'web',
             permissions: role?.permissions ? role.permissions.map(p => p.id) : []
         });
-        setEditMode(true); 
+        // Decide "is this the protected Super Admin role" ONCE, from the role
+        // being opened — not from the live input value the user types afterward.
+        setIsSuperAdminRole(role?.name === 'Super Admin');
+        setEditMode(true);
         setShowModal(true);
     };
 
@@ -163,9 +192,15 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
         setShowViewModal(true);
     };
 
+    // Permission ids coming from the server and from the checkbox list can end up
+    // as different types (string vs number) depending on how the backend serializes
+    // them. Compare as strings so checked-state and toggling stay reliable either way.
+    const isPermissionChecked = (permissionId) =>
+        data.permissions.some(id => String(id) === String(permissionId));
+
     const handleCheckboxChange = (permissionId) => {
-        if (data.permissions.includes(permissionId)) {
-            setData('permissions', data.permissions.filter(id => id !== permissionId));
+        if (isPermissionChecked(permissionId)) {
+            setData('permissions', data.permissions.filter(id => String(id) !== String(permissionId)));
         } else {
             setData('permissions', [...data.permissions, permissionId]);
         }
@@ -174,17 +209,17 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
     const handleSubmit = (e) => {
         e.preventDefault();
         if (editMode) {
-            put(route('admin.roles.update', data.id), { 
+            put(route('admin.roles.update', data.id), {
                 onSuccess: () => {
                     setShowModal(false);
                     Swal.fire({ icon: "success", title: "Updated Successfully!", timer: 1500, showConfirmButton: false });
                 }
             });
         } else {
-            post(route('admin.roles.store'), { 
-                onSuccess: () => { 
-                    reset(); 
-                    setShowModal(false); 
+            post(route('admin.roles.store'), {
+                onSuccess: () => {
+                    reset();
+                    setShowModal(false);
                     Swal.fire({ icon: "success", title: "Added Successfully!", timer: 1500, showConfirmButton: false });
                 }
             });
@@ -213,9 +248,9 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
     return (
         <AdminLayout>
             <Head title="Roles Management" />
-            
+
             <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc" }}>
-                
+
                 {/* Header */}
                 <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '15px' }}>
                     <div>
@@ -225,21 +260,23 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
                 </div>
 
                 <div className="card-container" style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
-                    
+
                     {/* Card Header */}
                     <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
                         <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-user-shield" style={{ marginRight: "8px", color: "#3b82f6" }}></i> All System Roles
                         </div>
+                        {hasPermission('create_role') && (
                         <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
                             <i className="fa-solid fa-plus"></i> Create Role
                         </button>
+                        )}
                     </div>
 
                     {/* Toolbar */}
                     <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
                         <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                            Show 
+                            Show
                             <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
                                 <option value={10}>10 Entries</option>
                                 <option value={25}>25 Entries</option>
@@ -314,16 +351,20 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: "center" }}>
                                                 <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                    {hasPermission('view_role') && (
                                                     <button onClick={() => openViewModal(role)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
                                                         <i className="fa-regular fa-eye"></i>
                                                     </button>
+                                                    )}
+                                                    {hasPermission('edit_role') && (
                                                     <button onClick={() => openEditModal(role)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit">
                                                         <i className="fa-regular fa-pen-to-square"></i>
                                                     </button>
-                                                    {role.name !== 'Super Admin' && (
-                                                        <button onClick={() => handleDelete(role.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
-                                                            <i className="fa-regular fa-trash-can"></i>
-                                                        </button>
+                                                    )}
+                                                    {hasPermission('delete_role') && (
+                                                    <button onClick={() => handleDelete(role.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
+                                                        <i className="fa-regular fa-trash-can"></i>
+                                                    </button>
                                                     )}
                                                 </div>
                                             </td>
@@ -347,15 +388,15 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
                             {roles.links && roles.links.length > 3 && (
                                 <div style={{ display: "flex", gap: "6px" }}>
                                     {roles.links.map((link, index) => (
-                                        <Link 
-                                            key={index} 
-                                            href={link.url || "#"} 
-                                            style={{ 
-                                                padding: "6px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.875rem", 
-                                                color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"), 
-                                                backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"), 
+                                        <Link
+                                            key={index}
+                                            href={link.url || "#"}
+                                            style={{
+                                                padding: "6px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.875rem",
+                                                color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"),
+                                                backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"),
                                                 pointerEvents: link.url ? "auto" : "none", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "32px"
-                                            }} 
+                                            }}
                                             preserveState
                                         >
                                             {link.label.includes("Previous") ? <i className="fa-solid fa-chevron-left"></i> : link.label.includes("Next") ? <i className="fa-solid fa-chevron-right"></i> : link.label.replace("&laquo;", "").replace("&raquo;", "")}
@@ -371,7 +412,7 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
             {/* --- VIEW DETAILS MODAL --- */}
             {showViewModal && selectedRecord && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
+                    <div style={{ background: "#fff", width: "100%", maxWidth: "min(1000px, 92vw)", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
                             <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
                                 <i className="fa-solid fa-user-shield" style={{ marginRight: "8px", color: "#2563eb" }}></i> Role Details
@@ -383,10 +424,10 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
                                 <div style={{ fontSize: "1.35rem", fontWeight: "700", color: "#0f172a" }}>
                                     {selectedRecord.name}
                                 </div>
-                                <span style={{ 
-                                    background: '#dcfce7', 
-                                    color: '#15803d', 
-                                    padding: '5px 14px', borderRadius: '50px', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', marginTop: "10px", display: "inline-block" 
+                                <span style={{
+                                    background: '#dcfce7',
+                                    color: '#15803d',
+                                    padding: '5px 14px', borderRadius: '50px', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', marginTop: "10px", display: "inline-block"
                                 }}>
                                     Active
                                 </span>
@@ -428,34 +469,34 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
                             <button type="button" onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}><i className="fa-solid fa-xmark"></i></button>
                         </div>
                         <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
-                            
+
                             <div style={{ marginBottom: "16px" }}>
                                 <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Role Identifier / Title *</label>
-                                <input 
-                                    type="text" 
-                                    disabled={data.name === 'Super Admin'}
-                                    value={data.name} 
-                                    onChange={e => setData('name', e.target.value)} 
-                                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", height: "38px", background: data.name === 'Super Admin' ? "#f1f5f9" : "#fff" }} 
-                                    placeholder="e.g., Manager, Editor, HR" 
+                                <input
+                                    type="text"
+                                    disabled={isSuperAdminRole}
+                                    value={data.name}
+                                    onChange={e => setData('name', e.target.value)}
+                                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", height: "38px", background: isSuperAdminRole ? "#f1f5f9" : "#fff" }}
+                                    placeholder="e.g., Manager, Editor, HR"
                                     required
                                 />
                                 {errors.name && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.name}</p>}
                             </div>
-                            
-                            {data.name !== 'Super Admin' && (
+
+                            {!isSuperAdminRole && (
                                 <div style={{ marginTop: '20px' }}>
                                     <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "8px" }}>Assign Allowed Permissions</label>
-                                    <div style={{ 
-                                        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '15px', 
-                                        background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', 
-                                        maxHeight: '250px', overflowY: 'auto' 
+                                    <div style={{
+                                        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px', padding: '15px',
+                                        background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px',
+                                        maxHeight: '320px', overflowY: 'auto'
                                     }}>
                                         {(permissions || []).map(p => (
                                             <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem', cursor: 'pointer', margin: 0, fontWeight: '500', color: '#334155' }}>
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={data.permissions.includes(p.id)} 
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isPermissionChecked(p.id)}
                                                     onChange={() => handleCheckboxChange(p.id)}
                                                     style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#2563eb' }}
                                                 />

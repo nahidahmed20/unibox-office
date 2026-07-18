@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
-import { useForm, Head, router, Link } from "@inertiajs/react";
+import { useForm, Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
 export default function Index({ tasks = { data: [], links: [] }, projects = [], users = [] }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
+
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
-    // View Modal এর জন্য নতুন স্টেট
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
     
@@ -81,8 +85,19 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
     };
 
     const openCreateModal = () => {
-        reset();
         clearErrors();
+
+        setData({
+            id: '',
+            project_id: '',
+            assigned_to: '',
+            title: '',
+            description: '',
+            priority: 'medium', 
+            status: 'todo',     
+            due_date: ''
+        });
+
         setEditMode(false);
         setShowModal(true);
     };
@@ -188,9 +203,11 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
                         <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-list-check" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Current Active Tasks
                         </div>
+                        {hasPermission('create_task') && (
                         <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
                             <i className="fa-solid fa-plus"></i> Add New Task
                         </button>
+                        )}
                     </div>
 
                     <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
@@ -262,15 +279,21 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
                                             <td style={{ padding: "16px 24px", color: "#64748b" }}>{task.due_date || "-"}</td>
                                             <td style={{ padding: "16px 24px", textAlign: "right" }}>
                                                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                                    {hasPermission('view_tasks') && (
                                                     <button onClick={() => openViewModal(task)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
                                                         <i className="fa-regular fa-eye"></i>
                                                     </button>
+                                                    )}
+                                                    {hasPermission('edit_task') && (
                                                     <button onClick={() => openEditModal(task)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit Task">
                                                         <i className="fa-regular fa-pen-to-square"></i>
                                                     </button>
+                                                    )}
+                                                    {hasPermission('delete_task') && (
                                                     <button onClick={() => handleDelete(task.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete Task">
                                                         <i className="fa-regular fa-trash-can"></i>
                                                     </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

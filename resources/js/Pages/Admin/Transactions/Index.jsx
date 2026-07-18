@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react'; 
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router, Link } from '@inertiajs/react'; 
+import { useForm, Head, router, Link, usePage } from '@inertiajs/react'; 
 import Swal from 'sweetalert2'; 
 import Select from 'react-select';
 
 export default function Index({ transactions = { data: [], links: [] }, accounts = [] }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
+
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
@@ -103,8 +108,18 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
 
     // --- Modals & Actions ---
     const openCreateModal = () => {
-        reset(); 
-        clearErrors(); 
+        clearErrors();
+
+        setData({
+            id: '',
+            account_id: '',
+            type: 'credit', 
+            amount: 0,
+            transaction_date: new Date().toISOString().slice(0, 10),
+            reference_number: '',
+            description: ''
+        });
+
         setEditMode(false);
         setShowModal(true);
     };
@@ -208,9 +223,11 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                         <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-money-bill-transfer" style={{ marginRight: "8px", color: "#3b82f6" }}></i> All Transactions
                         </div>
+                        {hasPermission('create_requisition') && (
                         <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
                             <i className="fa-solid fa-plus"></i> Manual Entry
                         </button>
+                        )}
                     </div>
 
                     {/* Toolbar */}
@@ -284,17 +301,23 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: "center" }}>
                                                 <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                    {hasPermission('view_transaction') && (
                                                     <button onClick={() => openViewModal(trx)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View">
                                                         <i className="fa-regular fa-eye"></i>
                                                     </button>
+                                                    )}
                                                     {!trx.transactionable_id ? (
                                                         <>
+                                                        {hasPermission('edit_transaction') && (
                                                             <button onClick={() => openEditModal(trx)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit">
                                                                 <i className="fa-regular fa-pen-to-square"></i>
                                                             </button>
+                                                            )}
+                                                            {hasPermission('delete_transaction') && (
                                                             <button onClick={() => handleDelete(trx.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
                                                                 <i className="fa-regular fa-trash-can"></i>
                                                             </button>
+                                                            )}
                                                         </>
                                                     ) : (
                                                         <span style={{ display: "inline-block", padding: "6px", color: "#94a3b8", fontSize: "0.75rem", fontWeight: "bold" }}>AUTO</span>

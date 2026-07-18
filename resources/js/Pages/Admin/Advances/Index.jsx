@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'; 
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router, Link } from '@inertiajs/react'; 
+import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2'; 
 
 export default function Index({ advances = [], filters = {}, accounts = [], employees = [] }) {
@@ -9,6 +9,11 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
     const [editMode, setEditMode] = useState(false);
     const [selectedAdvance, setSelectedAdvance] = useState(null);
     const [expandedRows, setExpandedRows] = useState({});
+
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
     
     const advanceList = Array.isArray(advances) ? advances : (advances.data || []);
     
@@ -39,7 +44,6 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
         return_amount: ''
     });
 
-    // --- Live Search & Per Page Change ---
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -147,9 +151,22 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
     // --- Modal Management ---
     const openCreateModal = () => {
-        reset(); 
-        clearErrors(); 
-        setEditMode(false); 
+        clearErrors();
+
+        setData({
+            id: '',
+            account_id: '',
+            user_id: '',
+            amount: 0,
+            settled_amount: 0,
+            returned_amount: 0,
+            date: new Date().toISOString().slice(0, 10),
+            purpose: '',
+            status: 'unsettled', 
+            notes: ''
+        });
+
+        setEditMode(false);
         setShowModal(true);
     };
 
@@ -270,9 +287,11 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         <div style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-hand-holding-dollar" style={{ marginRight: "8px", color: "#2563eb" }}></i> Employee & Vendor Advances
                         </div>
+                        {hasPermission('create_advance') && (
                         <button onClick={openCreateModal} style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 4px rgba(37, 99, 235, 0.2)" }}>
                             <i className="fa-solid fa-plus"></i> Log Advance
                         </button>
+                        )}
                     </div>
 
                     {/* Toolbar Panel */}
@@ -402,17 +421,21 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                             </button>
                                                         ) : (
                                                             <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
-                                                                {single.status !== 'settled' && group.total_due > 0 && (
+                                                                {hasPermission('return_advance') && single.status !== 'settled' && group.total_due > 0 && (
                                                                     <button onClick={() => openReturnModal(single)} style={{ background: "#dcfce7", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a", fontSize: "0.85rem", fontWeight: "600" }} title="Refund Cash">
                                                                         <i className="fa-solid fa-money-bill-transfer"></i>
                                                                     </button>
                                                                 )}
+                                                                {hasPermission('edit_advance') && (
                                                                 <button onClick={() => openEditModal(single)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit Record">
                                                                     <i className="fa-regular fa-pen-to-square"></i>
                                                                 </button>
+                                                                )}
+                                                                {hasPermission('delete_advance') && (
                                                                 <button onClick={() => handleDelete(single.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete Record">
                                                                     <i className="fa-regular fa-trash-can"></i>
                                                                 </button>
+                                                                )}
                                                             </div>
                                                         )}
                                                     </td>
@@ -454,17 +477,21 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                             </td>
                                                             <td style={{ padding: "10px 24px", textAlign: 'center' }}>
                                                                 <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
-                                                                    {adv.status !== 'settled' && due > 0 && (
+                                                                    {hasPermission('return_advance') && adv.status !== 'settled' && due > 0 && (
                                                                         <button onClick={() => openReturnModal(adv)} style={{ background: "#dcfce7", border: "none", padding: "5px 9px", borderRadius: "6px", cursor: "pointer", color: "#16a34a", fontSize: "0.8rem" }} title="Refund Cash">
                                                                             <i className="fa-solid fa-money-bill-transfer"></i>
                                                                         </button>
                                                                     )}
-                                                                    <button onClick={() => openEditModal(adv)} style={{ background: "#fff", border: "1px solid #e2e8f0", padding: "5px 9px", borderRadius: "6px", cursor: "pointer", color: "#0f172a", fontSize: "0.8rem" }} title="Edit Record">
-                                                                        <i className="fa-regular fa-pen-to-square"></i>
-                                                                    </button>
-                                                                    <button onClick={() => handleDelete(adv.id)} style={{ background: "#fff", border: "1px solid #fecaca", padding: "5px 9px", borderRadius: "6px", cursor: "pointer", color: "#ef4444", fontSize: "0.8rem" }} title="Delete Record">
-                                                                        <i className="fa-regular fa-trash-can"></i>
-                                                                    </button>
+                                                                    {hasPermission('edit_advance') && (
+                                                                        <button onClick={() => openEditModal(adv)} style={{ background: "#fff", border: "1px solid #e2e8f0", padding: "5px 9px", borderRadius: "6px", cursor: "pointer", color: "#0f172a", fontSize: "0.8rem" }} title="Edit Record">
+                                                                            <i className="fa-regular fa-pen-to-square"></i>
+                                                                        </button>
+                                                                    )}
+                                                                    {hasPermission('delete_advance') && (
+                                                                        <button onClick={() => handleDelete(adv.id)} style={{ background: "#fff", border: "1px solid #fecaca", padding: "5px 9px", borderRadius: "6px", cursor: "pointer", color: "#ef4444", fontSize: "0.8rem" }} title="Delete Record">
+                                                                            <i className="fa-regular fa-trash-can"></i>
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -548,22 +575,21 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                 </div>
 
                                 <div style={{ flexDirection: "column", display: "flex", marginBottom: "16px" }}>
-    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>
-        Employee *
-    </label>
-    <select 
-        value={data.user_id} 
-        onChange={e => setData('user_id', e.target.value)} 
-        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
-        required
-    >
-        <option value="">Select an Employee...</option>
-        {/* employees লিস্টটি ব্যাকএন্ড থেকে প্রপস হিসেবে আসবে */}
-        {employees.map(emp => (
-            <option key={emp.id} value={emp.id}>{emp.name}</option>
-        ))}
-    </select>
-</div>
+                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>
+                                        Employee *
+                                    </label>
+                                    <select 
+                                        value={data.user_id} 
+                                        onChange={e => setData('user_id', e.target.value)} 
+                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+                                        required
+                                    >
+                                        <option value="">Select an Employee...</option>
+                                        {employees.map(emp => (
+                                            <option key={emp.id} value={emp.id}>{emp.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>

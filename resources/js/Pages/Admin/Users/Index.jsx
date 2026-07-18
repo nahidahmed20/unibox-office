@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router, Link } from '@inertiajs/react';
+import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 
 import * as XLSX from "xlsx";
@@ -9,6 +9,11 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 export default function Index({ users = { data: [], links: [] }, roles = [] }) { 
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
+
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     
@@ -146,10 +151,16 @@ export default function Index({ users = { data: [], links: [] }, roles = [] }) {
 
     // --- Modals & Actions ---
     const openCreateModal = () => {
-        reset(); 
-        clearErrors(); 
-        setEditMode(false); 
-        setShowModal(true); 
+        clearErrors();
+        setData({
+            id: '',
+            name: '',
+            email: '',
+            password: '',
+            roles: []          
+        });
+        setEditMode(false);
+        setShowModal(true);
     };
 
     const openEditModal = (user) => {
@@ -238,9 +249,11 @@ export default function Index({ users = { data: [], links: [] }, roles = [] }) {
                         <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-users" style={{ marginRight: "8px", color: "#3b82f6" }}></i> All Users Directory
                         </div>
+                        {hasPermission('create_user') && (
                         <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
                             <i className="fa-solid fa-plus"></i> Add User
                         </button>
+                        )}
                     </div>
 
                     {/* Toolbar */}
@@ -320,18 +333,24 @@ export default function Index({ users = { data: [], links: [] }, roles = [] }) {
                                                 </td>
                                                 <td style={{ padding: "16px 24px", textAlign: "center" }}>
                                                     <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                        {hasPermission('view_users') && (
                                                         <button onClick={() => openViewModal(user)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
                                                             <i className="fa-regular fa-eye"></i>
                                                         </button>
+                                                        )}
                                                         
                                                         {!isSuperAdmin ? (
                                                             <>
+                                                            {hasPermission('edit_user') && (
                                                                 <button onClick={() => openEditModal(user)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit">
                                                                     <i className="fa-regular fa-pen-to-square"></i>
                                                                 </button>
+                                                                )}
+                                                                {hasPermission('delete_user') && (
                                                                 <button onClick={() => handleDelete(user.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
                                                                     <i className="fa-regular fa-trash-can"></i>
                                                                 </button>
+                                                                )}
                                                             </>
                                                         ) : (
                                                             <div title="Super Admin cannot be modified" style={{ padding: "6px 10px", color: "#94a3b8", display: "flex", alignItems: "center", gap: "5px", fontSize: "0.8rem", background: "#f8fafc", borderRadius: "6px" }}>

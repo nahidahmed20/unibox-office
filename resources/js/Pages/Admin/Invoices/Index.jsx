@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react'; 
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router, Link } from '@inertiajs/react'; 
+import { useForm, Head, router, Link , usePage} from '@inertiajs/react'; 
 import Swal from 'sweetalert2'; 
 import Select from 'react-select'; 
 
 export default function Index({ invoices = { data: [], links: [] }, clients = [], projects = [], nextInvoiceNumber }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
+
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
@@ -138,14 +143,26 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         return () => clearTimeout(delay);
     }, [searchTerm, perPage]);
 
-    const openCreateModal = () => { 
-        reset(); 
-        clearErrors(); 
-        setEditingInvoice(null);
-        setAvailableAdvance(0);
-        setEditMode(false); 
-        setData("invoice_number", nextInvoiceNumber || ""); 
-        setShowModal(true); 
+    const openCreateModal = () => {
+        clearErrors();
+
+        setData({
+            id: '',
+            client_id: '',
+            invoice_number: '',
+            invoice_date: new Date().toISOString().slice(0, 10),
+            due_date: '', 
+            sub_total: 0,
+            tax: 0,
+            discount: 0,
+            grand_total: 0,
+            advance_used: 0,
+            status: 'unpaid', 
+            notes: ''
+        });
+
+        setEditMode(false);
+        setShowModal(true);
     };
     
     const openEditModal = (inv) => {
@@ -260,9 +277,11 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                         <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-file-invoice-dollar" style={{ marginRight: "8px", color: "#3b82f6" }}></i> All Invoices
                         </div>
+                        {hasPermission('create_invoice') && (
                         <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
                             <i className="fa-solid fa-plus"></i> Generate Invoice
                         </button>
+                        )}
                     </div>
 
                     <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
@@ -321,9 +340,11 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: "center" }}>
                                                 <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                    {hasPermission('view_invoices') && (
                                                     <button onClick={() => openViewModal(inv)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View">
                                                         <i className="fa-regular fa-eye"></i>
                                                     </button>
+                                                    )}
                                                     <a 
                                                         href={route('admin.invoices.print', inv.id)} 
                                                         style={{ background: "#faf5ff", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#a855f7", textDecoration: "none" }} 
@@ -333,12 +354,16 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                                     >
                                                         <i className="fa-solid fa-print"></i>
                                                     </a>
+                                                    {hasPermission('edit_invoice') && (
                                                     <button onClick={() => openEditModal(inv)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit">
                                                         <i className="fa-regular fa-pen-to-square"></i>
                                                     </button>
+                                                    )}
+                                                    {hasPermission('delete_invoice') && (
                                                     <button onClick={() => handleDelete(inv.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
                                                         <i className="fa-regular fa-trash-can"></i>
                                                     </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
-import { useForm, Head, router } from "@inertiajs/react";
+import { useForm, Head, router, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
 const COMPANY = {
@@ -150,6 +150,11 @@ function SearchableSelect({ options, value, onChange, placeholder, getLabel, get
 }
 
 export default function Index({ payments = {}, invoices = [], accounts = [] }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
+
     const [showModal, setShowModal] = useState(false);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
@@ -359,7 +364,20 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
     };
 
     const openCreateModal = () => {
-        reset(); clearErrors(); setData("_method", "post"); setEditMode(false); setShowModal(true);
+        clearErrors();
+
+        setData({
+            id: '',
+            invoice_id: '',
+            account_id: '',
+            method: '',
+            amount: 0,
+            payment_date: new Date().toISOString().slice(0, 10),
+            note: ''
+        });
+
+        setEditMode(false);
+        setShowModal(true);
     };
 
     const handleInvoiceSelect = (val) => {
@@ -434,9 +452,11 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                         <div className="card-title" style={{ fontSize: "1.1rem", fontWeight: "600", color: "#1e293b", display: "flex", alignItems: "center", gap: "10px" }}>
                             <i className="fa-solid fa-money-bill-wave" style={{ color: "#3b82f6" }}></i> Payment History
                         </div>
+                        {hasPermission('create_receive_payment') && (
                         <button onClick={openCreateModal} style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "8px", fontWeight: "600", border: "none", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px" }}>
                             <i className="fa-solid fa-plus"></i> Receive Payment
                         </button>
+                        )}
                     </div>
 
                     <div className="table-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '16px' }}>
@@ -497,10 +517,17 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                                         <td style={{ padding: "16px 24px", color: "#16a34a", fontWeight: "700", fontSize: "0.95rem" }}>TK. {parseFloat(payment.amount).toLocaleString('en-IN')}</td>
                                         <td style={{ padding: "16px 24px", textAlign: "right" }}>
                                             <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                                {hasPermission('view_receive_payment') && (
                                                 <button onClick={() => openShowModal(payment)} style={{ border: "none", background: "#f0f5ff", color: "#2563eb", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }}><i className="fa-regular fa-eye"></i></button>
+                                                )}
                                                 <button onClick={() => handlePrintReceipt(payment)} style={{ border: "none", background: "#f0fdf4", color: "#16a34a", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }} title="Print Receipt"><i className="fa-solid fa-print"></i></button>
+
+                                                {hasPermission('edit_receive_payment') && (
                                                 <button onClick={() => openEditModal(payment)} style={{ border: "none", background: "#fff7ed", color: "#ea580c", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }}><i className="fa-regular fa-pen-to-square"></i></button>
+                                                )}
+                                                {hasPermission('delete_receive_payment') && (
                                                 <button onClick={() => handleDelete(payment.id)} style={{ border: "none", background: "#fef2f2", color: "#dc2626", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }}><i className="fa-regular fa-trash-can"></i></button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

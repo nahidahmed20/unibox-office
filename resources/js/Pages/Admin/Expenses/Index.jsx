@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
-import { useForm, Head, router, Link } from "@inertiajs/react";
+import { useForm, Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 import Select from "react-select";
 
 export default function Index({ expenses = { data: [], links: [] }, totalAmount = 0, thisMonthTotal = 0, categories = [], accounts = [], advances = [] }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
+
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
 
@@ -122,7 +127,22 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
 
     // --- Modals & Actions ---
     const openCreateModal = () => {
-        reset(); clearErrors(); setData("_method", "post"); setPaymentType('account'); setEditMode(false); setShowModal(true);
+        clearErrors();
+
+        setData({
+            id: '',
+            title: '',
+            description: '',
+            expense_category_id: '',
+            advance_id: '',
+            account_id: '',
+            amount: 0,
+            date: new Date().toISOString().slice(0, 10),
+            attachment: null 
+        });
+
+        setEditMode(false);
+        setShowModal(true);
     };
 
     const openEditModal = (expense) => {
@@ -213,9 +233,11 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                         <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-receipt" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Expense List
                         </div>
+                        {hasPermission('create_expense') && (
                         <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
                             <i className="fa-solid fa-plus"></i> Log Expense
                         </button>
+                        )}
                     </div>
 
                     {/* Toolbar & Filters */}
@@ -319,15 +341,21 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: "center" }}>
                                                 <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                    {hasPermission('view_expence') && (
                                                     <button onClick={() => openViewModal(exp)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View">
                                                         <i className="fa-regular fa-eye"></i>
                                                     </button>
+                                                    )}
+                                                    {hasPermission('edit_expence') && (
                                                     <button onClick={() => openEditModal(exp)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit">
                                                         <i className="fa-regular fa-pen-to-square"></i>
                                                     </button>
+                                                    )}
+                                                    {hasPermission('delete_expence') && (
                                                     <button onClick={() => handleDelete(exp.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
                                                         <i className="fa-regular fa-trash-can"></i>
                                                     </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

@@ -7,8 +7,8 @@ use App\Models\Project;
 use App\Models\ExpenseCategory;
 use App\Models\Account;
 use App\Models\Vendor;
-use App\Models\Advance;
 use App\Models\AdvanceBalance;
+use App\Models\Advance;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +32,18 @@ class ProjectExpenseController extends Controller
             $query->where('project_id', $request->project_id);
         }
 
+        if ($request->filled('year')) {
+            $query->whereYear('date', $request->year);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('date', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('date', '<=', $request->date_to);
+        }
+
         $totals = [
             'total_bill'  => (float) (clone $query)->sum('total_bill'),
             'paid_amount' => (float) (clone $query)->sum('paid_amount'),
@@ -45,7 +57,11 @@ class ProjectExpenseController extends Controller
 
         $project_expenses = $query->latest()->paginate($perPage)->withQueryString();
 
-        $projects = Project::where('status', '!=', 'completed')->select('id', 'title')->get();
+        $projects = Project::with('client:id,name,company_name')
+            ->select('id', 'title', 'client_id', 'status', 'budget')  
+            ->orderBy('id', 'desc')
+            ->get();
+
         $categories = ExpenseCategory::select('id', 'name')->orderBy('name')->get();
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->orderBy('name')->get();
         $vendors = Vendor::select('id', 'name', 'company_name')->get();
@@ -64,7 +80,7 @@ class ProjectExpenseController extends Controller
         return Inertia::render('Admin/ProjectExpenses/Index', compact(
             'project_expenses', 'projects', 'categories', 'accounts', 'vendors', 'advances', 'totals'
         ) + [
-            'filters' => $request->only(['search', 'project_id', 'per_page']),
+            'filters' => $request->only(['search', 'project_id', 'per_page', 'year', 'date_from', 'date_to']),
         ]);
     }
 
@@ -86,6 +102,7 @@ class ProjectExpenseController extends Controller
                     'paid_amount'    => $paid,
                     'due_amount'     => round($validated['total_bill'] - $paid, 2),
                     'payment_status' => $this->resolveStatus($validated['total_bill'], $paid),
+                    'logged_by'      => auth()->id() ?? 1,
                 ]);
             });
 

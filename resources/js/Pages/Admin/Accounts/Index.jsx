@@ -4,12 +4,11 @@ import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2'; 
 
 export default function Index({ accounts = { data: [], links: [] }, totalBalance }) {
-    // 1. Inertia props থেকে auth ডেটা নিচ্ছি
+   
     const { auth } = usePage().props;
-    
-    // 2. Spatie Role Check: ইউজারের রোলের মধ্যে 'Super Admin' আছে কিনা চেক করা হচ্ছে
-    // (আপনার ডেটাবেজে যদি 'super-admin' বা ছোট হাতের থাকে, তবে সেভাবে নাম পরিবর্তন করে নেবেন)
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
 
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
@@ -103,12 +102,23 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
     };
 
     // --- Modals & Submits ---
-    const openCreateModal = () => {
-        reset(); 
+   const openCreateModal = () => {
         clearErrors(); 
+        
+        setData({
+            id: '',
+            name: '',
+            type: '', 
+            opening_balance: 0, 
+            current_balance: 0, 
+            account_number: '',
+            is_active: true    
+        });
+
         setEditMode(false); 
         setShowModal(true);
     };
+
 
     const openEditModal = (acc) => {
         clearErrors(); 
@@ -185,8 +195,7 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
                         <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
                             <i className="fa-solid fa-vault" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Account List
                         </div>
-                        {/* 3. শুধুমাত্র Super Admin "Add Account" বাটনটি দেখতে পাবে */}
-                        {isSuperAdmin && (
+                        {(isSuperAdmin || hasPermission('create_account')) && (
                             <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
                                 <i className="fa-solid fa-plus"></i> Add Account
                             </button>
@@ -236,7 +245,6 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>CURRENT BAL.</th>
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>STATUS</th>
                                     
-                                    {/* 4. শুধুমাত্র Super Admin 'ACTIONS' কলামটি দেখতে পাবে */}
                                     {isSuperAdmin && (
                                         <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>ACTIONS</th>
                                     )}
@@ -272,16 +280,19 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
                                                 </span>
                                             </td>
                                             
-                                            {/* 5. শুধুমাত্র Super Admin Edit/Delete অ্যাকশন করতে পারবে */}
                                             {isSuperAdmin && (
                                                 <td style={{ padding: "16px 24px", textAlign: "center" }}>
                                                     <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                        {hasPermission('view_account') && (
                                                         <button onClick={() => openEditModal(acc)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit">
                                                             <i className="fa-regular fa-pen-to-square"></i>
                                                         </button>
+                                                        )}
+                                                        {hasPermission('delete_account') && (
                                                         <button onClick={() => handleDelete(acc.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
                                                             <i className="fa-regular fa-trash-can"></i>
                                                         </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             )}
@@ -289,7 +300,6 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
                                     ))
                                 ) : (
                                     <tr>
-                                        {/* isSuperAdmin এর উপর ভিত্তি করে colSpan ডাইনামিক করা হলো */}
                                         <td colSpan={isSuperAdmin ? "8" : "7"} style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>
                                             No accounts found.
                                         </td>
@@ -339,8 +349,6 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
                 </div>
             </div>
 
-            {/* --- CREATE / EDIT FORM MODAL --- */}
-            {/* Modal টি শুধুমাত্র তখনই ওপেন হবে যদি ইউজারের কাছে এক্সেস থাকে */}
             {showModal && isSuperAdmin && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
                     <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
