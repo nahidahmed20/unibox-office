@@ -17,9 +17,6 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedExpense, setSelectedExpense] = useState(null);
 
-    // Payment Source Type Toggle (Account or Advance)
-    const [paymentType, setPaymentType] = useState('account');
-
     // --- Searchable Dropdown States ---
     const [projectSearch, setProjectSearch] = useState("");
     const [showProjectDropdown, setShowProjectDropdown] = useState(false);
@@ -60,7 +57,6 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const currentYear = new Date().getFullYear();
     const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - i);
 
-
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
         id: '', 
         project_id: '',
@@ -72,7 +68,8 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         total_bill: '',
         paid_amount: 0,
         date: new Date().toISOString().slice(0, 10),
-        description: ''
+        description: '',
+        pay_type: 'account' // Added Pay Type state for Vendor Wallet handling
     });
 
     // Close all dropdowns when clicking outside
@@ -149,7 +146,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const handleExportCSV = () => {
         if (!expList.length) return Swal.fire("Empty!", "No data to export", "warning");
         const headers = ["Date,Project,Expense Title,Vendor,Account/Source,Total Bill,Paid,Due,Status\n"];
-        const rows = expList.map(e => `"${e.date}","${e.project?.title || ''}","${e.title}","${e.vendor?.name || ''}","${e.account_id ? e.account?.name : (e.advance_user_id ? 'Advance' : '')}","${e.total_bill}","${e.paid_amount}","${e.due_amount}","${e.payment_status}"`);
+        const rows = expList.map(e => `"${e.date}","${e.project?.title || ''}","${e.title}","${e.vendor?.name || ''}","${e.account_id ? e.account?.name : (e.advance_user_id ? 'Advance' : 'Wallet')}","${e.total_bill}","${e.paid_amount}","${e.due_amount}","${e.payment_status}"`);
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -190,7 +187,6 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     // --- Modals ---
     const openCreateModal = () => {
         clearErrors();
-
         setData({
             id: '',
             project_id: '',
@@ -208,17 +204,22 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             discount_amount: 0,
             payment_status: 'due', 
             date: new Date().toISOString().slice(0, 10), 
-            attachment: null       
+            attachment: null,
+            pay_type: 'account' // Default 
         });
 
         setEditMode(false);
-        setPaymentType('account');
         closeAllDropdowns();
         setShowModal(true);
     };
 
     const openEditModal = (expense) => {
         clearErrors(); 
+        
+        let payType = 'wallet';
+        if (expense.account_id) payType = 'account';
+        else if (expense.advance_user_id) payType = 'advance';
+
         setData({
             id: expense.id, 
             project_id: expense.project_id || '',
@@ -230,9 +231,9 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             total_bill: expense.total_bill || '',
             paid_amount: expense.paid_amount || '',
             date: expense.date || '',
-            description: expense.description || ''
+            description: expense.description || '',
+            pay_type: payType
         });
-        setPaymentType(expense.advance_user_id ? 'advance' : 'account');
         setEditMode(true); 
         closeAllDropdowns();
         setShowModal(true);
@@ -249,8 +250,13 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         
         if (!data.project_id) return Swal.fire("Required", "Please select a project.", "warning");
         if (!data.expense_category_id) return Swal.fire("Required", "Please select an expense category.", "warning");
-        if (parseFloat(data.paid_amount) > 0 && !data.account_id && !data.advance_user_id) {
-            return Swal.fire("Required", "Please select a Payment Source (Account or Advance) to pay the amount.", "warning");
+        
+        // Added Validation for Vendor Wallet
+        const paidAmount = parseFloat(data.paid_amount) || 0;
+        if (paidAmount > 0) {
+            if (data.pay_type === 'account' && !data.account_id) return Swal.fire("Required", "Please select a Bank/Cash Account.", "warning");
+            if (data.pay_type === 'advance' && !data.advance_user_id) return Swal.fire("Required", "Please select an Advance User.", "warning");
+            if (data.pay_type === 'wallet' && !data.vendor_id) return Swal.fire("Required", "Please select a Vendor to pay from Wallet.", "warning");
         }
         
         if (editMode) {
@@ -285,6 +291,27 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                 destroy(route('admin.project-expenses.destroy', id), {
                     preserveScroll: true,
                     onSuccess: () => Swal.fire({ icon: "success", title: "Deleted!", text: "Record removed and balance restored.", timer: 1500, showConfirmButton: false })
+                });
+            }
+        });
+    };
+
+    // --- Move to Vendor Wallet Feature ---
+    const handleMoveToWallet = (exp) => {
+        Swal.fire({
+            title: 'Move to Vendor Wallet?',
+            text: `This will remove the expense from the project and move BDT ${exp.paid_amount} to ${exp.vendor.name}'s Wallet for future use.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#8b5cf6',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Yes'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                router.post(route('admin.project-expenses.move-to-wallet', exp.id), {}, {
+                    preserveScroll: true,
+                    onSuccess: () => Swal.fire({ icon: "success", title: "Moved!", text: "Amount added to Vendor Wallet.", timer: 1500, showConfirmButton: false }),
+                    onError: (errors) => Swal.fire("Error", errors.error || "Something went wrong.", "error")
                 });
             }
         });
@@ -330,7 +357,6 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const totalPaid = totals ? totals.paid_amount : expList.reduce((sum, item) => sum + parseFloat(item.paid_amount || 0), 0);
     const totalDue = totals ? totals.due_amount : expList.reduce((sum, item) => sum + parseFloat(item.due_amount || 0), 0);
     
-    // Finding project title with client name for UI
     const filteredProject = projectFilter ? projects.find(p => p.id == projectFilter) : null;
     const filteredProjectTitle = filteredProject ? `${filteredProject.title} (${filteredProject.client?.name || 'No Client'})` : null;
 
@@ -532,8 +558,13 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                 <td style={{ padding: "16px 24px" }}>
                                                     <div style={{ fontWeight: '500', color: '#334155' }}>{exp.vendor?.name || '-'}</div>
                                                     <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
-                                                        <i className={exp.advance_user_id ? "fa-solid fa-hand-holding-dollar me-1" : "fa-solid fa-building-columns me-1"}></i> 
-                                                        {exp.account_id ? (exp.account?.name || 'Account') : (exp.advance_user_id ? 'Advance' : 'N/A')}
+                                                        {exp.account_id ? (
+                                                            <><i className="fa-solid fa-building-columns me-1"></i> {exp.account?.name || 'Account'}</>
+                                                        ) : exp.advance_user_id ? (
+                                                            <><i className="fa-solid fa-hand-holding-dollar me-1"></i> Advance</>
+                                                        ) : (exp.paid_amount > 0 ? (
+                                                            <><i className="fa-solid fa-wallet text-purple-500 me-1"></i> Vendor Wallet</>
+                                                        ) : 'N/A')}
                                                     </div>
                                                 </td>
                                                 <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '600', color: '#0f172a' }}>{parseFloat(exp.total_bill).toLocaleString('en-IN')}</td>
@@ -546,6 +577,9 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                 </td>
                                                 <td style={{ padding: "16px 24px", textAlign: "right" }}>
                                                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                                        {hasPermission('edit_project_expense') && exp.vendor_id && parseFloat(exp.paid_amount) > 0 && (
+                                                            <button onClick={() => handleMoveToWallet(exp)} style={{ background: "#f3e8ff", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#7e22ce" }} title="Move to Vendor Wallet"><i className="fa-solid fa-money-bill-transfer"></i></button>
+                                                        )}
                                                         {hasPermission('view_project_expense') && (
                                                         <button onClick={() => openViewModal(exp)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View"><i className="fa-regular fa-eye"></i></button>
                                                         )}
@@ -615,7 +649,9 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                             <><i className="fa-solid fa-building-columns text-purple-500" style={{ marginRight: "6px" }}></i>{selectedExpense.account?.name}</>
                                         ) : selectedExpense.advance_user_id ? (
                                             <><i className="fa-solid fa-hand-holding-dollar text-teal-500" style={{ marginRight: "6px" }}></i>Paid via Advance{selectedExpense.advance_user?.name ? ` (${selectedExpense.advance_user.name})` : ''}</>
-                                        ) : "N/A"}
+                                        ) : (selectedExpense.paid_amount > 0 ? (
+                                            <><i className="fa-solid fa-wallet text-purple-500" style={{ marginRight: "6px" }}></i>Paid via Vendor Wallet</>
+                                        ) : "N/A")}
                                     </div>
                                 </div>
                                 <div>
@@ -656,7 +692,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "750px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "95vh" }}>
+                    <div style={{ background: "#fff", width: "100%", maxWidth: "1000px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "95vh" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
                             <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
                                 {editMode ? "📝 Update Bill/Expense" : "✨ Log New Bill/Expense"}
@@ -674,7 +710,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                             <form onSubmit={handleSubmit}>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
                                     
-                                    {/* --- 1. PROJECT DROPDOWN (Hides Completed if New) --- */}
+                                    {/* --- 1. PROJECT DROPDOWN --- */}
                                     <div style={{ gridColumn: "span 1", position: "relative", minWidth: 0 }}>
                                         <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Select Project *</label>
                                         <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowProjectDropdown(!showProjectDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
@@ -698,14 +734,14 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                     {projects.filter(p => 
                                                         (p.title?.toLowerCase().includes(projectSearch.toLowerCase()) || 
                                                          p.client?.name?.toLowerCase().includes(projectSearch.toLowerCase())) &&
-                                                        (editMode || p.status !== 'completed') // Hide completed in create mode
+                                                        (editMode || p.status !== 'completed') 
                                                     ).length > 0 ? (
                                                         projects.filter(p => 
                                                             (p.title?.toLowerCase().includes(projectSearch.toLowerCase()) || 
                                                              p.client?.name?.toLowerCase().includes(projectSearch.toLowerCase())) &&
                                                             (editMode || p.status !== 'completed')
                                                         ).map(p => (
-                                                            <div key={p.id} onClick={() => { setData("project_id", p.id); if (p.budget !== undefined && p.budget !== null && p.budget !== '') { setData("total_bill", p.budget); } setShowProjectDropdown(false); setProjectSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.project_id == p.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.project_id == p.id ? "#f0fdf4" : "transparent"}>
+                                                            <div key={p.id} onClick={() => { setData("project_id", p.id); setShowProjectDropdown(false); setProjectSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.project_id == p.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.project_id == p.id ? "#f0fdf4" : "transparent"}>
                                                                 <div style={{ fontWeight: '600' }}>{p.title}</div>
                                                                 <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
                                                                     <i className="fa-solid fa-user me-1"></i> {p.client?.name || 'No Client'}
@@ -747,24 +783,28 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                         {errors.expense_category_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.expense_category_id}</p>}
                                     </div>
 
-                                    {/* --- 3. PAYMENT SOURCE (Account vs Advance) --- */}
+                                    {/* --- 3. PAYMENT SOURCE (Account vs Advance vs Wallet) --- */}
                                     <div style={{ gridColumn: "span 1", position: "relative", minWidth: 0 }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: "6px" }}>
                                             <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", margin: 0 }}>Payment Source</label>
-                                            <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem' }}>
+                                            <div style={{ display: 'flex', gap: '8px', fontSize: '0.7rem' }}>
                                                 <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                                    <input type="radio" name="payType" checked={paymentType === 'account'} onChange={() => { setPaymentType('account'); setData('advance_user_id', ''); }} />
-                                                    Account
+                                                    <input type="radio" name="payType" checked={data.pay_type === 'account'} onChange={() => { setData('pay_type', 'account'); setData('advance_user_id', ''); }} />
+                                                    Bank/Cash
                                                 </label>
                                                 <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                                    <input type="radio" name="payType" checked={paymentType === 'advance'} onChange={() => { setPaymentType('advance'); setData('account_id', ''); }} />
+                                                    <input type="radio" name="payType" checked={data.pay_type === 'advance'} onChange={() => { setData('pay_type', 'advance'); setData('account_id', ''); }} />
                                                     Advance
+                                                </label>
+                                                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', color: '#7e22ce', fontWeight: 'bold' }}>
+                                                    <input type="radio" name="payType" checked={data.pay_type === 'wallet'} onChange={() => { setData('pay_type', 'wallet'); setData('account_id', ''); setData('advance_user_id', ''); }} />
+                                                    Wallet
                                                 </label>
                                             </div>
                                         </div>
 
                                         {/* Dropdown for Main Account */}
-                                        {paymentType === 'account' && (
+                                        {data.pay_type === 'account' && (
                                             <>
                                                 <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowAccountDropdown(!showAccountDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
                                                     <span style={{ color: data.account_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1, display: "block" }}>
@@ -796,7 +836,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                         )}
 
                                         {/* Dropdown for Staff Advance */}
-                                        {paymentType === 'advance' && (
+                                        {data.pay_type === 'advance' && (
                                             <>
                                                 <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowAdvanceDropdown(!showAdvanceDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
                                                     <span style={{ color: data.advance_user_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1, display: "block" }}>
@@ -825,6 +865,18 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                 )}
                                                 {errors.advance_user_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.advance_user_id}</p>}
                                             </>
+                                        )}
+
+                                        {/* Vendor Wallet Alert Box */}
+                                        {data.pay_type === 'wallet' && (
+                                            <div style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #d8b4fe", background: "#faf5ff", color: "#7e22ce", fontSize: "0.8rem", fontWeight: "500", display: "flex", alignItems: "center", gap: "6px" }}>
+                                                <i className="fa-solid fa-wallet"></i>
+                                                {data.vendor_id ? (
+                                                    <span>Available Wallet: <strong>{vendorList.find(v => v.id == data.vendor_id)?.wallet_balance || 0} BDT</strong></span>
+                                                ) : (
+                                                    <span>Please select a vendor below first.</span>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -909,7 +961,6 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                     <div>
                                         <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#1e293b", marginBottom: "6px" }}>Total Bill (BDT) *</label>
                                         <input type="number" step="0.01" value={data.total_bill} onChange={e => setData('total_bill', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: '600' }} required />
-                                        {!editMode && <div style={{ marginTop: '6px', fontSize: '11px', color: '#64748b' }}>Auto-filled from project budget (editable)</div>}
                                     </div>
                                     <div>
                                         <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#16a34a", marginBottom: "6px" }}>

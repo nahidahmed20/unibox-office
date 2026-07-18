@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
-import { useForm, Head, router,usePage } from "@inertiajs/react";
+import { useForm, Head, router, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
+
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 // Reusable searchable dropdown (replaces plain <select> for long option lists)
 function SearchableSelect({
@@ -180,6 +183,30 @@ function SearchableSelect({
     );
 }
 
+const EMPTY_FORM = {
+    id: "",
+    user_id: "",
+    department_id: "",
+    designation_id: "",
+    employee_id_code: "",
+    nid_number: "",
+    gender: "male",
+    joining_date: "",
+    basic_salary: 0,
+    bank_name: "",
+    bank_account_no: "",
+    emergency_contact_name: "",
+    emergency_contact_phone: "",
+    blood_group: "",
+    present_address: "",
+};
+
+// Formats salary safely — never renders "NaN" when the value is missing/invalid.
+const formatSalary = (value) => {
+    const num = parseFloat(value);
+    return Number.isFinite(num) ? num.toFixed(2) : "0.00";
+};
+
 export default function Index({
     employees = {},
     users = [],
@@ -187,7 +214,7 @@ export default function Index({
     designations = [],
 }) {
     const { auth } = usePage().props;
-    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
     const permissions = auth?.permissions || [];
     const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
 
@@ -220,24 +247,12 @@ export default function Index({
         processing,
         errors,
         clearErrors,
-    } = useForm({
-        id: "",
-        user_id: "",
-        department_id: "",
-        designation_id: "",
-        employee_id_code: "",
-        nid_number: "",
-        gender: "male",
-        joining_date: "",
-        basic_salary: 0,
-        bank_name: "",
-        bank_account_no: "",
-        emergency_contact_name: "",
-        emergency_contact_phone: "",
-        blood_group: "",
-        present_address: "",
-    });
+    } = useForm({ ...EMPTY_FORM });
 
+    // Debounced search only — per-page changes are handled immediately in
+    // handlePerPageChange, so they must NOT also be a dependency here.
+    // Otherwise every per-page change fires both an immediate request AND
+    // a second (redundant) debounced request 500ms later.
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -254,7 +269,7 @@ export default function Index({
             });
         }, 500);
         return () => clearTimeout(delay);
-    }, [searchTerm, perPage]);
+    }, [searchTerm]);
 
     const handlePerPageChange = (e) => {
         const value = Number(e.target.value);
@@ -273,7 +288,7 @@ export default function Index({
         const text = employeeList
             .map(
                 (emp) =>
-                    `${emp.employee_id_code}\t${emp.user?.name || "N/A"}\t${emp.department?.name || "N/A"}\t${emp.designation?.name || "N/A"}\t${emp.joining_date}\tTK. ${parseFloat(emp.basic_salary).toFixed(2)}`
+                    `${emp.employee_id_code}\t${emp.user?.name || "N/A"}\t${emp.department?.name || "N/A"}\t${emp.designation?.name || "N/A"}\t${emp.joining_date}\tTK. ${formatSalary(emp.basic_salary)}`
             )
             .join("\n");
 
@@ -288,6 +303,51 @@ export default function Index({
         });
     };
 
+    const handleExcel = () => {
+        if (!employeeList.length) return Swal.fire("Empty!", "No data to export", "warning");
+        const ws = XLSX.utils.json_to_sheet(
+            employeeList.map((emp) => ({
+                "EMP ID": emp.employee_id_code,
+                "Name": emp.user?.name || "N/A",
+                "Department": emp.department?.name || "N/A",
+                "Designation": emp.designation?.name || "N/A",
+                "Join Date": emp.joining_date,
+                "Basic Salary": formatSalary(emp.basic_salary),
+            }))
+        );
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Employees");
+        const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        const file = new Blob([excelBuffer], { type: "application/octet-stream" });
+        saveAs(file, `Employees_List_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    };
+
+    // Escapes a value for safe inclusion inside a double-quoted CSV field.
+    const csvEscape = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+    const handleCSVExport = () => {
+        if (!employeeList.length) return Swal.fire("Empty!", "No data to export", "warning");
+        const rows = [
+            ["EMP ID", "Name", "Department", "Designation", "Join Date", "Basic Salary"],
+            ...employeeList.map((emp) => [
+                csvEscape(emp.employee_id_code),
+                csvEscape(emp.user?.name || "N/A"),
+                csvEscape(emp.department?.name || "N/A"),
+                csvEscape(emp.designation?.name || "N/A"),
+                csvEscape(emp.joining_date),
+                formatSalary(emp.basic_salary),
+            ]),
+        ];
+        const csv = rows.map((r) => r.join(",")).join("\n");
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Employees_List_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     const handlePrint = () => {
         window.print();
     };
@@ -295,36 +355,33 @@ export default function Index({
     // Open Form Modal for Create
     const openCreateModal = () => {
         clearErrors();
-
-        setData({
-            id: '',
-            user_id: '',
-            department_id: '',
-            designation_id: '',
-            employee_id_code: '',
-            nid_number: '',
-            gender: '', 
-            joining_date: '',
-            basic_salary: 0, 
-            bank_name: '',
-            bank_account_no: '',
-            emergency_contact_name: '',
-            emergency_contact_phone: '',
-            blood_group: '',
-            present_address: ''
-        });
-
+        setData({ ...EMPTY_FORM });
         setEditMode(false);
-        setShowModal(true);
+        setShowFormModal(true);
     };
 
     // Open Form Modal for Edit
     const openEditModal = (emp) => {
         clearErrors();
+        // Explicitly map only the fields the form actually uses — spreading the
+        // whole `emp` record would drag along nested relations (user, department,
+        // designation objects), timestamps, etc. into the form payload.
         setData({
-            ...emp,
-            department_id: emp.department_id || "",
-            designation_id: emp.designation_id || "",
+            id: emp.id ?? "",
+            user_id: emp.user_id ?? emp.user?.id ?? "",
+            department_id: emp.department_id ?? "",
+            designation_id: emp.designation_id ?? "",
+            employee_id_code: emp.employee_id_code ?? "",
+            nid_number: emp.nid_number ?? "",
+            gender: emp.gender ?? "male",
+            joining_date: emp.joining_date ?? "",
+            basic_salary: emp.basic_salary ?? 0,
+            bank_name: emp.bank_name ?? "",
+            bank_account_no: emp.bank_account_no ?? "",
+            emergency_contact_name: emp.emergency_contact_name ?? "",
+            emergency_contact_phone: emp.emergency_contact_phone ?? "",
+            blood_group: emp.blood_group ?? "",
+            present_address: emp.present_address ?? "",
         });
         setEditMode(true);
         setShowFormModal(true);
@@ -425,10 +482,10 @@ export default function Index({
                             <button onClick={handleCopy} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}>
                                 <i className="fas fa-copy"></i> Copy
                             </button>
-                            <button type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}>
+                            <button onClick={handleExcel} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}>
                                 <i className="fas fa-file-excel" style={{ color: "#16a34a" }}></i> Excel
                             </button>
-                            <button type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}>
+                            <button onClick={handleCSVExport} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}>
                                 <i className="fas fa-file-csv" style={{ color: "#2563eb" }}></i> CSV
                             </button>
                             <button onClick={handlePrint} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}>
@@ -478,7 +535,7 @@ export default function Index({
                                                 </span>
                                             </td>
                                             <td style={{ padding: "16px 24px" }}>{emp.designation?.name || "-"}</td>
-                                            <td style={{ padding: "16px 24px", color: "#16a34a", fontWeight: "700" }}>TK. {parseFloat(emp.basic_salary).toFixed(2)}</td>
+                                            <td style={{ padding: "16px 24px", color: "#16a34a", fontWeight: "700" }}>TK. {formatSalary(emp.basic_salary)}</td>
                                             <td style={{ padding: "16px 24px", textAlign: "right" }}>
                                                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
                                                     {/* Show Button */}
@@ -615,6 +672,38 @@ export default function Index({
                                 </div>
                             </div>
 
+                            <div style={{ marginTop: "24px", marginBottom: "16px", fontSize: "0.875rem", fontWeight: "600", color: "#64748b", textTransform: "uppercase", borderBottom: "1px solid #f1f5f9", paddingBottom: "4px" }}>Bank & Emergency Contact</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                                <div className="form-group">
+                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Bank Name</label>
+                                    <input type="text" value={data.bank_name} onChange={(e) => setData("bank_name", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} />
+                                </div>
+                                <div className="form-group">
+                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Bank Account No.</label>
+                                    <input type="text" value={data.bank_account_no} onChange={(e) => setData("bank_account_no", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} />
+                                </div>
+                                <div className="form-group">
+                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Emergency Contact Name</label>
+                                    <input type="text" value={data.emergency_contact_name} onChange={(e) => setData("emergency_contact_name", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} />
+                                </div>
+                                <div className="form-group">
+                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Emergency Contact Phone</label>
+                                    <input type="text" value={data.emergency_contact_phone} onChange={(e) => setData("emergency_contact_phone", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} />
+                                </div>
+                                <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Present Address</label>
+                                    <textarea rows={2} value={data.present_address} onChange={(e) => setData("present_address", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }} />
+                                </div>
+                            </div>
+
+                            {errors && Object.keys(errors).length > 0 && (
+                                <div style={{ marginTop: "16px", padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px" }}>
+                                    {Object.values(errors).map((msg, i) => (
+                                        <p key={i} style={{ color: "#dc2626", fontSize: "0.8rem", margin: "2px 0" }}>{msg}</p>
+                                    ))}
+                                </div>
+                            )}
+
                             <div className="modal-footer" style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                                 <button type="button" onClick={() => setShowFormModal(false)} style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "8px 16px", borderRadius: "6px", fontWeight: "600", cursor: "pointer" }}>Cancel</button>
                                 <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "6px", fontWeight: "600", cursor: "pointer", opacity: processing ? 0.7 : 1 }}>
@@ -659,7 +748,7 @@ export default function Index({
                                 </div>
                                 <div>
                                     <span style={{ display: "block", color: "#64748b", fontSize: "0.8rem", fontWeight: "600", textTransform: "uppercase" }}>Basic Salary</span>
-                                    <strong style={{ color: "#16a34a", fontSize: "1rem" }}>TK. {viewData.basic_salary}</strong>
+                                    <strong style={{ color: "#16a34a", fontSize: "1rem" }}>TK. {formatSalary(viewData.basic_salary)}</strong>
                                 </div>
                             </div>
 
@@ -669,6 +758,17 @@ export default function Index({
                                     <p style={{ margin: 0 }}><span style={{ color: "#64748b" }}>Gender:</span> <strong style={{ textTransform: "capitalize", color: "#334155" }}>{viewData.gender || "-"}</strong></p>
                                     <p style={{ margin: 0 }}><span style={{ color: "#64748b" }}>Blood Group:</span> <strong style={{ color: "#dc2626" }}>{viewData.blood_group || "-"}</strong></p>
                                     <p style={{ margin: 0 }}><span style={{ color: "#64748b" }}>NID:</span> <strong style={{ color: "#334155" }}>{viewData.nid_number || "-"}</strong></p>
+                                </div>
+                            </div>
+
+                            <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
+                                <h4 style={{ fontSize: "0.9rem", color: "#475569", marginBottom: "12px", fontWeight: "600" }}>Bank & Emergency Contact</h4>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                                    <p style={{ margin: 0 }}><span style={{ color: "#64748b" }}>Bank:</span> <strong style={{ color: "#334155" }}>{viewData.bank_name || "-"}</strong></p>
+                                    <p style={{ margin: 0 }}><span style={{ color: "#64748b" }}>Account No.:</span> <strong style={{ color: "#334155" }}>{viewData.bank_account_no || "-"}</strong></p>
+                                    <p style={{ margin: 0 }}><span style={{ color: "#64748b" }}>Emergency Contact:</span> <strong style={{ color: "#334155" }}>{viewData.emergency_contact_name || "-"}</strong></p>
+                                    <p style={{ margin: 0 }}><span style={{ color: "#64748b" }}>Emergency Phone:</span> <strong style={{ color: "#334155" }}>{viewData.emergency_contact_phone || "-"}</strong></p>
+                                    <p style={{ margin: 0, gridColumn: "1 / -1" }}><span style={{ color: "#64748b" }}>Address:</span> <strong style={{ color: "#334155" }}>{viewData.present_address || "-"}</strong></p>
                                 </div>
                             </div>
                         </div>

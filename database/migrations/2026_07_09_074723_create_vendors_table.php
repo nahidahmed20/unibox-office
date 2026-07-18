@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('company_name')->nullable();
             $table->string('phone')->nullable();
+            $table->decimal('wallet_balance', 15, 2)->default(0);
             $table->text('address')->nullable();
             $table->decimal('opening_balance', 15, 2)->default(0)->comment('আগের বকেয়া');
             $table->timestamps();

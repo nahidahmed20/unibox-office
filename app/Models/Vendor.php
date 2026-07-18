@@ -19,4 +19,9 @@ class Vendor extends Model
         $dueFromProjects = $this->projectExpenses()->sum('due_amount');
         return $openingBalance + $dueFromProjects;
     }
+
+    public function ledgers()
+    {
+        return $this->hasMany(VendorLedger::class);
+    }
 }

@@ -194,7 +194,7 @@ export default function Index({ investments = {}, accounts = [], filters = {} })
                     
                     <div style={{ fontSize: '1.05rem', fontWeight: '700', color: '#0f766e', padding: '12px 20px', background: '#f0fdfa', borderRadius: '8px', border: "1px solid #ccfbf1", boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" }}>
                         <i className="fa-solid fa-chart-line" style={{ marginRight: "8px", color: "#0d9488" }}></i>
-                        Page Total: <span style={{ fontSize: "1.2rem" }}>${totalInvestment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        Page Total: <span style={{ fontSize: "1.2rem" }}>TK{totalInvestment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                 </div>
 
@@ -405,7 +405,7 @@ export default function Index({ investments = {}, accounts = [], filters = {} })
                             {/* 2nd Row: Amount and Date */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>
                                 <div style={{ flexDirection: "column", display: "flex" }}>
-                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount ($) *</label>
+                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount (TK) *</label>
                                     <input 
                                         type="number" 
                                         step="0.01"
