@@ -25,9 +25,15 @@ class AdvanceController extends Controller
             });
         }
 
-        $perPage = $request->input('per_page') === 'all' ? ($query->count() > 0 ? $query->count() : 10) : $request->input('per_page', 10);
+        if ($request->input('per_page') === 'all') {
+            $totalCount = $query->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->input('per_page', 10), 100000); 
+        }
 
         $advances = $query->latest()->paginate($perPage)->withQueryString();
+
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->get();
         $employees = User::whereHas('employeeProfile')->select('id', 'name')->get();
 

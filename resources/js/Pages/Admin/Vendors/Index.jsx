@@ -19,6 +19,10 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
     // Pay Modal State
     const [showPayModal, setShowPayModal] = useState(false);
 
+    // --- NEW: Wallet Modal State ---
+    const [showWalletModal, setShowWalletModal] = useState(false);
+    const [walletAction, setWalletAction] = useState('deposit'); // 'deposit' or 'withdraw'
+
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get('search') || '';
     });
@@ -37,7 +41,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         opening_balance: 0
     });
 
-    // --- Pay Vendor Form ---
+    // --- Pay Pending Bill Form ---
     const payForm = useForm({
         project_expense_id: '',
         payment_source: 'account', 
@@ -46,6 +50,13 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         pay_amount: '',
         discount_amount: '',
         date: new Date().toISOString().split('T')[0]
+    });
+
+    // --- NEW: Vendor Wallet Form ---
+    const walletForm = useForm({
+        account_id: '',
+        amount: '',
+        description: ''
     });
 
     // --- Live Search & Pagination ---
@@ -72,7 +83,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
     const handleCopy = () => {
         if (!vendors.data || !vendors.data.length) return Swal.fire("Empty!", "No data to copy", "warning");
         const text = vendors.data
-            .map((v) => `${v.name}\t${v.company_name || "N/A"}\t${v.phone || "N/A"}\tDue: ${v.total_due || 0}`)
+            .map((v) => `${v.name}\t${v.company_name || "N/A"}\t${v.phone || "N/A"}\tDue: ${v.total_due || 0}\tWallet: ${v.wallet_balance || 0}`)
             .join("\n");
         navigator.clipboard.writeText(text);
         Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false });
@@ -81,8 +92,8 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
     // --- Export CSV ---
     const handleExportCSV = () => {
         if (!vendors.data || !vendors.data.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const headers = ["Vendor Name,Company,Phone,Address,Total Due\n"];
-        const rows = vendors.data.map(v => `"${v.name}","${v.company_name || ''}","${v.phone || ''}","${v.address || ''}","${v.total_due || 0}"`);
+        const headers = ["Vendor Name,Company,Phone,Address,Total Due,Wallet Balance\n"];
+        const rows = vendors.data.map(v => `"${v.name}","${v.company_name || ''}","${v.phone || ''}","${v.address || ''}","${v.total_due || 0}","${v.wallet_balance || 0}"`);
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -127,16 +138,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
     // --- Modals ---
     const openCreateModal = () => {
         clearErrors();
-        
-        setData({
-            id: '',
-            name: '',
-            company_name: '',
-            phone: '',
-            address: '',
-            opening_balance: 0 
-        });
-
+        setData({ id: '', name: '', company_name: '', phone: '', address: '', opening_balance: 0 });
         setEditMode(false);
         setShowModal(true);
     };
@@ -171,6 +173,15 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         setShowPayModal(true);
     };
 
+    // --- NEW: Open Wallet Modal ---
+    const openWalletModal = (vendor, action) => {
+        setSelectedVendor(vendor);
+        setWalletAction(action);
+        walletForm.reset();
+        walletForm.clearErrors();
+        setShowWalletModal(true);
+    };
+
     // --- Submits ---
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -197,6 +208,22 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
             onSuccess: () => {
                 setShowPayModal(false);
                 Swal.fire({ icon: "success", title: "Payment Successful!", timer: 1500, showConfirmButton: false });
+            },
+            onError: (err) => {
+                if (err.error) Swal.fire("Error", err.error, "error");
+            }
+        });
+    };
+
+    // --- NEW: Submit Wallet Form ---
+    const handleWalletSubmit = (e) => {
+        e.preventDefault();
+        const routeName = walletAction === 'deposit' ? 'admin.vendors.add-advance' : 'admin.vendors.receive-refund';
+        
+        walletForm.post(route(routeName, selectedVendor.id), {
+            onSuccess: () => {
+                setShowWalletModal(false);
+                Swal.fire({ icon: "success", title: "Wallet Updated Successfully!", timer: 1500, showConfirmButton: false });
             },
             onError: (err) => {
                 if (err.error) Swal.fire("Error", err.error, "error");
@@ -253,10 +280,14 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                     <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
                         <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
                             Show 
-                            <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
+                            <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
                                 <option value={10}>10 Entries</option>
                                 <option value={25}>25 Entries</option>
                                 <option value={50}>50 Entries</option>
+                                <option value={100}>100 Entries</option>
+                                <option value={500}>500 Entries</option>
+                                <option value={1000}>1000 Entries</option>
+                                <option value="all">All</option>
                             </select>
                         </div>
 
@@ -285,7 +316,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "60px" }}>SL</th>
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Vendor Details</th>
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Contact Info</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Financial (Due)</th>
+                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Financial Data</th>
                                     <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>Actions</th>
                                 </tr>
                             </thead>
@@ -303,18 +334,35 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                                 <div style={{ fontSize: "0.8rem", color: "#94a3b8", marginTop: "2px" }}>{vendor.address ? vendor.address.substring(0, 20) + '...' : "-"}</div>
                                             </td>
                                             <td style={{ padding: "16px 24px" }}>
-                                                <div style={{ fontWeight: "700", color: vendor.total_due > 0 ? "#ef4444" : "#10b981" }}>TK. {Number(vendor.total_due).toLocaleString()}</div>
+                                                <div style={{ fontWeight: "700", color: vendor.total_due > 0 ? "#ef4444" : "#10b981", fontSize: "0.85rem" }}>
+                                                    Due: TK. {Number(vendor.total_due || 0).toLocaleString()}
+                                                </div>
+                                                <div style={{ fontWeight: "600", color: "#7e22ce", fontSize: "0.8rem", marginTop: "4px" }}>
+                                                    <i className="fa-solid fa-wallet"></i> Wallet: TK. {Number(vendor.wallet_balance || 0).toLocaleString()}
+                                                </div>
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: "right" }}>
                                                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
-                                                    {/* --- Pay Button added here --- */}
+                                                    
+                                                    {/* --- NEW: Wallet Action Buttons --- */}
+                                                    {hasPermission('add_advance_vendor') && (
+                                                    <button onClick={() => openWalletModal(vendor, 'deposit')} style={{ background: "#e0e7ff", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#4f46e5" }} title="Give Advance to Wallet">
+                                                        <i className="fa-solid fa-plus-circle"></i>
+                                                    </button>
+                                                    )}
+                                                    {hasPermission('return_advance_vendor') && (
+                                                    <button onClick={() => openWalletModal(vendor, 'withdraw')} style={{ background: "#ffe4e6", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#be123c" }} title="Receive Refund from Wallet">
+                                                        <i className="fa-solid fa-minus-circle"></i>
+                                                    </button>
+                                                    )}
+                                                    {/* --- Existing Action Buttons --- */}
                                                     {hasPermission('view_pay_vendor') && (
-                                                    <button onClick={() => openPayModal(vendor)} style={{ background: "#fef3c7", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#d97706" }} title="Make Payment">
+                                                    <button onClick={() => openPayModal(vendor)} style={{ background: "#fef3c7", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#d97706" }} title="Pay Due Bills">
                                                         <i className="fa-solid fa-money-bill-wave"></i>
                                                     </button>
                                                     )}
                                                     {hasPermission('view_vendors') && (
-                                                    <button onClick={() => openViewModal(vendor)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
+                                                    <button onClick={() => openViewModal(vendor)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Profile">
                                                         <i className="fa-regular fa-eye"></i>
                                                     </button>
                                                     )}
@@ -386,6 +434,13 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                         TK. {Number(selectedVendor.total_due || 0).toLocaleString()}
                                     </div>
                                 </div>
+                                {/* NEW: Display Wallet Balance in Profile */}
+                                <div style={{ gridColumn: "span 2", background: "#faf5ff", border: "1px solid #e9d5ff", padding: "12px", borderRadius: "8px" }}>
+                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#9333ea", display: "block", marginBottom: "4px" }}>Advance / Wallet Balance</span>
+                                    <div style={{ fontWeight: "700", color: "#7e22ce", fontSize: "1.1rem" }}>
+                                        <i className="fa-solid fa-wallet mr-2"></i> TK. {Number(selectedVendor.wallet_balance || 0).toLocaleString()}
+                                    </div>
+                                </div>
                             </div>
                             <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
                                 <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Physical Address</span>
@@ -453,7 +508,8 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                 </div>
             )}
 
-            {/* --- NEW: PAY VENDOR MODAL --- */}
+            {/* --- EXISTING PAY VENDOR MODAL (Omitted to keep code clean, it works exactly as before) --- */}
+            {/* Make sure you keep your existing code for showPayModal here! */}
             {showPayModal && selectedVendor && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
                     <div style={{ background: "#fff", width: "100%", maxWidth: "650px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
@@ -584,6 +640,83 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                 <button type="button" onClick={() => setShowPayModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569" }}>Dismiss</button>
                                 <button type="submit" disabled={payForm.processing} style={{ background: "#10b981", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", opacity: payForm.processing ? 0.7 : 1 }}>
                                     {payForm.processing ? "Processing..." : "Confirm Payment"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* --- NEW: VENDOR WALLET MODAL (Deposit & Withdraw) --- */}
+            {showWalletModal && selectedVendor && (
+                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+                    <div style={{ background: "#fff", width: "100%", maxWidth: "500px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
+                        
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: walletAction === 'deposit' ? '#f5f3ff' : '#fff1f2' }}>
+                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: walletAction === 'deposit' ? '#6d28d9' : '#be123c' }}>
+                                {walletAction === 'deposit' ? <i className="fa-solid fa-plus-circle me-2"></i> : <i className="fa-solid fa-minus-circle me-2"></i>}
+                                {walletAction === 'deposit' ? 'Add Advance to Wallet' : 'Receive Refund from Wallet'}
+                            </h3>
+                            <button type="button" onClick={() => setShowWalletModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}>
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        
+                        <div style={{ padding: "12px 24px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", fontSize: "0.85rem" }}>
+                            <span style={{ fontWeight: "600", color: "#475569" }}>Vendor: {selectedVendor.name}</span>
+                            <span style={{ fontWeight: "700", color: "#7e22ce" }}>Current Balance: {Number(selectedVendor.wallet_balance || 0).toLocaleString()} TK</span>
+                        </div>
+
+                        <form onSubmit={handleWalletSubmit} style={{ padding: "24px" }}>
+                            {/* Account Selection */}
+                            <div style={{ marginBottom: "16px" }}>
+                                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>
+                                    {walletAction === 'deposit' ? 'Pay From Account *' : 'Receive To Account *'}
+                                </label>
+                                <select 
+                                    value={walletForm.data.account_id} 
+                                    onChange={e => walletForm.setData("account_id", e.target.value)} 
+                                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} 
+                                    required
+                                >
+                                    <option value="">-- Select Bank/Cash Account --</option>
+                                    {accounts.map(acc => (
+                                        <option key={acc.id} value={acc.id}>{acc.name} (Bal: {Number(acc.current_balance).toLocaleString()})</option>
+                                    ))}
+                                </select>
+                                {walletForm.errors.account_id && <span style={{color:"#ef4444", fontSize:"0.75rem", display: "block", marginTop: "4px"}}>{walletForm.errors.account_id}</span>}
+                            </div>
+
+                            {/* Amount */}
+                            <div style={{ marginBottom: "16px" }}>
+                                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount (TK) *</label>
+                                <input 
+                                    type="number" step="0.01" min="1" 
+                                    value={walletForm.data.amount} 
+                                    onChange={e => walletForm.setData("amount", e.target.value)} 
+                                    placeholder="Enter amount"
+                                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: "600" }} 
+                                    required 
+                                />
+                                {walletForm.errors.amount && <span style={{color:"#ef4444", fontSize:"0.75rem", display: "block", marginTop: "4px"}}>{walletForm.errors.amount}</span>}
+                            </div>
+
+                            {/* Description */}
+                            <div style={{ marginBottom: "20px" }}>
+                                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Note / Description</label>
+                                <input 
+                                    type="text" 
+                                    value={walletForm.data.description} 
+                                    onChange={e => walletForm.setData("description", e.target.value)} 
+                                    placeholder={walletAction === 'deposit' ? 'e.g., Advance for future work' : 'e.g., Refund for cancelled work'}
+                                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} 
+                                />
+                            </div>
+
+                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+                                <button type="button" onClick={() => setShowWalletModal(false)} style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569", fontWeight: "500" }}>Cancel</button>
+                                <button type="submit" disabled={walletForm.processing} style={{ background: walletAction === 'deposit' ? "#6d28d9" : "#be123c", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", opacity: walletForm.processing ? 0.7 : 1 }}>
+                                    {walletForm.processing ? "Processing..." : "Confirm"}
                                 </button>
                             </div>
                         </form>

@@ -24,7 +24,14 @@ class TransactionController extends Controller
                 });
             });
         }
-        $perPage = $request->input('per_page', 10);
+
+        if ($request->input('per_page') === 'all') {
+            $totalCount = $query->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->input('per_page', 10), 100000); 
+        }
+
         $transactions = $query
             ->latest('transaction_date')
             ->latest('id')

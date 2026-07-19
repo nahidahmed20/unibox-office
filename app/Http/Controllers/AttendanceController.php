@@ -23,8 +23,13 @@ class AttendanceController extends Controller
                 });
         }
 
-        $perPage = $request->input('per_page', 25);
-        
+        if ($request->input('per_page') === 'all') {
+            $totalCount = $query->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->input('per_page', 25), 100000); // sanity cap
+        }
+
         $attendances = $query->orderBy('date', 'desc')
                             ->paginate($perPage)
                             ->withQueryString(); 

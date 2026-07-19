@@ -357,10 +357,14 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
                     <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
                             Show 
-                            <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", outline: "none" }}>
+                            <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", outline: "none" }}>
                                 <option value={10}>10 Clients</option>
                                 <option value={25}>25 Clients</option>
                                 <option value={50}>50 Clients</option>
+                                <option value={100}>100 Clients</option>
+                                <option value={500}>500 Clients</option>
+                                <option value={1000}>1000 Clients</option>
+                                <option value="all">All</option>
                             </select>
                         </div>
 

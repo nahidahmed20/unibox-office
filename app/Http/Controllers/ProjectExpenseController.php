@@ -25,8 +25,8 @@ class ProjectExpenseController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhereHas('vendor', fn ($vq) => $vq->where('name', 'like', "%{$search}%"))
-                  ->orWhereHas('project', fn ($pq) => $pq->where('title', 'like', "%{$search}%"));
+                ->orWhereHas('vendor', fn ($vq) => $vq->where('name', 'like', "%{$search}%"))
+                ->orWhereHas('project', fn ($pq) => $pq->where('title', 'like', "%{$search}%"));
             });
         }
 
@@ -40,9 +40,11 @@ class ProjectExpenseController extends Controller
             'due_amount'  => (float) (clone $query)->sum('due_amount'),
         ];
 
-        $perPage = $request->input('per_page', 10);
-        if ($perPage === 'all') {
-            $perPage = $query->count() ?: 10;
+        if ($request->input('per_page') === 'all') {
+            $totalCount = $query->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->input('per_page', 10), 100000); 
         }
 
         $project_expenses = $query->latest()->paginate($perPage)->withQueryString();

@@ -20,16 +20,27 @@ class AccountController extends Controller
 
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('account_number', 'like', "%{$search}%")
-                  ->orWhere('type', 'like', "%{$search}%");
+                ->orWhere('account_number', 'like', "%{$search}%")
+                ->orWhere('type', 'like', "%{$search}%");
             });
         }
 
-        $perPage = $request->input('per_page', 10);
+        $perPageInput = $request->input('per_page', 10);
 
-        $accounts = $query
-            ->latest()
-            ->paginate($perPage);
+        if ($perPageInput === 'all') {
+            $all = $query->latest()->get();
+            $accounts = new \Illuminate\Pagination\LengthAwarePaginator(
+                $all,
+                $all->count(),
+                $all->count() ?: 1,
+                1,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+        } else {
+            $perPage = min((int) $perPageInput, 100000); // sanity cap
+            $accounts = $query->latest()->paginate($perPage);
+        }
+
         $totalBalance = Account::sum('current_balance');
 
         return Inertia::render('Admin/Accounts/Index', [

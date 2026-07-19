@@ -57,15 +57,17 @@ class ExpenseController extends Controller
         }
 
         $thisMonthTotal = Expense::whereMonth('date', Carbon::now()->month)
-                                 ->whereYear('date', Carbon::now()->year)
-                                 ->sum('amount');
+                                ->whereYear('date', Carbon::now()->year)
+                                ->sum('amount');
 
         $totalAmount = (clone $query)->sum('amount');
 
         // --- Pagination Logic ---
-        $perPage = $request->input('per_page', 10);
-        if ($perPage === 'all') {
-            $perPage = $query->count() ?: 10;
+        if ($request->input('per_page') === 'all') {
+            $totalCount = $query->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->input('per_page', 10), 100000); // sanity cap
         }
 
         $expenses = $query->latest()->paginate($perPage)->withQueryString();

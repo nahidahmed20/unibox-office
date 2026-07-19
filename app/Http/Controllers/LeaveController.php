@@ -13,7 +13,6 @@ class LeaveController extends Controller
     {
         $query = Leave::with(['user', 'approver']);
 
-        // Search Logic
         if ($request->filled('search')) {
             $searchTerm = $request->search;
 
@@ -25,8 +24,12 @@ class LeaveController extends Controller
             });
         }
 
-        // Pagination
-        $perPage = $request->input('per_page', 10);
+        if ($request->input('per_page') === 'all') {
+            $totalCount = $query->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->input('per_page', 10), 100000); 
+        }
 
         $leaves = $query
             ->latest()

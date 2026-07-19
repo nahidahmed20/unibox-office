@@ -14,10 +14,9 @@ class ClientAdvanceController extends Controller
 {
     public function index(Request $request)
     {
-        $perPage = $request->input('per_page', 10);
         $search = $request->input('search');
 
-        $clientWithAdvances = Client::whereHas('clientAdvances')
+        $baseQuery = Client::whereHas('clientAdvances')
             ->with(['clientAdvances' => function($q) {
                 $q->with('account')->latest('date'); 
             }])
@@ -28,7 +27,16 @@ class ClientAdvanceController extends Controller
                     $q->where('name', 'like', "%{$search}%")
                     ->orWhere('company_name', 'like', "%{$search}%");
                 });
-            })
+            });
+
+        if ($request->input('per_page') === 'all') {
+            $totalCount = $baseQuery->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->input('per_page', 10), 100000); 
+        }
+
+        $clientWithAdvances = $baseQuery
             ->paginate($perPage)
             ->withQueryString() 
             ->through(function ($client) {

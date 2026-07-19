@@ -289,14 +289,16 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                         <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", alignItems: "center" }}>
                             <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
                                 Show 
-                                <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
+                                <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
                                     <option value={10}>10 Entries</option>
                                     <option value={25}>25 Entries</option>
                                     <option value={50}>50 Entries</option>
                                     <option value={100}>100 Entries</option>
+                                    <option value={500}>500 Entries</option>
+                                    <option value={1000}>1000 Entries</option>
+                                    <option value="all">All</option>
                                 </select>
                             </div>
-
                             <div className="export-buttons" style={{ display: "flex", gap: "8px" }}>
                                 <button type="button" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
                                     <i className="fas fa-copy text-blue-500"></i> Copy

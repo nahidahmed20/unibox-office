@@ -8,6 +8,7 @@ use App\Models\Advance;
 use App\Models\AdvanceBalance;
 use App\Models\ProjectExpense;
 use App\Models\Vendor;
+use App\Models\VendorLedger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -19,16 +20,21 @@ class VendorController extends Controller
      */
     public function index(Request $request)
     {
-        $perPage = $request->input('per_page', 10);
-        
         $query = Vendor::with(['projectExpenses' => function($q) {
             $q->where('due_amount', '>', 0)->select('id', 'vendor_id', 'title', 'total_bill', 'paid_amount', 'due_amount');
         }]);
 
         if ($request->has('search')) {
             $query->where('name', 'like', "%{$request->search}%")
-                  ->orWhere('company_name', 'like', "%{$request->search}%")
-                  ->orWhere('phone', 'like', "%{$request->search}%");
+                ->orWhere('company_name', 'like', "%{$request->search}%")
+                ->orWhere('phone', 'like', "%{$request->search}%");
+        }
+
+        if ($request->input('per_page') === 'all') {
+            $totalCount = $query->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->input('per_page', 10), 100000); 
         }
 
         $vendors = $query->latest()->paginate($perPage)->withQueryString();
@@ -53,7 +59,8 @@ class VendorController extends Controller
         return Inertia::render('Admin/Vendors/Index', [
             'vendors' => $vendors,
             'accounts' => $accounts,
-            'advances' => $advances
+            'advances' => $advances,
+            'filters' => $request->only('search', 'per_page'),
         ]);
     }
 
@@ -167,17 +174,6 @@ class VendorController extends Controller
         return redirect()->back();
     }
 
-    public function show(Vendor $vendor)
-    {
-        $vendor->append('total_due');
-        $vendor->load(['projectExpenses' => function($q) {
-            $q->latest()->take(10)->with('project');
-        }]);
-
-        return Inertia::render('Admin/Vendors/Show', [
-            'vendor' => $vendor
-        ]);
-    }
 
     public function update(Request $request, string $id)
     {
@@ -202,6 +198,68 @@ class VendorController extends Controller
         $vendor->delete();
 
         return redirect()->back();
+    }
+
+    public function addAdvance(Request $request, $id)
+    {
+        $request->validate([
+            'account_id' => 'required|exists:accounts,id',
+            'amount' => 'required|numeric|min:1',
+            'description' => 'nullable|string'
+        ]);
+
+        DB::transaction(function () use ($request, $id) {
+            $vendor = Vendor::findOrFail($id);
+            $account = Account::findOrFail($request->account_id);
+
+            if ($account->current_balance < $request->amount) {
+                throw new \Exception("অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!");
+            }
+
+            $account->decrement('current_balance', $request->amount);
+
+            $vendor->increment('wallet_balance', $request->amount);
+
+            VendorLedger::create([
+                'vendor_id' => $vendor->id,
+                'type' => 'credit',
+                'amount' => $request->amount,
+                'description' => "Advance given from {$account->name}. " . $request->description
+            ]);
+        });
+
+        return redirect()->back()->with('success', 'Advance added to Vendor Wallet successfully.');
+    }
+
+    public function receiveRefund(Request $request, $id)
+    {
+        $request->validate([
+            'account_id' => 'required|exists:accounts,id',
+            'amount' => 'required|numeric|min:1',
+            'description' => 'nullable|string'
+        ]);
+
+        DB::transaction(function () use ($request, $id) {
+            $vendor = Vendor::findOrFail($id);
+            $account = Account::findOrFail($request->account_id);
+
+            if ($vendor->wallet_balance < $request->amount) {
+                throw new \Exception("ভেন্ডরের ওয়ালেটে পর্যাপ্ত ব্যালেন্স নেই!");
+            }
+
+            $vendor->decrement('wallet_balance', $request->amount);
+
+            $account->increment('current_balance', $request->amount);
+
+            VendorLedger::create([
+                'vendor_id' => $vendor->id,
+                'type' => 'debit',
+                'amount' => $request->amount,
+                'description' => "Refund received to {$account->name}. " . $request->description
+            ]);
+        });
+
+        return redirect()->back()->with('success', 'Refund received successfully.');
     }
 
 }

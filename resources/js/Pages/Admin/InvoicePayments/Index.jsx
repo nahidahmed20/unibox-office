@@ -207,7 +207,8 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
     }, [searchTerm]);
 
     const handlePerPageChange = (e) => {
-        const value = Number(e.target.value);
+        const rawValue = e.target.value;
+        const value = rawValue === "all" ? "all" : Number(rawValue);
         setPerPage(value);
         router.get(
             route("invoice-payments.index"),
@@ -467,6 +468,9 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                                 <option value={25}>25 Entries</option>
                                 <option value={50}>50 Entries</option>
                                 <option value={100}>100 Entries</option>
+                                <option value={500}>500 Entries</option>
+                                <option value={1000}>1000 Entries</option>
+                                <option value="all">All</option>
                             </select>
                         </div>
 

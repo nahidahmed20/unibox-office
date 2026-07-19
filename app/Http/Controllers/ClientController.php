@@ -13,8 +13,6 @@ class ClientController extends Controller
      */
     public function index(Request $request)
     {
-        $perPage = $request->input('per_page', 10);
-
         $query = Client::query();
 
         if ($request->has('search')) {
@@ -22,6 +20,13 @@ class ClientController extends Controller
                 ->orWhere('company_name', 'like', "%{$request->search}%")
                 ->orWhere('email', 'like', "%{$request->search}%")
                 ->orWhere('phone', 'like', "%{$request->search}%");
+        }
+
+        if ($request->input('per_page') === 'all') {
+            $totalCount = $query->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->input('per_page', 10), 100000); // sanity cap
         }
 
         $clients = $query->latest()->paginate($perPage)->withQueryString(); 

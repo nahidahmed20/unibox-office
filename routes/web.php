@@ -59,6 +59,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/vendors/{vendor}/pay', [VendorController::class, 'payVendor'])->name('admin.vendors.pay');
     Route::resource('clients', ClientController::class)->names('admin.clients');
     Route::resource('vendors', VendorController::class)->names('admin.vendors');
+    Route::post('/vendors/{id}/add-advance', [VendorController::class, 'addAdvance'])->name('admin.vendors.add-advance');
+    Route::post('/vendors/{id}/receive-refund', [VendorController::class, 'receiveRefund'])->name('admin.vendors.receive-refund');
     Route::resource('projects', ProjectController::class)->names('admin.projects');
     Route::resource('tasks', TaskController::class)->names('admin.tasks');
 

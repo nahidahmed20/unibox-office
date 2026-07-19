@@ -27,7 +27,13 @@ class InvoiceController extends Controller
             });
         }
 
-        $perPage = $request->input('per_page', 10);
+        if ($request->input('per_page') === 'all') {
+            $totalCount = $query->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->input('per_page', 10), 100000); 
+        }
+
         $invoices = $query->latest()->paginate($perPage)->withQueryString();
 
         $clients = Client::select('id', 'name', 'company_name')

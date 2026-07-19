@@ -17,10 +17,10 @@ class ProjectController extends Controller
             $searchTerm = $request->search;
             $query->where(function($q) use ($searchTerm) {
                 $q->where('title', 'like', "%{$searchTerm}%")
-                  ->orWhere('status', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('client', function($cq) use ($searchTerm) {
-                      $cq->where('name', 'like', "%{$searchTerm}%");
-                  });
+                ->orWhere('status', 'like', "%{$searchTerm}%")
+                ->orWhereHas('client', function($cq) use ($searchTerm) {
+                    $cq->where('name', 'like', "%{$searchTerm}%");
+                });
             });
         }
 
@@ -32,7 +32,13 @@ class ProjectController extends Controller
             $q->where('status', $request->status);
         });
 
-        $perPage = $request->get('per_page', 10);
+        if ($request->input('per_page') === 'all') {
+            $totalCount = $query->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->get('per_page', 10), 100000); 
+        }
+
         $projects = $query->latest()->paginate($perPage)->withQueryString(); 
 
         $clients = Client::select('id', 'name', 'company_name')->latest()->get();

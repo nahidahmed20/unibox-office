@@ -12,7 +12,6 @@ class NoticeController extends Controller
     {
         $query = Notice::with('creator');
 
-        // Search Logic
         if ($request->filled('search')) {
             $searchTerm = $request->search;
 
@@ -25,7 +24,12 @@ class NoticeController extends Controller
         }
 
         // Pagination
-        $perPage = $request->input('per_page', 10);
+        if ($request->input('per_page') === 'all') {
+            $totalCount = $query->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->input('per_page', 10), 100000); 
+        }
 
         $notices = $query
             ->latest()

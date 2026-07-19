@@ -10,12 +10,19 @@ class DepartmentController extends Controller
 {
     public function index(Request $request)
     {
-        $perPage = $request->input('per_page', 10);
-
-        $departments = Department::query()
+        $query = Department::query()
             ->when($request->search, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%");
-            })
+            });
+
+        if ($request->input('per_page') === 'all') {
+            $totalCount = $query->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->input('per_page', 10), 100000); 
+        }
+
+        $departments = $query
             ->latest()
             ->paginate($perPage)
             ->withQueryString(); 

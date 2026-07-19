@@ -12,27 +12,30 @@ class TaskController extends Controller
 {
     public function index(Request $request)
     {
-        // project ebong assignee (user) er data load kora holo
         $query = Task::with(['project', 'assignee']); 
 
         if ($request->has('search') && $request->search != '') {
             $searchTerm = $request->search;
             
-            // Nested where query use kora hoyeche jate search properly kaj kore
             $query->where(function($q) use ($searchTerm) {
                 $q->where('title', 'like', "%{$searchTerm}%")
-                  ->orWhere('status', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('project', function($pq) use ($searchTerm) {
-                      $pq->where('title', 'like', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('assignee', function($uq) use ($searchTerm) {
-                      $uq->where('name', 'like', "%{$searchTerm}%");
-                  });
+                ->orWhere('status', 'like', "%{$searchTerm}%")
+                ->orWhereHas('project', function($pq) use ($searchTerm) {
+                    $pq->where('title', 'like', "%{$searchTerm}%");
+                })
+                ->orWhereHas('assignee', function($uq) use ($searchTerm) {
+                    $uq->where('name', 'like', "%{$searchTerm}%");
+                });
             });
         }
 
-        // Dropdown entry onujayi paginated data nibe, default 10
-        $perPage = $request->input('per_page', 10);
+        if ($request->input('per_page') === 'all') {
+            $totalCount = $query->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->input('per_page', 10), 100000); // sanity cap
+        }
+
         $tasks = $query->latest()->paginate($perPage)->withQueryString(); 
         
         // Modal er dropdown er jonno data

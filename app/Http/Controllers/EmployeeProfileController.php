@@ -12,29 +12,34 @@ use Inertia\Inertia;
 class EmployeeProfileController extends Controller
 {
     public function index(Request $request)
-    {
-        $query = EmployeeProfile::with(['user', 'department', 'designation']);
+{
+    $query = EmployeeProfile::with(['user', 'department', 'designation']);
 
-        if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
-                $q->where('employee_id_code', 'like', "%{$searchTerm}%")
-                ->orWhereHas('user', function($userQuery) use ($searchTerm) {
-                    $userQuery->where('name', 'like', "%{$searchTerm}%");
-                });
+    if ($request->filled('search')) {
+        $searchTerm = $request->search;
+        $query->where(function($q) use ($searchTerm) {
+            $q->where('employee_id_code', 'like', "%{$searchTerm}%")
+            ->orWhereHas('user', function($userQuery) use ($searchTerm) {
+                $userQuery->where('name', 'like', "%{$searchTerm}%");
             });
-        }
-
-        $perPage = $request->input('per_page', 10);
-
-        return Inertia::render('Admin/Employees/Index', [
-            'employees'    => $query->latest()->paginate($perPage)->withQueryString(),
-            'users'        => User::select('id', 'name')->get(),
-            'departments'  => Department::select('id', 'name')->get(),
-            'designations' => Designation::select('id', 'name', 'department_id')->get(),
-            'filters'      => $request->only(['search', 'per_page'])
-        ]);
+        });
     }
+
+    if ($request->input('per_page') === 'all') {
+        $totalCount = $query->count();
+        $perPage = $totalCount > 0 ? $totalCount : 1;
+    } else {
+        $perPage = min((int) $request->input('per_page', 10), 100000); 
+    }
+
+    return Inertia::render('Admin/Employees/Index', [
+        'employees'    => $query->latest()->paginate($perPage)->withQueryString(),
+        'users'        => User::select('id', 'name')->get(),
+        'departments'  => Department::select('id', 'name')->get(),
+        'designations' => Designation::select('id', 'name', 'department_id')->get(),
+        'filters'      => $request->only(['search', 'per_page'])
+    ]);
+}
 
     public function store(Request $request)
     {

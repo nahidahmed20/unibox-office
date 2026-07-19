@@ -18,11 +18,18 @@ class InvestmentController extends Controller
             $searchTerm = $request->search;
             $query->where(function($q) use ($searchTerm) {
                 $q->where('investor_name', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('purpose', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('investment_date', 'like', '%' . $searchTerm . '%');
+                ->orWhere('purpose', 'like', '%' . $searchTerm . '%')
+                ->orWhere('investment_date', 'like', '%' . $searchTerm . '%');
             });
         }
-        $perPage = $request->input('per_page', 10);
+
+        if ($request->input('per_page') === 'all') {
+            $totalCount = $query->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->input('per_page', 10), 100000); // sanity cap
+        }
+
         $investments = $query->latest()->paginate($perPage)->withQueryString();
         
         $accounts = Account::where('is_active', true)->get(['id', 'name','current_balance']);

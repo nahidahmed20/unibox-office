@@ -38,9 +38,16 @@ class InvoicePaymentController extends Controller
         }
 
         // Pagination
+        if ($request->input('per_page') === 'all') {
+            $totalCount = $query->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->input('per_page', 10), 100000); // sanity cap
+        }
+
         $payments = $query
             ->latest()
-            ->paginate($request->per_page ?? 10)
+            ->paginate($perPage)
             ->withQueryString();
 
         $invoices = Invoice::with('client')
@@ -64,7 +71,7 @@ class InvoicePaymentController extends Controller
             'accounts' => $accounts,
             'filters' => [
                 'search' => $request->search,
-                'per_page' => $request->per_page ?? 10,
+                'per_page' => $request->input('per_page', 10),
             ],
         ]);
     }
