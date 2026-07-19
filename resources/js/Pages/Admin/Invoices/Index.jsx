@@ -19,7 +19,11 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
     const [availableAdvance, setAvailableAdvance] = useState(0);
 
     const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get('search') || '');
-    const [perPage, setPerPage] = useState(() => Number(new URLSearchParams(window.location.search).get("per_page")) || 10);
+    const [perPage, setPerPage] = useState(() => {
+        const raw = new URLSearchParams(window.location.search).get("per_page");
+        if (raw === "all") return "all";
+        return raw ? Number(raw) : 10;
+    });
     const isFirstRender = useRef(true);
 
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
@@ -156,11 +160,13 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
             tax: 0,
             discount: 0,
             grand_total: 0,
-            advance_used: 0,
+            use_advance_amount: 0,
             status: 'unpaid', 
-            notes: ''
+            notes: '',
+            items: [{ project_id: "", description: "", quantity: 1, unit_price: 0, total: 0 }]
         });
 
+        setAvailableAdvance(0);
         setEditMode(false);
         setShowModal(true);
     };
