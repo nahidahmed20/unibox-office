@@ -29,7 +29,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
         id: "",
         client_id: "",
-        invoice_number: "",
+        invoice_number: nextInvoiceNumber || "", // <-- Fixed here
         invoice_date: new Date().toISOString().split('T')[0],
         due_date: new Date().toISOString().split('T')[0],
         tax: 0,
@@ -103,7 +103,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         setData("items", rows);
     };
 
-    // Auto Calculations: Overwrite Prevention Fixed!
     useEffect(() => {
         let subtotal = 0;
         data.items.forEach(item => { subtotal += Number(item.total); });
@@ -112,11 +111,9 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         const grand = subtotal + taxAmount - Number(data.discount);
 
         setData(prev => {
-            // Prevent overriding the advance unless it strictly exceeds the grand total
             let validAdvanceUsed = Number(prev.use_advance_amount) || 0;
             if (validAdvanceUsed > grand) validAdvanceUsed = grand;
             
-            // Only update state if values actually changed to prevent loop/overrides
             if (prev.sub_total !== subtotal || prev.grand_total !== grand || prev.use_advance_amount !== validAdvanceUsed) {
                 return {
                     ...prev,
@@ -153,7 +150,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         setData({
             id: '',
             client_id: '',
-            invoice_number: '',
+            invoice_number: nextInvoiceNumber || '', // <-- Fixed here
             invoice_date: new Date().toISOString().slice(0, 10),
             due_date: '', 
             sub_total: 0,
@@ -175,9 +172,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         clearErrors(); 
         setEditingInvoice(inv);
         
-        // Exact 20,000 (or whatever was used) comes from backend
         const advanceUsedByThisInvoice = Number(inv.advance_used) || 0;
-        
         const selectedClient = clients.find(c => c.id === inv.client_id);
         const currentAvailable = selectedClient ? Number(selectedClient.available_advance || 0) : 0;
         
@@ -193,7 +188,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
             tax: inv.tax || 0,
             discount: inv.discount || 0,
             grand_total: inv.grand_total || 0,
-            use_advance_amount: advanceUsedByThisInvoice, // 20,000 will be set here
+            use_advance_amount: advanceUsedByThisInvoice,
             status: inv.status || 'unpaid',
             notes: inv.notes || '',
             items: inv.items?.length > 0
@@ -204,13 +199,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                     unit_price: item.unit_price || 0,
                     total: item.total || 0,
                 }))
-                : [{
-                    project_id: "",
-                    description: "",
-                    quantity: 1,
-                    unit_price: 0,
-                    total: 0,
-                }]
+                : [{ project_id: "", description: "", quantity: 1, unit_price: 0, total: 0 }]
         });
         setEditMode(true); 
         setShowModal(true);
