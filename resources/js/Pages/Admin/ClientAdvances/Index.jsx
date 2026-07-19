@@ -523,7 +523,7 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
             {/* --- VIEW MODAL --- */}
             {showViewModal && selectedAdvance && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.5)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "500px", borderRadius: "12px", overflow: "hidden" }}>
+                    <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", overflow: "hidden" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
                             <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>Transaction Details</h3>
                             <button onClick={() => setShowViewModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}><i className="fa-solid fa-xmark"></i></button>
