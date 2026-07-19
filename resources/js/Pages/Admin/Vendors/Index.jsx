@@ -18,8 +18,10 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
 
     // Pay Modal State
     const [showPayModal, setShowPayModal] = useState(false);
+    // NEW: Multi-bill checkbox selection
+    const [selectedBillIds, setSelectedBillIds] = useState([]);
 
-    // --- NEW: Wallet Modal State ---
+    // Wallet Modal State
     const [showWalletModal, setShowWalletModal] = useState(false);
     const [walletAction, setWalletAction] = useState('deposit'); // 'deposit' or 'withdraw'
 
@@ -41,18 +43,17 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         opening_balance: 0
     });
 
-    // --- Pay Pending Bill Form ---
+    // --- Pay Pending Bill(s) Form (now supports multiple bill ids) ---
     const payForm = useForm({
-        project_expense_id: '',
-        payment_source: 'account', 
+        project_expense_ids: [],
+        payment_source: 'account',
         account_id: '',
-        advance_user_id: '', 
+        advance_user_id: '',
         pay_amount: '',
-        discount_amount: '',
         date: new Date().toISOString().split('T')[0]
     });
 
-    // --- NEW: Vendor Wallet Form ---
+    // --- Vendor Wallet Form ---
     const walletForm = useForm({
         account_id: '',
         amount: '',
@@ -168,12 +169,12 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
             return Swal.fire("No Dues", "This vendor has no pending bills.", "info");
         }
         setSelectedVendor(vendor);
+        setSelectedBillIds([]);
         payForm.reset();
         payForm.clearErrors();
         setShowPayModal(true);
     };
 
-    // --- NEW: Open Wallet Modal ---
     const openWalletModal = (vendor, action) => {
         setSelectedVendor(vendor);
         setWalletAction(action);
@@ -181,6 +182,35 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         walletForm.clearErrors();
         setShowWalletModal(true);
     };
+
+    // --- Derived data for the Pay Modal (multi-select bills) ---
+    const dueBillsList = selectedVendor ? (selectedVendor.project_expenses || selectedVendor.projectExpenses || []) : [];
+
+    const selectedTotalDue = dueBillsList
+        .filter(bill => selectedBillIds.includes(bill.id))
+        .reduce((sum, bill) => sum + Number(bill.due_amount || 0), 0);
+
+    const toggleBillSelect = (billId) => {
+        setSelectedBillIds(prev =>
+            prev.includes(billId) ? prev.filter(id => id !== billId) : [...prev, billId]
+        );
+    };
+
+    const toggleSelectAllBills = () => {
+        if (selectedBillIds.length === dueBillsList.length) {
+            setSelectedBillIds([]);
+        } else {
+            setSelectedBillIds(dueBillsList.map(b => b.id));
+        }
+    };
+
+    // যতগুলো বিল সিলেক্ট হবে, তাদের মোট বকেয়া অটোমেটিক Pay Amount ফিল্ডে বসবে
+    useEffect(() => {
+        if (showPayModal) {
+            payForm.setData("pay_amount", selectedTotalDue > 0 ? selectedTotalDue : '');
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedBillIds]);
 
     // --- Submits ---
     const handleSubmit = (e) => {
@@ -204,10 +234,21 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
 
     const handlePaySubmit = (e) => {
         e.preventDefault();
+
+        if (selectedBillIds.length === 0) {
+            return Swal.fire("সিলেক্ট করুন", "অন্তত একটা বিল সিলেক্ট করতে হবে।", "warning");
+        }
+
+        payForm.transform((formData) => ({
+            ...formData,
+            project_expense_ids: selectedBillIds,
+        }));
+
         payForm.post(route('admin.vendors.pay', selectedVendor.id), {
             onSuccess: () => {
                 setShowPayModal(false);
-                Swal.fire({ icon: "success", title: "Payment Successful!", timer: 1500, showConfirmButton: false });
+                setSelectedBillIds([]);
+                Swal.fire({ icon: "success", title: "পেমেন্ট সফল হয়েছে!", timer: 1500, showConfirmButton: false });
             },
             onError: (err) => {
                 if (err.error) Swal.fire("Error", err.error, "error");
@@ -215,7 +256,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         });
     };
 
-    // --- NEW: Submit Wallet Form ---
     const handleWalletSubmit = (e) => {
         e.preventDefault();
         const routeName = walletAction === 'deposit' ? 'admin.vendors.add-advance' : 'admin.vendors.receive-refund';
@@ -344,7 +384,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                             <td style={{ padding: "16px 24px", textAlign: "right" }}>
                                                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
                                                     
-                                                    {/* --- NEW: Wallet Action Buttons --- */}
                                                     {hasPermission('add_advance_vendor') && (
                                                     <button onClick={() => openWalletModal(vendor, 'deposit')} style={{ background: "#e0e7ff", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#4f46e5" }} title="Give Advance to Wallet">
                                                         <i className="fa-solid fa-plus-circle"></i>
@@ -355,7 +394,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                                         <i className="fa-solid fa-minus-circle"></i>
                                                     </button>
                                                     )}
-                                                    {/* --- Existing Action Buttons --- */}
                                                     {hasPermission('view_pay_vendor') && (
                                                     <button onClick={() => openPayModal(vendor)} style={{ background: "#fef3c7", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#d97706" }} title="Pay Due Bills">
                                                         <i className="fa-solid fa-money-bill-wave"></i>
@@ -434,7 +472,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                         TK. {Number(selectedVendor.total_due || 0).toLocaleString()}
                                     </div>
                                 </div>
-                                {/* NEW: Display Wallet Balance in Profile */}
                                 <div style={{ gridColumn: "span 2", background: "#faf5ff", border: "1px solid #e9d5ff", padding: "12px", borderRadius: "8px" }}>
                                     <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#9333ea", display: "block", marginBottom: "4px" }}>Advance / Wallet Balance</span>
                                     <div style={{ fontWeight: "700", color: "#7e22ce", fontSize: "1.1rem" }}>
@@ -508,8 +545,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                 </div>
             )}
 
-            {/* --- EXISTING PAY VENDOR MODAL (Omitted to keep code clean, it works exactly as before) --- */}
-            {/* Make sure you keep your existing code for showPayModal here! */}
+            {/* --- PAY VENDOR MODAL (now supports multi-bill checkbox selection) --- */}
             {showPayModal && selectedVendor && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
                     <div style={{ background: "#fff", width: "100%", maxWidth: "650px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
@@ -522,24 +558,52 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                             </button>
                         </div>
                         <form onSubmit={handlePaySubmit} style={{ padding: "24px" }}>
-                            
-                            {/* Bill Dropdown */}
+
+                            {/* --- Multi-bill checkbox list --- */}
                             <div style={{ marginBottom: "16px" }}>
-                                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Select Pending Bill *</label>
-                                <select 
-                                    value={payForm.data.project_expense_id} 
-                                    onChange={e => payForm.setData("project_expense_id", e.target.value)} 
-                                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} 
-                                    required
-                                >
-                                    <option value="">-- Choose a bill --</option>
-                                    {(selectedVendor.project_expenses || selectedVendor.projectExpenses || []).map(bill => (
-                                        <option key={bill.id} value={bill.id}>
-                                            {bill.title} (Due: TK. {Number(bill.due_amount).toLocaleString()})
-                                        </option>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569" }}>বিল সিলেক্ট করুন *</label>
+                                    <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.8rem", color: "#2563eb", cursor: "pointer" }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={dueBillsList.length > 0 && selectedBillIds.length === dueBillsList.length}
+                                            onChange={toggleSelectAllBills}
+                                        />
+                                        সব সিলেক্ট করুন
+                                    </label>
+                                </div>
+
+                                <div style={{ border: "1px solid #cbd5e1", borderRadius: "8px", maxHeight: "220px", overflowY: "auto" }}>
+                                    {dueBillsList.map(bill => (
+                                        <label
+                                            key={bill.id}
+                                            style={{
+                                                display: "flex", justifyContent: "space-between", alignItems: "center",
+                                                padding: "10px 14px", borderBottom: "1px solid #f1f5f9", cursor: "pointer",
+                                                background: selectedBillIds.includes(bill.id) ? "#eff6ff" : "#fff"
+                                            }}
+                                        >
+                                            <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedBillIds.includes(bill.id)}
+                                                    onChange={() => toggleBillSelect(bill.id)}
+                                                />
+                                                <span style={{ fontWeight: "500", color: "#334155" }}>{bill.title}</span>
+                                            </span>
+                                            <span style={{ fontWeight: "700", color: "#ef4444", fontSize: "0.85rem" }}>
+                                                Due: TK. {Number(bill.due_amount).toLocaleString()}
+                                            </span>
+                                        </label>
                                     ))}
-                                </select>
-                                {payForm.errors.project_expense_id && <span style={{color:"#ef4444", fontSize:"0.75rem", marginTop: "4px", display: "block"}}>{payForm.errors.project_expense_id}</span>}
+                                </div>
+
+                                {selectedBillIds.length > 0 && (
+                                    <div style={{ marginTop: "8px", fontSize: "0.85rem", color: "#1e40af", background: "#eff6ff", padding: "8px 12px", borderRadius: "6px" }}>
+                                        {selectedBillIds.length} টি বিল সিলেক্ট করা হয়েছে — মোট বকেয়া: TK. {selectedTotalDue.toLocaleString()}
+                                    </div>
+                                )}
+                                {payForm.errors.project_expense_ids && <span style={{color:"#ef4444", fontSize:"0.75rem", marginTop: "4px", display: "block"}}>{payForm.errors.project_expense_ids}</span>}
                             </div>
 
                             {/* Payment Source Radios */}
@@ -608,23 +672,13 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                         type="number" step="0.01" min="1" 
                                         value={payForm.data.pay_amount} 
                                         onChange={e => payForm.setData("pay_amount", e.target.value)} 
-                                        placeholder="e.g. 19000"
+                                        placeholder="e.g. 10000"
                                         style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} 
                                         required 
                                     />
                                     {payForm.errors.pay_amount && <span style={{color:"#ef4444", fontSize:"0.75rem", marginTop: "4px", display: "block"}}>{payForm.errors.pay_amount}</span>}
                                 </div>
                                 <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Discount / Waiver (TK)</label>
-                                    <input 
-                                        type="number" step="0.01" min="0" 
-                                        value={payForm.data.discount_amount} 
-                                        onChange={e => payForm.setData("discount_amount", e.target.value)} 
-                                        placeholder="e.g. 1000"
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} 
-                                    />
-                                </div>
-                                <div style={{ gridColumn: "span 2" }}>
                                     <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Payment Date *</label>
                                     <input 
                                         type="date" 
@@ -636,7 +690,12 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                 </div>
                             </div>
 
-                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+                            <div style={{ background: "#fffbeb", border: "1px solid #fde68a", padding: "10px 14px", borderRadius: "8px", marginBottom: "8px", fontSize: "0.8rem", color: "#92400e" }}>
+                                <i className="fa-solid fa-circle-info" style={{ marginRight: "6px" }}></i>
+                                টাকাটা সিলেক্ট করা বিলগুলোর মধ্যে পুরনো বিল আগে ধরে ক্রমান্বয়ে সেটেল হবে। বকেয়ার চেয়ে বেশি দিলে বাড়তি অংশ ভেন্ডরের ওয়ালেটে জমা হয়ে যাবে।
+                            </div>
+
+                            <div style={{ marginTop: "16px", display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
                                 <button type="button" onClick={() => setShowPayModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569" }}>Dismiss</button>
                                 <button type="submit" disabled={payForm.processing} style={{ background: "#10b981", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", opacity: payForm.processing ? 0.7 : 1 }}>
                                     {payForm.processing ? "Processing..." : "Confirm Payment"}
@@ -647,7 +706,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                 </div>
             )}
 
-            {/* --- NEW: VENDOR WALLET MODAL (Deposit & Withdraw) --- */}
+            {/* --- VENDOR WALLET MODAL (Deposit & Withdraw) --- */}
             {showWalletModal && selectedVendor && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
                     <div style={{ background: "#fff", width: "100%", maxWidth: "500px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
@@ -668,7 +727,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                         </div>
 
                         <form onSubmit={handleWalletSubmit} style={{ padding: "24px" }}>
-                            {/* Account Selection */}
                             <div style={{ marginBottom: "16px" }}>
                                 <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>
                                     {walletAction === 'deposit' ? 'Pay From Account *' : 'Receive To Account *'}
@@ -687,7 +745,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                 {walletForm.errors.account_id && <span style={{color:"#ef4444", fontSize:"0.75rem", display: "block", marginTop: "4px"}}>{walletForm.errors.account_id}</span>}
                             </div>
 
-                            {/* Amount */}
                             <div style={{ marginBottom: "16px" }}>
                                 <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount (TK) *</label>
                                 <input 
@@ -701,7 +758,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                 {walletForm.errors.amount && <span style={{color:"#ef4444", fontSize:"0.75rem", display: "block", marginTop: "4px"}}>{walletForm.errors.amount}</span>}
                             </div>
 
-                            {/* Description */}
                             <div style={{ marginBottom: "20px" }}>
                                 <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Note / Description</label>
                                 <input 
