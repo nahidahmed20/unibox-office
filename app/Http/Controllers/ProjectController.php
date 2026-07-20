@@ -42,7 +42,7 @@ class ProjectController extends Controller
         $projects = $query->latest()->paginate($perPage)->withQueryString(); 
 
         $clients = Client::select('id', 'name', 'company_name')->latest()->get();
-        $isSuperAdmin = auth()->check() && auth()->user()->role === 'Super Admin';
+        $isSuperAdmin = auth()->check() && auth()->user()->hasRole('Super Admin');
 
         return Inertia::render('Admin/Projects/Index', [
             'projects' => $projects,
@@ -71,8 +71,7 @@ class ProjectController extends Controller
     public function update(Request $request, string $id)
     {
         $project = Project::findOrFail($id);
-
-        if ($project->status === 'completed' && auth()->user()->role !== 'Super Admin') {
+        if($project->status === 'completed' && !auth()->user()->hasRole('Super Admin')) {
             abort(403, 'Completed projects can only be modified by Super Admin.');
         }
 
@@ -93,15 +92,14 @@ class ProjectController extends Controller
     public function updateStatus(Request $request, string $id)
     {
         $project = Project::findOrFail($id);
-
-        if ($project->status === 'completed' && auth()->user()->role !== 'Super Admin') {
-            return back()->withErrors(['status' => 'Only Super Admin can change the status of a completed project.']);
+        if($project->status === 'completed' && !auth()->user()->hasRole('Super Admin')) {
+            return back()->withErrors([
+                'status' => 'Only Super Admin can change the status of a completed project.'
+            ]);
         }
-
         $validated = $request->validate([
             'status' => 'required|in:planning,in_progress,completed,on_hold',
         ]);
-
         $project->update($validated);
         return back()->with('success', 'Project status updated.');
     }

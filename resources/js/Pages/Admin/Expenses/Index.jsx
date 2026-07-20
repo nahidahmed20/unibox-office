@@ -17,9 +17,6 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedExpense, setSelectedExpense] = useState(null);
 
-    // Payment Source Type Toggle (Account or Advance)
-    const [paymentType, setPaymentType] = useState('account');
-
     // Filter States
     const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get("search") || "");
     const [perPage, setPerPage] = useState(() => new URLSearchParams(window.location.search).get("per_page") || "10");
@@ -32,7 +29,17 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
     const isFirstRender = useRef(true);
 
     const { data, setData, post, delete: destroy, reset, processing, errors, clearErrors } = useForm({
-        id: "", title: "", expense_category_id: "", account_id: "", advance_id: "", amount: "", date: "", description: "", attachment: null, _method: "post",
+        id: "", 
+        title: "", 
+        expense_category_id: "", 
+        account_id: "", 
+        advance_user_id: "", // Refactored from advance_id
+        amount: "", 
+        date: new Date().toISOString().slice(0, 10), 
+        description: "", 
+        pay_type: "account", // Unified payment type
+        attachment: null, 
+        _method: "post",
     });
 
     // --- Live Search, Filters & Pagination ---
@@ -81,7 +88,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
         const headers = ["Date,Title,Category,Payment Source,Amount,Description\n"];
         const rows = expList.map(e => {
             const safeDescription = (e.description || '').replace(/\r?\n|\r/g, ' ').replace(/"/g, '""');
-            return `"${e.date}","${e.title}","${e.category?.name || ''}","${e.account_id ? e.account?.name : (e.advance_id ? 'Advance' : '')}","${e.amount}","${safeDescription}"`;
+            return `"${e.date}","${e.title}","${e.category?.name || ''}","${e.account_id ? e.account?.name : (e.advance_user_id ? 'Advance' : '')}","${e.amount}","${safeDescription}"`;
         });
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
@@ -111,7 +118,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                         table { width: 100%; border-collapse: collapse; text-align: left; }
                         th, td { padding: 12px; border: 1px solid #cbd5e1; font-size: 13px; }
                         th { background-color: #f1f5f9; font-weight: 600; text-transform: uppercase; }
-                        th:last-child, td:last-child { display: none !important; } /* Hide Actions */
+                        th:last-child, td:last-child { display: none !important; }
                     </style>
                 </head>
                 <body>
@@ -128,19 +135,19 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
     // --- Modals & Actions ---
     const openCreateModal = () => {
         clearErrors();
-
         setData({
             id: '',
             title: '',
             description: '',
             expense_category_id: '',
-            advance_id: '',
+            advance_user_id: '',
             account_id: '',
             amount: 0,
             date: new Date().toISOString().slice(0, 10),
-            attachment: null 
+            pay_type: 'account',
+            attachment: null,
+            _method: "post"
         });
-
         setEditMode(false);
         setShowModal(true);
     };
@@ -148,18 +155,29 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
     const openEditModal = (expense) => {
         clearErrors();
         setData({
-            id: expense.id, title: expense.title || "", expense_category_id: expense.expense_category_id || "",
-            account_id: expense.account_id || "", advance_id: expense.advance_id || "", amount: expense.amount || "",
-            date: expense.date || "", description: expense.description || "", attachment: null, _method: "put", 
+            id: expense.id, 
+            title: expense.title || "", 
+            expense_category_id: expense.expense_category_id || "",
+            account_id: expense.account_id || "", 
+            advance_user_id: expense.advance_user_id || "", 
+            amount: expense.amount || "",
+            date: expense.date || "", 
+            description: expense.description || "", 
+            pay_type: expense.advance_user_id ? 'advance' : 'account',
+            attachment: null, 
+            _method: "put", 
         });
-        setPaymentType(expense.advance_id ? 'advance' : 'account'); setEditMode(true); setShowModal(true);
+        setEditMode(true); 
+        setShowModal(true);
     };
 
     const openViewModal = (expense) => { setSelectedExpense(expense); setShowViewModal(true); };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!data.account_id && !data.advance_id) return Swal.fire("Required", "Please select a Payment Source.", "warning");
+        
+        if (data.pay_type === 'account' && !data.account_id) return Swal.fire("Required", "Please select a Bank/Cash Account.", "warning");
+        if (data.pay_type === 'advance' && !data.advance_user_id) return Swal.fire("Required", "Please select an Advance User.", "warning");
 
         post(editMode ? route("admin.expenses.update", data.id) : route("admin.expenses.store"), {
             onSuccess: () => {
@@ -185,9 +203,9 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
         option: (provided, state) => ({ ...provided, fontSize: "0.875rem", backgroundColor: state.isSelected ? "#2563eb" : state.isFocused ? "#eff6ff" : "#fff", color: state.isSelected ? "#fff" : "#1e293b", cursor: "pointer" }),
     };
 
+    // User-grouped advance options
     const advanceOptions = advances.map((a) => {
-        const rem = parseFloat(a.amount || 0) - (parseFloat(a.settled_amount || 0) + parseFloat(a.returned_amount || 0));
-        return { value: a.id, label: `${a.user?.name || 'Unknown'} (Rem: TK. ${rem})` };
+        return { value: a.user_id, label: `${a.user?.name || 'Unknown'} (Rem: TK. ${a.balance})` };
     });
 
     return (
@@ -204,7 +222,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                     </div>
                 </div>
 
-                {/* 🟢 NEW: Summary Stat Cards */}
+                {/* Summary Stat Cards */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "20px", marginBottom: "24px" }}>
                     <div style={{ background: "#fff", padding: "20px", borderRadius: "10px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.05)", display: "flex", alignItems: "center", gap: "16px" }}>
                         <div style={{ background: "#eff6ff", width: "48px", height: "48px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#3b82f6", fontSize: "1.25rem" }}>
@@ -242,7 +260,6 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
 
                     {/* Toolbar & Filters */}
                     <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
-                        
                         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                             <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
                                 Show 
@@ -334,8 +351,8 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                                     {exp.category?.name || "Uncategorized"}
                                                 </span>
                                                 <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
-                                                    <i className={exp.advance_id ? "fa-solid fa-hand-holding-dollar me-1" : "fa-solid fa-building-columns me-1"}></i> 
-                                                    {exp.account_id ? (exp.account?.name || 'Account') : (exp.advance_id ? 'Advance' : 'N/A')}
+                                                    <i className={exp.advance_user_id ? "fa-solid fa-hand-holding-dollar me-1" : "fa-solid fa-building-columns me-1"}></i> 
+                                                    {exp.account_id ? (exp.account?.name || 'Account') : (exp.advance_user_id ? 'Advance' : 'N/A')}
                                                 </div>
                                             </td>
                                             <td style={{ padding: "16px 24px", textAlign: "right", fontWeight: "700", color: "#dc2626" }}>
@@ -368,7 +385,6 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                     </tr>
                                 )}
                             </tbody>
-                            
                         </table>
                     </div>
 
@@ -381,7 +397,6 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                 </div>
                                 <div style={{ display: "flex", gap: "6px" }}>
                                     {expenses.links.map((link, index) => {
-                                        // 🟢 FIXED: Pagination Icon Logic
                                         let labelContent;
                                         if (link.label.includes('Previous')) {
                                             labelContent = <i className="fa-solid fa-chevron-left"></i>;
@@ -448,7 +463,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                     <div style={{ fontWeight: "600", color: "#334155" }}>
                                         {selectedExpense.account_id ? (
                                             <><i className="fa-solid fa-building-columns text-purple-500" style={{ marginRight: "6px" }}></i>{selectedExpense.account?.name}</>
-                                        ) : selectedExpense.advance_id ? (
+                                        ) : selectedExpense.advance_user_id ? (
                                             <><i className="fa-solid fa-hand-holding-dollar text-teal-500" style={{ marginRight: "6px" }}></i>Paid via Advance</>
                                         ) : "N/A"}
                                     </div>
@@ -525,17 +540,17 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                             <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", margin: 0 }}>Payment Source *</label>
                                             <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem' }}>
                                                 <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                                    <input type="radio" name="payType" checked={paymentType === 'account'} onChange={() => { setPaymentType('account'); setData('advance_id', ''); }} />
+                                                    <input type="radio" name="payType" checked={data.pay_type === 'account'} onChange={() => { setData('pay_type', 'account'); setData('advance_user_id', ''); }} />
                                                     Account
                                                 </label>
                                                 <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                                    <input type="radio" name="payType" checked={paymentType === 'advance'} onChange={() => { setPaymentType('advance'); setData('account_id', ''); }} />
+                                                    <input type="radio" name="payType" checked={data.pay_type === 'advance'} onChange={() => { setData('pay_type', 'advance'); setData('account_id', ''); }} />
                                                     Advance
                                                 </label>
                                             </div>
                                         </div>
 
-                                        {paymentType === 'account' && (
+                                        {data.pay_type === 'account' && (
                                             <>
                                                 <Select
                                                     options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${a.current_balance})` }))}
@@ -547,16 +562,16 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                             </>
                                         )}
 
-                                        {paymentType === 'advance' && (
+                                        {data.pay_type === 'advance' && (
                                             <>
                                                 <Select
                                                     options={advanceOptions}
-                                                    value={advanceOptions.find((opt) => Number(opt.value) === Number(data.advance_id)) || null}
-                                                    onChange={(selected) => setData("advance_id", selected ? selected.value : "")}
+                                                    value={advanceOptions.find((opt) => Number(opt.value) === Number(data.advance_user_id)) || null}
+                                                    onChange={(selected) => setData("advance_user_id", selected ? selected.value : "")}
                                                     placeholder="Choose Advance" isSearchable isClearable styles={selectStyles}
                                                     noOptionsMessage={() => "No active advance found."}
                                                 />
-                                                {errors.advance_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.advance_id}</p>}
+                                                {errors.advance_user_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.advance_user_id}</p>}
                                             </>
                                         )}
                                     </div>

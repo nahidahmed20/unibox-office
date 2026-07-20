@@ -56,6 +56,8 @@ Route::middleware('auth')->group(function () {
 
     // 1. CRM & Projects
     Route::patch('/admin/projects/{id}/status', [ProjectController::class, 'updateStatus'])->name('admin.projects.update-status');
+    Route::post('vendors/payments/{payment}/void', [VendorController::class, 'voidPayment'])->name('admin.vendors.payments.void');
+    Route::get('vendors/{vendor}/payments', [VendorController::class, 'payments'])->name('admin.vendors.payments.index');
     Route::post('vendors/{vendor}/pay', [VendorController::class, 'payVendor'])->name('admin.vendors.pay');
     Route::resource('clients', ClientController::class)->names('admin.clients');
     Route::resource('vendors', VendorController::class)->names('admin.vendors');
@@ -101,6 +103,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('salaries', SalaryController::class)->names('admin.salaries');
     Route::resource('leaves', LeaveController::class)->names('admin.leaves');
     Route::get('/financial-reports', [ReportController::class, 'financialSummary'])->name('admin.reports.financial');
+    Route::get('account/transactions', [ReportController::class, 'transactionsReport'])->name('admin.accounts.transactions');
 
     Route::post('/project-expenses/{id}/move-to-wallet', [ProjectExpenseController::class, 'moveToWallet'])->name('admin.project-expenses.move-to-wallet');
 

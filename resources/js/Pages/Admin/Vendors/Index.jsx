@@ -2,12 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+import axios from 'axios';
 
 export default function Index({ vendors = { data: [], links: [] }, accounts = [], advances = [] }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
     const permissions = auth?.permissions || [];
     const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
+
+    const [paymentsData, setPaymentsData] = useState({ data: [], current_page: 1, last_page: 1 });
+    const [paymentsLoading, setPaymentsLoading] = useState(false);
 
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
@@ -23,7 +27,14 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
 
     // Wallet Modal State
     const [showWalletModal, setShowWalletModal] = useState(false);
-    const [walletAction, setWalletAction] = useState('deposit'); // 'deposit' or 'withdraw'
+    const [walletAction, setWalletAction] = useState('deposit'); 
+
+    const [showVoidModal, setShowVoidModal] = useState(false);
+    const [paymentToVoid, setPaymentToVoid] = useState(null);
+
+    const voidForm = useForm({
+        void_reason: ''
+    });
 
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get('search') || '';
@@ -59,6 +70,14 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         amount: '',
         description: ''
     });
+
+    const fetchPayments = (vendorId, page = 1) => {
+        setPaymentsLoading(true);
+        axios.get(route('admin.vendors.payments.index', vendorId), { params: { page } })
+            .then(res => setPaymentsData(res.data))
+            .catch(() => Swal.fire("Error", "পেমেন্ট হিস্টরি লোড করা যায়নি", "error"))
+            .finally(() => setPaymentsLoading(false));
+    };
 
     // --- Live Search & Pagination ---
     useEffect(() => {
@@ -161,6 +180,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
     const openViewModal = (vendor) => {
         setSelectedVendor(vendor);
         setShowViewModal(true);
+        fetchPayments(vendor.id, 1);
     };
 
     const openPayModal = (vendor) => {
@@ -181,6 +201,29 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         walletForm.reset();
         walletForm.clearErrors();
         setShowWalletModal(true);
+    };
+
+    const openVoidModal = (payment) => {
+        setPaymentToVoid(payment);
+        voidForm.reset();
+        voidForm.clearErrors();
+        setShowVoidModal(true);
+    };
+
+    const handleVoidSubmit = (e) => {
+        e.preventDefault();
+        voidForm.post(route('admin.vendors.payments.void', paymentToVoid.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setShowVoidModal(false);
+                setPaymentToVoid(null);
+                fetchPayments(selectedVendor.id, paymentsData.current_page);
+                Swal.fire({ icon: "success", title: "পেমেন্ট ভয়েড হয়েছে!", timer: 1500, showConfirmButton: false });
+            },
+            onError: (err) => {
+                if (err.error) Swal.fire("Error", err.error, "error");
+            }
+        });
     };
 
     // --- Derived data for the Pay Modal (multi-select bills) ---
@@ -443,7 +486,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
             {/* --- VIEW DETAILS MODAL --- */}
             {showViewModal && selectedVendor && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
+                    <div style={{ background: "#fff", width: "100%", maxWidth: "750px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
                             <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
                                 <i className="fa-solid fa-truck-field" style={{ marginRight: "8px", color: "#2563eb" }}></i> Vendor Profile
@@ -484,6 +527,102 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                 <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "8px", border: "1px solid #e2e8f0", color: "#475569", fontSize: "0.9rem", minHeight: "60px" }}>
                                     {selectedVendor.address || "No address provided."}
                                 </div>
+                            </div>
+
+                            {/* --- PAYMENT HISTORY SECTION --- */}
+                            <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px", marginTop: "20px" }}>
+                                <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "10px" }}>
+                                    পেমেন্ট হিস্টরি
+                                </span>
+
+                                {(!paymentsData.data || paymentsData.data.length === 0) ? (
+                                    <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8", background: "#f8fafc", borderRadius: "8px", fontSize: "0.85rem" }}>
+                                        কোনো পেমেন্ট রেকর্ড নেই।
+                                    </div>
+                                ) : (
+                                    <>
+                                    <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", maxHeight: "260px", overflowY: "auto" }}>
+                                        {paymentsData.data.map((payment) => (
+                                            <div
+                                                key={payment.id}
+                                                style={{
+                                                    padding: "12px 14px",
+                                                    borderBottom: "1px solid #f1f5f9",
+                                                    background: payment.status === 'voided' ? "#fef2f2" : "#fff",
+                                                    opacity: payment.status === 'voided' ? 0.75 : 1
+                                                }}
+                                            >
+                                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                                    <div>
+                                                        <div style={{ fontWeight: "700", color: "#0f172a", fontSize: "0.9rem" }}>
+                                                            TK. {Number(payment.pay_amount).toLocaleString()}
+                                                            {payment.status === 'voided' && (
+                                                                <span style={{ marginLeft: "8px", fontSize: "0.7rem", fontWeight: "700", color: "#ef4444", background: "#fee2e2", padding: "2px 8px", borderRadius: "999px" }}>
+                                                                    VOIDED
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "3px" }}>
+                                                            {payment.date} · {payment.payment_source === 'account'
+                                                                ? (payment.account?.name || 'Account')
+                                                                : 'Employee Advance'}
+                                                        </div>
+                                                        {payment.details && payment.details.length > 0 && (
+                                                            <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "4px" }}>
+                                                                বিল: {payment.details.map(d => d.expense?.title).filter(Boolean).join(', ')}
+                                                            </div>
+                                                        )}
+                                                        {payment.wallet_credit_amount > 0 && (
+                                                            <div style={{ fontSize: "0.75rem", color: "#7e22ce", marginTop: "2px" }}>
+                                                                ওয়ালেটে জমা: TK. {Number(payment.wallet_credit_amount).toLocaleString()}
+                                                            </div>
+                                                        )}
+                                                        {payment.status === 'voided' && payment.void_reason && (
+                                                            <div style={{ fontSize: "0.75rem", color: "#ef4444", marginTop: "4px", fontStyle: "italic" }}>
+                                                                কারণ: {payment.void_reason}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {payment.status !== 'voided' && hasPermission('void_vendor_payment') && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => openVoidModal(payment)}
+                                                            style={{ background: "#fff", border: "1px solid #fecaca", color: "#ef4444", padding: "5px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "600", whiteSpace: "nowrap", marginLeft: "10px" }}
+                                                            title="এই পেমেন্ট ভয়েড করুন"
+                                                        >
+                                                            <i className="fa-solid fa-rotate-left" style={{ marginRight: "4px" }}></i> Void
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                        {paymentsData.last_page > 1 && (
+                                            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "10px", marginTop: "12px" }}>
+                                                <button
+                                                    type="button"
+                                                    disabled={paymentsData.current_page <= 1}
+                                                    onClick={() => fetchPayments(selectedVendor.id, paymentsData.current_page - 1)}
+                                                    style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: paymentsData.current_page <= 1 ? "not-allowed" : "pointer", opacity: paymentsData.current_page <= 1 ? 0.5 : 1 }}
+                                                >
+                                                    <i className="fa-solid fa-chevron-left"></i>
+                                                </button>
+                                                <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
+                                                    Page {paymentsData.current_page} / {paymentsData.last_page}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    disabled={paymentsData.current_page >= paymentsData.last_page}
+                                                    onClick={() => fetchPayments(selectedVendor.id, paymentsData.current_page + 1)}
+                                                    style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: paymentsData.current_page >= paymentsData.last_page ? "not-allowed" : "pointer", opacity: paymentsData.current_page >= paymentsData.last_page ? 0.5 : 1 }}
+                                                >
+                                                    <i className="fa-solid fa-chevron-right"></i>
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                             <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
                                 <button type="button" onClick={() => setShowViewModal(false)} style={{ background: "#1e293b", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500" }}>Close Profile</button>
@@ -773,6 +912,56 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                 <button type="button" onClick={() => setShowWalletModal(false)} style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569", fontWeight: "500" }}>Cancel</button>
                                 <button type="submit" disabled={walletForm.processing} style={{ background: walletAction === 'deposit' ? "#6d28d9" : "#be123c", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", opacity: walletForm.processing ? 0.7 : 1 }}>
                                     {walletForm.processing ? "Processing..." : "Confirm"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* --- VOID PAYMENT CONFIRMATION MODAL --- */}
+            {showVoidModal && paymentToVoid && (
+                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+                    <div style={{ background: "#fff", width: "100%", maxWidth: "460px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#fef2f2" }}>
+                            <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: "600", color: "#b91c1c" }}>
+                                <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: "8px" }}></i> পেমেন্ট ভয়েড করুন
+                            </h3>
+                            <button type="button" onClick={() => setShowVoidModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}>
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleVoidSubmit} style={{ padding: "24px" }}>
+                            <div style={{ background: "#fffbeb", border: "1px solid #fde68a", padding: "10px 14px", borderRadius: "8px", marginBottom: "16px", fontSize: "0.82rem", color: "#92400e" }}>
+                                এই পেমেন্টটি ভয়েড করলে সংশ্লিষ্ট বিলের বকেয়া, অ্যাকাউন্ট/অ্যাডভান্স ব্যালেন্স এবং ওয়ালেট — সবকিছু আগের অবস্থায় ফিরে যাবে। এই কাজটি সরাসরি undo করা যাবে না।
+                            </div>
+
+                            <div style={{ marginBottom: "8px", fontSize: "0.85rem", color: "#334155" }}>
+                                পরিমাণ: <strong>TK. {Number(paymentToVoid.pay_amount).toLocaleString()}</strong> — {paymentToVoid.date}
+                            </div>
+
+                            <div style={{ marginBottom: "16px", marginTop: "12px" }}>
+                                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>
+                                    ভয়েড করার কারণ *
+                                </label>
+                                <textarea
+                                    value={voidForm.data.void_reason}
+                                    onChange={(e) => voidForm.setData("void_reason", e.target.value)}
+                                    placeholder="যেমন: ভুল অ্যাকাউন্ট সিলেক্ট হয়ে গিয়েছিল"
+                                    rows="3"
+                                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", resize: "vertical" }}
+                                    required
+                                ></textarea>
+                                {voidForm.errors.void_reason && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{voidForm.errors.void_reason}</p>}
+                            </div>
+
+                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+                                <button type="button" onClick={() => setShowVoidModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569" }}>
+                                    বাতিল
+                                </button>
+                                <button type="submit" disabled={voidForm.processing} style={{ background: "#ef4444", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", opacity: voidForm.processing ? 0.7 : 1 }}>
+                                    {voidForm.processing ? "প্রসেসিং..." : "নিশ্চিত ভয়েড করুন"}
                                 </button>
                             </div>
                         </form>

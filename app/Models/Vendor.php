@@ -24,4 +24,9 @@ class Vendor extends Model
     {
         return $this->hasMany(VendorLedger::class);
     }
+
+    public function payments()
+    {
+        return $this->hasMany(VendorPayment::class)->latest('date')->latest('id');
+    }
 }

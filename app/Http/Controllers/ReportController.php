@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Account;
+use App\Models\AccountTransaction;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class ReportController extends Controller
 {
@@ -110,6 +112,32 @@ class ReportController extends Controller
             'monthlyReport' => $monthlyData,
             'summary' => $summary,
             'filters' => $request->only(['start_date', 'end_date', 'year'])
+        ]);
+    }
+
+    public function transactionsReport(Request $request)
+    {
+        $query = AccountTransaction::with('account:id,name');
+
+        if ($request->account_id) {
+            $query->where('account_id', $request->account_id);
+        }
+        if ($request->source_type) {
+            $query->where('source_type', $request->source_type);
+        }
+        if ($request->from) {
+            $query->whereDate('created_at', '>=', $request->from);
+        }
+        if ($request->to) {
+            $query->whereDate('created_at', '<=', $request->to);
+        }
+
+        $transactions = $query->latest()->paginate(50)->withQueryString();
+
+        return Inertia::render('Admin/Reports/TransactionsReport', [
+            'transactions' => $transactions,
+            'accounts'     => Account::select('id', 'name')->get(),
+            'filters'      => $request->only('account_id', 'source_type', 'from', 'to'),
         ]);
     }
 }
