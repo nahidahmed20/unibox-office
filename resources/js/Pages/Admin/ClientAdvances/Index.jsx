@@ -53,7 +53,7 @@ function numberToWords(amount) {
     return parts.join(' ') + ' Taka Only';
 }
 
-export default function Index({ clientWithAdvances = { data: [], links: [] }, clients = [], accounts = [] }) {
+export default function Index({ clientWithAdvances = { data: [], links: [] }, clients = [], accounts = [], totalReceived = 0, totalUsed = 0, totalAvailable = 0 }) {
     // Modal & Mode States
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
@@ -335,6 +335,21 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
                     <div>
                         <h1 style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Client Advances</h1>
                         <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Manage and track advance payments received from clients.</p>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "12px" }}>
+                        <div style={{ fontSize: '0.95rem', fontWeight: '700', color: '#0f766e', padding: '10px 18px', background: '#f0fdfa', borderRadius: '8px', border: "1px solid #ccfbf1" }}>
+                            <i className="fa-solid fa-hand-holding-dollar" style={{ marginRight: "8px", color: "#0d9488" }}></i>
+                            Total Received: TK. {Number(totalReceived).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </div>
+                        <div style={{ fontSize: '0.95rem', fontWeight: '700', color: '#b91c1c', padding: '10px 18px', background: '#fef2f2', borderRadius: '8px', border: "1px solid #fecaca" }}>
+                            <i className="fa-solid fa-money-bill-transfer" style={{ marginRight: "8px", color: "#ef4444" }}></i>
+                            Total Adjusted: TK. {Number(totalUsed).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </div>
+                        <div style={{ fontSize: '0.95rem', fontWeight: '700', color: '#15803d', padding: '10px 18px', background: '#ecfdf5', borderRadius: '8px', border: "1px solid #bbf7d0" }}>
+                            <i className="fa-solid fa-vault" style={{ marginRight: "8px", color: "#10b981" }}></i>
+                            Net Available: TK. {Number(totalAvailable).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </div>
                     </div>
                 </div>
 

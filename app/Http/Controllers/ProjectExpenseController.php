@@ -353,39 +353,5 @@ class ProjectExpenseController extends Controller
         }
     }
 
-    public function vendorDuesReport(Request $request)
-    {
-        $perPage = $request->input('per_page', 10);
-        $search = $request->input('search');
-
-        $query = Vendor::select('id', 'name as vendor_name', 'company_name', 'phone', 'wallet_balance')
-            ->withSum('projectExpenses as total_due', 'due_amount')
-            ->where(function ($q) {
-                $q->whereHas('projectExpenses', function ($subQ) {
-                    $subQ->where('due_amount', '>', 0);
-                })->orWhere('wallet_balance', '>', 0);
-            });
-
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('company_name', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
-            });
-        }
-
-        $grandTotalDue = ProjectExpense::whereIn('vendor_id', $query->pluck('id'))
-                                    ->sum('due_amount');
-                                    
-        $grandTotalAdvance = clone $query;
-        $totalAdvanceAmount = $grandTotalAdvance->sum('wallet_balance');
-
-        $vendorDues = $query->latest('id')->paginate($perPage)->withQueryString();
-
-        return Inertia::render('Admin/Reports/VendorDues', [
-            'vendorDues' => $vendorDues,
-            'grandTotal' => $grandTotalDue, 
-            'grandTotalAdvance' => $totalAdvanceAmount 
-        ]);
-    }
+    
 }

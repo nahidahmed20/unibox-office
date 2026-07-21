@@ -25,6 +25,14 @@ class AdvanceController extends Controller
             });
         }
 
+        $totalUnsettled = (clone $query)
+            ->where('status', 'unsettled')
+            ->get(['amount', 'settled_amount', 'returned_amount'])
+            ->sum(function ($adv) {
+                $remaining = (float) $adv->amount - (float) ($adv->settled_amount ?? 0) - (float) ($adv->returned_amount ?? 0);
+                return $remaining > 0 ? $remaining : 0;
+            });
+
         if ($request->input('per_page') === 'all') {
             $totalCount = $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
@@ -38,10 +46,11 @@ class AdvanceController extends Controller
         $employees = User::whereHas('employeeProfile')->select('id', 'name')->get();
 
         return Inertia::render('Admin/Advances/Index', [
-            'advances'   => $advances,
-            'filters'    => $request->only('search', 'per_page'),
-            'accounts'   => $accounts,
-            'employees'  => $employees,
+            'advances'       => $advances,
+            'filters'        => $request->only('search', 'per_page'),
+            'accounts'       => $accounts,
+            'employees'      => $employees,
+            'totalUnsettled' => $totalUnsettled,   
         ]);
     }
 

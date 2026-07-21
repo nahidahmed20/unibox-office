@@ -149,7 +149,7 @@ function SearchableSelect({ options, value, onChange, placeholder, getLabel, get
     );
 }
 
-export default function Index({ payments = {}, invoices = [], accounts = [] }) {
+export default function Index({ payments = {}, invoices = [], accounts = [], clients = [],years = [],totalAmount = 0, filters = {} }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
     const permissions = auth?.permissions || [];
@@ -159,6 +159,12 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
     const [showDetailsModal, setShowDetailsModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [selectedPayment, setSelectedPayment] = useState(null);
+
+    const [clientId, setClientId] = useState(filters.client_id || "");
+    const [accountFilter, setAccountFilter] = useState(filters.account_id || "");
+    const [year, setYear] = useState(filters.year || "");
+    const [dateFrom, setDateFrom] = useState(filters.date_from || "");
+    const [dateTo, setDateTo] = useState(filters.date_to || "");
 
     const [searchTerm, setSearchTerm] = useState(
         () => new URLSearchParams(window.location.search).get("search") || "",
@@ -190,19 +196,26 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
         _method: "post",
     });
 
-    useEffect(() => {
-        isFirstRender.current = false;
-    }, []);
+   const applyFilters = (overrides = {}) => {
+        router.get(
+            route("invoice-payments.index"),
+            {
+                search: overrides.search ?? searchTerm,
+                per_page: overrides.per_page ?? perPage,
+                client_id: overrides.client_id ?? clientId,
+                account_id: overrides.account_id ?? accountFilter,
+                year: overrides.year ?? year,
+                date_from: overrides.date_from ?? dateFrom,
+                date_to: overrides.date_to ?? dateTo,
+                page: 1, 
+            },
+            { preserveState: true, replace: true }
+        );
+    };
 
     useEffect(() => {
         if (isFirstRender.current) return;
-        const delay = setTimeout(() => {
-            router.get(
-                route("invoice-payments.index"),
-                { search: searchTerm, per_page: perPage, page: 1 },
-                { preserveState: true, replace: true },
-            );
-        }, 500);
+        const delay = setTimeout(() => applyFilters({ search: searchTerm }), 500);
         return () => clearTimeout(delay);
     }, [searchTerm]);
 
@@ -210,12 +223,22 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
         const rawValue = e.target.value;
         const value = rawValue === "all" ? "all" : Number(rawValue);
         setPerPage(value);
-        router.get(
-            route("invoice-payments.index"),
-            { search: searchTerm, per_page: value, page: 1 },
-            { preserveState: true, replace: true }
-        );
+        applyFilters({ per_page: value });
     };
+
+    const handleClientFilter = (val) => { setClientId(val); applyFilters({ client_id: val }); };
+    const handleYearFilter = (e) => { setYear(e.target.value); applyFilters({ year: e.target.value }); };
+    const handleDateFromChange = (e) => { setDateFrom(e.target.value); applyFilters({ date_from: e.target.value }); };
+    const handleDateToChange = (e) => { setDateTo(e.target.value); applyFilters({ date_to: e.target.value }); };
+
+    const goToPage = (url) => {
+        if (!url) return;
+        router.get(url, {
+            search: searchTerm, per_page: perPage, client_id: clientId,
+            account_id: accountFilter, year, date_from: dateFrom, date_to: dateTo,
+        }, { preserveState: true, replace: true });
+    };
+
 
     const handleCopy = () => {
         if (!paymentList.length) return Swal.fire("Empty!", "No data to copy", "warning");
@@ -446,6 +469,11 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
             <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc" }}>
                 <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
                     <h1 className="page-title" style={{ fontSize: "1.5rem", fontWeight: "700", color: "#0f172a" }}>Invoice Payments</h1>
+
+                    <div style={{ fontSize: '1rem', fontWeight: '700', color: '#166534', padding: '10px 20px', background: '#f0fdf4', borderRadius: '8px', border: "1px solid #bbf7d0" }}>
+                        <i className="fa-solid fa-sack-dollar" style={{ marginRight: "8px", color: "#16a34a" }}></i>
+                        Total Received: TK. {Number(totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
                 </div>
 
                 <div className="card-container" style={{ background: "#fff", borderRadius: "12px", boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)", border: "1px solid #e2e8f0", overflow: "hidden" }}>
@@ -479,6 +507,47 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                             <button onClick={handleExportCSV} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}><i className="fas fa-file-excel text-green-600"></i> Excel</button>
                             <button onClick={handlePrint} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}><i className="fas fa-file-pdf text-red-600"></i> PDF</button>
                             <button onClick={handlePrint} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}><i className="fas fa-print text-gray-600"></i> Print</button>
+                        </div>
+
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', padding: '16px 24px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
+    
+                            {/* Client Filter */}
+                            <div style={{ minWidth: "200px" }}>
+                                <SearchableSelect
+                                    options={[{ id: "", name: "All Clients" }, ...clients]}
+                                    value={clientId}
+                                    onChange={handleClientFilter}
+                                    placeholder="Filter by Client"
+                                    getValue={(c) => c.id}
+                                    getLabel={(c) => c.name}
+                                />
+                            </div>
+
+                            {/* Year Filter */}
+                            <select value={year} onChange={handleYearFilter} style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", fontSize: "0.875rem" }}>
+                                <option value="">All Years</option>
+                                {years.map((y) => <option key={y} value={y}>{y}</option>)}
+                            </select>
+
+                            {/* Date Range */}
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <input type="date" value={dateFrom} onChange={handleDateFromChange} style={{ padding: "7px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "0.875rem" }} />
+                                <span style={{ color: "#94a3b8", fontSize: "0.8rem" }}>to</span>
+                                <input type="date" value={dateTo} onChange={handleDateToChange} style={{ padding: "7px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "0.875rem" }} />
+                            </div>
+
+                            {/* Reset button */}
+                            {(clientId || year || dateFrom || dateTo || searchTerm) && (
+                                <button
+                                    onClick={() => {
+                                        setSearchTerm(""); setClientId(""); setYear(""); setDateFrom(""); setDateTo("");
+                                        router.get(route("invoice-payments.index"), { per_page: perPage }, { preserveState: true, replace: true });
+                                    }}
+                                    style={{ padding: "8px 14px", borderRadius: "6px", border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer" }}
+                                >
+                                    <i className="fa-solid fa-xmark"></i> Clear Filters
+                                </button>
+                            )}
                         </div>
 
                         <div className="search-box" style={{ position: "relative" }}>
@@ -549,7 +618,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [] }) {
                                 {payments.links.map((link, index) => (
                                     <button
                                         key={index} disabled={!link.url}
-                                        onClick={() => link.url && router.get(link.url, { search: searchTerm, per_page: perPage }, { preserveState: true, replace: true })}
+                                        onClick={() => goToPage(link.url)}
                                         style={{
                                             padding: '6px 12px', fontSize: '0.875rem', border: link.active ? '1px solid #2563eb' : '1px solid #cbd5e1', borderRadius: '6px',
                                             background: link.active ? '#2563eb' : '#fff', color: link.active ? '#fff' : '#475569', cursor: link.url ? 'pointer' : 'not-allowed',

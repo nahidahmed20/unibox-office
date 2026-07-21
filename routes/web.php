@@ -29,6 +29,7 @@ use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VendorController;
+use App\Models\Invoice;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -70,7 +71,7 @@ Route::middleware('auth')->group(function () {
 
     // 2. Finance & Accounts
     Route::get('client-dues', [InvoiceController::class, 'clientDuesReport'])->name('admin.client-dues');
-    Route::get('vendor-dues', [ProjectExpenseController::class, 'vendorDuesReport'])->name('admin.vendor-dues');
+    Route::get('vendor-dues', [InvoiceController::class, 'vendorDuesReport'])->name('admin.vendor-dues');
 
     Route::resource('invoices', InvoiceController::class)->names('admin.invoices');
     Route::resource('invoice-payments', InvoicePaymentController::class)->names('invoice-payments');
@@ -103,7 +104,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('salaries', SalaryController::class)->names('admin.salaries');
     Route::resource('leaves', LeaveController::class)->names('admin.leaves');
     Route::get('/financial-reports', [ReportController::class, 'financialSummary'])->name('admin.reports.financial');
-    Route::get('account/transactions', [ReportController::class, 'transactionsReport'])->name('admin.accounts.transactions');
+    Route::get('account/transactions', [ReportController::class, 'transactionsReport'])->name('admin.account.transactions');
 
     Route::post('/project-expenses/{id}/move-to-wallet', [ProjectExpenseController::class, 'moveToWallet'])->name('admin.project-expenses.move-to-wallet');
 

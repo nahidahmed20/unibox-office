@@ -3,7 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link , usePage} from '@inertiajs/react';
 import Swal from 'sweetalert2'; 
 
-export default function Index({ investments = {}, accounts = [], filters = {} }) {
+export default function Index({ investments = {}, accounts = [], filters = {}, totalAmount = 0 }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
     const permissions = auth?.permissions || [];
@@ -177,7 +177,7 @@ export default function Index({ investments = {}, accounts = [], filters = {} })
         });
     };
 
-    const totalInvestment = investmentList.reduce((sum, inv) => sum + parseFloat(inv.amount || 0), 0);
+    const totalInvestment = parseFloat(totalAmount || 0);
 
     return (
         <AdminLayout>

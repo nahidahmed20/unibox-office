@@ -3,7 +3,7 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { Head, router, Link } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
-export default function ClientDues({ clientDues, filters }) {
+export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
     const [searchTerm, setSearchTerm] = useState(filters?.search || "");
     const [perPage, setPerPage] = useState(filters?.per_page || 10);
     const isFirstRender = useRef(true);
@@ -11,7 +11,7 @@ export default function ClientDues({ clientDues, filters }) {
     const clients = clientDues?.data || [];
     
     // Calculates total due for the current page
-    const pageTotalDue = clients.reduce((sum, client) => sum + parseFloat(client.total_due || 0), 0);
+    // const pageTotalDue = clients.reduce((sum, client) => sum + parseFloat(client.total_due || 0), 0);
 
     useEffect(() => {
         if (isFirstRender.current) {
@@ -118,12 +118,12 @@ export default function ClientDues({ clientDues, filters }) {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', marginBottom: '24px' }}>
                     <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', border: '1px solid #e2e8f0' }}>
                         <p style={{ fontSize: '0.875rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '600', marginBottom: '8px' }}>Clients on this Page</p>
-                        <h2 style={{ fontSize: '2rem', fontWeight: '700', color: '#0f172a', margin: '0' }}>{clients.length}</h2>
+                        <h2 style={{ fontSize: '2rem', fontWeight: '700', color: '#0f172a', margin: '0' }}>{clientDues?.total || 0}</h2>
                     </div>
                     <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', border: '1px solid #e2e8f0', borderLeft: '5px solid #ef4444' }}>
                         <p style={{ fontSize: '0.875rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '600', marginBottom: '8px' }}>Page Total Receivable</p>
                         <h2 style={{ fontSize: '2rem', fontWeight: '700', color: '#dc2626', margin: '0' }}>
-                            TK. {pageTotalDue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            TK. {Number(grandTotalDue).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </h2>
                     </div>
                 </div>

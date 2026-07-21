@@ -3,7 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2'; 
 
-export default function Index({ advances = [], filters = {}, accounts = [], employees = [] }) {
+export default function Index({ advances = [], filters = {}, accounts = [], employees = [], totalUnsettled = 0 }) {
     const [showModal, setShowModal] = useState(false);
     const [showReturnModal, setShowReturnModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
@@ -254,10 +254,10 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
     };
 
     // Total Unsettled Calculation based on Due
-    const totalUnsettled = advanceList.filter(a => a.status === 'unsettled').reduce((sum, item) => {
-        const remaining = parseFloat(item.amount) - parseFloat(item.settled_amount || 0) - parseFloat(item.returned_amount || 0);
-        return sum + (remaining > 0 ? remaining : 0);
-    }, 0);
+    // const totalUnsettled = advanceList.filter(a => a.status === 'unsettled').reduce((sum, item) => {
+    //     const remaining = parseFloat(item.amount) - parseFloat(item.settled_amount || 0) - parseFloat(item.returned_amount || 0);
+    //     return sum + (remaining > 0 ? remaining : 0);
+    // }, 0);
 
     return (
         <AdminLayout>

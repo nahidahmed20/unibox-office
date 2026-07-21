@@ -44,13 +44,28 @@ class ClientAdvanceController extends Controller
                 return $client;
             });
 
+        $advanceTotalsQuery = ClientAdvance::whereHas('client', function ($q) use ($search) {
+            if ($search) {
+                $q->where(function ($qq) use ($search) {
+                    $qq->where('name', 'like', "%{$search}%")
+                    ->orWhere('company_name', 'like', "%{$search}%");
+                });
+            }
+        });
+
+        $totalReceived = (clone $advanceTotalsQuery)->sum('amount');
+        $totalUsed = (clone $advanceTotalsQuery)->sum('used_amount');
+
         $clients = Client::select('id', 'name', 'company_name')->get();
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->get();
 
         return Inertia::render('Admin/ClientAdvances/Index', [
             'clientWithAdvances' => $clientWithAdvances,
             'clients' => $clients,
-            'accounts' => $accounts
+            'accounts' => $accounts,
+            'totalReceived' => $totalReceived,           
+            'totalUsed' => $totalUsed,                    
+            'totalAvailable' => $totalReceived - $totalUsed, 
         ]);
     }
 

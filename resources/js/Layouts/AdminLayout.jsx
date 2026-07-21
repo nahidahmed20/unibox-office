@@ -24,9 +24,6 @@ export default function AdminLayout({ children }) {
     // -------------------------------------
 
     const [openMenus, setOpenMenus] = useState({
-        // CRM & Projects + Project Expense + Finance & Accounts merged into ONE menu
-        // so everything project/money related lives under a single click, no jumping
-        // between separate top-level menus.
         projectFinance:
             route().current('admin.clients.*') ||
             route().current('admin.projects.*') ||
@@ -47,7 +44,7 @@ export default function AdminLayout({ children }) {
         hr: route().current('admin.departments.*') || route().current('admin.designations.*') || route().current('admin.employees.*') || route().current('admin.attendances.*') || route().current('admin.leaves.*') || route().current('admin.salaries.*'),
         office: route().current('admin.assets.*') || route().current('admin.requisitions.*') || route().current('admin.notices.*'), 
         access: route().current('admin.users.*') || route().current('admin.roles.*') || route().current('admin.permissions.*'),
-        report: route().current('admin.reports.financial') || route().current('admin.accounts.transactions')
+        report: route().current('admin.reports.financial') || route().current('admin.account.transactions')
     });
 
     const toggleMenu = (menuName) => {
@@ -324,7 +321,7 @@ export default function AdminLayout({ children }) {
                                             </Link>
                                         </li>
                                         <li>
-                                            <Link href={route('admin.accounts.transactions')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.reports.financial') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                            <Link href={route('admin.account.transactions')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.account.transactions') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                 <i className="fa-solid fa-file-invoice-dollar mr-2 text-[10px]"></i> Account Transaction Report
                                             </Link>
                                         </li>

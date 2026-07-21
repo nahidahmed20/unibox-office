@@ -23,11 +23,13 @@ class InvestmentController extends Controller
             });
         }
 
+        $totalAmount = (clone $query)->sum('amount');
+        $totalCount = (clone $query)->count();
+
         if ($request->input('per_page') === 'all') {
-            $totalCount = $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = min((int) $request->input('per_page', 10), 100000); // sanity cap
+            $perPage = min((int) $request->input('per_page', 10), 100000);
         }
 
         $investments = $query->latest()->paginate($perPage)->withQueryString();
@@ -37,7 +39,8 @@ class InvestmentController extends Controller
         return Inertia::render('Admin/Investments/Index', [
             'investments' => $investments,
             'accounts' => $accounts, 
-            'filters' => $request->only(['search', 'per_page']) 
+            'filters' => $request->only(['search', 'per_page']),
+            'totalAmount' => $totalAmount,   
         ]);
     }
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\Account;
+use App\Models\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -13,42 +14,52 @@ class InvoicePaymentController extends Controller
 {
     public function index(Request $request)
     {
-        $query = InvoicePayment::with([
-            'invoice.client',
-            'account'
-        ]);
+        $query = InvoicePayment::with(['invoice.client', 'account']);
 
-        // Search
+        // Keyword Search
         if ($request->filled('search')) {
             $search = $request->search;
-
             $query->where(function ($q) use ($search) {
-                $q->whereHas('invoice', function ($invoice) use ($search) {
-                    $invoice->where('invoice_number', 'like', "%{$search}%");
-                })
-                ->orWhereHas('invoice.client', function ($client) use ($search) {
-                    $client->where('name', 'like', "%{$search}%");
-                })
-                ->orWhereHas('account', function ($account) use ($search) {
-                    $account->where('account_name', 'like', "%{$search}%");
-                })
+                $q->whereHas('invoice', fn($invoice) => $invoice->where('invoice_number', 'like', "%{$search}%"))
+                ->orWhereHas('invoice.client', fn($client) => $client->where('name', 'like', "%{$search}%"))
+                ->orWhereHas('account', fn($account) => $account->where('account_name', 'like', "%{$search}%"))
                 ->orWhere('payment_method', 'like', "%{$search}%")
                 ->orWhere('reference', 'like', "%{$search}%");
             });
         }
 
-        // Pagination
-        if ($request->input('per_page') === 'all') {
-            $totalCount = $query->count();
-            $perPage = $totalCount > 0 ? $totalCount : 1;
-        } else {
-            $perPage = min((int) $request->input('per_page', 10), 100000); // sanity cap
+        // Client-wise filter
+        if ($request->filled('client_id')) {
+            $query->whereHas('invoice', fn($q) => $q->where('client_id', $request->client_id));
         }
 
-        $payments = $query
-            ->latest()
-            ->paginate($perPage)
-            ->withQueryString();
+        if ($request->filled('account_id')) {
+            $query->where('account_id', $request->account_id);
+        }
+
+        // Year filter
+        if ($request->filled('year')) {
+            $query->whereYear('payment_date', $request->year);
+        }
+
+        // Date range filter
+        if ($request->filled('date_from')) {
+            $query->whereDate('payment_date', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('payment_date', '<=', $request->date_to);
+        }
+
+        $totalAmount = (clone $query)->sum('amount');
+        $totalCount  = (clone $query)->count();
+
+        if ($request->input('per_page') === 'all') {
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        } else {
+            $perPage = min((int) $request->input('per_page', 10), 100000);
+        }
+
+        $payments = $query->latest()->paginate($perPage)->withQueryString();
 
         $invoices = Invoice::with('client')
             ->withSum('payments', 'amount')
@@ -61,17 +72,28 @@ class InvoicePaymentController extends Controller
                 return $invoice;
             });
 
-        $accounts = Account::where('is_active', true)
-            ->latest()
-            ->get();
+        $accounts = Account::where('is_active', true)->latest()->get();
+        $clients  = Client::select('id', 'name')->orderBy('name')->get();
+
+        $years = InvoicePayment::selectRaw('DISTINCT YEAR(payment_date) as year')
+            ->orderByDesc('year')
+            ->pluck('year');
 
         return Inertia::render('Admin/InvoicePayments/Index', [
             'payments' => $payments,
             'invoices' => $invoices,
             'accounts' => $accounts,
+            'clients' => $clients,
+            'years' => $years,
+            'totalAmount' => $totalAmount,
             'filters' => [
-                'search' => $request->search,
-                'per_page' => $request->input('per_page', 10),
+                'search'    => $request->search,
+                'per_page'  => $request->input('per_page', 10),
+                'client_id' => $request->client_id,
+                'account_id'=> $request->account_id,
+                'year'      => $request->year,
+                'date_from' => $request->date_from,
+                'date_to'   => $request->date_to,
             ],
         ]);
     }

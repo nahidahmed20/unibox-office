@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\ClientAdvance;
 use App\Models\Invoice;
-use App\Models\Project;
 use App\Models\InvoicePayment; 
+use App\Models\Project;
+use App\Models\ProjectExpense;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -315,11 +317,19 @@ class InvoiceController extends Controller
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('name', 'like', "%{$searchTerm}%")
-                  ->orWhere('company_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('phone', 'like', "%{$searchTerm}%")
-                  ->orWhere('email', 'like', "%{$searchTerm}%");
+                ->orWhere('company_name', 'like', "%{$searchTerm}%")
+                ->orWhere('phone', 'like', "%{$searchTerm}%")
+                ->orWhere('email', 'like', "%{$searchTerm}%");
             });
         }
+
+        $grandTotalDue = (clone $query)
+            ->get(['total_invoiced', 'total_paid']) 
+            ->sum(function ($client) {
+                $invoiced = $client->total_invoiced ?? 0;
+                $paid = $client->total_paid ?? 0;
+                return max($invoiced - $paid, 0);
+            });
 
         $perPage = $request->input('per_page', 10);
 
@@ -334,7 +344,6 @@ class InvoiceController extends Controller
                 $paid = $client->total_paid ?? 0;
 
                 $client->total_due = max($invoiced - $paid, 0);
-                
                 $client->available_advance = ($client->total_advance ?? 0) - ($client->total_used ?? 0);
                 
                 return $client;
@@ -344,6 +353,45 @@ class InvoiceController extends Controller
         return Inertia::render('Admin/Reports/ClientDues', [
             'clientDues' => $clientDues,
             'filters' => $request->only('search', 'per_page'),
+            'grandTotalDue' => $grandTotalDue,   
         ]);
     }
+
+    public function vendorDuesReport(Request $request)
+    {
+        $perPage = $request->input('per_page', 10);
+        $search = $request->input('search');
+
+        $query = Vendor::select('id', 'name as vendor_name', 'company_name', 'phone', 'wallet_balance')
+            ->withSum('projectExpenses as total_due', 'due_amount')
+            ->where(function ($q) {
+                $q->whereHas('projectExpenses', function ($subQ) {
+                    $subQ->where('due_amount', '>', 0);
+                })->orWhere('wallet_balance', '>', 0);
+            });
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('company_name', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
+            });
+        }
+
+        $grandTotalDue = ProjectExpense::whereIn('vendor_id', $query->pluck('id'))
+                                    ->sum('due_amount');
+                                    
+        $grandTotalAdvance = clone $query;
+        $totalAdvanceAmount = $grandTotalAdvance->sum('wallet_balance');
+
+        $vendorDues = $query->latest('id')->paginate($perPage)->withQueryString();
+
+        return Inertia::render('Admin/Reports/VendorDues', [
+            'vendorDues' => $vendorDues,
+            'grandTotal' => $grandTotalDue, 
+            'grandTotalAdvance' => $totalAdvanceAmount 
+        ]);
+    }
+
+    
 }
