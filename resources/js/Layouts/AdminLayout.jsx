@@ -16,7 +16,6 @@ export default function AdminLayout({ children }) {
         return userPermissions.includes(permission); 
     };
 
-    // Shortcut: true if the user can see ANY module inside the combined Project & Finance group
     const canSeeProjectFinance =
         hasPermission('view_crm') ||
         hasPermission('view_project_expenses') ||
@@ -62,7 +61,7 @@ export default function AdminLayout({ children }) {
     }, []);
 
     return (
-        <div className="flex min-h-screen bg-[#f6f6f7] text-[#202223] antialiased font-sans">
+        <div className="min-h-screen bg-[#f6f6f7] text-[#202223] antialiased font-sans">
             
             {/* Mobile Overlay */}
             {isSidebarOpen && (
@@ -73,10 +72,10 @@ export default function AdminLayout({ children }) {
             )}
 
             {/* Sidebar */}
-            <nav className={`w-[260px] bg-[#010e22] text-[#e3e4e5] h-screen top-0 left-0 fixed z-50 transition-transform duration-300 ease-in-out flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+            <nav className={`fixed inset-y-0 left-0 z-50 w-[260px] bg-[#010e22] text-[#e3e4e5] transition-transform duration-300 ease-in-out flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
                
                 {/* Logo Section */}
-                <div className="relative flex items-center justify-center h-16 px-6 bg-[#010e22] border-b border-slate-700 shrink-0">
+                <div className="relative flex items-center justify-between md:justify-center h-16 px-4 md:px-6 bg-[#010e22] border-b border-slate-700 shrink-0">
                     <Link href={route('dashboard')} className="flex items-center gap-3">
                         <img
                             src="/images/logo.png"
@@ -86,7 +85,7 @@ export default function AdminLayout({ children }) {
 
                     <button
                         onClick={() => setIsSidebarOpen(false)}
-                        className="absolute right-4 md:hidden flex items-center justify-center w-9 h-9 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-200"
+                        className="md:hidden flex items-center justify-center w-8 h-8 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-all duration-200"
                     >
                         <i className="fa-solid fa-xmark text-lg"></i>
                     </button>
@@ -113,7 +112,7 @@ export default function AdminLayout({ children }) {
 
                         <div className="text-[11px] uppercase tracking-[1px] text-[#8c9196] px-[25px] pt-[10px] pb-[5px] font-semibold">Modules</div>
 
-                        {/* 1. Project & Finance (merged: CRM & Projects + Project Expense + Finance & Accounts) */}
+                        {/* 1. Project & Finance */}
                         {canSeeProjectFinance && (
                             <li className="mx-3 mt-1">
                                 <button onClick={() => toggleMenu('projectFinance')} className={`w-full flex items-center px-4 py-2.5 text-[14px] rounded-md font-medium transition-colors ${openMenus.projectFinance ? 'text-white' : 'text-[#b5b9bc] hover:text-white hover:bg-white/5'}`}>
@@ -128,22 +127,22 @@ export default function AdminLayout({ children }) {
                                             <>
                                                 <div className="text-[10px] text-slate-500 uppercase font-bold pl-4 pt-2 pb-1">CRM & Projects</div>
                                                 <li>
-                                                    <Link href={route('admin.clients.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.clients.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                    <Link href={route('admin.clients.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.clients.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                         <i className="fa-solid fa-users-line mr-2 text-[10px]"></i> Clients
                                                     </Link>
                                                 </li>
                                                 <li>
-                                                    <Link href={route('admin.vendors.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.vendors.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                    <Link href={route('admin.vendors.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.vendors.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                         <i className="fa-solid fa-truck-field mr-2 text-[10px]"></i> Vendors
                                                     </Link>
                                                 </li>
                                                 <li>
-                                                    <Link href={route('admin.projects.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.projects.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                    <Link href={route('admin.projects.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.projects.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                         <i className="fa-solid fa-layer-group mr-2 text-[10px]"></i> Projects
                                                     </Link>
                                                 </li>
                                                 <li>
-                                                    <Link href={route('admin.tasks.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.tasks.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                    <Link href={route('admin.tasks.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.tasks.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                         <i className="fa-solid fa-list-check mr-2 text-[10px]"></i> Tasks
                                                     </Link>
                                                 </li>
@@ -155,7 +154,7 @@ export default function AdminLayout({ children }) {
                                             <>
                                                 <div className="text-[10px] text-slate-500 uppercase font-bold pl-4 pt-3 pb-1">Project Expense</div>
                                                 <li>
-                                                    <Link href={route('admin.project-expenses.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.project-expenses.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                    <Link href={route('admin.project-expenses.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.project-expenses.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                         <i className="fa-solid fa-money-check-dollar mr-2 text-[10px]"></i> Project Expenses
                                                     </Link>
                                                 </li>
@@ -167,63 +166,63 @@ export default function AdminLayout({ children }) {
                                             <>
                                                 <div className="text-[10px] text-slate-500 uppercase font-bold pl-4 pt-3 pb-1">Accounts & Banking</div>
                                                 <li>
-                                                    <Link href={route('admin.accounts.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.accounts.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                    <Link href={route('admin.accounts.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.accounts.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                         <i className="fa-solid fa-vault mr-2 text-[10px]"></i> Accounts Balance
                                                     </Link>
                                                 </li>
                                                 <li>
-                                                    <Link href={route('admin.transactions.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.transactions.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                    <Link href={route('admin.transactions.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.transactions.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                         <i className="fa-solid fa-money-bill-transfer mr-2 text-[10px]"></i> Transactions
                                                     </Link>
                                                 </li>
                                                 <li>
-                                                    <Link href={route('admin.investments.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.investments.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                    <Link href={route('admin.investments.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.investments.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                         <i className="fa-solid fa-building-columns mr-2 text-[10px]"></i> Investments
                                                     </Link>
                                                 </li>
 
                                                 <div className="text-[10px] text-slate-500 uppercase font-bold pl-4 pt-3 pb-1">Income & Receivables</div>
                                                 <li>
-                                                    <Link href={route('admin.invoices.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.invoices.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                    <Link href={route('admin.invoices.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.invoices.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                         <i className="fa-solid fa-file-invoice mr-2 text-[10px]"></i> Invoices
                                                     </Link>
                                                 </li>
                                                 <li>
-                                                    <Link href={route('invoice-payments.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('invoice-payments.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                    <Link href={route('invoice-payments.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('invoice-payments.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                         <i className="fa-solid fa-money-bill-wave mr-2 text-[10px]"></i> Receive Payments
                                                     </Link>
                                                 </li>
                                                 <li>
-                                                    <Link href={route('admin.client-advances.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.client-advances.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                    <Link href={route('admin.client-advances.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.client-advances.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                         <i className="fa-solid fa-sack-dollar mr-2 text-[10px]"></i> Client Advances
                                                     </Link>
                                                 </li>
 
                                                 <div className="text-[10px] text-slate-500 uppercase font-bold pl-4 pt-3 pb-1">Expenses & Payables</div>
                                                 <li>
-                                                    <Link href={route('admin.expenses.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.expenses.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                    <Link href={route('admin.expenses.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.expenses.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                         <i className="fa-solid fa-receipt mr-2 text-[10px]"></i> Direct Expenses
                                                     </Link>
                                                 </li>
                                                 <li>
-                                                    <Link href={route('admin.expense-categories.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.expense-categories.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                    <Link href={route('admin.expense-categories.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.expense-categories.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                         <i className="fa-solid fa-tags mr-2 text-[10px]"></i> Expense Categories
                                                     </Link>
                                                 </li>
                                                 <li>
-                                                    <Link href={route('admin.advances.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.advances.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                    <Link href={route('admin.advances.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.advances.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                         <i className="fa-solid fa-hand-holding-dollar mr-2 text-[10px]"></i> Staff Advances
                                                     </Link>
                                                 </li>
 
                                                 <div className="text-[10px] text-slate-500 uppercase font-bold pl-4 pt-3 pb-1">Financial Reports</div>
                                                 <li>
-                                                    <Link href={route('admin.client-dues')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.client-dues') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                    <Link href={route('admin.client-dues')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.client-dues') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                         <i className="fa-solid fa-file-invoice-dollar mr-2 text-[10px]"></i> Client Dues (পাওনা)
                                                     </Link>
                                                 </li>
                                                 <li>
-                                                    <Link href={route('admin.vendor-dues')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.vendor-dues') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                    <Link href={route('admin.vendor-dues')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.vendor-dues') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                         <i className="fa-solid fa-hand-holding-dollar mr-2 text-[10px]"></i> Vendor Dues (দেনা)
                                                     </Link>
                                                 </li>
@@ -244,32 +243,32 @@ export default function AdminLayout({ children }) {
                                 {openMenus.hr && (
                                     <ul className="list-none p-0 mt-1 mb-2 bg-[#021528] rounded-md py-2 space-y-1 px-2">
                                         <li>
-                                            <Link href={route('admin.departments.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.departments.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                            <Link href={route('admin.departments.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.departments.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                 <i className="fa-solid fa-building-user mr-2 text-[10px]"></i> Departments
                                             </Link>
                                         </li>
                                         <li>
-                                            <Link href={route('admin.designations.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.designations.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                            <Link href={route('admin.designations.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.designations.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                 <i className="fa-solid fa-user-tie mr-2 text-[10px]"></i> Designations
                                             </Link>
                                         </li>
                                         <li>
-                                            <Link href={route('admin.employees.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.employees.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                            <Link href={route('admin.employees.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.employees.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                 <i className="fa-solid fa-id-card mr-2 text-[10px]"></i> Employees
                                             </Link>
                                         </li>
                                         <li>
-                                            <Link href={route('admin.attendances.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.attendances.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                            <Link href={route('admin.attendances.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.attendances.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                 <i className="fa-solid fa-clock-rotate-left mr-2 text-[10px]"></i> Attendance
                                             </Link>
                                         </li>
                                         <li>
-                                            <Link href={route('admin.leaves.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.leaves.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                            <Link href={route('admin.leaves.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.leaves.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                 <i className="fa-solid fa-calendar-minus mr-2 text-[10px]"></i> Leave Applications
                                             </Link>
                                         </li>
                                         <li>
-                                            <Link href={route('admin.salaries.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.salaries.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                            <Link href={route('admin.salaries.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.salaries.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                 <i className="fa-solid fa-money-check-dollar mr-2 text-[10px]"></i> Payroll / Salary
                                             </Link>
                                         </li>
@@ -288,17 +287,17 @@ export default function AdminLayout({ children }) {
                                 {openMenus.office && (
                                     <ul className="list-none p-0 mt-1 mb-2 bg-[#021528] rounded-md py-2 space-y-1 px-2">
                                         <li>
-                                            <Link href={route('admin.assets.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.assets.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                            <Link href={route('admin.assets.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.assets.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                 <i className="fa-solid fa-boxes-stacked mr-2 text-[10px]"></i> Assets
                                             </Link>
                                         </li>
                                         <li>
-                                            <Link href={route('admin.requisitions.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.requisitions.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                            <Link href={route('admin.requisitions.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.requisitions.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                 <i className="fa-solid fa-clipboard-list mr-2 text-[10px]"></i> Requisitions
                                             </Link>
                                         </li>
                                         <li>
-                                            <Link href={route('admin.notices.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.notices.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                            <Link href={route('admin.notices.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.notices.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                 <i className="fa-solid fa-bullhorn mr-2 text-[10px]"></i> Notices
                                             </Link>
                                         </li>
@@ -316,12 +315,12 @@ export default function AdminLayout({ children }) {
                                 {openMenus.report && (
                                     <ul className="list-none p-0 mt-1 mb-2 bg-[#021528] rounded-md py-2 space-y-1 px-2">
                                         <li>
-                                            <Link href={route('admin.reports.financial')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.reports.financial') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                            <Link href={route('admin.reports.financial')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.reports.financial') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                 <i className="fa-solid fa-file-invoice-dollar mr-2 text-[10px]"></i> Financial Report
                                             </Link>
                                         </li>
                                         <li>
-                                            <Link href={route('admin.account.transactions')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.account.transactions') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                            <Link href={route('admin.account.transactions')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.account.transactions') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                 <i className="fa-solid fa-file-invoice-dollar mr-2 text-[10px]"></i> Account Transaction Report
                                             </Link>
                                         </li>
@@ -343,17 +342,17 @@ export default function AdminLayout({ children }) {
                                     {openMenus.access && (
                                         <ul className="list-none p-0 mt-1 mb-2 bg-[#021528] rounded-md py-2 space-y-1 px-2">
                                             <li>
-                                                <Link href={route('admin.users.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.users.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                <Link href={route('admin.users.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.users.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                     <i className="fa-solid fa-users mr-2 text-[10px]"></i> Users
                                                 </Link>
                                             </li>
                                             <li>
-                                                <Link href={route('admin.roles.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.roles.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                <Link href={route('admin.roles.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.roles.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                     <i className="fa-solid fa-user-tag mr-2 text-[10px]"></i> Roles
                                                 </Link>
                                             </li>
                                             <li>
-                                                <Link href={route('admin.permissions.index')} className={`flex items-center pl-10  py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.permissions.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
+                                                <Link href={route('admin.permissions.index')} className={`flex items-center pl-10 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${route().current('admin.permissions.*') ? 'bg-[#0F2748] text-[#60A5FA] border-l-4 border-[#3B82F6] shadow-lg' : 'text-[#a1a5a8] hover:bg-[#091A33] hover:text-white'}`}>
                                                     <i className="fa-solid fa-key mr-2 text-[10px]"></i> Permissions
                                                 </Link>
                                             </li>
@@ -366,14 +365,13 @@ export default function AdminLayout({ children }) {
                 </div>
             </nav>
 
-            {/* Main Content Area */}
-            <div className="flex-1 md:ml-[260px] w-full min-h-screen flex flex-col transition-all duration-300">
+            <div className="flex flex-col min-h-screen transition-all duration-300 md:ml-[260px]">
                 
                 {/* Navbar */}
-                <div className="bg-white border-b border-[#e1e3e5] px-6 py-0 h-[65px] flex items-center justify-between sticky top-0 z-30 shadow-sm">
+                <header className="bg-white border-b border-[#e1e3e5] px-4 sm:px-6 h-[65px] flex items-center justify-between sticky top-0 z-30 shadow-sm">
                     
                     <div className="flex items-center">
-                        <button onClick={() => setIsSidebarOpen(true)} className="p-2 bg-gray-50 border border-[#e1e3e5] rounded-md md:hidden text-gray-700 hover:bg-gray-100 mr-4 transition-colors">
+                        <button onClick={() => setIsSidebarOpen(true)} className="p-2 bg-gray-50 border border-[#e1e3e5] rounded-md md:hidden text-gray-700 hover:bg-gray-100 mr-3 transition-colors">
                             <i className="fa-solid fa-bars"></i>
                         </button>
                         <div className="text-gray-600 text-[15px] font-medium hidden sm:block">Admin Portal</div>
@@ -383,7 +381,7 @@ export default function AdminLayout({ children }) {
                     <div className="relative">
                         <button onClick={() => setProfileDropdown(!profileDropdown)} className="flex items-center px-3 py-1.5 bg-gray-50 border border-[#e1e3e5] rounded-md hover:bg-gray-100 transition-colors">
                             <i className="fa-regular fa-circle-user text-xl mr-2 text-gray-500"></i>
-                            <span className="font-medium text-[14px] text-gray-800 mr-1">{auth?.user?.name || "Admin User"}</span>
+                            <span className="font-medium text-[13px] sm:text-[14px] text-gray-800 mr-1 hidden xs:block">{auth?.user?.name || "Admin"}</span>
                             <i className="fa-solid fa-angle-down text-[11px] text-gray-500"></i>
                         </button>
                         
@@ -408,10 +406,9 @@ export default function AdminLayout({ children }) {
                             </>
                         )}
                     </div>
-                </div>
+                </header>
 
-                {/* Page Content Container */}
-                <main className="flex-1 ">
+                <main className="flex-1 p-4 sm:p-6 overflow-x-hidden">
                     {children}
                 </main>
             </div>

@@ -33,9 +33,16 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const [advanceSearch, setAdvanceSearch] = useState("");
     const [showAdvanceDropdown, setShowAdvanceDropdown] = useState(false);
 
+    // --- Return Account State (For Overpayment) ---
+    const [showReturnAccountDropdown, setShowReturnAccountDropdown] = useState(false);
+
     // Toolbar Filters
     const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get('search') || '');
-    const [perPage, setPerPage] = useState(() => Number(new URLSearchParams(window.location.search).get("per_page")) || 10);
+    // --- FIXED: Per Page State ---
+    const [perPage, setPerPage] = useState(() => {
+        const queryVal = new URLSearchParams(window.location.search).get("per_page");
+        return queryVal === "all" ? "all" : (Number(queryVal) || 10);
+    });
     const [projectFilter, setProjectFilter] = useState(() => new URLSearchParams(window.location.search).get('project_id') || '');
     
     const [projectFilterSearch, setProjectFilterSearch] = useState("");
@@ -62,6 +69,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         project_id: '',
         expense_category_id: '',
         account_id: '', 
+        return_account_id: '', // New
         advance_user_id: '', 
         title: '', 
         vendor_id: '', 
@@ -69,7 +77,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         paid_amount: 0,
         date: new Date().toISOString().slice(0, 10),
         description: '',
-        pay_type: 'account' // Added Pay Type state for Vendor Wallet handling
+        pay_type: 'account' 
     });
 
     // Close all dropdowns when clicking outside
@@ -77,6 +85,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         setShowProjectDropdown(false);
         setShowCategoryDropdown(false);
         setShowAccountDropdown(false);
+        setShowReturnAccountDropdown(false);
         setShowVendorDropdown(false);
         setShowAdvanceDropdown(false);
         setShowAddVendorForm(false);
@@ -92,10 +101,15 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    // --- Overpayment Calculation ---
+    const isOverpaid = (parseFloat(data.paid_amount) || 0) > (parseFloat(data.total_bill) || 0);
+    const overpaymentAmount = isOverpaid ? (parseFloat(data.paid_amount) || 0) - (parseFloat(data.total_bill) || 0) : 0;
+
     // --- Auto Calculate Due & Status in UI ---
     const calculateDue = () => {
         const bill = parseFloat(data.total_bill) || 0;
         const paid = parseFloat(data.paid_amount) || 0;
+        if (paid > bill) return "0.00"; // No due if overpaid
         return (bill - paid).toFixed(2);
     };
 
@@ -188,26 +202,8 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const openCreateModal = () => {
         clearErrors();
         setData({
-            id: '',
-            project_id: '',
-            expense_category_id: '',
-            advance_id: '',
-            advance_user_id: '',
-            account_id: '',
-            title: '',
-            vendor_id: '',
-            description: '',
-            total_bill: 0,
-            paid_amount: 0,        
-            due_amount: 0,
-            amount: 0,
-            discount_amount: 0,
-            payment_status: 'due', 
-            date: new Date().toISOString().slice(0, 10), 
-            attachment: null,
-            pay_type: 'account' // Default 
+            id: '', project_id: '', expense_category_id: '', advance_id: '', advance_user_id: '', account_id: '', return_account_id: '', title: '', vendor_id: '', description: '', total_bill: 0, paid_amount: 0, due_amount: 0, amount: 0, discount_amount: 0, payment_status: 'due', date: new Date().toISOString().slice(0, 10), attachment: null, pay_type: 'account' 
         });
-
         setEditMode(false);
         closeAllDropdowns();
         setShowModal(true);
@@ -221,18 +217,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         else if (expense.advance_user_id) payType = 'advance';
 
         setData({
-            id: expense.id, 
-            project_id: expense.project_id || '',
-            expense_category_id: expense.expense_category_id || '',
-            account_id: expense.account_id || '', 
-            advance_user_id: expense.advance_user_id || '',
-            title: expense.title || '', 
-            vendor_id: expense.vendor_id || '',
-            total_bill: expense.total_bill || '',
-            paid_amount: expense.paid_amount || '',
-            date: expense.date || '',
-            description: expense.description || '',
-            pay_type: payType
+            id: expense.id, project_id: expense.project_id || '', expense_category_id: expense.expense_category_id || '', account_id: expense.account_id || '', return_account_id: '', advance_user_id: expense.advance_user_id || '', title: expense.title || '', vendor_id: expense.vendor_id || '', total_bill: expense.total_bill || '', paid_amount: expense.paid_amount || '', date: expense.date || '', description: expense.description || '', pay_type: payType
         });
         setEditMode(true); 
         closeAllDropdowns();
@@ -251,12 +236,20 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         if (!data.project_id) return Swal.fire("Required", "Please select a project.", "warning");
         if (!data.expense_category_id) return Swal.fire("Required", "Please select an expense category.", "warning");
         
-        // Added Validation for Vendor Wallet
         const paidAmount = parseFloat(data.paid_amount) || 0;
         if (paidAmount > 0) {
             if (data.pay_type === 'account' && !data.account_id) return Swal.fire("Required", "Please select a Bank/Cash Account.", "warning");
             if (data.pay_type === 'advance' && !data.advance_user_id) return Swal.fire("Required", "Please select an Advance User.", "warning");
             if (data.pay_type === 'wallet' && !data.vendor_id) return Swal.fire("Required", "Please select a Vendor to pay from Wallet.", "warning");
+        }
+
+        // --- NEW LOGIC: Prevent vanishing money on Frontend ---
+        if (isOverpaid && !data.return_account_id && !data.vendor_id) {
+            return Swal.fire(
+                "Action Required", 
+                `You entered ${overpaymentAmount} BDT extra. You must select either a Vendor (to save as advance) or a Return Cash Box.`, 
+                "warning"
+            );
         }
         
         if (editMode) {
@@ -296,7 +289,6 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         });
     };
 
-    // --- Move to Vendor Wallet Feature ---
     const handleMoveToWallet = (exp) => {
         Swal.fire({
             title: 'Move to Vendor Wallet?',
@@ -364,6 +356,28 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         <AdminLayout>
             <Head title="Project Expenses & Payables" />
             
+            {/* Added style block for responsiveness preserving original inline styles */}
+            <style>{`
+                @media (max-width: 768px) {
+                    .page-header { flex-direction: column; align-items: flex-start !important; }
+                    .page-header > div:last-child { margin-top: 10px; width: 100%; }
+                    .card-header { flex-direction: column; align-items: flex-start !important; gap: 10px; }
+                    .add-btn { width: 100%; justify-content: center; }
+                    .table-toolbar { flex-direction: column; align-items: flex-start !important; }
+                    .table-toolbar > div { width: 100%; flex-wrap: wrap; }
+                    .project-filter, .search-box input { width: 100% !important; }
+                    .export-buttons { width: 100%; justify-content: space-between; }
+                    .export-buttons button { flex: 1; justify-content: center; }
+                    .data-table th, .data-table td { white-space: nowrap; }
+                    
+                    /* Form Grids */
+                    form > div[style*="gridTemplateColumns"] { grid-template-columns: 1fr !important; }
+                    
+                    /* Modals */
+                    div[style*="maxWidth: 1000px"], div[style*="maxWidth: 650px"] { width: 95% !important; margin: 10px; }
+                }
+            `}</style>
+
             <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc", minHeight: "100vh" }}>
                 
                 <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '15px' }}>
@@ -606,17 +620,71 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                         </table>
                     </div>
 
+                    {/* --- PAGINATION SECTION --- */}
                     {project_expenses.links && project_expenses.links.length > 3 && (
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
-                            <div style={{ color: "#64748b", fontSize: "0.875rem" }}>Showing {project_expenses.from || 0} to {project_expenses.to || 0} of {project_expenses.total || 0} entries</div>
-                            <div style={{ display: "flex", gap: "6px" }}>
-                                {project_expenses.links.map((link, index) => (
-                                    <Link key={index} href={link.url || "#"} style={{ padding: "6px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.875rem", color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"), backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"), pointerEvents: link.url ? "auto" : "none", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "32px" }} preserveState>
-                                        {link.label.includes("Previous") ? <i className="fa-solid fa-chevron-left"></i> : link.label.includes("Next") ? <i className="fa-solid fa-chevron-right"></i> : link.label.replace("&laquo;", "").replace("&raquo;", "")}
-                                    </Link>
-                                ))}
+                        <>
+                            <style>{`
+                                .custom-pagination {
+                                    display: flex;
+                                    justify-content: space-between;
+                                    align-items: center;
+                                    padding: 20px 24px;
+                                    border-top: 1px solid #e2e8f0;
+                                    background: #f8fafc;
+                                    gap: 16px;
+                                }
+                                .custom-pagination-text {
+                                    color: #64748b;
+                                    font-size: 0.875rem;
+                                }
+                                .custom-pagination-links {
+                                    display: flex;
+                                    gap: 6px;
+                                    flex-wrap: wrap;
+                                }
+                                /* Mobile Responsiveness */
+                                @media (max-width: 640px) {
+                                    .custom-pagination {
+                                        flex-direction: column;
+                                        justify-content: center;
+                                        text-align: center;
+                                    }
+                                    .custom-pagination-links {
+                                        justify-content: center;
+                                    }
+                                }
+                            `}</style>
+                            <div className="custom-pagination">
+                                <div className="custom-pagination-text">
+                                    Showing {project_expenses.from || 0} to {project_expenses.to || 0} of {project_expenses.total || 0} entries
+                                </div>
+                                <div className="custom-pagination-links">
+                                    {project_expenses.links.map((link, index) => (
+                                        <Link 
+                                            key={index} 
+                                            href={link.url || "#"} 
+                                            style={{ 
+                                                padding: "6px 12px", 
+                                                border: "1px solid #cbd5e1", 
+                                                borderRadius: "6px", 
+                                                fontSize: "0.875rem", 
+                                                color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"), 
+                                                backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"), 
+                                                pointerEvents: link.url ? "auto" : "none", 
+                                                textDecoration: "none", 
+                                                display: "flex", 
+                                                alignItems: "center", 
+                                                justifyContent: "center", 
+                                                minWidth: "32px" 
+                                            }} 
+                                            preserveState
+                                        >
+                                            {link.label.includes("Previous") ? <i className="fa-solid fa-chevron-left"></i> : link.label.includes("Next") ? <i className="fa-solid fa-chevron-right"></i> : link.label.replace("&laquo;", "").replace("&raquo;", "")}
+                                        </Link>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
+                        </>
                     )}
                 </div>
             </div>
@@ -710,7 +778,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                         )}
                         
                         <div onClick={closeAllDropdowns} style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
-                            <form onSubmit={handleSubmit}>
+                            <form id="expenseForm" onSubmit={handleSubmit}>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
                                     
                                     {/* --- 1. PROJECT DROPDOWN --- */}
@@ -786,7 +854,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                         {errors.expense_category_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.expense_category_id}</p>}
                                     </div>
 
-                                    {/* --- 3. PAYMENT SOURCE (Account vs Advance vs Wallet) --- */}
+                                    {/* --- 3. PAYMENT SOURCE --- */}
                                     <div style={{ gridColumn: "span 1", position: "relative", minWidth: 0 }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: "6px" }}>
                                             <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", margin: 0 }}>Payment Source</label>
@@ -870,7 +938,6 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                             </>
                                         )}
 
-                                        {/* Vendor Wallet Alert Box */}
                                         {data.pay_type === 'wallet' && (
                                             <div style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #d8b4fe", background: "#faf5ff", color: "#7e22ce", fontSize: "0.8rem", fontWeight: "500", display: "flex", alignItems: "center", gap: "6px" }}>
                                                 <i className="fa-solid fa-wallet"></i>
@@ -994,6 +1061,35 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                         <div style={{ marginTop: '6px', fontSize: '11px', fontWeight: 'bold', color: '#64748b', letterSpacing: '0.5px' }}>STATUS: {calculateStatus()}</div>
                                     </div>
                                 </div>
+
+                                {/* --- RETURN CASH UI (Shown Only When Paid > Bill) --- */}
+                                {isOverpaid && data.pay_type === 'account' && (
+                                    <div style={{ marginTop: '16px', padding: '16px', background: '#fffbeb', borderRadius: '8px', border: '1px solid #fde68a', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                        <div style={{ color: '#92400e', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                                            <i className="fa-solid fa-coins" style={{ marginRight: '6px' }}></i>
+                                            Received Change: BDT {overpaymentAmount.toLocaleString('en-IN')}
+                                        </div>
+                                        <div style={{ fontSize: '0.8rem', color: '#b45309' }}>Where should this returned cash be deposited?</div>
+
+                                        <div style={{ position: "relative", minWidth: 0 }}>
+                                            <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowReturnAccountDropdown(!showReturnAccountDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #fcd34d", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                                <span style={{ color: data.return_account_id ? "#0f172a" : "#b45309", fontSize: "0.875rem", fontWeight: "600" }}>
+                                                    {data.return_account_id ? accounts.find(a => a.id == data.return_account_id)?.name || "Select Cash Box" : "Select Cash Box *"}
+                                                </span>
+                                                <i className={`fa-solid fa-chevron-${showReturnAccountDropdown ? 'up' : 'down'}`} style={{ color: "#d97706", fontSize: "0.8rem" }}></i>
+                                            </div>
+                                            {showReturnAccountDropdown && (
+                                                <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", bottom: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #fcd34d", borderRadius: "6px", marginBottom: "4px", zIndex: 50, boxShadow: "0 -10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", overflowY: "auto" }}>
+                                                    {accounts.map(a => (
+                                                        <div key={a.id} onClick={() => { setData("return_account_id", a.id); setShowReturnAccountDropdown(false); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", borderBottom: "1px solid #fef3c7" }}>
+                                                            {a.name}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "16px", marginTop: "16px" }}>
                                     <div>

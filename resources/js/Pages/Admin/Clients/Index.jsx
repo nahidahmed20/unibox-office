@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router, Link , usePage} from '@inertiajs/react';
+import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 
 export default function Index({ clients = { data: [], links: [] } }) {
@@ -83,11 +83,7 @@ export default function Index({ clients = { data: [], links: [] } }) {
         const tableContent = document.getElementById("printable-table");
         if (!tableContent) return;
 
-        const printWindow = window.open(
-            '', 
-            '_blank', 
-            `width=${window.screen.width},height=${window.screen.height},top=0,left=0`
-        );
+        const printWindow = window.open('', '_blank', `width=${window.screen.width},height=${window.screen.height},top=0,left=0`);
         
         printWindow.document.write(`
             <html>
@@ -121,17 +117,7 @@ export default function Index({ clients = { data: [], links: [] } }) {
     // --- Modals ---
     const openCreateModal = () => {
         clearErrors();
-        
-        setData({
-            id: '',
-            name: '',
-            company_name: '',
-            email: '',
-            phone: '',
-            address: '',
-            website: ''
-        });
-
+        setData({ id: '', name: '', company_name: '', email: '', phone: '', address: '', website: '' });
         setEditMode(false);
         setShowModal(true);
     };
@@ -201,109 +187,129 @@ export default function Index({ clients = { data: [], links: [] } }) {
     return (
         <AdminLayout>
             <Head title="Clients Management" />
-            
-            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc" }}>
+
+            <div className="p-4 sm:p-6 bg-slate-50 min-h-screen">
                 
-                {/* Header */}
-                <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+                {/* Header Section */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                     <div>
-                        <h1 className="page-title" style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Client Workspace</h1>
-                        <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Manage, track and communicate with your clients.</p>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 m-0">Client Workspace</h1>
+                        <p className="text-sm text-slate-500 mt-1">Manage, track and communicate with your clients.</p>
                     </div>
                 </div>
 
-                <div className="card-container" style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
+                {/* Main Card */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     
-                    <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
-                        <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
-                            <i className="fa-solid fa-users" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Client Directory
+                    {/* Card Header */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 sm:px-6 border-b border-slate-100 gap-4 bg-white">
+                        <div className="text-lg font-semibold text-slate-700 flex items-center">
+                            <i className="fa-solid fa-users mr-2 text-blue-500"></i> Client Directory
                         </div>
                         {hasPermission('create_client') && (
-                        <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
-                            <i className="fa-solid fa-plus"></i> Add New Client
-                        </button>
+                            <button onClick={openCreateModal} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 shadow-sm">
+                                <i className="fa-solid fa-plus"></i> Add New Client
+                            </button>
                         )}
                     </div>
 
-                    {/* Toolbar */}
-                    <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
-                        <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                            Show 
-                            <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
+                    {/* Toolbar (Search, Filter, Export) */}
+                    <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 p-4 sm:p-6 bg-slate-50/50 border-b border-slate-100">
+                        
+                        {/* Show Entries */}
+                        <div className="flex items-center gap-2 text-sm text-slate-600 w-full lg:w-auto">
+                            <span>Show</span>
+                            <select 
+                                value={perPage} 
+                                onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                className="px-3 py-1.5 rounded-md border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 outline-none text-slate-700"
+                            >
                                 <option value={10}>10 Entries</option>
                                 <option value={25}>25 Entries</option>
                                 <option value={50}>50 Entries</option>
                                 <option value={100}>100 Entries</option>
-                                <option value={500}>500 Entries</option>
-                                <option value={1000}>1000 Entries</option>
                                 <option value="all">All</option>
                             </select>
                         </div>
 
-                        <div className="export-buttons" style={{ display: "flex", gap: "8px" }}>
-                            <button type="button" className="export-btn" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-copy text-blue-500"></i> Copy
-                            </button>
-                            <button type="button" className="export-btn" onClick={handleExportCSV} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-file-excel text-emerald-500"></i> CSV
-                            </button>
-                            <button type="button" className="export-btn" onClick={handlePrint} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-print text-slate-500"></i> Print
-                            </button>
-                        </div>
+                        {/* Actions (Export & Search) */}
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-3 w-full lg:w-auto ml-auto">
+                            <div className="flex gap-2 w-full md:w-auto">
+                                <button type="button" onClick={handleCopy} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+                                    <i className="fas fa-copy text-blue-500"></i> Copy
+                                </button>
+                                <button type="button" onClick={handleExportCSV} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+                                    <i className="fas fa-file-excel text-emerald-500"></i> CSV
+                                </button>
+                                <button type="button" onClick={handlePrint} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition">
+                                    <i className="fas fa-print text-slate-500"></i> Print
+                                </button>
+                            </div>
 
-                        <div className="search-box" style={{ position: "relative" }}>
-                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
-                            <input type="text" placeholder="Search clients..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "260px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
+                            <div className="relative w-full md:w-64">
+                                <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                <input 
+                                    type="text" 
+                                    placeholder="Search clients..." 
+                                    value={searchTerm} 
+                                    onChange={(e) => setSearchTerm(e.target.value)} 
+                                    className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-sm text-slate-700"
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    {/* Table */}
-                    <div style={{ overflowX: "auto" }}>
-                        <table id="printable-table" className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+                    {/* Table Area (Responsive Horizontal Scroll) */}
+                    <div className="overflow-x-auto w-full">
+                        <table id="printable-table" className="w-full text-left border-collapse min-w-[900px]">
                             <thead>
-                                <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "60px" }}>SL</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Client Details</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Contact Info</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Address</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>Actions</th>
+                                <tr className="bg-slate-100 border-b-2 border-slate-200 text-xs uppercase font-bold text-slate-600 tracking-wider">
+                                    <th className="py-3.5 px-6 w-16">SL</th>
+                                    <th className="py-3.5 px-6">Client Details</th>
+                                    <th className="py-3.5 px-6">Contact Info</th>
+                                    <th className="py-3.5 px-6">Address</th>
+                                    <th className="py-3.5 px-6 text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody style={{ color: "#334155", fontSize: "0.915rem" }}>
+                            <tbody className="text-sm text-slate-700 divide-y divide-slate-100">
                                 {clients.data && clients.data.length > 0 ? (
                                     clients.data.map((client, index) => (
-                                        <tr key={client.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                                            <td style={{ padding: "16px 24px", color: "#64748b", fontWeight: "500" }}>
+                                        <tr key={client.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="py-4 px-6 text-slate-500 font-medium">
                                                 {clients.from ? clients.from + index : index + 1}
                                             </td>
-                                            <td style={{ padding: "16px 24px" }}>
-                                                <div style={{ fontWeight: "600", color: "#0f172a" }}>{client.name}</div>
-                                                <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "2px" }}><i className="fa-regular fa-building me-1"></i> {client.company_name || "No Company"}</div>
+                                            <td className="py-4 px-6">
+                                                <div className="font-semibold text-slate-900">{client.name}</div>
+                                                <div className="text-xs text-slate-500 mt-1 flex items-center">
+                                                    <i className="fa-regular fa-building mr-1.5"></i> 
+                                                    {client.company_name || "No Company"}
+                                                </div>
                                             </td>
-                                            <td style={{ padding: "16px 24px" }}>
-                                                <div style={{ color: "#0ea5e9", fontSize: "0.875rem" }}>{client.email || "-"}</div>
-                                                <div style={{ fontSize: "0.875rem", color: "#475569", marginTop: "2px" }}>{client.phone || "-"}</div>
+                                            <td className="py-4 px-6">
+                                                <div className="text-sky-600 font-medium">{client.email || "-"}</div>
+                                                <div className="text-slate-500 mt-1 text-xs">{client.phone || "-"}</div>
                                             </td>
-                                            <td style={{ padding: "16px 24px" }}>
-                                                <div style={{ fontSize: "0.875rem", color: "#475569" }}>{client.address ? client.address.substring(0, 30) + '...' : "-"}</div>
+                                            <td className="py-4 px-6">
+                                                <div className="text-slate-500 text-xs whitespace-normal max-w-[250px] leading-relaxed">
+                                                    {client.address ? (client.address.length > 40 ? client.address.substring(0, 40) + '...' : client.address) : "-"}
+                                                </div>
                                             </td>
-                                            <td style={{ padding: "16px 24px", textAlign: "right" }}>
-                                                <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                            <td className="py-4 px-6">
+                                                <div className="flex justify-end gap-2">
                                                     {hasPermission('view_clients') && (
-                                                    <button onClick={() => openViewModal(client)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
-                                                        <i className="fa-regular fa-eye"></i>
-                                                    </button>
+                                                        <button onClick={() => openViewModal(client)} className="p-2 bg-emerald-50 text-emerald-600 rounded-md hover:bg-emerald-100 transition" title="View Details">
+                                                            <i className="fa-regular fa-eye"></i>
+                                                        </button>
                                                     )}
                                                     {hasPermission('edit_client') && (
-                                                    <button onClick={() => openEditModal(client)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit Client">
-                                                        <i className="fa-regular fa-pen-to-square"></i>
-                                                    </button>
+                                                        <button onClick={() => openEditModal(client)} className="p-2 bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition" title="Edit Client">
+                                                            <i className="fa-regular fa-pen-to-square"></i>
+                                                        </button>
                                                     )}
                                                     {hasPermission('delete_client') && (
-                                                    <button onClick={() => handleDelete(client.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete Client">
-                                                        <i className="fa-regular fa-trash-can"></i>
-                                                    </button>
+                                                        <button onClick={() => handleDelete(client.id)} className="p-2 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition" title="Delete Client">
+                                                            <i className="fa-regular fa-trash-can"></i>
+                                                        </button>
                                                     )}
                                                 </div>
                                             </td>
@@ -311,7 +317,7 @@ export default function Index({ clients = { data: [], links: [] } }) {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="4" style={{ textAlign: "center", padding: "32px", color: "#94a3b8" }}>No clients found.</td>
+                                        <td colSpan="5" className="text-center py-10 text-slate-400">No clients found.</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -320,35 +326,28 @@ export default function Index({ clients = { data: [], links: [] } }) {
 
                     {/* Pagination Links */}
                     {clients.links && clients.links.length > 3 && (
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
-                            <div style={{ color: "#64748b", fontSize: "0.875rem" }}>
-                                Showing {clients.from || 0} to {clients.to || 0} of {clients.total || 0} entries
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-4 p-4 sm:p-6 border-t border-slate-200 bg-slate-50/50">
+                            <div className="text-sm text-slate-500 text-center md:text-left">
+                                Showing <span className="font-medium text-slate-700">{clients.from || 0}</span> to <span className="font-medium text-slate-700">{clients.to || 0}</span> of <span className="font-medium text-slate-700">{clients.total || 0}</span> entries
                             </div>
-                            <div style={{ display: "flex", gap: "6px" }}>
+                            <div className="flex flex-wrap justify-center gap-1.5">
                                 {clients.links.map((link, index) => (
                                     <Link 
                                         key={index} 
                                         href={link.url || "#"} 
-                                        style={{ 
-                                            padding: "6px 12px", 
-                                            border: "1px solid #cbd5e1", 
-                                            borderRadius: "6px", 
-                                            fontSize: "0.875rem", 
-                                            color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"), 
-                                            backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"), 
-                                            pointerEvents: link.url ? "auto" : "none", 
-                                            textDecoration: "none",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            minWidth: "32px"
-                                        }} 
+                                        className={`flex items-center justify-center px-3 py-1.5 min-w-[32px] rounded-md border text-sm transition-colors ${
+                                            link.active 
+                                                ? "bg-blue-600 text-white border-blue-600" 
+                                                : link.url 
+                                                    ? "bg-white text-slate-600 border-slate-300 hover:bg-slate-100" 
+                                                    : "bg-slate-100 text-slate-400 border-slate-200 pointer-events-none"
+                                        }`}
                                         preserveState
                                     >
                                         {link.label.includes("Previous") ? (
-                                            <i className="fa-solid fa-chevron-left"></i>
+                                            <i className="fa-solid fa-chevron-left text-xs"></i>
                                         ) : link.label.includes("Next") ? (
-                                            <i className="fa-solid fa-chevron-right"></i>
+                                            <i className="fa-solid fa-chevron-right text-xs"></i>
                                         ) : (
                                             link.label.replace("&laquo;", "").replace("&raquo;", "")
                                         )}
@@ -362,52 +361,71 @@ export default function Index({ clients = { data: [], links: [] } }) {
 
             {/* --- VIEW DETAILS MODAL --- */}
             {showViewModal && selectedClient && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
-                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
-                                <i className="fa-regular fa-address-card" style={{ marginRight: "8px", color: "#2563eb" }}></i> Client Profile
+                <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[100] p-4 sm:p-6">
+                    <div className="bg-white w-full max-w-xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                        {/* Modal Header */}
+                        <div className="flex justify-between items-center border-b border-slate-200 p-5 bg-slate-50 shrink-0">
+                            <h3 className="text-lg font-semibold text-slate-800 flex items-center">
+                                <i className="fa-regular fa-address-card mr-2 text-blue-600"></i> Client Profile
                             </h3>
-                            <button type="button" onClick={() => setShowViewModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}>
+                            <button onClick={() => setShowViewModal(false)} className="text-slate-400 hover:text-slate-600 transition text-xl">
                                 <i className="fa-solid fa-xmark"></i>
                             </button>
                         </div>
-                        <div style={{ padding: "24px" }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
+                        
+                        {/* Modal Body */}
+                        <div className="p-6 overflow-y-auto">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Client Name</span>
-                                    <div style={{ fontSize: "1.1rem", fontWeight: "700", color: "#0f172a" }}>{selectedClient.name}</div>
+                                    <span className="text-xs uppercase font-bold text-slate-400 block mb-1">Client Name</span>
+                                    <div className="text-lg font-bold text-slate-900">{selectedClient.name}</div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Company Name</span>
-                                    <div style={{ fontWeight: "600", color: "#334155" }}><i className="fa-regular fa-building text-amber-500" style={{ marginRight: "6px" }}></i>{selectedClient.company_name || "N/A"}</div>
+                                    <span className="text-xs uppercase font-bold text-slate-400 block mb-1">Company Name</span>
+                                    <div className="font-semibold text-slate-700 flex items-center">
+                                        <i className="fa-regular fa-building text-amber-500 mr-2"></i>
+                                        {selectedClient.company_name || "N/A"}
+                                    </div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Email Address</span>
-                                    <div style={{ fontWeight: "600", color: "#0ea5e9" }}><i className="fa-regular fa-envelope" style={{ marginRight: "6px" }}></i>{selectedClient.email || "N/A"}</div>
+                                    <span className="text-xs uppercase font-bold text-slate-400 block mb-1">Email Address</span>
+                                    <div className="font-semibold text-sky-600 flex items-center">
+                                        <i className="fa-regular fa-envelope mr-2"></i>
+                                        {selectedClient.email || "N/A"}
+                                    </div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Phone Number</span>
-                                    <div style={{ color: "#475569", fontWeight: "500" }}><i className="fa-solid fa-phone text-emerald-500" style={{ marginRight: "6px" }}></i>{selectedClient.phone || "N/A"}</div>
+                                    <span className="text-xs uppercase font-bold text-slate-400 block mb-1">Phone Number</span>
+                                    <div className="font-medium text-slate-600 flex items-center">
+                                        <i className="fa-solid fa-phone text-emerald-500 mr-2"></i>
+                                        {selectedClient.phone || "N/A"}
+                                    </div>
                                 </div>
-                                <div style={{ gridColumn: "span 2" }}>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Website</span>
-                                    <div style={{ color: "#2563eb", fontWeight: "500" }}>
-                                        <i className="fa-solid fa-globe" style={{ marginRight: "6px" }}></i>
-                                        {selectedClient.website ? <a href={selectedClient.website} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>{selectedClient.website}</a> : "N/A"}
+                                <div className="sm:col-span-2">
+                                    <span className="text-xs uppercase font-bold text-slate-400 block mb-1">Website</span>
+                                    <div className="font-medium text-blue-600 break-all flex items-center">
+                                        <i className="fa-solid fa-globe mr-2"></i>
+                                        {selectedClient.website ? (
+                                            <a href={selectedClient.website} target="_blank" rel="noreferrer" className="hover:underline">{selectedClient.website}</a>
+                                        ) : "N/A"}
                                     </div>
                                 </div>
                             </div>
-                            <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
-                                <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Physical Address</span>
-                                <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "8px", border: "1px solid #e2e8f0", color: "#475569", fontSize: "0.9rem", lineHeight: "1.6", minHeight: "60px", whiteSpace: "pre-line" }}>
-                                    <i className="fa-solid fa-location-dot text-rose-500" style={{ marginRight: "6px" }}></i>
-                                    {selectedClient.address || "No address provided."}
+
+                            <div className="border-t border-slate-100 pt-5">
+                                <span className="text-xs uppercase font-bold text-slate-400 block mb-2">Physical Address</span>
+                                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-slate-600 text-sm leading-relaxed min-h-[60px] whitespace-pre-line flex items-start">
+                                    <i className="fa-solid fa-location-dot text-rose-500 mr-2 mt-1 shrink-0"></i>
+                                    <span>{selectedClient.address || "No address provided."}</span>
                                 </div>
                             </div>
-                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                <button type="button" onClick={() => setShowViewModal(false)} style={{ background: "#1e293b", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500" }}>Close Profile</button>
-                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="p-5 border-t border-slate-200 bg-slate-50 flex justify-end shrink-0">
+                            <button onClick={() => setShowViewModal(false)} className="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white px-6 py-2 rounded-lg font-medium transition">
+                                Close Profile
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -415,54 +433,68 @@ export default function Index({ clients = { data: [], links: [] } }) {
 
             {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "650px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
-                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
+                <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[100] p-4 sm:p-6">
+                    <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                        {/* Modal Header */}
+                        <div className="flex justify-between items-center border-b border-slate-200 p-5 bg-slate-50 shrink-0">
+                            <h3 className="text-lg font-semibold text-slate-800">
                                 {editMode ? "📝 Update Client Details" : "✨ Register New Client"}
                             </h3>
-                            <button type="button" onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}>
+                            <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 transition text-xl">
                                 <i className="fa-solid fa-xmark"></i>
                             </button>
                         </div>
-                        <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                                <div style={{ gridColumn: "span 1" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Client Name *</label>
-                                    <input type="text" value={data.name} onChange={(e) => setData("name", e.target.value)} placeholder="e.g. John Doe" style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} required />
-                                    {errors.name && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.name}</p>}
-                                </div>
-                                <div style={{ gridColumn: "span 1" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Company Name</label>
-                                    <input type="text" value={data.company_name} onChange={(e) => setData("company_name", e.target.value)} placeholder="e.g. ABC Corp" style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} />
-                                    {errors.company_name && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.company_name}</p>}
-                                </div>
-                                <div style={{ gridColumn: "span 1" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Email Address</label>
-                                    <input type="email" value={data.email} onChange={(e) => setData("email", e.target.value)} placeholder="john@example.com" style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} />
-                                    {errors.email && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.email}</p>}
-                                </div>
-                                <div style={{ gridColumn: "span 1" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Phone Number</label>
-                                    <input type="text" value={data.phone} onChange={(e) => setData("phone", e.target.value)} placeholder="+8801..." style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} />
-                                    {errors.phone && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.phone}</p>}
-                                </div>
-                                <div style={{ gridColumn: "span 2" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Website URL</label>
-                                    <input type="url" value={data.website} onChange={(e) => setData("website", e.target.value)} placeholder="https://example.com" style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} />
-                                    {errors.website && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.website}</p>}
-                                </div>
-                                <div style={{ gridColumn: "span 2" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Full Address</label>
-                                    <textarea value={data.address} onChange={(e) => setData("address", e.target.value)} placeholder="Client's physical address" style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", resize: "vertical" }} rows="2"></textarea>
-                                    {errors.address && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.address}</p>}
+                        
+                        {/* Modal Body & Form */}
+                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
+                            <div className="p-6 overflow-y-auto">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                    
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Client Name *</label>
+                                        <input type="text" value={data.name} onChange={(e) => setData("name", e.target.value)} placeholder="e.g. John Doe" required className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700" />
+                                        {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Company Name</label>
+                                        <input type="text" value={data.company_name} onChange={(e) => setData("company_name", e.target.value)} placeholder="e.g. ABC Corp" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700" />
+                                        {errors.company_name && <p className="text-red-500 text-xs mt-1">{errors.company_name}</p>}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email Address</label>
+                                        <input type="email" value={data.email} onChange={(e) => setData("email", e.target.value)} placeholder="john@example.com" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700" />
+                                        {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Phone Number</label>
+                                        <input type="text" value={data.phone} onChange={(e) => setData("phone", e.target.value)} placeholder="+8801..." className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700" />
+                                        {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+                                    </div>
+
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Website URL</label>
+                                        <input type="url" value={data.website} onChange={(e) => setData("website", e.target.value)} placeholder="https://example.com" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-700" />
+                                        {errors.website && <p className="text-red-500 text-xs mt-1">{errors.website}</p>}
+                                    </div>
+
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Full Address</label>
+                                        <textarea value={data.address} onChange={(e) => setData("address", e.target.value)} placeholder="Client's physical address" rows="3" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none text-slate-700"></textarea>
+                                        {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
+                                    </div>
                                 </div>
                             </div>
 
-                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                <button type="button" onClick={() => setShowModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569" }}>Dismiss</button>
-                                <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", opacity: processing ? 0.7 : 1 }}>
-                                    {processing ? "Saving Changes..." : "Save Client"}
+                            {/* Modal Footer */}
+                            <div className="p-5 border-t border-slate-200 bg-slate-50 flex flex-col-reverse sm:flex-row justify-end gap-3 shrink-0">
+                                <button type="button" onClick={() => setShowModal(false)} className="w-full sm:w-auto px-5 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition">
+                                    Dismiss
+                                </button>
+                                <button type="submit" disabled={processing} className={`w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium transition hover:bg-blue-700 ${processing ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                                    {processing ? "Saving..." : "Save Client"}
                                 </button>
                             </div>
                         </form>

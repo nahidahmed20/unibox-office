@@ -34,6 +34,20 @@ class ProjectExpenseController extends Controller
             $query->where('project_id', $request->project_id);
         }
 
+        // --- NEW: Year & Date Filter Logic ---
+        if ($request->filled('year')) {
+            $query->whereYear('date', $request->year);
+        }
+
+        if ($request->filled('date_from') && $request->filled('date_to')) {
+            $query->whereBetween('date', [$request->date_from, $request->date_to]);
+        } elseif ($request->filled('date_from')) {
+            $query->whereDate('date', '>=', $request->date_from);
+        } elseif ($request->filled('date_to')) {
+            $query->whereDate('date', '<=', $request->date_to);
+        }
+        // -------------------------------------
+
         $totals = [
             'total_bill'  => (float) (clone $query)->sum('total_bill'),
             'paid_amount' => (float) (clone $query)->sum('paid_amount'),
@@ -57,7 +71,6 @@ class ProjectExpenseController extends Controller
         $categories = ExpenseCategory::select('id', 'name')->orderBy('name')->get();
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->orderBy('name')->get();
         
-        // Vendor query updated to include wallet_balance
         $vendors = Vendor::select('id', 'name', 'company_name', 'wallet_balance')->get();
 
         $advances = AdvanceBalance::with('user:id,name')
@@ -74,31 +87,61 @@ class ProjectExpenseController extends Controller
         return Inertia::render('Admin/ProjectExpenses/Index', compact(
             'project_expenses', 'projects', 'categories', 'accounts', 'vendors', 'advances', 'totals'
         ) + [
-            'filters' => $request->only(['search', 'project_id', 'per_page']),
+            'filters' => $request->only(['search', 'project_id', 'per_page', 'year', 'date_from', 'date_to']),
         ]);
     }
 
     public function store(Request $request)
     {
         $validated = $this->validateData($request);
-        $paid = (float) ($validated['paid_amount'] ?? 0);
+        $validated['return_account_id'] = $request->input('return_account_id');
+        
+        $bill = (float) ($validated['total_bill'] ?? 0);
+        $enteredPaid = (float) ($validated['paid_amount'] ?? 0);
 
-        if ($error = $this->validateSource($validated, $paid)) {
+        $isOverpaid = $enteredPaid > $bill;
+        $overpayment = $isOverpaid ? ($enteredPaid - $bill) : 0;
+        $actualExpensePaid = $isOverpaid ? $bill : $enteredPaid;
+
+        // --- NEW LOGIC: Prevent money vanishing ---
+        if ($overpayment > 0 && empty($validated['return_account_id']) && empty($validated['vendor_id'])) {
+            return redirect()->back()->withErrors(['error' => "Overpayment detected (BDT {$overpayment})! You must select either a Vendor (for advance) or a Return Cash Box."]);
+        }
+        // ------------------------------------------
+
+        if ($error = $this->validateSource($validated, $enteredPaid)) {
             return redirect()->back()->withErrors(['error' => $error]);
         }
 
         try {
-            DB::transaction(function () use ($validated, $paid) {
-                $this->deductFromSource($validated, $paid);
+            DB::transaction(function () use ($validated, $enteredPaid, $actualExpensePaid, $overpayment, $bill) {
 
-                // Ignore pay_type when inserting into DB, just use the IDs
-                $insertData = collect($validated)->except('pay_type')->toArray();
+                $this->deductFromSource($validated, $enteredPaid);
+
+                if ($overpayment > 0) {
+                    if (!empty($validated['return_account_id']) && $validated['pay_type'] === 'account') {
+                        $returnAccount = Account::findOrFail($validated['return_account_id']);
+                        $returnAccount->increment('current_balance', $overpayment);
+                    } else if (!empty($validated['vendor_id'])) {
+                        $vendor = Vendor::findOrFail($validated['vendor_id']);
+                        $vendor->increment('wallet_balance', $overpayment);
+                        
+                        VendorLedger::create([
+                            'vendor_id' => $vendor->id,
+                            'type' => 'credit',
+                            'amount' => $overpayment,
+                            'description' => 'Advance from overpaid expense: ' . $validated['title']
+                        ]);
+                    }
+                }
+
+                $insertData = collect($validated)->except(['pay_type', 'return_account_id'])->toArray();
 
                 ProjectExpense::create([
                     ...$insertData,
-                    'paid_amount'    => $paid,
-                    'due_amount'     => round($validated['total_bill'] - $paid, 2),
-                    'payment_status' => $this->resolveStatus($validated['total_bill'], $paid),
+                    'paid_amount'    => $actualExpensePaid, 
+                    'due_amount'     => round($bill - $actualExpensePaid, 2),
+                    'payment_status' => $this->resolveStatus($bill, $actualExpensePaid),
                     'logged_by'      => auth()->id() ?? 1,
                 ]);
             });
@@ -109,18 +152,26 @@ class ProjectExpenseController extends Controller
         }
     }
 
+
     public function update(Request $request, string $id)
     {
         $expense = ProjectExpense::findOrFail($id);
         $validated = $this->validateData($request);
-        $newPaid = (float) ($validated['paid_amount'] ?? 0);
+        $validated['return_account_id'] = $request->input('return_account_id');
+        
+        $bill = (float) ($validated['total_bill'] ?? 0);
+        $enteredPaid = (float) ($validated['paid_amount'] ?? 0);
 
-        if ($error = $this->validateSource($validated, $newPaid)) {
+        $isOverpaid = $enteredPaid > $bill;
+        $overpayment = $isOverpaid ? ($enteredPaid - $bill) : 0;
+        $actualExpensePaid = $isOverpaid ? $bill : $enteredPaid;
+
+        if ($error = $this->validateSource($validated, $enteredPaid)) {
             return redirect()->back()->withErrors(['error' => $error]);
         }
 
         try {
-            DB::transaction(function () use ($expense, $validated, $newPaid) {
+            DB::transaction(function () use ($expense, $validated, $enteredPaid, $actualExpensePaid, $overpayment, $bill) {
                 $oldPaid = (float) $expense->paid_amount;
                 
                 // Determine old payment source logic
@@ -137,14 +188,31 @@ class ProjectExpenseController extends Controller
 
                 if ($sourceChanged) {
                     $this->refundToSource($expense, $oldPaid);
-                    $this->deductFromSource($validated, $newPaid);
+                    $this->deductFromSource($validated, $enteredPaid);
                 } else {
-                    $diff = $newPaid - $oldPaid;
+                    $diff = $enteredPaid - $oldPaid;
                     if ($diff > 0) $this->deductFromSource($validated, $diff);
                     elseif ($diff < 0) $this->refundToSource($expense, abs($diff));
                 }
 
-                $updateData = collect($validated)->except('pay_type')->toArray();
+                if ($overpayment > 0) {
+                    if (!empty($validated['return_account_id']) && $newPayType === 'account') {
+                        $returnAccount = Account::findOrFail($validated['return_account_id']);
+                        $returnAccount->increment('current_balance', $overpayment);
+                    } else if (!empty($validated['vendor_id'])) {
+                        $vendor = Vendor::findOrFail($validated['vendor_id']);
+                        $vendor->increment('wallet_balance', $overpayment);
+                        
+                        VendorLedger::create([
+                            'vendor_id' => $vendor->id,
+                            'type' => 'credit',
+                            'amount' => $overpayment,
+                            'description' => 'Advance from overpaid expense update: ' . $validated['title']
+                        ]);
+                    }
+                }
+
+                $updateData = collect($validated)->except(['pay_type', 'return_account_id'])->toArray();
 
                 // To ensure unselected sources are set to null in DB
                 if ($newPayType === 'account') $updateData['advance_user_id'] = null;
@@ -156,9 +224,9 @@ class ProjectExpenseController extends Controller
 
                 $expense->update([
                     ...$updateData,
-                    'paid_amount'    => $newPaid,
-                    'due_amount'     => round($validated['total_bill'] - $newPaid, 2),
-                    'payment_status' => $this->resolveStatus($validated['total_bill'], $newPaid),
+                    'paid_amount'    => $actualExpensePaid,
+                    'due_amount'     => round($bill - $actualExpensePaid, 2),
+                    'payment_status' => $this->resolveStatus($bill, $actualExpensePaid),
                 ]);
             });
 
