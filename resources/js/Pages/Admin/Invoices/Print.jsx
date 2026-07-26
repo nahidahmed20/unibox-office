@@ -36,7 +36,7 @@ export default function Print({ invoice }) {
     // Calculations based on actual data
     const hasTax = invoice.tax && parseFloat(invoice.tax) > 0;
     const hasDiscount = invoice.discount && parseFloat(invoice.discount) > 0;
-    const advanceAmount = Number(invoice.advance_used) || 0; // ব্যাকএন্ড থেকে আসা ডাটা
+    const advanceAmount = Number(invoice.advance_used) || 0; 
     const hasAdvance = advanceAmount > 0;
     
     const rowSpanCount = 2 + (hasTax ? 1 : 0) + (hasDiscount ? 1 : 0) + (hasAdvance ? 2 : 0);
@@ -47,25 +47,44 @@ export default function Print({ invoice }) {
 
     const customCss = `
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background-color: #fff; font-family: Arial, sans-serif; color: #000; }
+        body { background-color: #fff; font-family: Arial, sans-serif; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        
         .invoice-container {
             width: 210mm; min-height: 297mm; margin: auto; padding: 15mm;
-            position: relative; background: #fff; font-size: 14px;
+            position: relative; background: #fff; font-size: 14px; overflow: hidden;
         }
+
+        /* Jol Chap (Watermark) */
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 180px;
+            font-weight: 900;
+            color: rgba(20, 122, 91, 0.05); /* Light green transparent text */
+            z-index: 0;
+            pointer-events: none;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
         .vertical-text {
             position: absolute; top: 115mm; left: 13mm;
             transform: rotate(-90deg); transform-origin: top left;
             color: #2cb34a; font-size: 42px; font-weight: bold;
             text-transform: uppercase; letter-spacing: 5px;
+            z-index: 1;
         }
-        .invoice-content { padding-left: 50px; }
+        
+        .invoice-content { padding-left: 50px; position: relative; z-index: 1; }
         .logo { font-size: 36px; font-weight: bold; color: #147a5b; letter-spacing: 2px; margin-bottom: 30px; text-transform: uppercase; }
         
         .info-section { display: flex; justify-content: space-between; margin-bottom: 30px; line-height: 1.6; }
         
-        .invoice-table { width: 100%; border-collapse: collapse; border: 1px solid #333; margin-bottom: 30px; }
-        .invoice-table th, .invoice-table td { border: 1px solid #333; padding: 10px; }
-        .invoice-table th { text-align: center; background-color: #f9fafb; font-weight: bold; }
+        .invoice-table { width: 100%; border-collapse: collapse; border: 1px solid #333; margin-bottom: 30px; background-color: transparent; }
+        .invoice-table th, .invoice-table td { border: 1px solid #333; padding: 10px; background-color: transparent; }
+        .invoice-table th { text-align: center; background-color: rgba(249, 250, 251, 0.8); font-weight: bold; }
         
         .text-center { text-align: center; }
         .text-right { text-align: right; }
@@ -79,16 +98,20 @@ export default function Print({ invoice }) {
         .sign-box { width: 160px; text-align: center; }
         .sign-line { border-top: 1px solid #333; padding-top: 5px; font-weight: bold; }
         
-        .footer { position: absolute; bottom: 15mm; left: 15mm; right: 15mm; text-align: center; }
+        .footer { position: absolute; bottom: 15mm; left: 15mm; right: 15mm; text-align: center; z-index: 1; }
         .footer-msg { color: #2cb34a; font-weight: bold; margin-bottom: 5px; font-size: 15px; }
         .footer-divider { border: 0; border-top: 1px solid rgba(44, 179, 74, 0.5); margin-bottom: 8px; }
         .footer-text { font-size: 12px; line-height: 1.5; }
-        img.invoice-logo{ height: 55px; padding-bottom: 5px; }
+        
+        img.invoice-logo { height: 55px; padding-bottom: 5px; }
         
         @media print {
-            body { -webkit-print-color-adjust: exact; margin: 0; }
+            body { margin: 0; }
             @page { size: A4 portrait; margin: 0; }
             .invoice-container { margin: 0; border: none; box-shadow: none; }
+            
+            /* Keeps the space occupied but makes the image completely invisible on paper */
+            img.invoice-logo { visibility: hidden !important; } 
         }
     `;
 
@@ -96,6 +119,9 @@ export default function Print({ invoice }) {
         <div className="invoice-container">
             <Head title={`Invoice - ${invoice.invoice_number}`} />
             <style>{customCss}</style>
+
+            {/* Jol chap / Watermark */}
+            <div className="watermark">UNIBOX</div>
 
             <div className="vertical-text">Invoice</div>
 

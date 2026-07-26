@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\AccountTransaction;
+use App\Models\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -138,6 +139,95 @@ class ReportController extends Controller
             'transactions' => $transactions,
             'accounts'     => Account::select('id', 'name')->get(),
             'filters'      => $request->only('account_id', 'source_type', 'from', 'to'),
+        ]);
+    }
+
+    public function clientLedger(Request $request)
+    {
+        $clients = Client::select('id', 'name', 'phone', 'company_name')->get();
+        
+        $ledger = [];
+        $summary = ['total_billed' => 0, 'total_paid' => 0, 'total_advance' => 0, 'net_due' => 0];
+        $clientInfo = null;
+
+        if ($request->client_id) {
+            $clientInfo = Client::with([
+                'projects' => function($q) {
+                    $q->where('status', 'completed'); 
+                }, 
+                'invoices.payments', 
+                'clientAdvances'
+            ])->find($request->client_id);
+
+            if ($clientInfo) {
+                $events = collect();
+
+                foreach ($clientInfo->projects as $project) {
+                    $events->push([
+                        'date' => $project->deadline ?? $project->updated_at->format('Y-m-d'),
+                        'type' => 'Project',
+                        'ref' => '-',
+                        'description' => "Project Completed: " . $project->title,
+                        'debit' => 0,
+                        'credit' => 0,
+                    ]);
+                }
+
+                foreach ($clientInfo->invoices as $invoice) {
+                    $events->push([
+                        'date' => $invoice->invoice_date,
+                        'type' => 'Invoice',
+                        'ref' => $invoice->invoice_number,
+                        'description' => "Invoice generated",
+                        'debit' => $invoice->grand_total,
+                        'credit' => 0,
+                    ]);
+                    $summary['total_billed'] += $invoice->grand_total;
+                    foreach ($invoice->payments as $payment) {
+                        $events->push([
+                            'date' => $payment->payment_date,
+                            'type' => 'Payment',
+                            'ref' => $invoice->invoice_number,
+                            'description' => $payment->note ?? "Payment received",
+                            'debit' => 0,
+                            'credit' => $payment->amount,
+                        ]);
+                        $summary['total_paid'] += $payment->amount;
+                    }
+                }
+
+                foreach ($clientInfo->clientAdvances as $advance) {
+                    $events->push([
+                        'date' => $advance->date,
+                        'type' => 'Advance',
+                        'ref' => '-',
+                        'description' => $advance->note ?? "Advance received",
+                        'debit' => 0,
+                        'credit' => $advance->amount,
+                    ]);
+                    $summary['total_advance'] += $advance->amount;
+                }
+
+                $sorted = $events->sortBy('date')->values()->all();
+
+                $balance = 0; 
+                foreach ($sorted as $item) {
+                    $balance += $item['debit'];  
+                    $balance -= $item['credit']; 
+                    $item['balance'] = $balance;
+                    $ledger[] = $item;
+                }
+                
+                $summary['net_due'] = $balance;
+            }
+        }
+
+        return Inertia::render('Admin/Reports/ClientLedger', [
+            'clients' => $clients,
+            'ledger' => $ledger,
+            'summary' => $summary,
+            'clientInfo' => $clientInfo,
+            'filters' => $request->only(['client_id'])
         ]);
     }
 }

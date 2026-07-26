@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react'; 
+import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router, Link, usePage } from '@inertiajs/react'; 
-import Swal from 'sweetalert2'; 
+import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
+import Swal from 'sweetalert2';
 import axios from 'axios';
 
 export default function Index({ project_expenses = { data: [], links: [] }, projects = [], categories = [], accounts = [], vendors = [], advances = [], totals = null, filters = {} }) {
     const { auth } = usePage().props;
-    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
     const permissions = auth?.permissions || [];
     const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
 
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
-    
+
     // View Modal State
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedExpense, setSelectedExpense] = useState(null);
@@ -38,13 +38,12 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
     // Toolbar Filters
     const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get('search') || '');
-    // --- FIXED: Per Page State ---
     const [perPage, setPerPage] = useState(() => {
         const queryVal = new URLSearchParams(window.location.search).get("per_page");
         return queryVal === "all" ? "all" : (Number(queryVal) || 10);
     });
     const [projectFilter, setProjectFilter] = useState(() => new URLSearchParams(window.location.search).get('project_id') || '');
-    
+
     const [projectFilterSearch, setProjectFilterSearch] = useState("");
     const [showProjectFilterDropdown, setShowProjectFilterDropdown] = useState(false);
 
@@ -54,7 +53,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const [showAddVendorForm, setShowAddVendorForm] = useState(false);
     const [newVendor, setNewVendor] = useState({ name: '', company_name: '', phone: '' });
     const [creatingVendor, setCreatingVendor] = useState(false);
-    
+
     const isFirstRender = useRef(true);
     const filterRef = useRef(null); // Click outside detection
 
@@ -65,19 +64,19 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - i);
 
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
-        id: '', 
+        id: '',
         project_id: '',
         expense_category_id: '',
-        account_id: '', 
-        return_account_id: '', // New
-        advance_user_id: '', 
-        title: '', 
-        vendor_id: '', 
+        account_id: '',
+        return_account_id: '',
+        advance_user_id: '',
+        title: '',
+        vendor_id: '',
         total_bill: '',
         paid_amount: 0,
         date: new Date().toISOString().slice(0, 10),
         description: '',
-        pay_type: 'account' 
+        pay_type: 'account'
     });
 
     // Close all dropdowns when clicking outside
@@ -105,11 +104,10 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const isOverpaid = (parseFloat(data.paid_amount) || 0) > (parseFloat(data.total_bill) || 0);
     const overpaymentAmount = isOverpaid ? (parseFloat(data.paid_amount) || 0) - (parseFloat(data.total_bill) || 0) : 0;
 
-    // --- Auto Calculate Due & Status in UI ---
     const calculateDue = () => {
         const bill = parseFloat(data.total_bill) || 0;
         const paid = parseFloat(data.paid_amount) || 0;
-        if (paid > bill) return "0.00"; // No due if overpaid
+        if (paid > bill) return "0.00"; 
         return (bill - paid).toFixed(2);
     };
 
@@ -137,15 +135,14 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             if (dateTo) params.date_to = dateTo;
 
             router.get(
-                route('admin.project-expenses.index'), 
-                params, 
+                route('admin.project-expenses.index'),
+                params,
                 { preserveState: true, replace: true }
             );
         }, 400);
         return () => clearTimeout(delayDebounceFn);
     }, [searchTerm, perPage, projectFilter, yearFilter, dateFrom, dateTo]);
 
-    // --- Export Tools ---
     const expList = project_expenses.data || project_expenses || [];
 
     const handleCopy = () => {
@@ -183,7 +180,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                         h2 { text-align: center; color: #1e293b; margin-bottom: 20px; }
                         table { width: 100%; border-collapse: collapse; text-align: left; }
                         th, td { padding: 12px; border: 1px solid #cbd5e1; font-size: 13px; }
-                        th { background-color: #f1f5f9; font-weight: 600; text-transform: uppercase; }
+                        th { background-color: #f8fafc; font-weight: 600; text-transform: uppercase; }
                         th:last-child, td:last-child { display: none !important; }
                     </style>
                 </head>
@@ -198,11 +195,10 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
     };
 
-    // --- Modals ---
     const openCreateModal = () => {
         clearErrors();
         setData({
-            id: '', project_id: '', expense_category_id: '', advance_id: '', advance_user_id: '', account_id: '', return_account_id: '', title: '', vendor_id: '', description: '', total_bill: 0, paid_amount: 0, due_amount: 0, amount: 0, discount_amount: 0, payment_status: 'due', date: new Date().toISOString().slice(0, 10), attachment: null, pay_type: 'account' 
+            id: '', project_id: '', expense_category_id: '', advance_id: '', advance_user_id: '', account_id: '', return_account_id: '', title: '', vendor_id: '', description: '', total_bill: 0, paid_amount: 0, due_amount: 0, amount: 0, discount_amount: 0, payment_status: 'due', date: new Date().toISOString().slice(0, 10), attachment: null, pay_type: 'account'
         });
         setEditMode(false);
         closeAllDropdowns();
@@ -210,8 +206,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     };
 
     const openEditModal = (expense) => {
-        clearErrors(); 
-        
+        clearErrors();
         let payType = 'wallet';
         if (expense.account_id) payType = 'account';
         else if (expense.advance_user_id) payType = 'advance';
@@ -219,7 +214,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         setData({
             id: expense.id, project_id: expense.project_id || '', expense_category_id: expense.expense_category_id || '', account_id: expense.account_id || '', return_account_id: '', advance_user_id: expense.advance_user_id || '', title: expense.title || '', vendor_id: expense.vendor_id || '', total_bill: expense.total_bill || '', paid_amount: expense.paid_amount || '', date: expense.date || '', description: expense.description || '', pay_type: payType
         });
-        setEditMode(true); 
+        setEditMode(true);
         closeAllDropdowns();
         setShowModal(true);
     };
@@ -229,13 +224,12 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         setShowViewModal(true);
     };
 
-    // --- Actions ---
     const handleSubmit = (e) => {
         e.preventDefault();
-        
+
         if (!data.project_id) return Swal.fire("Required", "Please select a project.", "warning");
         if (!data.expense_category_id) return Swal.fire("Required", "Please select an expense category.", "warning");
-        
+
         const paidAmount = parseFloat(data.paid_amount) || 0;
         if (paidAmount > 0) {
             if (data.pay_type === 'account' && !data.account_id) return Swal.fire("Required", "Please select a Bank/Cash Account.", "warning");
@@ -243,27 +237,26 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             if (data.pay_type === 'wallet' && !data.vendor_id) return Swal.fire("Required", "Please select a Vendor to pay from Wallet.", "warning");
         }
 
-        // --- NEW LOGIC: Prevent vanishing money on Frontend ---
         if (isOverpaid && !data.return_account_id && !data.vendor_id) {
             return Swal.fire(
-                "Action Required", 
-                `You entered ${overpaymentAmount} BDT extra. You must select either a Vendor (to save as advance) or a Return Cash Box.`, 
+                "Action Required",
+                `You entered ${overpaymentAmount} BDT extra. You must select either a Vendor (to save as advance) or a Return Cash Box.`,
                 "warning"
             );
         }
-        
+
         if (editMode) {
-            put(route('admin.project-expenses.update', data.id), { 
+            put(route('admin.project-expenses.update', data.id), {
                 onSuccess: () => {
                     setShowModal(false);
                     Swal.fire({ icon: "success", title: "Updated Successfully!", timer: 1500, showConfirmButton: false });
                 }
             });
         } else {
-            post(route('admin.project-expenses.store'), { 
-                onSuccess: () => { 
-                    reset(); 
-                    setShowModal(false); 
+            post(route('admin.project-expenses.store'), {
+                onSuccess: () => {
+                    reset();
+                    setShowModal(false);
                     Swal.fire({ icon: "success", title: "Logged Successfully!", timer: 1500, showConfirmButton: false });
                 }
             });
@@ -310,9 +303,9 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     };
 
     const getPaymentStatusBadge = (status) => {
-        if (status === 'paid') return { bg: '#dcfce7', text: '#15803d' };
-        if (status === 'partial') return { bg: '#fef08a', text: '#a16207' };
-        return { bg: '#fee2e2', text: '#b91c1c' };
+        if (status === 'paid') return 'bg-emerald-100 text-emerald-700';
+        if (status === 'partial') return 'bg-amber-100 text-amber-700';
+        return 'bg-red-100 text-red-700';
     };
 
     const handleCreateVendor = async () => {
@@ -348,263 +341,270 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const totalBilled = totals ? totals.total_bill : expList.reduce((sum, item) => sum + parseFloat(item.total_bill || 0), 0);
     const totalPaid = totals ? totals.paid_amount : expList.reduce((sum, item) => sum + parseFloat(item.paid_amount || 0), 0);
     const totalDue = totals ? totals.due_amount : expList.reduce((sum, item) => sum + parseFloat(item.due_amount || 0), 0);
-    
+
     const filteredProject = projectFilter ? projects.find(p => p.id == projectFilter) : null;
     const filteredProjectTitle = filteredProject ? `${filteredProject.title} (${filteredProject.client?.name || 'No Client'})` : null;
 
     return (
         <AdminLayout>
             <Head title="Project Expenses & Payables" />
-            
-            {/* Added style block for responsiveness preserving original inline styles */}
-            <style>{`
-                @media (max-width: 768px) {
-                    .page-header { flex-direction: column; align-items: flex-start !important; }
-                    .page-header > div:last-child { margin-top: 10px; width: 100%; }
-                    .card-header { flex-direction: column; align-items: flex-start !important; gap: 10px; }
-                    .add-btn { width: 100%; justify-content: center; }
-                    .table-toolbar { flex-direction: column; align-items: flex-start !important; }
-                    .table-toolbar > div { width: 100%; flex-wrap: wrap; }
-                    .project-filter, .search-box input { width: 100% !important; }
-                    .export-buttons { width: 100%; justify-content: space-between; }
-                    .export-buttons button { flex: 1; justify-content: center; }
-                    .data-table th, .data-table td { white-space: nowrap; }
-                    
-                    /* Form Grids */
-                    form > div[style*="gridTemplateColumns"] { grid-template-columns: 1fr !important; }
-                    
-                    /* Modals */
-                    div[style*="maxWidth: 1000px"], div[style*="maxWidth: 650px"] { width: 95% !important; margin: 10px; }
-                }
-            `}</style>
 
-            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc", minHeight: "100vh" }}>
-                
-                <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '15px' }}>
+            <div className="flex flex-col gap-6">
+                {/* Page Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 className="page-title" style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Project Accounts Payable</h1>
-                        <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>
-                            {filteredProjectTitle
-                                ? <>Showing totals for <strong style={{color: '#3b82f6'}}>{filteredProjectTitle}</strong></>
-                                : "Manage vendor bills and track project costs."}
+                        <h1 className="text-[22px] font-bold text-[#202223]">Project Accounts Payable</h1>
+                        <p className="text-[14px] text-gray-500 mt-1">
+                            {filteredProjectTitle ? (
+                                <>Showing totals for <strong className="text-[var(--accent)]">{filteredProjectTitle}</strong></>
+                            ) : (
+                                "Manage vendor bills and track project costs."
+                            )}
                         </p>
                     </div>
-                    <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#15803d', padding: '10px 16px', background: '#dcfce7', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                            Total Billed: <span style={{ fontSize: '16px' }}>BDT {totalBilled.toLocaleString('en-IN')}</span>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-blue-700">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block mb-0.5">Total Billed</span>
+                            <span className="text-[16px] font-bold">BDT {totalBilled.toLocaleString('en-IN')}</span>
                         </div>
-                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#1d4ed8', padding: '10px 16px', background: '#dbeafe', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                            Total Paid: <span style={{ fontSize: '16px' }}>BDT {totalPaid.toLocaleString('en-IN')}</span>
+                        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-emerald-700">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 block mb-0.5">Total Paid</span>
+                            <span className="text-[16px] font-bold">BDT {totalPaid.toLocaleString('en-IN')}</span>
                         </div>
-                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#b91c1c', padding: '10px 16px', background: '#fee2e2', borderRadius: '8px', border: '1px solid #fecaca' }}>
-                            Total Due: <span style={{ fontSize: '16px' }}>BDT {totalDue.toLocaleString('en-IN')}</span>
+                        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-rose-700">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-rose-600 block mb-0.5">Total Due</span>
+                            <span className="text-[16px] font-bold">BDT {totalDue.toLocaleString('en-IN')}</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="card-container" style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
-                    
-                    <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
-                        <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
-                            <i className="fa-solid fa-wallet" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Vendor Bills & Project Cost
-                        </div>
+                {/* Main Card */}
+                <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
+                    {/* Card Header & Actions */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
+                        <h2 className="text-[16px] font-semibold text-[#202223] flex items-center gap-2.5">
+                            <i className="fa-solid fa-wallet text-[var(--accent)]"></i> Vendor Bills & Project Cost
+                        </h2>
                         {hasPermission('create_project_expenses') && (
-                        <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
-                            <i className="fa-solid fa-plus"></i> Log Bill/Expense
-                        </button>
+                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13.5px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50">
+                                <i className="fa-solid fa-plus"></i> Log Bill/Expense
+                            </button>
                         )}
                     </div>
 
-                    <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
-                        <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                            Show 
-                            <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
-                                <option value={10}>10 Entries</option>
-                                <option value={25}>25 Entries</option>
-                                <option value={50}>50 Entries</option>
-                                <option value={100}>100 Entries</option>
-                                <option value={500}>500 Entries</option>
-                                <option value={1000}>1000 Entries</option>
-                                <option value="all">All</option>
-                            </select>
-                        </div>
+                    {/* Toolbar */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30">
+                        <div className="flex flex-wrap items-center gap-3 text-[13.5px] text-gray-600">
+                            <div className="flex items-center gap-2">
+                                <span>Show</span>
+                                <select 
+                                    value={perPage} 
+                                    onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                    className="w-[100px] rounded-md border border-gray-300 bg-white px-2 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                >
+                                    <option value={10}>10 Entries</option>
+                                    <option value={25}>25 Entries</option>
+                                    <option value={50}>50 Entries</option>
+                                    <option value={100}>100 Entries</option>
+                                    <option value="all">All</option>
+                                </select>
+                            </div>
 
-                        {/* --- Year Filter --- */}
-                        <div className="year-filter" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                            <i className="fa-solid fa-calendar" style={{ color: "#3b82f6" }}></i>
-                            <select 
-                                value={yearFilter} 
-                                onChange={(e) => { setYearFilter(e.target.value); if (e.target.value) { setDateFrom(""); setDateTo(""); } }} 
-                                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", fontSize: "0.875rem", color: "#334155" }}
-                            >
-                                <option value="">All Years</option>
-                                {yearOptions.map(y => (
-                                    <option key={y} value={y}>{y}</option>
-                                ))}
-                            </select>
-                        </div>
+                            <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
 
-                        {/* --- Date Range Filter --- */}
-                        <div className="date-range-filter" style={{ display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontSize: "0.875rem" }}>
-                            <i className="fa-regular fa-calendar-days" style={{ color: "#3b82f6" }}></i>
-                            <input 
-                                type="date" 
-                                value={dateFrom} 
-                                onChange={(e) => { setDateFrom(e.target.value); if (e.target.value) setYearFilter(""); }} 
-                                style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "0.8rem", color: "#334155" }} 
-                            />
-                            <span style={{ color: "#94a3b8" }}>–</span>
-                            <input 
-                                type="date" 
-                                value={dateTo} 
-                                onChange={(e) => { setDateTo(e.target.value); if (e.target.value) setYearFilter(""); }} 
-                                style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "0.8rem", color: "#334155" }} 
-                            />
-                            {(dateFrom || dateTo) && (
-                                <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }} title="Clear date range" style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "0.8rem", padding: 0 }}>
-                                    <i className="fa-solid fa-xmark"></i>
-                                </button>
-                            )}
-                        </div>
+                            {/* Year Filter */}
+                            <div className="flex items-center gap-2">
+                                <i className="fa-solid fa-calendar text-[var(--accent)]"></i>
+                                <select 
+                                    value={yearFilter} 
+                                    onChange={(e) => { setYearFilter(e.target.value); if (e.target.value) { setDateFrom(""); setDateTo(""); } }} 
+                                    className="w-[100px] rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                >
+                                    <option value="">All Years</option>
+                                    {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                            </div>
 
-                        {/* --- Table Searchable Project Filter --- */}
-                        <div className="project-filter" style={{ position: "relative", width: "280px" }} ref={filterRef}>
-                            <div 
-                                onClick={() => setShowProjectFilterDropdown(!showProjectFilterDropdown)}
-                                style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", fontSize: "0.875rem", color: projectFilter ? "#0f172a" : "#64748b", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                            >
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                                    <i className="fa-solid fa-folder-open" style={{ color: "#3b82f6" }}></i>
-                                    {filteredProjectTitle || "All Projects (Total)"}
-                                </span>
-                                {projectFilter ? (
-                                    <i className="fa-solid fa-times" style={{ color: "#ef4444" }} onClick={(e) => { e.stopPropagation(); setProjectFilter(""); }}></i>
-                                ) : (
-                                    <i className="fa-solid fa-chevron-down" style={{ fontSize: "0.75rem" }}></i>
+                            <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
+
+                            {/* Date Range Filter */}
+                            <div className="flex items-center gap-2">
+                                <i className="fa-regular fa-calendar-days text-[var(--accent)]"></i>
+                                <input 
+                                    type="date" 
+                                    value={dateFrom} 
+                                    onChange={(e) => { setDateFrom(e.target.value); if (e.target.value) setYearFilter(""); }} 
+                                    className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-[13px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                />
+                                <span className="text-gray-400">–</span>
+                                <input 
+                                    type="date" 
+                                    value={dateTo} 
+                                    onChange={(e) => { setDateTo(e.target.value); if (e.target.value) setYearFilter(""); }} 
+                                    className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-[13px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                />
+                                {(dateFrom || dateTo) && (
+                                    <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="ml-1 text-red-500 hover:text-red-700" title="Clear dates">
+                                        <i className="fa-solid fa-xmark"></i>
+                                    </button>
                                 )}
                             </div>
-                            
-                            {showProjectFilterDropdown && (
-                                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", maxHeight: "250px", display: "flex", flexDirection: "column" }}>
-                                    <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
-                                        <input 
-                                            type="text" 
-                                            placeholder="Search project or client..." 
-                                            value={projectFilterSearch}
-                                            onChange={(e) => setProjectFilterSearch(e.target.value)}
-                                            style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }}
-                                            autoFocus
-                                        />
-                                    </div>
-                                    <div style={{ overflowY: "auto", padding: "4px 0" }}>
-                                        <div 
-                                            onClick={() => { setProjectFilter(""); setShowProjectFilterDropdown(false); }}
-                                            style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.875rem", color: "#334155" }}
-                                            onMouseEnter={(e) => e.target.style.background = "#f1f5f9"}
-                                            onMouseLeave={(e) => e.target.style.background = "transparent"}
-                                        >
-                                            All Projects (Total)
-                                        </div>
-                                        {projects.filter(p => p.title?.toLowerCase().includes(projectFilterSearch.toLowerCase()) || p.client?.name?.toLowerCase().includes(projectFilterSearch.toLowerCase())).map(p => (
-                                            <div 
-                                                key={p.id} 
-                                                onClick={() => { setProjectFilter(p.id); setShowProjectFilterDropdown(false); setProjectFilterSearch(""); }}
-                                                style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.875rem", color: "#334155", background: projectFilter == p.id ? "#f0fdf4" : "transparent" }}
-                                                onMouseEnter={(e) => e.target.style.background = "#f1f5f9"}
-                                                onMouseLeave={(e) => e.target.style.background = projectFilter == p.id ? "#f0fdf4" : "transparent"}
-                                            >
-                                                <div style={{ fontWeight: '600' }}>{p.title}</div>
-                                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                                                    <i className="fa-solid fa-user me-1"></i> {p.client?.name || 'No Client'}
-                                                    {p.status === 'completed' && <span style={{ color: '#dc2626', marginLeft: '4px' }}>(Completed)</span>}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row items-center gap-3">
+                            {/* Project Filter (Custom Dropdown) */}
+                            <div className="relative w-full sm:w-[240px]" ref={filterRef}>
+                                <div 
+                                    onClick={() => setShowProjectFilterDropdown(!showProjectFilterDropdown)}
+                                    className="flex w-full cursor-pointer items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-colors hover:bg-gray-50 focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                >
+                                    <span className="flex items-center gap-2 overflow-hidden whitespace-nowrap text-gray-700">
+                                        <i className="fa-solid fa-folder-open text-[var(--accent)]"></i>
+                                        {filteredProjectTitle || "All Projects (Total)"}
+                                    </span>
+                                    {projectFilter ? (
+                                        <i className="fa-solid fa-times text-red-500 hover:text-red-700 p-1" onClick={(e) => { e.stopPropagation(); setProjectFilter(""); }}></i>
+                                    ) : (
+                                        <i className="fa-solid fa-chevron-down text-[10px] text-gray-400"></i>
+                                    )}
                                 </div>
-                            )}
-                        </div>
+                                
+                                {showProjectFilterDropdown && (
+                                    <div className="absolute top-full left-0 mt-1 flex max-h-[250px] w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg z-50">
+                                        <div className="border-b border-gray-100 bg-gray-50 p-2">
+                                            <input 
+                                                type="text" 
+                                                placeholder="Search project or client..." 
+                                                value={projectFilterSearch}
+                                                onChange={(e) => setProjectFilterSearch(e.target.value)}
+                                                className="w-full rounded border border-gray-300 px-2.5 py-1.5 text-[13px] outline-none focus:border-[var(--accent)]"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <div className="overflow-y-auto py-1">
+                                            <div 
+                                                onClick={() => { setProjectFilter(""); setShowProjectFilterDropdown(false); }}
+                                                className="cursor-pointer px-3 py-2 text-[13px] text-gray-700 hover:bg-gray-50"
+                                            >
+                                                All Projects (Total)
+                                            </div>
+                                            {projects.filter(p => p.title?.toLowerCase().includes(projectFilterSearch.toLowerCase()) || p.client?.name?.toLowerCase().includes(projectFilterSearch.toLowerCase())).map(p => (
+                                                <div 
+                                                    key={p.id} 
+                                                    onClick={() => { setProjectFilter(p.id); setShowProjectFilterDropdown(false); setProjectFilterSearch(""); }}
+                                                    className={`cursor-pointer px-3 py-2 text-[13px] hover:bg-gray-50 ${projectFilter == p.id ? 'bg-[var(--accent-bg)]' : ''}`}
+                                                >
+                                                    <div className="font-semibold text-gray-800">{p.title}</div>
+                                                    <div className="text-[11px] text-gray-500 mt-0.5">
+                                                        <i className="fa-solid fa-user mr-1"></i> {p.client?.name || 'No Client'}
+                                                        {p.status === 'completed' && <span className="ml-1 text-red-600">(Completed)</span>}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
 
-                        <div className="export-buttons" style={{ display: "flex", gap: "8px" }}>
-                            <button type="button" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-copy text-blue-500"></i> Copy
-                            </button>
-                            <button type="button" onClick={handleExportCSV} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-file-excel text-emerald-500"></i> CSV
-                            </button>
-                            <button type="button" onClick={handlePrint} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-print text-slate-500"></i> Print
-                            </button>
-                        </div>
+                            {/* Export Buttons */}
+                            <div className="flex items-center gap-1.5">
+                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-copy text-blue-500"></i> Copy
+                                </button>
+                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-file-excel text-emerald-500"></i> CSV
+                                </button>
+                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-print text-gray-500"></i> Print
+                                </button>
+                            </div>
 
-                        <div className="search-box" style={{ position: "relative" }}>
-                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
-                            <input type="text" placeholder="Search title or vendor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "260px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
+                            {/* Search */}
+                            <div className="relative w-full sm:w-[220px]">
+                                <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                                <input 
+                                    type="text" 
+                                    placeholder="Search title or vendor..." 
+                                    value={searchTerm} 
+                                    onChange={(e) => setSearchTerm(e.target.value)} 
+                                    className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    <div style={{ overflowX: 'auto' }}>
-                        <table id="printable-table" className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                            <thead>
-                                <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "60px" }}>SL</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>DATE</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>PROJECT & DETAILS</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>VENDOR / PAYEE</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>TOTAL BILL</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>PAID</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>DUE</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>STATUS</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>ACTIONS</th>
+                    {/* Data Table */}
+                    <div className="overflow-x-auto brass-scroll border-t border-[#e1e3e5]">
+                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap">
+                            <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
+                                <tr>
+                                    <th className="px-6 py-4 w-12">SL</th>
+                                    <th className="px-6 py-4">Date</th>
+                                    <th className="px-6 py-4">Project & Details</th>
+                                    <th className="px-6 py-4">Vendor / Payee</th>
+                                    <th className="px-6 py-4 text-right">Total Bill</th>
+                                    <th className="px-6 py-4 text-right">Paid</th>
+                                    <th className="px-6 py-4 text-right">Due</th>
+                                    <th className="px-6 py-4 text-center">Status</th>
+                                    <th className="px-6 py-4 text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody style={{ color: "#334155", fontSize: "0.915rem" }}>
+                            <tbody className="text-[13.5px] text-[#202223]">
                                 {expList.length > 0 ? (
                                     expList.map((exp, index) => {
-                                        const badge = getPaymentStatusBadge(exp.payment_status);
+                                        const badgeClass = getPaymentStatusBadge(exp.payment_status);
                                         return (
-                                            <tr key={exp.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                                                <td style={{ padding: "16px 24px", color: "#64748b", fontWeight: "500" }}>
+                                            <tr key={exp.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                                <td className="px-6 py-4 font-medium text-gray-500">
                                                     {project_expenses.from ? project_expenses.from + index : index + 1}
                                                 </td>
-                                                <td style={{ padding: "16px 24px", fontSize: '0.875rem', color: "#475569" }}>{exp.date}</td>
-                                                <td style={{ padding: "16px 24px" }}>
-                                                    <div style={{ fontWeight: '600', color: '#0f172a' }}>{exp.project?.title || 'N/A'}</div>
-                                                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>{exp.title}</div>
+                                                <td className="px-6 py-4 text-gray-600">{exp.date}</td>
+                                                <td className="px-6 py-4">
+                                                    <div className="font-semibold text-gray-900">{exp.project?.title || 'N/A'}</div>
+                                                    <div className="text-[12px] text-gray-500 mt-0.5">{exp.title}</div>
                                                 </td>
-                                                <td style={{ padding: "16px 24px" }}>
-                                                    <div style={{ fontWeight: '500', color: '#334155' }}>{exp.vendor?.name || '-'}</div>
-                                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
+                                                <td className="px-6 py-4">
+                                                    <div className="font-medium text-gray-800">{exp.vendor?.name || '-'}</div>
+                                                    <div className="text-[11.5px] text-gray-500 mt-1 flex items-center gap-1.5">
                                                         {exp.account_id ? (
-                                                            <><i className="fa-solid fa-building-columns me-1"></i> {exp.account?.name || 'Account'}</>
+                                                            <><i className="fa-solid fa-building-columns text-blue-500"></i> {exp.account?.name || 'Account'}</>
                                                         ) : exp.advance_user_id ? (
-                                                            <><i className="fa-solid fa-hand-holding-dollar me-1"></i> Advance</>
+                                                            <><i className="fa-solid fa-hand-holding-dollar text-emerald-500"></i> Advance</>
                                                         ) : (exp.paid_amount > 0 ? (
-                                                            <><i className="fa-solid fa-wallet text-purple-500 me-1"></i> Vendor Wallet</>
+                                                            <><i className="fa-solid fa-wallet text-purple-500"></i> Vendor Wallet</>
                                                         ) : 'N/A')}
                                                     </div>
                                                 </td>
-                                                <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '600', color: '#0f172a' }}>{parseFloat(exp.total_bill).toLocaleString('en-IN')}</td>
-                                                <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '600', color: '#16a34a' }}>{parseFloat(exp.paid_amount).toLocaleString('en-IN')}</td>
-                                                <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '600', color: '#dc2626' }}>{parseFloat(exp.due_amount).toLocaleString('en-IN')}</td>
-                                                <td style={{ padding: "16px 24px", textAlign: 'center' }}>
-                                                    <span style={{ background: badge.bg, color: badge.text, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase' }}>
+                                                <td className="px-6 py-4 text-right font-semibold text-gray-900">{parseFloat(exp.total_bill).toLocaleString('en-IN')}</td>
+                                                <td className="px-6 py-4 text-right font-semibold text-emerald-600">{parseFloat(exp.paid_amount).toLocaleString('en-IN')}</td>
+                                                <td className="px-6 py-4 text-right font-semibold text-rose-600">{parseFloat(exp.due_amount).toLocaleString('en-IN')}</td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <span className={`inline-flex items-center justify-center rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${badgeClass}`}>
                                                         {exp.payment_status}
                                                     </span>
                                                 </td>
-                                                <td style={{ padding: "16px 24px", textAlign: "right" }}>
-                                                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex items-center justify-end gap-1.5">
                                                         {hasPermission('edit_project_expense') && exp.vendor_id && parseFloat(exp.paid_amount) > 0 && (
-                                                            <button onClick={() => handleMoveToWallet(exp)} style={{ background: "#f3e8ff", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#7e22ce" }} title="Move to Vendor Wallet"><i className="fa-solid fa-money-bill-transfer"></i></button>
+                                                            <button onClick={() => handleMoveToWallet(exp)} className="flex h-7 w-7 items-center justify-center rounded bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors" title="Move to Vendor Wallet">
+                                                                <i className="fa-solid fa-money-bill-transfer text-[12px]"></i>
+                                                            </button>
                                                         )}
                                                         {hasPermission('view_project_expense') && (
-                                                        <button onClick={() => openViewModal(exp)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View"><i className="fa-regular fa-eye"></i></button>
+                                                            <button onClick={() => openViewModal(exp)} className="flex h-7 w-7 items-center justify-center rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="View">
+                                                                <i className="fa-regular fa-eye text-[12px]"></i>
+                                                            </button>
                                                         )}
                                                         {hasPermission('edit_project_expense') && (
-                                                        <button onClick={() => openEditModal(exp)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit"><i className="fa-regular fa-pen-to-square"></i></button>
+                                                            <button onClick={() => openEditModal(exp)} className="flex h-7 w-7 items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors" title="Edit">
+                                                                <i className="fa-regular fa-pen-to-square text-[12px]"></i>
+                                                            </button>
                                                         )}
                                                         {hasPermission('delete_project_expense') && (
-                                                        <button onClick={() => handleDelete(exp.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete"><i className="fa-regular fa-trash-can"></i></button>
+                                                            <button onClick={() => handleDelete(exp.id)} className="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete">
+                                                                <i className="fa-regular fa-trash-can text-[12px]"></i>
+                                                            </button>
                                                         )}
                                                     </div>
                                                 </td>
@@ -613,148 +613,125 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan="9" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No project expenses found.</td>
+                                        <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <i className="fa-solid fa-receipt text-4xl text-gray-300 mb-3"></i>
+                                                <p>No project expenses found matching your criteria.</p>
+                                            </div>
+                                        </td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
 
-                    {/* --- PAGINATION SECTION --- */}
+                    {/* Pagination */}
                     {project_expenses.links && project_expenses.links.length > 3 && (
-                        <>
-                            <style>{`
-                                .custom-pagination {
-                                    display: flex;
-                                    justify-content: space-between;
-                                    align-items: center;
-                                    padding: 20px 24px;
-                                    border-top: 1px solid #e2e8f0;
-                                    background: #f8fafc;
-                                    gap: 16px;
-                                }
-                                .custom-pagination-text {
-                                    color: #64748b;
-                                    font-size: 0.875rem;
-                                }
-                                .custom-pagination-links {
-                                    display: flex;
-                                    gap: 6px;
-                                    flex-wrap: wrap;
-                                }
-                                /* Mobile Responsiveness */
-                                @media (max-width: 640px) {
-                                    .custom-pagination {
-                                        flex-direction: column;
-                                        justify-content: center;
-                                        text-align: center;
-                                    }
-                                    .custom-pagination-links {
-                                        justify-content: center;
-                                    }
-                                }
-                            `}</style>
-                            <div className="custom-pagination">
-                                <div className="custom-pagination-text">
-                                    Showing {project_expenses.from || 0} to {project_expenses.to || 0} of {project_expenses.total || 0} entries
-                                </div>
-                                <div className="custom-pagination-links">
-                                    {project_expenses.links.map((link, index) => (
-                                        <Link 
-                                            key={index} 
-                                            href={link.url || "#"} 
-                                            style={{ 
-                                                padding: "6px 12px", 
-                                                border: "1px solid #cbd5e1", 
-                                                borderRadius: "6px", 
-                                                fontSize: "0.875rem", 
-                                                color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"), 
-                                                backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"), 
-                                                pointerEvents: link.url ? "auto" : "none", 
-                                                textDecoration: "none", 
-                                                display: "flex", 
-                                                alignItems: "center", 
-                                                justifyContent: "center", 
-                                                minWidth: "32px" 
-                                            }} 
-                                            preserveState
-                                        >
-                                            {link.label.includes("Previous") ? <i className="fa-solid fa-chevron-left"></i> : link.label.includes("Next") ? <i className="fa-solid fa-chevron-right"></i> : link.label.replace("&laquo;", "").replace("&raquo;", "")}
-                                        </Link>
-                                    ))}
-                                </div>
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#e1e3e5] bg-[#f6f6f7] px-6 py-4">
+                            <div className="text-[13px] text-gray-500">
+                                Showing {project_expenses.from || 0} to {project_expenses.to || 0} of {project_expenses.total || 0} entries
                             </div>
-                        </>
+                            <div className="flex flex-wrap items-center gap-1">
+                                {project_expenses.links.map((link, index) => (
+                                    <Link 
+                                        key={index} 
+                                        href={link.url || "#"} 
+                                        className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] transition-colors
+                                            ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : link.url ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'border-gray-200 bg-gray-100 text-gray-400 pointer-events-none'}
+                                        `}
+                                        preserveState
+                                    >
+                                        {link.label.includes("Previous") ? <i className="fa-solid fa-chevron-left text-[10px]"></i> : link.label.includes("Next") ? <i className="fa-solid fa-chevron-right text-[10px]"></i> : link.label.replace("&laquo;", "").replace("&raquo;", "")}
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>
 
             {/* --- VIEW DETAILS MODAL --- */}
             {showViewModal && selectedExpense && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "650px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
-                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
-                                <i className="fas fa-file-invoice-dollar"></i> Expense Details
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                            <h3 className="text-[18px] font-semibold text-[#202223] flex items-center gap-2">
+                                <i className="fas fa-file-invoice-dollar text-[var(--accent)]"></i> Expense Details
                             </h3>
-                            <button type="button" onClick={() => setShowViewModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}><i className="fa-solid fa-xmark"></i></button>
+                            <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
+                            </button>
                         </div>
-                        <div style={{ padding: "24px" }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
-                                <div style={{ gridColumn: "span 2" }}>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Expense Title</span>
-                                    <div style={{ fontSize: "1.1rem", fontWeight: "700", color: "#0f172a" }}>{selectedExpense.title}</div>
+                        
+                        {/* Modal Body */}
+                        <div className="p-6 overflow-y-auto">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+                                <div className="sm:col-span-2">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Expense Title</span>
+                                    <div className="text-[18px] font-bold text-gray-900">{selectedExpense.title}</div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Project Name</span>
-                                    <div style={{ fontWeight: "600", color: "#334155" }}><i className="fa-solid fa-folder text-blue-500" style={{ marginRight: "6px" }}></i>{selectedExpense.project?.title || "N/A"}</div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Project Name</span>
+                                    <div className="font-medium text-gray-800 flex items-center gap-2">
+                                        <i className="fa-solid fa-folder text-[var(--accent)]"></i> {selectedExpense.project?.title || "N/A"}
+                                    </div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Vendor / Payee</span>
-                                    <div style={{ fontWeight: "600", color: "#334155" }}><i className="fa-solid fa-user-tie text-amber-500" style={{ marginRight: "6px" }}></i>{selectedExpense.vendor?.name || "N/A"}</div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Vendor / Payee</span>
+                                    <div className="font-medium text-gray-800 flex items-center gap-2">
+                                        <i className="fa-solid fa-user-tie text-blue-500"></i> {selectedExpense.vendor?.name || "N/A"}
+                                    </div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Payment Source</span>
-                                    <div style={{ fontWeight: "600", color: "#334155" }}>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Payment Source</span>
+                                    <div className="font-medium text-gray-800">
                                         {selectedExpense.account_id ? (
-                                            <><i className="fa-solid fa-building-columns text-purple-500" style={{ marginRight: "6px" }}></i>{selectedExpense.account?.name}</>
+                                            <><i className="fa-solid fa-building-columns text-purple-500 mr-2"></i>{selectedExpense.account?.name}</>
                                         ) : selectedExpense.advance_user_id ? (
-                                            <><i className="fa-solid fa-hand-holding-dollar text-teal-500" style={{ marginRight: "6px" }}></i>Paid via Advance{selectedExpense.advance_user?.name ? ` (${selectedExpense.advance_user.name})` : ''}</>
+                                            <><i className="fa-solid fa-hand-holding-dollar text-emerald-500 mr-2"></i>Advance{selectedExpense.advance_user?.name ? ` (${selectedExpense.advance_user.name})` : ''}</>
                                         ) : (selectedExpense.paid_amount > 0 ? (
-                                            <><i className="fa-solid fa-wallet text-purple-500" style={{ marginRight: "6px" }}></i>Paid via Vendor Wallet</>
+                                            <><i className="fa-solid fa-wallet text-purple-500 mr-2"></i>Vendor Wallet</>
                                         ) : "N/A")}
                                     </div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Date</span>
-                                    <div style={{ color: "#475569", fontWeight: "500" }}><i className="fa-regular fa-calendar-days text-rose-500" style={{ marginRight: "6px" }}></i>{selectedExpense.date || "-"}</div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Date</span>
+                                    <div className="font-medium text-gray-800 flex items-center gap-2">
+                                        <i className="fa-regular fa-calendar-days text-rose-500"></i> {selectedExpense.date || "-"}
+                                    </div>
                                 </div>
                             </div>
                             
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                            {/* Amounts Highlight Box */}
+                            <div className="grid grid-cols-3 gap-4 p-5 bg-gray-50 border border-gray-200 rounded-xl mb-6">
                                 <div>
-                                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>Total Bill</span>
-                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#0f172a' }}>TK. {parseFloat(selectedExpense.total_bill).toLocaleString('en-IN')}</div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Total Bill</span>
+                                    <div className="text-[18px] font-bold text-gray-900">TK. {parseFloat(selectedExpense.total_bill).toLocaleString('en-IN')}</div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>Paid Amount</span>
-                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#16a34a' }}>TK. {parseFloat(selectedExpense.paid_amount).toLocaleString('en-IN')}</div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Paid Amount</span>
+                                    <div className="text-[18px] font-bold text-emerald-600">TK. {parseFloat(selectedExpense.paid_amount).toLocaleString('en-IN')}</div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>Due Amount</span>
-                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#dc2626' }}>TK. {parseFloat(selectedExpense.due_amount).toLocaleString('en-IN')}</div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Due Amount</span>
+                                    <div className="text-[18px] font-bold text-rose-600">TK. {parseFloat(selectedExpense.due_amount).toLocaleString('en-IN')}</div>
                                 </div>
                             </div>
 
-                            <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
-                                <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Remarks / Description</span>
-                                <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "8px", border: "1px solid #e2e8f0", color: "#475569", fontSize: "0.9rem", lineHeight: "1.6", minHeight: "60px", whiteSpace: "pre-line" }}>
-                                    {selectedExpense.description || "No remarks provided."}
+                            <div className="border-t border-gray-100 pt-5">
+                                <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">Remarks / Description</span>
+                                <div className="bg-gray-50/50 p-4 rounded-lg border border-gray-100 text-[14px] text-gray-700 leading-relaxed min-h-[80px] whitespace-pre-line">
+                                    {selectedExpense.description || <span className="text-gray-400 italic">No remarks provided.</span>}
                                 </div>
                             </div>
-                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                <button type="button" onClick={() => setShowViewModal(false)} style={{ background: "#1e293b", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500" }}>Close</button>
-                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+                            <button onClick={() => setShowViewModal(false)} className="rounded-lg bg-gray-800 px-6 py-2 text-[14px] font-medium text-white transition-colors hover:bg-gray-900">
+                                Close
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -762,30 +739,38 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
             {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "1000px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "95vh" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
-                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[95vh] overflow-hidden">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                            <h3 className="text-[18px] font-semibold text-[#202223]">
                                 {editMode ? "📝 Update Bill/Expense" : "✨ Log New Bill/Expense"}
                             </h3>
-                            <button type="button" onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}><i className="fa-solid fa-xmark"></i></button>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
+                            </button>
                         </div>
                         
                         {errors.error && (
-                            <div style={{ margin: "16px 24px 0", padding: "10px", background: "#fee2e2", color: "#b91c1c", borderRadius: "6px", fontSize: "0.875rem", border: "1px solid #fecaca" }}>
-                                <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: "6px" }}></i> {errors.error}
+                            <div className="mx-6 mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-[14px] text-red-700 shrink-0">
+                                <i className="fa-solid fa-triangle-exclamation"></i> {errors.error}
                             </div>
                         )}
                         
-                        <div onClick={closeAllDropdowns} style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
-                            <form id="expenseForm" onSubmit={handleSubmit}>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
+                        {/* Body */}
+                        <div onClick={closeAllDropdowns} className="p-6 overflow-y-auto flex-1 brass-scroll">
+                            <form id="expenseForm" onSubmit={handleSubmit} className="flex flex-col gap-6">
+                                {/* ROW 1: Project, Category, Payment Source */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                                     
-                                    {/* --- 1. PROJECT DROPDOWN --- */}
-                                    <div style={{ gridColumn: "span 1", position: "relative", minWidth: 0 }}>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Select Project *</label>
-                                        <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowProjectDropdown(!showProjectDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
-                                            <span style={{ color: data.project_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1, display: "block" }}>
+                                    {/* 1. PROJECT DROPDOWN */}
+                                    <div className="relative">
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Select Project *</label>
+                                        <div 
+                                            onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowProjectDropdown(!showProjectDropdown); }} 
+                                            className={`flex w-full cursor-pointer items-center justify-between rounded-lg border px-3.5 py-2.5 text-[14px] outline-none transition-shadow hover:bg-gray-50 focus:ring-1 focus:ring-[var(--accent)]/50 ${data.project_id ? 'border-gray-300 bg-white text-gray-900' : 'border-gray-300 bg-white text-gray-500'}`}
+                                        >
+                                            <span className="truncate flex-1">
                                                 {data.project_id 
                                                     ? (() => {
                                                         const p = projects.find(x => x.id == data.project_id);
@@ -794,152 +779,165 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                     : "Choose Project"
                                                 }
                                             </span>
-                                            <i className={`fa-solid fa-chevron-${showProjectDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem", marginLeft: "5px", flexShrink: 0 }}></i>
+                                            <i className={`fa-solid fa-chevron-${showProjectDropdown ? 'up' : 'down'} text-[10px] text-gray-400 shrink-0 ml-2`}></i>
                                         </div>
                                         {showProjectDropdown && (
-                                            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", display: "flex", flexDirection: "column" }}>
-                                                <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
-                                                    <input type="text" placeholder="Search project or client..." value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }} autoFocus />
+                                            <div onClick={(e) => e.stopPropagation()} className="absolute top-full left-0 mt-1 flex max-h-[200px] w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg z-50">
+                                                <div className="border-b border-gray-100 bg-gray-50 p-2 shrink-0">
+                                                    <input type="text" placeholder="Search project or client..." value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-[13px] outline-none focus:border-[var(--accent)]" autoFocus />
                                                 </div>
-                                                <div style={{ overflowY: "auto", padding: "4px 0" }}>
-                                                    {projects.filter(p => 
-                                                        (p.title?.toLowerCase().includes(projectSearch.toLowerCase()) || 
-                                                         p.client?.name?.toLowerCase().includes(projectSearch.toLowerCase())) &&
-                                                        (editMode || p.status !== 'completed') 
-                                                    ).length > 0 ? (
-                                                        projects.filter(p => 
-                                                            (p.title?.toLowerCase().includes(projectSearch.toLowerCase()) || 
-                                                             p.client?.name?.toLowerCase().includes(projectSearch.toLowerCase())) &&
-                                                            (editMode || p.status !== 'completed')
-                                                        ).map(p => (
-                                                            <div key={p.id} onClick={() => { setData("project_id", p.id); setShowProjectDropdown(false); setProjectSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.project_id == p.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.project_id == p.id ? "#f0fdf4" : "transparent"}>
-                                                                <div style={{ fontWeight: '600' }}>{p.title}</div>
-                                                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                                                                    <i className="fa-solid fa-user me-1"></i> {p.client?.name || 'No Client'}
-                                                                </div>
+                                                <div className="overflow-y-auto py-1">
+                                                    {projects.filter(p => (p.title?.toLowerCase().includes(projectSearch.toLowerCase()) || p.client?.name?.toLowerCase().includes(projectSearch.toLowerCase())) && (editMode || p.status !== 'completed')).length > 0 ? (
+                                                        projects.filter(p => (p.title?.toLowerCase().includes(projectSearch.toLowerCase()) || p.client?.name?.toLowerCase().includes(projectSearch.toLowerCase())) && (editMode || p.status !== 'completed')).map(p => (
+                                                            <div 
+                                                                key={p.id} 
+                                                                onClick={() => { setData("project_id", p.id); setShowProjectDropdown(false); setProjectSearch(""); }} 
+                                                                className={`cursor-pointer px-3.5 py-2 text-[13.5px] hover:bg-gray-50 ${data.project_id == p.id ? 'bg-[var(--accent-bg)]' : ''}`}
+                                                            >
+                                                                <div className="font-semibold text-gray-800">{p.title}</div>
+                                                                <div className="text-[11px] text-gray-500 mt-0.5"><i className="fa-solid fa-user mr-1"></i> {p.client?.name || 'No Client'}</div>
                                                             </div>
                                                         ))
-                                                    ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No active project found.</div>)}
+                                                    ) : (<div className="p-3 text-center text-[13px] text-gray-400">No active project found.</div>)}
                                                 </div>
                                             </div>
                                         )}
-                                        {errors.project_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.project_id}</p>}
+                                        {errors.project_id && <p className="mt-1 text-[12px] text-red-500">{errors.project_id}</p>}
                                     </div>
 
-                                    {/* --- 2. CATEGORY DROPDOWN --- */}
-                                    <div style={{ gridColumn: "span 1", position: "relative", minWidth: 0 }}>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Expense Category *</label>
-                                        <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowCategoryDropdown(!showCategoryDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
-                                            <span style={{ color: data.expense_category_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1, display: "block" }}>
+                                    {/* 2. CATEGORY DROPDOWN */}
+                                    <div className="relative">
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Expense Category *</label>
+                                        <div 
+                                            onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowCategoryDropdown(!showCategoryDropdown); }} 
+                                            className={`flex w-full cursor-pointer items-center justify-between rounded-lg border px-3.5 py-2.5 text-[14px] outline-none transition-shadow hover:bg-gray-50 focus:ring-1 focus:ring-[var(--accent)]/50 ${data.expense_category_id ? 'border-gray-300 bg-white text-gray-900' : 'border-gray-300 bg-white text-gray-500'}`}
+                                        >
+                                            <span className="truncate flex-1">
                                                 {data.expense_category_id ? (categories.find(c => c.id == data.expense_category_id)?.name || "Unknown") : "Choose Category"}
                                             </span>
-                                            <i className={`fa-solid fa-chevron-${showCategoryDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem", flexShrink: 0 }}></i>
+                                            <i className={`fa-solid fa-chevron-${showCategoryDropdown ? 'up' : 'down'} text-[10px] text-gray-400 shrink-0 ml-2`}></i>
                                         </div>
                                         {showCategoryDropdown && (
-                                            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", display: "flex", flexDirection: "column" }}>
-                                                <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
-                                                    <input type="text" placeholder="Search category..." value={categorySearch} onChange={(e) => setCategorySearch(e.target.value)} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }} autoFocus />
+                                            <div onClick={(e) => e.stopPropagation()} className="absolute top-full left-0 mt-1 flex max-h-[200px] w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg z-50">
+                                                <div className="border-b border-gray-100 bg-gray-50 p-2 shrink-0">
+                                                    <input type="text" placeholder="Search category..." value={categorySearch} onChange={(e) => setCategorySearch(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-[13px] outline-none focus:border-[var(--accent)]" autoFocus />
                                                 </div>
-                                                <div style={{ overflowY: "auto", padding: "4px 0" }}>
+                                                <div className="overflow-y-auto py-1">
                                                     {categories.filter(c => c.name?.toLowerCase().includes(categorySearch.toLowerCase())).length > 0 ? (
                                                         categories.filter(c => c.name?.toLowerCase().includes(categorySearch.toLowerCase())).map(c => (
-                                                            <div key={c.id} onClick={() => { setData("expense_category_id", c.id); setShowCategoryDropdown(false); setCategorySearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.expense_category_id == c.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.expense_category_id == c.id ? "#f0fdf4" : "transparent"}>
+                                                            <div 
+                                                                key={c.id} 
+                                                                onClick={() => { setData("expense_category_id", c.id); setShowCategoryDropdown(false); setCategorySearch(""); }} 
+                                                                className={`cursor-pointer px-3.5 py-2 text-[13.5px] hover:bg-gray-50 ${data.expense_category_id == c.id ? 'bg-[var(--accent-bg)]' : ''}`}
+                                                            >
                                                                 {c.name}
                                                             </div>
                                                         ))
-                                                    ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No category found.</div>)}
+                                                    ) : (<div className="p-3 text-center text-[13px] text-gray-400">No category found.</div>)}
                                                 </div>
                                             </div>
                                         )}
-                                        {errors.expense_category_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.expense_category_id}</p>}
+                                        {errors.expense_category_id && <p className="mt-1 text-[12px] text-red-500">{errors.expense_category_id}</p>}
                                     </div>
 
-                                    {/* --- 3. PAYMENT SOURCE --- */}
-                                    <div style={{ gridColumn: "span 1", position: "relative", minWidth: 0 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: "6px" }}>
-                                            <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", margin: 0 }}>Payment Source</label>
-                                            <div style={{ display: 'flex', gap: '8px', fontSize: '0.7rem' }}>
-                                                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                                    <input type="radio" name="payType" checked={data.pay_type === 'account'} onChange={() => { setData('pay_type', 'account'); setData('advance_user_id', ''); }} />
+                                    {/* 3. PAYMENT SOURCE */}
+                                    <div className="relative">
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <label className="text-[13px] font-semibold text-gray-700">Payment Source</label>
+                                            <div className="flex gap-2.5 text-[11px] font-medium">
+                                                <label className="flex cursor-pointer items-center gap-1.5">
+                                                    <input type="radio" name="payType" checked={data.pay_type === 'account'} onChange={() => { setData('pay_type', 'account'); setData('advance_user_id', ''); }} className="accent-[var(--accent)]" />
                                                     Bank/Cash
                                                 </label>
-                                                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                                    <input type="radio" name="payType" checked={data.pay_type === 'advance'} onChange={() => { setData('pay_type', 'advance'); setData('account_id', ''); }} />
+                                                <label className="flex cursor-pointer items-center gap-1.5">
+                                                    <input type="radio" name="payType" checked={data.pay_type === 'advance'} onChange={() => { setData('pay_type', 'advance'); setData('account_id', ''); }} className="accent-[var(--accent)]" />
                                                     Advance
                                                 </label>
-                                                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', color: '#7e22ce', fontWeight: 'bold' }}>
-                                                    <input type="radio" name="payType" checked={data.pay_type === 'wallet'} onChange={() => { setData('pay_type', 'wallet'); setData('account_id', ''); setData('advance_user_id', ''); }} />
+                                                <label className="flex cursor-pointer items-center gap-1.5 text-purple-700">
+                                                    <input type="radio" name="payType" checked={data.pay_type === 'wallet'} onChange={() => { setData('pay_type', 'wallet'); setData('account_id', ''); setData('advance_user_id', ''); }} className="accent-purple-600" />
                                                     Wallet
                                                 </label>
                                             </div>
                                         </div>
 
-                                        {/* Dropdown for Main Account */}
                                         {data.pay_type === 'account' && (
                                             <>
-                                                <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowAccountDropdown(!showAccountDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
-                                                    <span style={{ color: data.account_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1, display: "block" }}>
+                                                <div 
+                                                    onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowAccountDropdown(!showAccountDropdown); }} 
+                                                    className={`flex w-full cursor-pointer items-center justify-between rounded-lg border px-3.5 py-2.5 text-[14px] outline-none transition-shadow hover:bg-gray-50 focus:ring-1 focus:ring-[var(--accent)]/50 ${data.account_id ? 'border-gray-300 bg-white text-gray-900' : 'border-gray-300 bg-white text-gray-500'}`}
+                                                >
+                                                    <span className="truncate flex-1">
                                                         {data.account_id ? (() => {
                                                             const acc = accounts.find(a => a.id == data.account_id);
                                                             return acc ? `${acc.name} (Bal: ${acc.current_balance})` : "Unknown";
                                                         })() : "Select Account"}
                                                     </span>
-                                                    <i className={`fa-solid fa-chevron-${showAccountDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem", flexShrink: 0 }}></i>
+                                                    <i className={`fa-solid fa-chevron-${showAccountDropdown ? 'up' : 'down'} text-[10px] text-gray-400 shrink-0 ml-2`}></i>
                                                 </div>
                                                 {showAccountDropdown && (
-                                                    <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", display: "flex", flexDirection: "column" }}>
-                                                        <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
-                                                            <input type="text" placeholder="Search account..." value={accountSearch} onChange={(e) => setAccountSearch(e.target.value)} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }} autoFocus />
+                                                    <div onClick={(e) => e.stopPropagation()} className="absolute top-full left-0 mt-1 flex max-h-[200px] w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg z-50">
+                                                        <div className="border-b border-gray-100 bg-gray-50 p-2 shrink-0">
+                                                            <input type="text" placeholder="Search account..." value={accountSearch} onChange={(e) => setAccountSearch(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-[13px] outline-none focus:border-[var(--accent)]" autoFocus />
                                                         </div>
-                                                        <div style={{ overflowY: "auto", padding: "4px 0" }}>
+                                                        <div className="overflow-y-auto py-1">
                                                             {accounts.filter(a => a.name?.toLowerCase().includes(accountSearch.toLowerCase())).length > 0 ? (
                                                                 accounts.filter(a => a.name?.toLowerCase().includes(accountSearch.toLowerCase())).map(a => (
-                                                                    <div key={a.id} onClick={() => { setData("account_id", a.id); setShowAccountDropdown(false); setAccountSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.account_id == a.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.account_id == a.id ? "#f0fdf4" : "transparent"}>
-                                                                        {a.name} <span style={{color: '#64748b', fontSize: '0.8rem'}}>(Bal: {a.current_balance})</span>
+                                                                    <div 
+                                                                        key={a.id} 
+                                                                        onClick={() => { setData("account_id", a.id); setShowAccountDropdown(false); setAccountSearch(""); }} 
+                                                                        className={`cursor-pointer px-3.5 py-2 text-[13.5px] hover:bg-gray-50 ${data.account_id == a.id ? 'bg-[var(--accent-bg)]' : ''}`}
+                                                                    >
+                                                                        {a.name} <span className="text-[12px] text-gray-500 ml-1">(Bal: {a.current_balance})</span>
                                                                     </div>
                                                                 ))
-                                                            ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No account found.</div>)}
+                                                            ) : (<div className="p-3 text-center text-[13px] text-gray-400">No account found.</div>)}
                                                         </div>
                                                     </div>
                                                 )}
-                                                {errors.account_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.account_id}</p>}
+                                                {errors.account_id && <p className="mt-1 text-[12px] text-red-500">{errors.account_id}</p>}
                                             </>
                                         )}
 
-                                        {/* Dropdown for Staff Advance */}
                                         {data.pay_type === 'advance' && (
                                             <>
-                                                <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowAdvanceDropdown(!showAdvanceDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
-                                                    <span style={{ color: data.advance_user_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1, display: "block" }}>
+                                                <div 
+                                                    onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowAdvanceDropdown(!showAdvanceDropdown); }} 
+                                                    className={`flex w-full cursor-pointer items-center justify-between rounded-lg border px-3.5 py-2.5 text-[14px] outline-none transition-shadow hover:bg-gray-50 focus:ring-1 focus:ring-[var(--accent)]/50 ${data.advance_user_id ? 'border-gray-300 bg-white text-gray-900' : 'border-gray-300 bg-white text-gray-500'}`}
+                                                >
+                                                    <span className="truncate flex-1">
                                                         {data.advance_user_id ? (() => {
                                                             const adv = advances.find(a => a.user_id == data.advance_user_id);
                                                             return adv ? `${adv.user?.name} (Rem: ${adv.balance})` : "Unknown";
                                                         })() : "Select Advance"}
                                                     </span>
-                                                    <i className={`fa-solid fa-chevron-${showAdvanceDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem", flexShrink: 0 }}></i>
+                                                    <i className={`fa-solid fa-chevron-${showAdvanceDropdown ? 'up' : 'down'} text-[10px] text-gray-400 shrink-0 ml-2`}></i>
                                                 </div>
                                                 {showAdvanceDropdown && (
-                                                    <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", display: "flex", flexDirection: "column" }}>
-                                                        <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
-                                                            <input type="text" placeholder="Search advance..." value={advanceSearch} onChange={(e) => setAdvanceSearch(e.target.value)} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }} autoFocus />
+                                                    <div onClick={(e) => e.stopPropagation()} className="absolute top-full left-0 mt-1 flex max-h-[200px] w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg z-50">
+                                                        <div className="border-b border-gray-100 bg-gray-50 p-2 shrink-0">
+                                                            <input type="text" placeholder="Search advance..." value={advanceSearch} onChange={(e) => setAdvanceSearch(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-[13px] outline-none focus:border-[var(--accent)]" autoFocus />
                                                         </div>
-                                                        <div style={{ overflowY: "auto", padding: "4px 0" }}>
+                                                        <div className="overflow-y-auto py-1">
                                                             {advances.filter(a => a.user?.name?.toLowerCase().includes(advanceSearch.toLowerCase())).length > 0 ? (
                                                                 advances.filter(a => a.user?.name?.toLowerCase().includes(advanceSearch.toLowerCase())).map(a => (
-                                                                    <div key={a.user_id} onClick={() => { setData("advance_user_id", a.user_id); setShowAdvanceDropdown(false); setAdvanceSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.advance_user_id == a.user_id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.advance_user_id == a.user_id ? "#f0fdf4" : "transparent"}>
-                                                                        {a.user?.name} <span style={{color: '#64748b', fontSize: '0.8rem'}}>(Rem: {a.balance})</span>
+                                                                    <div 
+                                                                        key={a.user_id} 
+                                                                        onClick={() => { setData("advance_user_id", a.user_id); setShowAdvanceDropdown(false); setAdvanceSearch(""); }} 
+                                                                        className={`cursor-pointer px-3.5 py-2 text-[13.5px] hover:bg-gray-50 ${data.advance_user_id == a.user_id ? 'bg-[var(--accent-bg)]' : ''}`}
+                                                                    >
+                                                                        {a.user?.name} <span className="text-[12px] text-gray-500 ml-1">(Rem: {a.balance})</span>
                                                                     </div>
                                                                 ))
-                                                            ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No active advance found.</div>)}
+                                                            ) : (<div className="p-3 text-center text-[13px] text-gray-400">No active advance found.</div>)}
                                                         </div>
                                                     </div>
                                                 )}
-                                                {errors.advance_user_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.advance_user_id}</p>}
+                                                {errors.advance_user_id && <p className="mt-1 text-[12px] text-red-500">{errors.advance_user_id}</p>}
                                             </>
                                         )}
 
                                         {data.pay_type === 'wallet' && (
-                                            <div style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #d8b4fe", background: "#faf5ff", color: "#7e22ce", fontSize: "0.8rem", fontWeight: "500", display: "flex", alignItems: "center", gap: "6px" }}>
+                                            <div className="flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3.5 py-2.5 text-[13px] font-medium text-purple-700">
                                                 <i className="fa-solid fa-wallet"></i>
                                                 {data.vendor_id ? (
                                                     <span>Available Wallet: <strong>{vendorList.find(v => v.id == data.vendor_id)?.wallet_balance || 0} BDT</strong></span>
@@ -951,17 +949,21 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                     </div>
                                 </div>
 
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px" }}>
-                                    <div style={{ gridColumn: "span 1" }}>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Expense Title / Subject *</label>
-                                        <input type="text" value={data.title} onChange={e => setData('title', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} placeholder="e.g., Domain Purchase" required />
+                                {/* ROW 2: Title & Vendor */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Expense Title / Subject *</label>
+                                        <input type="text" value={data.title} onChange={e => setData('title', e.target.value)} className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" placeholder="e.g., Domain Purchase" required />
                                     </div>
                                     
-                                    {/* --- 4. VENDOR DROPDOWN --- */}
-                                    <div style={{ gridColumn: "span 1", position: "relative", minWidth: 0 }}>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Vendor / Contractor Name</label>
-                                        <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowVendorDropdown(!showVendorDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", minWidth: 0 }}>
-                                            <span style={{ color: data.vendor_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1, display: "block" }}>
+                                    {/* 4. VENDOR DROPDOWN */}
+                                    <div className="relative">
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Vendor / Contractor Name</label>
+                                        <div 
+                                            onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowVendorDropdown(!showVendorDropdown); }} 
+                                            className={`flex w-full cursor-pointer items-center justify-between rounded-lg border px-3.5 py-2.5 text-[14px] outline-none transition-shadow hover:bg-gray-50 focus:ring-1 focus:ring-[var(--accent)]/50 ${data.vendor_id ? 'border-gray-300 bg-white text-gray-900' : 'border-gray-300 bg-white text-gray-500'}`}
+                                        >
+                                            <span className="truncate flex-1">
                                                 {data.vendor_id 
                                                     ? (() => {
                                                         const v = vendorList.find(vd => vd.id == data.vendor_id);
@@ -970,118 +972,108 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                     : "Search & Select Vendor"
                                                 }
                                             </span>
-                                            <i className={`fa-solid fa-chevron-${showVendorDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem", flexShrink: 0 }}></i>
+                                            <i className={`fa-solid fa-chevron-${showVendorDropdown ? 'up' : 'down'} text-[10px] text-gray-400 shrink-0 ml-2`}></i>
                                         </div>
                                         {showVendorDropdown && (
-                                            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: showAddVendorForm ? "none" : "200px", display: "flex", flexDirection: "column" }}>
+                                            <div onClick={(e) => e.stopPropagation()} className={`absolute top-full left-0 mt-1 flex w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg z-50 ${showAddVendorForm ? '' : 'max-h-[250px]'}`}>
                                                 {!showAddVendorForm && (
-                                                    <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
-                                                        <input type="text" placeholder="Search vendor..." value={vendorSearch} onChange={(e) => setVendorSearch(e.target.value)} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }} autoFocus />
+                                                    <div className="border-b border-gray-100 bg-gray-50 p-2 shrink-0">
+                                                        <input type="text" placeholder="Search vendor..." value={vendorSearch} onChange={(e) => setVendorSearch(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-[13px] outline-none focus:border-[var(--accent)]" autoFocus />
                                                     </div>
                                                 )}
 
                                                 {showAddVendorForm ? (
-                                                    <div style={{ padding: "12px" }}>
-                                                        <div style={{ fontSize: "0.8rem", fontWeight: "600", color: "#334155", marginBottom: "8px" }}>
-                                                            <i className="fa-solid fa-user-plus" style={{ marginRight: "6px", color: "#2563eb" }}></i> New Vendor
+                                                    <div className="p-4 bg-gray-50/50">
+                                                        <div className="mb-3 text-[13px] font-bold text-gray-700 flex items-center gap-2">
+                                                            <i className="fa-solid fa-user-plus text-[var(--accent)]"></i> New Vendor
                                                         </div>
-                                                        <input type="text" placeholder="Vendor name *" value={newVendor.name} onChange={(e) => setNewVendor({ ...newVendor, name: e.target.value })} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem", marginBottom: "6px" }} autoFocus />
-                                                        <input type="text" placeholder="Company name (optional)" value={newVendor.company_name} onChange={(e) => setNewVendor({ ...newVendor, company_name: e.target.value })} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem", marginBottom: "6px" }} />
-                                                        <input type="text" placeholder="Phone (optional)" value={newVendor.phone} onChange={(e) => setNewVendor({ ...newVendor, phone: e.target.value })} style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem", marginBottom: "10px" }} />
-                                                        <div style={{ display: "flex", gap: "8px" }}>
-                                                            <button type="button" onClick={handleCreateVendor} disabled={creatingVendor} style={{ flex: 1, background: "#2563eb", color: "#fff", border: "none", padding: "7px 10px", borderRadius: "5px", cursor: "pointer", fontSize: "0.8rem", fontWeight: "500", opacity: creatingVendor ? 0.7 : 1 }}>
+                                                        <input type="text" placeholder="Vendor name *" value={newVendor.name} onChange={(e) => setNewVendor({ ...newVendor, name: e.target.value })} className="mb-2 w-full rounded-md border border-gray-300 px-3 py-2 text-[13px] outline-none focus:border-[var(--accent)]" autoFocus />
+                                                        <input type="text" placeholder="Company name (optional)" value={newVendor.company_name} onChange={(e) => setNewVendor({ ...newVendor, company_name: e.target.value })} className="mb-2 w-full rounded-md border border-gray-300 px-3 py-2 text-[13px] outline-none focus:border-[var(--accent)]" />
+                                                        <input type="text" placeholder="Phone (optional)" value={newVendor.phone} onChange={(e) => setNewVendor({ ...newVendor, phone: e.target.value })} className="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 text-[13px] outline-none focus:border-[var(--accent)]" />
+                                                        <div className="flex gap-2">
+                                                            <button type="button" onClick={handleCreateVendor} disabled={creatingVendor} className="flex-1 rounded-md bg-[var(--accent)] px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[#b08630] disabled:opacity-70">
                                                                 {creatingVendor ? "Saving..." : "Save & Select"}
                                                             </button>
-                                                            <button type="button" onClick={() => { setShowAddVendorForm(false); setNewVendor({ name: '', company_name: '', phone: '' }); }} style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "7px 10px", borderRadius: "5px", cursor: "pointer", fontSize: "0.8rem" }}>
+                                                            <button type="button" onClick={() => { setShowAddVendorForm(false); setNewVendor({ name: '', company_name: '', phone: '' }); }} className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13px] font-medium text-gray-600 transition-colors hover:bg-gray-50">
                                                                 Cancel
                                                             </button>
                                                         </div>
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        <div
+                                                        <div 
                                                             onClick={() => setShowAddVendorForm(true)}
-                                                            style={{ padding: "9px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#2563eb", fontWeight: "600", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: "6px" }}
-                                                            onMouseEnter={(e) => e.target.style.background = "#eff6ff"}
-                                                            onMouseLeave={(e) => e.target.style.background = "transparent"}
+                                                            className="flex cursor-pointer items-center gap-2 border-b border-gray-100 px-3.5 py-2.5 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:bg-[var(--accent-bg)]"
                                                         >
                                                             <i className="fa-solid fa-plus"></i> Create New Vendor
                                                         </div>
-                                                        <div style={{ overflowY: "auto", padding: "4px 0" }}>
-                                                            <div onClick={() => { setData("vendor_id", ""); setShowVendorDropdown(false); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#94a3b8", borderBottom: "1px solid #f1f5f9" }}>
+                                                        <div className="overflow-y-auto py-1">
+                                                            <div onClick={() => { setData("vendor_id", ""); setShowVendorDropdown(false); }} className="cursor-pointer border-b border-gray-50 px-3.5 py-2 text-[13.5px] text-gray-400 hover:bg-gray-50">
                                                                 -- No Vendor --
                                                             </div>
                                                             {vendorList.filter(v => v.name?.toLowerCase().includes(vendorSearch.toLowerCase()) || v.company_name?.toLowerCase().includes(vendorSearch.toLowerCase())).length > 0 ? (
                                                                 vendorList.filter(v => v.name?.toLowerCase().includes(vendorSearch.toLowerCase()) || v.company_name?.toLowerCase().includes(vendorSearch.toLowerCase())).map(v => (
-                                                                    <div key={v.id} onClick={() => { setData("vendor_id", v.id); setShowVendorDropdown(false); setVendorSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", background: data.vendor_id == v.id ? "#f0fdf4" : "transparent" }} onMouseEnter={(e) => e.target.style.background = "#f1f5f9"} onMouseLeave={(e) => e.target.style.background = data.vendor_id == v.id ? "#f0fdf4" : "transparent"}>
-                                                                        {v.name} {v.company_name ? <span style={{ color: "#64748b", fontSize: "0.8rem" }}>({v.company_name})</span> : ''}
+                                                                    <div 
+                                                                        key={v.id} 
+                                                                        onClick={() => { setData("vendor_id", v.id); setShowVendorDropdown(false); setVendorSearch(""); }} 
+                                                                        className={`cursor-pointer px-3.5 py-2 text-[13.5px] hover:bg-gray-50 ${data.vendor_id == v.id ? 'bg-[var(--accent-bg)]' : ''}`}
+                                                                    >
+                                                                        {v.name} {v.company_name ? <span className="ml-1 text-[11px] text-gray-400">({v.company_name})</span> : ''}
                                                                     </div>
                                                                 ))
-                                                            ) : (<div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No vendor found.</div>)}
+                                                            ) : (<div className="p-3 text-center text-[13px] text-gray-400">No vendor found.</div>)}
                                                         </div>
                                                     </>
                                                 )}
                                             </div>
                                         )}
-                                        {errors.vendor_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.vendor_id}</p>}
+                                        {errors.vendor_id && <p className="mt-1 text-[12px] text-red-500">{errors.vendor_id}</p>}
                                     </div>
                                 </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginTop: '16px', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                {/* ROW 3: Financials */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 rounded-xl border border-gray-200 bg-gray-50 p-5">
                                     <div>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#1e293b", marginBottom: "6px" }}>Total Bill (BDT) *</label>
-                                        <input type="number" step="0.01" value={data.total_bill} onChange={e => setData('total_bill', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: '600' }} required />
+                                        <label className="block text-[13px] font-bold text-gray-800 mb-1.5">Total Bill (BDT) *</label>
+                                        <input type="number" step="0.01" value={data.total_bill} onChange={e => setData('total_bill', e.target.value)} className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[15px] font-bold text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" required />
                                     </div>
                                     <div>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#16a34a", marginBottom: "6px" }}>
-                                            Paid Amount (BDT)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            value={data.paid_amount}
-                                            onChange={e => setData('paid_amount', e.target.value)}
-                                            style={{
-                                                width: "100%", 
-                                                padding: "8px 12px", 
-                                                borderRadius: "6px",
-                                                border: "1px solid #cbd5e1", 
-                                                outline: "none", 
-                                                fontWeight: '600',
-                                                color: '#16a34a', 
-                                                background: '#fff', 
-                                                cursor: 'text' 
-                                            }}
-                                            required
-                                        />
+                                        <label className="block text-[13px] font-bold text-emerald-600 mb-1.5">Paid Amount (BDT)</label>
+                                        <input type="number" step="0.01" value={data.paid_amount} onChange={e => setData('paid_amount', e.target.value)} className="w-full rounded-lg border border-emerald-300 bg-white px-3.5 py-2.5 text-[15px] font-bold text-emerald-600 outline-none transition-shadow focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50" required />
                                     </div>
                                     <div>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "700", color: "#dc2626", marginBottom: "6px" }}>Calculated Due</label>
-                                        <input type="text" value={calculateDue()} disabled style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: '#f1f5f9', fontWeight: 'bold', color: '#dc2626' }} />
-                                        <div style={{ marginTop: '6px', fontSize: '11px', fontWeight: 'bold', color: '#64748b', letterSpacing: '0.5px' }}>STATUS: {calculateStatus()}</div>
+                                        <label className="block text-[13px] font-bold text-red-600 mb-1.5">Calculated Due</label>
+                                        <input type="text" value={calculateDue()} disabled className="w-full rounded-lg border border-red-200 bg-red-50/50 px-3.5 py-2.5 text-[15px] font-bold text-red-600 outline-none" />
+                                        <div className="mt-1.5 text-[11px] font-bold tracking-wider text-gray-500 uppercase">Status: {calculateStatus()}</div>
                                     </div>
                                 </div>
 
-                                {/* --- RETURN CASH UI (Shown Only When Paid > Bill) --- */}
+                                {/* RETURN CASH UI */}
                                 {isOverpaid && data.pay_type === 'account' && (
-                                    <div style={{ marginTop: '16px', padding: '16px', background: '#fffbeb', borderRadius: '8px', border: '1px solid #fde68a', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                        <div style={{ color: '#92400e', fontWeight: 'bold', fontSize: '0.9rem' }}>
-                                            <i className="fa-solid fa-coins" style={{ marginRight: '6px' }}></i>
-                                            Received Change: BDT {overpaymentAmount.toLocaleString('en-IN')}
+                                    <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-5">
+                                        <div className="text-[14px] font-bold text-amber-800 flex items-center gap-2">
+                                            <i className="fa-solid fa-coins"></i> Received Change: BDT {overpaymentAmount.toLocaleString('en-IN')}
                                         </div>
-                                        <div style={{ fontSize: '0.8rem', color: '#b45309' }}>Where should this returned cash be deposited?</div>
+                                        <div className="text-[12.5px] text-amber-700">Where should this returned cash be deposited?</div>
 
-                                        <div style={{ position: "relative", minWidth: 0 }}>
-                                            <div onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowReturnAccountDropdown(!showReturnAccountDropdown); }} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #fcd34d", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                                <span style={{ color: data.return_account_id ? "#0f172a" : "#b45309", fontSize: "0.875rem", fontWeight: "600" }}>
+                                        <div className="relative">
+                                            <div 
+                                                onClick={(e) => { e.stopPropagation(); closeAllDropdowns(); setShowReturnAccountDropdown(!showReturnAccountDropdown); }} 
+                                                className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-amber-300 bg-white px-3.5 py-2.5 text-[14px] outline-none"
+                                            >
+                                                <span className="font-semibold text-amber-900">
                                                     {data.return_account_id ? accounts.find(a => a.id == data.return_account_id)?.name || "Select Cash Box" : "Select Cash Box *"}
                                                 </span>
-                                                <i className={`fa-solid fa-chevron-${showReturnAccountDropdown ? 'up' : 'down'}`} style={{ color: "#d97706", fontSize: "0.8rem" }}></i>
+                                                <i className={`fa-solid fa-chevron-${showReturnAccountDropdown ? 'up' : 'down'} text-[10px] text-amber-600 shrink-0 ml-2`}></i>
                                             </div>
                                             {showReturnAccountDropdown && (
-                                                <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", bottom: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #fcd34d", borderRadius: "6px", marginBottom: "4px", zIndex: 50, boxShadow: "0 -10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "200px", overflowY: "auto" }}>
+                                                <div onClick={(e) => e.stopPropagation()} className="absolute bottom-full left-0 mb-1 flex max-h-[200px] w-full flex-col overflow-y-auto rounded-lg border border-amber-300 bg-white shadow-lg z-50">
                                                     {accounts.map(a => (
-                                                        <div key={a.id} onClick={() => { setData("return_account_id", a.id); setShowReturnAccountDropdown(false); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.85rem", color: "#334155", borderBottom: "1px solid #fef3c7" }}>
+                                                        <div 
+                                                            key={a.id} 
+                                                            onClick={() => { setData("return_account_id", a.id); setShowReturnAccountDropdown(false); }} 
+                                                            className="cursor-pointer border-b border-amber-50 px-3.5 py-2 text-[13.5px] text-gray-700 hover:bg-amber-50"
+                                                        >
                                                             {a.name}
                                                         </div>
                                                     ))}
@@ -1091,24 +1083,28 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                     </div>
                                 )}
 
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "16px", marginTop: "16px" }}>
-                                    <div>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Date *</label>
-                                        <input type="date" value={data.date} onChange={e => setData('date', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} required />
+                                {/* ROW 4: Date & Description */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                    <div className="md:col-span-1">
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Date *</label>
+                                        <input type="date" value={data.date} onChange={e => setData('date', e.target.value)} className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" required />
                                     </div>
-                                    <div>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Remarks / Notes</label>
-                                        <input type="text" value={data.description} onChange={e => setData('description', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} placeholder="Optional notes..." />
+                                    <div className="md:col-span-2">
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Remarks / Notes</label>
+                                        <input type="text" value={data.description} onChange={e => setData('description', e.target.value)} className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" placeholder="Optional notes..." />
                                     </div>
-                                </div>
-
-                                <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                    <button type="button" onClick={() => setShowModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569", fontWeight: "500" }}>Dismiss</button>
-                                    <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", opacity: processing ? 0.7 : 1 }}>
-                                        {processing ? "Saving Changes..." : "Commit Expense"}
-                                    </button>
                                 </div>
                             </form>
+                        </div>
+                        
+                        {/* Footer */}
+                        <div className="flex items-center justify-end gap-3 border-t border-gray-100 bg-gray-50/50 px-6 py-4 shrink-0">
+                            <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
+                                Dismiss
+                            </button>
+                            <button type="submit" form="expenseForm" disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70">
+                                {processing ? "Saving Changes..." : "Commit Expense"}
+                            </button>
                         </div>
                     </div>
                 </div>

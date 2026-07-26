@@ -1,11 +1,64 @@
-import React, { useState, useEffect, useRef } from 'react'; 
+import React, { useState, useEffect, useRef, useMemo } from 'react'; 
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
+
 import Swal from 'sweetalert2'; 
+import Select from 'react-select';
+import CreatableSelect from 'react-select/creatable';
+
+const COMPANY = {
+    name: 'UNIBOX',
+    tagline: "Let's Create Together",
+    logo: `${window.location.origin}/images/logo.png`,
+    phone: '+8801627188836',
+    email: 'uniboxbd4u@gmail.com',
+    website: 'www.uniboxbd4u.com',
+    address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
+};
+
+function numberToWords(amount) {
+    const num = Math.round(Number(amount) || 0);
+    if (num === 0) return 'Zero Taka Only';
+
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+        'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    const twoDigits = (n) => {
+        if (n < 20) return ones[n];
+        const t = Math.floor(n / 10);
+        const o = n % 10;
+        return tens[t] + (o ? ' ' + ones[o] : '');
+    };
+
+    const threeDigits = (n) => {
+        const h = Math.floor(n / 100);
+        const rest = n % 100;
+        let str = '';
+        if (h) str += ones[h] + ' Hundred';
+        if (rest) str += (str ? ' ' : '') + twoDigits(rest);
+        return str;
+    };
+
+    let n = num;
+    const crore = Math.floor(n / 10000000); n %= 10000000;
+    const lakh = Math.floor(n / 100000); n %= 100000;
+    const thousand = Math.floor(n / 1000); n %= 1000;
+    const hundred = n;
+
+    const parts = [];
+    if (crore) parts.push(threeDigits(crore) + ' Crore');
+    if (lakh) parts.push(threeDigits(lakh) + ' Lakh');
+    if (thousand) parts.push(threeDigits(thousand) + ' Thousand');
+    if (hundred) parts.push(threeDigits(hundred));
+
+    return parts.join(' ') + ' Taka Only';
+}
 
 export default function Index({ advances = [], filters = {}, accounts = [], employees = [], totalUnsettled = 0 }) {
     const [showModal, setShowModal] = useState(false);
     const [showReturnModal, setShowReturnModal] = useState(false);
+    const [showViewModal, setShowViewModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [selectedAdvance, setSelectedAdvance] = useState(null);
     const [expandedRows, setExpandedRows] = useState({});
@@ -17,13 +70,8 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
     
     const advanceList = Array.isArray(advances) ? advances : (advances.data || []);
     
-    const [searchTerm, setSearchTerm] = useState(() => {
-        return new URLSearchParams(window.location.search).get('search') || filters.search || '';
-    });
-    
-    const [perPage, setPerPage] = useState(() => {
-        return new URLSearchParams(window.location.search).get('per_page') || filters.per_page || '10';
-    });
+    const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get('search') || filters.search || '');
+    const [perPage, setPerPage] = useState(() => new URLSearchParams(window.location.search).get('per_page') || filters.per_page || '10');
     
     const isFirstRender = useRef(true);
 
@@ -33,7 +81,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
         account_id: '',
         user_id: '', 
         amount: '', 
-        date: '', 
+        date: new Date().toISOString().slice(0, 10), 
         purpose: 'Office Purpose', 
         status: 'unsettled',
         notes: ''
@@ -59,8 +107,8 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
         return () => clearTimeout(delayDebounceFn);
     }, [searchTerm, perPage]);
 
-    // --- Group advances by employee so repeated advances to the same person collapse into one row ---
-    const groupedAdvances = React.useMemo(() => {
+    // Group advances by employee
+    const groupedAdvances = useMemo(() => {
         const map = new Map();
         advanceList.forEach((adv) => {
             const key = adv.user_id;
@@ -133,8 +181,8 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         p { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 14px; }
                         table { width: 100%; border-collapse: collapse; text-align: left; }
                         th, td { padding: 12px 16px; border: 1px solid #cbd5e1; font-size: 13px; }
-                        th { background-color: #f1f5f9; font-weight: 600; color: #475569; }
-                        th:last-child, td:last-child { display: none !important; }
+                        th { background-color: #f8fafc; font-weight: 600; color: #475569; }
+                        .actions-col, .expand-btn-col { display: none !important; }
                     </style>
                 </head>
                 <body>
@@ -152,7 +200,6 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
     // --- Modal Management ---
     const openCreateModal = () => {
         clearErrors();
-
         setData({
             id: '',
             account_id: '',
@@ -161,11 +208,10 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
             settled_amount: 0,
             returned_amount: 0,
             date: new Date().toISOString().slice(0, 10),
-            purpose: '',
+            purpose: 'Office Purpose',
             status: 'unsettled', 
             notes: ''
         });
-
         setEditMode(false);
         setShowModal(true);
     };
@@ -190,18 +236,23 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
         setSelectedAdvance(adv);
         returnReset();
         clearReturnErrors();
-        
-        // Calculate due amount to show as placeholder/default
         const totalSettled = parseFloat(adv.settled_amount || 0) + parseFloat(adv.returned_amount || 0);
         const due = parseFloat(adv.amount) - totalSettled;
-        
         setReturnData('return_amount', due > 0 ? due : '');
         setShowReturnModal(true);
+    };
+
+    const openViewModal = (adv) => {
+        setSelectedAdvance(adv);
+        setShowViewModal(true);
     };
 
     // --- Form Submits ---
     const handleSubmit = (e) => {
         e.preventDefault();
+        if (!data.user_id) return Swal.fire("Required", "Please select an employee.", "warning");
+        if (!data.account_id) return Swal.fire("Required", "Please select an account.", "warning");
+
         if (editMode) {
             put(route('admin.advances.update', data.id), { 
                 preserveScroll: true,
@@ -235,126 +286,152 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
     const handleDelete = (id) => {
         Swal.fire({
-            title: 'Are you sure?',
-            text: 'Remaining money will be automatically refunded to the account!',
+            title: 'Delete this transaction?',
+            text: `Remaining money will be automatically refunded to the account!`,
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonText: 'Yes, delete it',
-            cancelButtonText: 'Cancel',
             confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#64748b'
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Yes, Delete'
         }).then((result) => {
             if (result.isConfirmed) {
                 destroy(route('admin.advances.destroy', id), {
                     preserveScroll: true,
-                    onSuccess: () => Swal.fire({ icon: 'success', title: 'Deleted!', text: 'Record removed and refunded.', timer: 1500, showConfirmButton: false })
+                    onSuccess: () => Swal.fire({ icon: 'success', title: 'Deleted!', timer: 1500, showConfirmButton: false })
                 });
             }
         });
     };
 
-    // Total Unsettled Calculation based on Due
-    // const totalUnsettled = advanceList.filter(a => a.status === 'unsettled').reduce((sum, item) => {
-    //     const remaining = parseFloat(item.amount) - parseFloat(item.settled_amount || 0) - parseFloat(item.returned_amount || 0);
-    //     return sum + (remaining > 0 ? remaining : 0);
-    // }, 0);
+    // React-Select Styles
+    const selectStyles = {
+        control: (provided, state) => ({
+            ...provided, 
+            minHeight: "42px", 
+            borderRadius: "0.5rem",
+            border: state.isFocused ? "1px solid var(--accent)" : "1px solid #d1d5db",
+            boxShadow: state.isFocused ? "0 0 0 1px rgba(200, 155, 60, 0.5)" : "none",
+            "&:hover": { borderColor: "#9ca3af" },
+            fontSize: "13.5px",
+            background: "#fff",
+            padding: "0px"
+        }),
+        valueContainer: (provided) => ({ ...provided, padding: "2px 10px" }),
+        placeholder: (provided) => ({ ...provided, color: "#9ca3af", fontSize: "13.5px" }),
+        singleValue: (provided) => ({ ...provided, color: "#111827", fontSize: "13.5px" }),
+        option: (provided, state) => ({
+            ...provided, fontSize: "13.5px",
+            backgroundColor: state.isSelected ? "var(--accent)" : state.isFocused ? "var(--accent-bg)" : "#fff",
+            color: state.isSelected ? "#fff" : "#111827", cursor: "pointer",
+        }),
+        menuPortal: base => ({ ...base, zIndex: 9999 })
+    };
 
     return (
         <AdminLayout>
             <Head title="Advance Payments" />
             
-            <div style={{ padding: "24px", background: "#f8fafc", minHeight: "100vh" }}>
+            <div className="flex flex-col gap-6">
                 
-                {/* Header Section */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: "24px", flexWrap: "wrap", gap: "16px" }}>
+                {/* Page Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Advance Payments</h1>
-                        <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Dashboard / Finance / Advances</p>
+                        <h1 className="text-[22px] font-bold text-[#202223]">Advance Payments</h1>
+                        <p className="text-[14px] text-gray-500 mt-1">Manage and track advance payments given to employees.</p>
                     </div>
-                    
+
                     {/* Total Unsettled Badge */}
-                    <div style={{ fontSize: '1.05rem', fontWeight: '700', color: '#b91c1c', padding: '12px 20px', background: '#fee2e2', borderRadius: '8px', border: "1px solid #fecaca", boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" }}>
-                        <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: "8px", color: "#dc2626" }}></i>
-                        Total Unsettled Due: <span style={{ fontSize: "1.2rem" }}>BDT {totalUnsettled.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-2.5 text-red-700 shadow-sm">
+                        <i className="fa-solid fa-triangle-exclamation text-red-600"></i>
+                        <span className="text-[14px] font-bold uppercase tracking-wider text-red-800">Total Unsettled Due:</span>
+                        <span className="text-[18px] font-bold">BDT {Number(totalUnsettled).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                 </div>
 
                 {/* Main Card Container */}
-                <div style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
+                <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
                     
-                    {/* Card Header */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
-                        <div style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
-                            <i className="fa-solid fa-hand-holding-dollar" style={{ marginRight: "8px", color: "#2563eb" }}></i> Employee & Vendor Advances
+                    {/* Card Header & Actions */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
+                        <div className="text-[16px] font-semibold text-[#202223] flex items-center gap-2.5">
+                            <i className="fa-solid fa-hand-holding-dollar text-[var(--accent)]"></i> Employee Advances
                         </div>
                         {hasPermission('create_advance') && (
-                        <button onClick={openCreateModal} style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 4px rgba(37, 99, 235, 0.2)" }}>
-                            <i className="fa-solid fa-plus"></i> Log Advance
-                        </button>
+                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13.5px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50">
+                                <i className="fa-solid fa-plus"></i> Log Advance
+                            </button>
                         )}
                     </div>
 
                     {/* Toolbar Panel */}
-                    <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30">
                         
-                        {/* Dynamic Per Page Selector */}
-                        <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                            Show 
-                            <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
-                                <option value={10}>10 Entries</option>
-                                <option value={25}>25 Entries</option>
-                                <option value={50}>50 Entries</option>
-                                <option value={100}>100 Entries</option>
-                                <option value={500}>500 Entries</option>
-                                <option value={1000}>1000 Entries</option>
-                                <option value="all">All</option>
-                            </select>
-                        </div>
+                        <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
+                            {/* Dynamic Per Page Selector */}
+                            <div className="flex items-center gap-2">
+                                <span>Show</span>
+                                <select 
+                                    value={perPage} 
+                                    onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                    className="w-[100px] appearance-none bg-none rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                >
+                                    <option value={10}>10 Entries</option>
+                                    <option value={25}>25 Entries</option>
+                                    <option value={50}>50 Entries</option>
+                                    <option value={100}>100 Entries</option>
+                                    <option value={500}>500 Entries</option>
+                                    <option value={1000}>1000 Entries</option>
+                                    <option value="all">All</option>
+                                </select>
+                            </div>
 
-                        {/* Export Action Tools */}
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                            <button type="button" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
-                                <i className="fas fa-copy text-blue-500"></i> Copy
-                            </button>
-                            <button type="button" onClick={handleExportCSV} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
-                                <i className="fas fa-file-excel text-emerald-500"></i> Excel
-                            </button>
-                            <button type="button" onClick={handlePrint} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
-                                <i className="fas fa-print text-slate-500"></i> Print
-                            </button>
+                            <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
+
+                            {/* Export Action Tools */}
+                            <div className="flex items-center gap-1.5">
+                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-copy text-blue-500"></i> Copy
+                                </button>
+                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-file-excel text-emerald-500"></i> Excel
+                                </button>
+                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-print text-gray-500"></i> Print
+                                </button>
+                            </div>
                         </div>
 
                         {/* Search Component */}
-                        <div style={{ position: "relative" }}>
-                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
+                        <div className="relative w-full sm:w-[260px]">
+                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
                             <input 
                                 type="text" 
-                                placeholder="Search name or purpose..." 
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                style={{ padding: "8px 12px 8px 36px", width: "260px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }}
+                                placeholder="Search employee..." 
+                                value={searchTerm} 
+                                onChange={(e) => setSearchTerm(e.target.value)} 
+                                className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
                             />
                         </div>
                     </div>
 
                     {/* Main Data Table */}
-                    <div style={{ overflowX: 'auto' }}>
-                        <table id="printable-advance-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                            <thead>
-                                <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "50px" }}></th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>DATE</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>ACCOUNT</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>GIVEN TO</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>GIVEN</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#16a34a", textTransform: "uppercase", textAlign: "right" }}>EXPENSED</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#2563eb", textTransform: "uppercase", textAlign: "right" }}>RETURNED</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#dc2626", textTransform: "uppercase", textAlign: "right" }}>DUE</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>STATUS</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center", width: "160px" }}>ACTIONS</th>
+                    <div className="overflow-x-auto brass-scroll border-t border-[#e1e3e5]">
+                        <table id="printable-advance-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                            <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
+                                <tr>
+                                    <th className="px-6 py-4 w-12 expand-btn-col"></th>
+                                    <th className="px-6 py-4">Date</th>
+                                    <th className="px-6 py-4">Account</th>
+                                    <th className="px-6 py-4">Given To</th>
+                                    <th className="px-6 py-4 text-right">Given</th>
+                                    <th className="px-6 py-4 text-right">Expensed</th>
+                                    <th className="px-6 py-4 text-right">Returned</th>
+                                    <th className="px-6 py-4 text-right">Due</th>
+                                    <th className="px-6 py-4 text-center">Status</th>
+                                    <th className="px-6 py-4 text-center actions-col">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody style={{ color: "#334155", fontSize: "0.915rem" }}>
+                            <tbody className="text-[13.5px] text-[#202223]">
                                 {groupedAdvances.length > 0 ? (
                                     groupedAdvances.map((group) => {
                                         const isExpanded = !!expandedRows[group.user_id];
@@ -363,149 +440,183 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
                                         return (
                                             <React.Fragment key={group.user_id}>
-                                                {/* Group summary row */}
-                                                <tr style={{ borderBottom: isExpanded ? "none" : "1px solid #f1f5f9", background: isExpanded ? "#f8fafc" : "#fff" }}>
-                                                    <td style={{ padding: "16px 24px", textAlign: "center" }}>
+                                                {/* --- MAIN GROUP ROW --- */}
+                                                <tr className={`transition-colors ${isExpanded ? 'bg-blue-50/30 border-none' : 'border-b border-gray-100 hover:bg-gray-50/50'}`}>
+                                                    <td className="px-6 py-4 text-center expand-btn-col">
                                                         {hasMultiple && (
                                                             <button 
                                                                 onClick={() => toggleExpand(group.user_id)}
-                                                                style={{ border: "none", background: "#e2e8f0", color: "#475569", width: "28px", height: "28px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "0.2s" }}
+                                                                className="flex h-7 w-7 items-center justify-center rounded-full border-none bg-gray-200 text-gray-500 transition-colors hover:bg-gray-300 focus:outline-none"
                                                             >
-                                                                <i className={`fa-solid fa-chevron-${isExpanded ? 'down' : 'right'}`} style={{ fontSize: "0.75rem" }}></i>
+                                                                <i className={`fa-solid fa-chevron-${isExpanded ? 'down' : 'right'} text-[10px]`}></i>
                                                             </button>
                                                         )}
                                                     </td>
-                                                    <td style={{ padding: "16px 24px", color: "#475569" }}>
+                                                    <td className="px-6 py-4 text-gray-500 font-medium">
                                                         {hasMultiple ? `${group.records.length} entries` : single.date}
                                                     </td>
-                                                    <td style={{ padding: "16px 24px", color: "#0f766e", fontWeight: "600" }}>
+                                                    <td className="px-6 py-4 font-semibold text-teal-700">
                                                         {hasMultiple ? 'Multiple' : (single.account?.name || 'N/A')}
                                                     </td>
-                                                    <td style={{ padding: "16px 24px" }}>
-                                                        <Link href={route('admin.advances.employeeLedger', group.user_id)} style={{ fontWeight: '700', color: '#0f172a', textDecoration: 'none' }}>
+                                                    <td className="px-6 py-4">
+                                                        <Link href={route('admin.advances.employeeLedger', group.user_id)} className="font-bold text-gray-900 hover:text-blue-600 transition-colors">
                                                             {group.user?.name}
                                                         </Link>
                                                         {hasMultiple ? (
-                                                            <span style={{ marginLeft: "8px", fontSize: "0.7rem", fontWeight: "700", color: "#2563eb", background: "#dbeafe", padding: "2px 8px", borderRadius: "999px" }}>
+                                                            <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-600">
                                                                 {group.records.length}
                                                             </span>
                                                         ) : (
-                                                            single.purpose && <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "2px" }}>{single.purpose}</div>
+                                                            single.purpose && <div className="text-[12px] text-gray-500 mt-1">{single.purpose}</div>
                                                         )}
                                                     </td>
-                                                    <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '700', color: '#0f172a' }}>
+                                                    <td className="px-6 py-4 text-right font-bold text-gray-900">
                                                         {group.total_given.toLocaleString('en-IN')}
                                                     </td>
-                                                    <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '600', color: '#16a34a' }}>
+                                                    <td className="px-6 py-4 text-right font-bold text-emerald-600">
                                                         {group.total_expensed > 0 ? group.total_expensed.toLocaleString('en-IN') : '-'}
                                                     </td>
-                                                    <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '600', color: '#2563eb' }}>
+                                                    <td className="px-6 py-4 text-right font-bold text-blue-600">
                                                         {group.total_returned > 0 ? group.total_returned.toLocaleString('en-IN') : '-'}
                                                     </td>
-                                                    <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '700', color: '#dc2626' }}>
+                                                    <td className="px-6 py-4 text-right font-bold text-red-600">
                                                         {group.total_due > 0 ? group.total_due.toLocaleString('en-IN') : '0'}
                                                     </td>
-                                                    <td style={{ padding: "16px 24px", textAlign: 'center' }}>
-                                                        <span style={{ 
-                                                            padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600', textTransform: 'capitalize',
-                                                            background: group.total_due > 0 ? '#fee2e2' : '#dcfce7', 
-                                                            color: group.total_due > 0 ? '#b91c1c' : '#15803d' 
-                                                        }}>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${group.total_due > 0 ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'}`}>
                                                             {group.total_due > 0 ? 'unsettled' : 'settled'}
                                                         </span>
                                                     </td>
-                                                    <td style={{ padding: "16px 24px", textAlign: 'center' }}>
+                                                    <td className="px-6 py-4 text-center actions-col">
                                                         {hasMultiple ? (
                                                             <button 
                                                                 onClick={() => toggleExpand(group.user_id)}
-                                                                style={{ background: "#f1f5f9", border: "none", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", color: "#2563eb", fontSize: "0.8rem", fontWeight: "600" }}
+                                                                className="rounded-lg bg-gray-100 px-3 py-1.5 text-[12px] font-bold text-blue-600 transition-colors hover:bg-gray-200"
                                                             >
                                                                 {isExpanded ? 'Hide' : 'View'} details
                                                             </button>
                                                         ) : (
-                                                            <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                            <div className="flex items-center justify-center gap-1.5">
                                                                 {hasPermission('return_advance') && single.status !== 'settled' && group.total_due > 0 && (
-                                                                    <button onClick={() => openReturnModal(single)} style={{ background: "#dcfce7", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a", fontSize: "0.85rem", fontWeight: "600" }} title="Refund Cash">
-                                                                        <i className="fa-solid fa-money-bill-transfer"></i>
+                                                                    <button onClick={() => openReturnModal(single)} className="flex h-7 w-7 items-center justify-center rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors" title="Refund Cash">
+                                                                        <i className="fa-solid fa-money-bill-transfer text-[12px]"></i>
                                                                     </button>
                                                                 )}
                                                                 {hasPermission('edit_advance') && (
-                                                                <button onClick={() => openEditModal(single)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit Record">
-                                                                    <i className="fa-regular fa-pen-to-square"></i>
-                                                                </button>
+                                                                    <button onClick={() => openEditModal(single)} className="flex h-7 w-7 items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors" title="Edit Record">
+                                                                        <i className="fa-regular fa-pen-to-square text-[12px]"></i>
+                                                                    </button>
                                                                 )}
                                                                 {hasPermission('delete_advance') && (
-                                                                <button onClick={() => handleDelete(single.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete Record">
-                                                                    <i className="fa-regular fa-trash-can"></i>
-                                                                </button>
+                                                                    <button onClick={() => handleDelete(single.id)} className="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete Record">
+                                                                        <i className="fa-regular fa-trash-can text-[12px]"></i>
+                                                                    </button>
                                                                 )}
                                                             </div>
                                                         )}
                                                     </td>
                                                 </tr>
 
-                                                {/* Expanded detail rows - individual advances for this employee */}
-                                                {isExpanded && hasMultiple && group.records.map((adv) => {
-                                                    const expensed = parseFloat(adv.settled_amount || 0);
-                                                    const returned = parseFloat(adv.returned_amount || 0);
-                                                    const totalGiven = parseFloat(adv.amount || 0);
-                                                    const due = totalGiven - expensed - returned;
+                                                {/* --- EXPANDED DETAILS ROWS --- */}
+                                                {isExpanded && hasMultiple && (
+                                                    <tr>
+                                                        <td colSpan="10" className="px-8 py-6 bg-gray-50 border-b border-gray-200 shadow-inner">
+                                                            <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+                                                                <table className="w-full border-collapse">
+                                                                    <thead className="bg-gray-100 text-[10.5px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-200">
+                                                                        <tr>
+                                                                            <th className="px-4 py-3 w-4 border-r border-gray-200"></th>
+                                                                            <th className="px-4 py-3">Date</th>
+                                                                            <th className="px-4 py-3">Account</th>
+                                                                            <th className="px-4 py-3">Purpose</th>
+                                                                            <th className="px-4 py-3 text-right">Given</th>
+                                                                            <th className="px-4 py-3 text-right">Expensed</th>
+                                                                            <th className="px-4 py-3 text-right">Returned</th>
+                                                                            <th className="px-4 py-3 text-right">Due</th>
+                                                                            <th className="px-4 py-3 text-center">Status</th>
+                                                                            <th className="px-4 py-3 text-center actions-col">Actions</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody className="text-[13px] text-gray-700">
+                                                                        {group.records.map((adv) => {
+                                                                            const expensed = parseFloat(adv.settled_amount || 0);
+                                                                            const returned = parseFloat(adv.returned_amount || 0);
+                                                                            const totalGiven = parseFloat(adv.amount || 0);
+                                                                            const due = totalGiven - expensed - returned;
 
-                                                    return (
-                                                        <tr key={adv.id} style={{ borderBottom: "1px solid #f1f5f9", background: "#f8fafc" }}>
-                                                            <td></td>
-                                                            <td style={{ padding: "10px 24px", color: "#64748b", fontSize: "0.85rem" }}>{adv.date}</td>
-                                                            <td style={{ padding: "10px 24px", color: "#0f766e", fontSize: "0.85rem" }}>{adv.account?.name || 'N/A'}</td>
-                                                            <td style={{ padding: "10px 24px", color: "#64748b", fontSize: "0.85rem" }}>{adv.purpose || '-'}</td>
-                                                            <td style={{ padding: "10px 24px", textAlign: 'right', fontWeight: '600', color: '#334155', fontSize: "0.85rem" }}>
-                                                                {totalGiven.toLocaleString('en-IN')}
-                                                            </td>
-                                                            <td style={{ padding: "10px 24px", textAlign: 'right', color: '#16a34a', fontSize: "0.85rem" }}>
-                                                                {expensed > 0 ? expensed.toLocaleString('en-IN') : '-'}
-                                                            </td>
-                                                            <td style={{ padding: "10px 24px", textAlign: 'right', color: '#2563eb', fontSize: "0.85rem" }}>
-                                                                {returned > 0 ? returned.toLocaleString('en-IN') : '-'}
-                                                            </td>
-                                                            <td style={{ padding: "10px 24px", textAlign: 'right', color: '#dc2626', fontSize: "0.85rem" }}>
-                                                                {due > 0 ? due.toLocaleString('en-IN') : '0'}
-                                                            </td>
-                                                            <td style={{ padding: "10px 24px", textAlign: 'center' }}>
-                                                                <span style={{ 
-                                                                    padding: '3px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '600', textTransform: 'capitalize',
-                                                                    background: adv.status === 'settled' ? '#dcfce7' : '#fee2e2', 
-                                                                    color: adv.status === 'settled' ? '#15803d' : '#b91c1c' 
-                                                                }}>
-                                                                    {adv.status}
-                                                                </span>
-                                                            </td>
-                                                            <td style={{ padding: "10px 24px", textAlign: 'center' }}>
-                                                                <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
-                                                                    {hasPermission('return_advance') && adv.status !== 'settled' && due > 0 && (
-                                                                        <button onClick={() => openReturnModal(adv)} style={{ background: "#dcfce7", border: "none", padding: "5px 9px", borderRadius: "6px", cursor: "pointer", color: "#16a34a", fontSize: "0.8rem" }} title="Refund Cash">
-                                                                            <i className="fa-solid fa-money-bill-transfer"></i>
-                                                                        </button>
-                                                                    )}
-                                                                    {hasPermission('edit_advance') && (
-                                                                        <button onClick={() => openEditModal(adv)} style={{ background: "#fff", border: "1px solid #e2e8f0", padding: "5px 9px", borderRadius: "6px", cursor: "pointer", color: "#0f172a", fontSize: "0.8rem" }} title="Edit Record">
-                                                                            <i className="fa-regular fa-pen-to-square"></i>
-                                                                        </button>
-                                                                    )}
-                                                                    {hasPermission('delete_advance') && (
-                                                                        <button onClick={() => handleDelete(adv.id)} style={{ background: "#fff", border: "1px solid #fecaca", padding: "5px 9px", borderRadius: "6px", cursor: "pointer", color: "#ef4444", fontSize: "0.8rem" }} title="Delete Record">
-                                                                            <i className="fa-regular fa-trash-can"></i>
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
+                                                                            return (
+                                                                                <tr key={adv.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                                                                                    <td className="px-4 py-3 border-r border-gray-100"></td>
+                                                                                    <td className="px-4 py-3 font-medium text-gray-500">
+                                                                                        <i className="fa-regular fa-calendar mr-1.5"></i>{adv.date}
+                                                                                    </td>
+                                                                                    <td className="px-4 py-3 font-semibold text-teal-700">
+                                                                                        {adv.account?.name || 'N/A'}
+                                                                                    </td>
+                                                                                    <td className="px-4 py-3 text-gray-600">
+                                                                                        {adv.purpose || '-'}
+                                                                                    </td>
+                                                                                    <td className="px-4 py-3 text-right font-bold text-gray-900">
+                                                                                        {totalGiven.toLocaleString('en-IN')}
+                                                                                    </td>
+                                                                                    <td className="px-4 py-3 text-right font-semibold text-emerald-600">
+                                                                                        {expensed > 0 ? expensed.toLocaleString('en-IN') : '-'}
+                                                                                    </td>
+                                                                                    <td className="px-4 py-3 text-right font-semibold text-blue-600">
+                                                                                        {returned > 0 ? returned.toLocaleString('en-IN') : '-'}
+                                                                                    </td>
+                                                                                    <td className="px-4 py-3 text-right font-bold text-red-600">
+                                                                                        {due > 0 ? due.toLocaleString('en-IN') : '0'}
+                                                                                    </td>
+                                                                                    <td className="px-4 py-3 text-center">
+                                                                                        <span className={`inline-flex px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${adv.status === 'settled' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+                                                                                            {adv.status}
+                                                                                        </span>
+                                                                                    </td>
+                                                                                    <td className="px-4 py-3 text-center actions-col">
+                                                                                        <div className="flex items-center justify-center gap-1.5">
+                                                                                            {hasPermission('view_client_advance') && (
+                                                                                                <button onClick={() => openViewModal(adv)} className="flex h-7 w-7 items-center justify-center rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="View">
+                                                                                                    <i className="fa-regular fa-eye text-[12px]"></i>
+                                                                                                </button>
+                                                                                            )}
+                                                                                            {hasPermission('return_advance') && adv.status !== 'settled' && due > 0 && (
+                                                                                                <button onClick={() => openReturnModal(adv)} className="flex h-7 w-7 items-center justify-center rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors" title="Refund Cash">
+                                                                                                    <i className="fa-solid fa-money-bill-transfer text-[12px]"></i>
+                                                                                                </button>
+                                                                                            )}
+                                                                                            {hasPermission('edit_advance') && (
+                                                                                                <button onClick={() => openEditModal(adv)} className="flex h-7 w-7 items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors" title="Edit">
+                                                                                                    <i className="fa-regular fa-pen-to-square text-[12px]"></i>
+                                                                                                </button>
+                                                                                            )}
+                                                                                            {hasPermission('delete_advance') && (
+                                                                                                <button onClick={() => handleDelete(adv.id)} className="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete">
+                                                                                                    <i className="fa-regular fa-trash-can text-[12px]"></i>
+                                                                                                </button>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                            );
+                                                                        })}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
                                             </React.Fragment>
                                         );
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan="10" style={{ textAlign: 'center', padding: '36px', color: '#94a3b8' }}>No advance records found.</td>
+                                        <td colSpan="10" className="px-6 py-12 text-center text-gray-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <i className="fa-solid fa-hand-holding-dollar text-4xl text-gray-300 mb-3"></i>
+                                                <p>No advance records found.</p>
+                                            </div>
+                                        </td>
                                     </tr>
                                 )}
                             </tbody>
@@ -514,16 +625,16 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
                     {/* Pagination Footer */}
                     {advances.links && advances.links.length > 3 && (
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderTop: "1px solid #f1f5f9", background: "#f8fafc", flexWrap: "wrap", gap: "16px" }}>
-                            <div style={{ color: "#64748b", fontSize: "0.85rem" }}>
-                                Showing <b>{advances.from || 0}</b> to <b>{advances.to || 0}</b> of <b>{advances.total || 0}</b> entries
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#e1e3e5] bg-[#f6f6f7] px-6 py-4">
+                            <div className="text-[13px] text-gray-500">
+                                Showing {advances.from || 0} to {advances.to || 0} of {advances.total || 0} entries
                             </div>
-                            <div style={{ display: "flex", gap: "4px" }}>
+                            <div className="flex flex-wrap items-center gap-1">
                                 {advances.links.map((link, i) => (
                                     link.url === null ? (
-                                        <span key={i} style={{ padding: "8px 14px", border: "1px solid #e2e8f0", borderRadius: "6px", color: "#cbd5e1", fontSize: "0.85rem", cursor: "not-allowed", background: "#fff" }} dangerouslySetInnerHTML={{ __html: link.label }} />
+                                        <span key={i} className="flex min-w-[32px] items-center justify-center rounded-md border border-gray-200 bg-gray-100 px-2.5 py-1.5 text-[13px] text-gray-400 cursor-not-allowed" dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }} />
                                     ) : (
-                                        <Link key={i} href={link.url} preserveState style={{ padding: "8px 14px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.85rem", textDecoration: "none", fontWeight: link.active ? "700" : "500", background: link.active ? "#2563eb" : "#ffffff", color: link.active ? "#ffffff" : "#475569", boxShadow: link.active ? "0 2px 4px rgba(37, 99, 235, 0.2)" : "none" }} dangerouslySetInnerHTML={{ __html: link.label }} />
+                                        <Link key={i} href={link.url} preserveState className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] transition-colors ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`} dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }} />
                                     )
                                 ))}
                             </div>
@@ -534,139 +645,150 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
             {/* --- MAIN CREATE / EDIT FORM MODAL SECTION --- */}
             {showModal && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
                         
                         {/* Modal Header */}
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
-                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                            <h3 className="text-[18px] font-semibold text-[#202223]">
                                 {editMode ? '📝 Edit Advance Info' : '✨ Log Advance Payment'}
                             </h3>
-                            <button type="button" onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}>
-                                <i className="fa-solid fa-xmark"></i>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
                         
                         {/* Modal Form */}
-                        <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
-                            
-                            {errors.error && (
-                                <div style={{ background: "#fee2e2", color: "#b91c1c", padding: "12px", borderRadius: "6px", marginBottom: "16px", fontSize: "0.875rem", fontWeight: "600", display: "flex", alignItems: "center", gap: "8px" }}>
-                                    <i className="fa-solid fa-circle-exclamation"></i>
-                                    {errors.error}
-                                </div>
-                            )}
+                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
+                            <div className="p-6 overflow-y-auto brass-scroll">
+                                {errors.error && (
+                                    <div className="mb-5 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-[13.5px] font-medium text-red-700">
+                                        <i className="fa-solid fa-circle-exclamation mt-0.5"></i>
+                                        {errors.error}
+                                    </div>
+                                )}
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>
-                                <div style={{ flexDirection: "column", display: "flex" }}>
-                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Select Account *</label>
-                                    <select 
-                                        value={data.account_id} 
-                                        onChange={e => setData('account_id', e.target.value)} 
-                                        disabled={editMode}
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: "500", background: editMode ? "#f1f5f9" : "#fff", color: "#334155", height: "42px" }}
-                                        required={!editMode}
-                                    >
-                                        <option value="">-- Choose Account --</option>
-                                        {accounts.map(acc => (
-                                            <option key={acc.id} value={acc.id}>
-                                                {acc.name} (Bal: {Number(acc.current_balance).toLocaleString('en-IN')})
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {errors.account_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.account_id}</p>}
-                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Select Account *</label>
+                                        <Select
+                                            options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${Number(a.current_balance).toLocaleString('en-IN')})` }))}
+                                            value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
+                                            onChange={(selected) => setData("account_id", selected ? selected.value : "")}
+                                            placeholder="-- Choose Account --"
+                                            isDisabled={editMode}
+                                            isSearchable
+                                            isClearable
+                                            styles={selectStyles}
+                                            menuPosition="fixed"
+                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                        />
+                                        {errors.account_id && <p className="text-red-500 text-[12px] mt-1">{errors.account_id}</p>}
+                                    </div>
 
-                                <div style={{ flexDirection: "column", display: "flex", marginBottom: "16px" }}>
-                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>
-                                        Employee *
-                                    </label>
-                                    <select 
-                                        value={data.user_id} 
-                                        onChange={e => setData('user_id', e.target.value)} 
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
-                                        required
-                                    >
-                                        <option value="">Select an Employee...</option>
-                                        {employees.map(emp => (
-                                            <option key={emp.id} value={emp.id}>{emp.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>
-                                <div style={{ flexDirection: "column", display: "flex" }}>
-                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount (BDT) *</label>
-                                    <input 
-                                        type="number" 
-                                        step="0.01"
-                                        value={data.amount} 
-                                        onChange={e => setData('amount', e.target.value)} 
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: "700" }}
-                                        placeholder="0.00" 
-                                        required
-                                    />
-                                    {errors.amount && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.amount}</p>}
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Employee *</label>
+                                        <Select
+                                            options={employees.map((e) => ({ value: e.id, label: e.name }))}
+                                            value={employees.map((e) => ({ value: e.id, label: e.name })).find((opt) => Number(opt.value) === Number(data.user_id)) || null}
+                                            onChange={(selected) => setData("user_id", selected ? selected.value : "")}
+                                            placeholder="-- Select Employee --"
+                                            isSearchable
+                                            isClearable
+                                            styles={selectStyles}
+                                            menuPosition="fixed"
+                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                        />
+                                        {errors.user_id && <p className="text-red-500 text-[12px] mt-1">{errors.user_id}</p>}
+                                    </div>
                                 </div>
 
-                                <div style={{ flexDirection: "column", display: "flex" }}>
-                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Date *</label>
-                                    <input 
-                                        type="date" 
-                                        value={data.date} 
-                                        onChange={e => setData('date', e.target.value)} 
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", color: "#334155" }}
-                                        required
-                                    />
-                                    {errors.date && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.date}</p>}
-                                </div>
-                            </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-emerald-700 mb-1.5">Amount (BDT) *</label>
+                                        <input 
+                                            type="number" 
+                                            step="0.01"
+                                            value={data.amount} 
+                                            onChange={e => setData('amount', e.target.value)} 
+                                            className="w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-[15px] font-bold text-emerald-800 outline-none transition-shadow focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50" 
+                                            placeholder="0.00" 
+                                            required 
+                                        />
+                                        {errors.amount && <p className="text-red-500 text-[12px] mt-1">{errors.amount}</p>}
+                                    </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>
-                                <div style={{ flexDirection: "column", display: "flex" }}>
-                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Purpose</label>
-                                    <input 
-                                        type="text" 
-                                        value={data.purpose} 
-                                        onChange={e => setData('purpose', e.target.value)} 
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }}
-                                        placeholder="e.g. Office Shopping" 
-                                    />
-                                    {errors.purpose && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.purpose}</p>}
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Date *</label>
+                                        <input 
+                                            type="date" 
+                                            value={data.date} 
+                                            onChange={e => setData('date', e.target.value)} 
+                                            className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                            required 
+                                        />
+                                        {errors.date && <p className="text-red-500 text-[12px] mt-1">{errors.date}</p>}
+                                    </div>
                                 </div>
 
-                                <div style={{ flexDirection: "column", display: "flex" }}>
-                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Status</label>
-                                    <select 
-                                        value={data.status} 
-                                        onChange={e => setData('status', e.target.value)} 
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", background: "#fff", color: "#334155", height: "42px" }}
-                                    >
-                                        <option value="unsettled">Unsettled (Not adjusted)</option>
-                                        <option value="settled">Settled (Bill Submitted)</option>
-                                    </select>
-                                    {errors.status && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.status}</p>}
-                                </div>
-                            </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Purpose</label>
+                                        <CreatableSelect
+                                            options={[
+                                                { value: 'Fuel Purchase', label: 'Fuel Purchase' },
+                                                { value: 'Vehicle Maintenance', label: 'Vehicle Maintenance' },
+                                                { value: 'Staff Advance', label: 'Staff Advance' },
+                                                { value: 'Travel Expense', label: 'Travel Expense' },
+                                                { value: 'Utility Bill', label: 'Utility Bill' },
+                                                { value: 'Other', label: 'Other' },
+                                            ]}
+                                            value={data.purpose ? { value: data.purpose, label: data.purpose } : null}
+                                            onChange={(selected) => setData('purpose', selected ? selected.value : '')}
+                                            onCreateOption={(inputValue) => setData('purpose', inputValue)}
+                                            placeholder="-- Select or type Purpose --"
+                                            isClearable
+                                            styles={selectStyles}
+                                            menuPosition="fixed"
+                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                        />
+                                        {errors.purpose && <p className="text-red-500 text-[12px] mt-1">{errors.purpose}</p>}
+                                    </div>
 
-                            <div style={{ flexDirection: "column", display: "flex", marginBottom: "16px" }}>
-                                <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Notes</label>
-                                <textarea 
-                                    value={data.notes} 
-                                    onChange={e => setData('notes', e.target.value)} 
-                                    rows="1"
-                                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", resize: "none" }}
-                                    placeholder="Additional details..." 
-                                ></textarea>
-                                {errors.notes && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.notes}</p>}
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Status</label>
+                                        <select 
+                                            value={data.status} 
+                                            onChange={e => setData('status', e.target.value)} 
+                                            className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                        >
+                                            <option value="unsettled">Unsettled (Not adjusted)</option>
+                                            <option value="settled">Settled (Bill Submitted)</option>
+                                        </select>
+                                        {errors.status && <p className="text-red-500 text-[12px] mt-1">{errors.status}</p>}
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-gray-100 pt-5">
+                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Notes</label>
+                                    <textarea 
+                                        value={data.notes} 
+                                        onChange={e => setData('notes', e.target.value)} 
+                                        rows="2"
+                                        className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] text-gray-900 outline-none resize-y min-h-[80px] transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                        placeholder="Optional additional details..." 
+                                    ></textarea>
+                                    {errors.notes && <p className="text-red-500 text-[12px] mt-1">{errors.notes}</p>}
+                                </div>
                             </div>
 
                             {/* Modal Footer Control */}
-                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                <button type="button" onClick={() => setShowModal(false)} style={{ background: "#f1f5f9", color: "#334155", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500" }}>Cancel</button>
-                                <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", opacity: processing ? 0.7 : 1 }}>
-                                    {processing ? 'Saving...' : 'Save Record'}
+                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 shrink-0">
+                                <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70">
+                                    {processing ? 'Saving...' : (editMode ? "Update Advance" : "Save Advance")}
                                 </button>
                             </div>
                         </form>
@@ -674,53 +796,117 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                 </div>
             )}
 
+            {/* --- VIEW MODAL --- */}
+            {showViewModal && selectedAdvance && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                            <h3 className="text-[18px] font-semibold text-[#202223] flex items-center gap-2">
+                                <i className="fa-solid fa-receipt text-[var(--accent)]"></i> Transaction Details
+                            </h3>
+                            <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto brass-scroll">
+                            <div className="text-center mb-6">
+                                <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Employee</span>
+                                <div className="text-[20px] font-extrabold text-gray-900">{selectedAdvance.user?.name || "N/A"}</div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-5 mb-5 bg-gray-50 p-5 rounded-xl border border-gray-100">
+                                <div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Amount Given</span>
+                                    <div className="text-[18px] font-bold text-gray-900">TK. {Number(selectedAdvance.amount).toLocaleString('en-IN')}</div>
+                                </div>
+                                <div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Adjusted / Expensed</span>
+                                    <div className="text-[18px] font-bold text-emerald-600">TK. {Number(selectedAdvance.settled_amount).toLocaleString('en-IN')}</div>
+                                </div>
+                                <div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Returned Cash</span>
+                                    <div className="text-[18px] font-bold text-blue-600">TK. {Number(selectedAdvance.returned_amount).toLocaleString('en-IN')}</div>
+                                </div>
+                                <div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Currently Due</span>
+                                    <div className="text-[18px] font-bold text-red-600">TK. {Number(selectedAdvance.amount - selectedAdvance.settled_amount - selectedAdvance.returned_amount).toLocaleString('en-IN')}</div>
+                                </div>
+                                <div className="sm:col-span-2 border-t border-gray-200 pt-4 mt-1">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Given Date</span>
+                                    <div className="font-semibold text-gray-800 flex items-center gap-2">
+                                        <i className="fa-regular fa-calendar-days text-gray-400"></i> {selectedAdvance.date}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="border-t border-gray-100 pt-5">
+                                <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Note</span>
+                                <div className="text-[14px] text-gray-700 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                    {selectedAdvance.note || <span className="italic text-gray-400">No additional note.</span>}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end shrink-0">
+                            <button onClick={() => setShowViewModal(false)} className="rounded-lg bg-gray-800 px-6 py-2 text-[14px] font-medium text-white transition-colors hover:bg-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-700/50">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* --- CASH RETURN MODAL --- */}
             {showReturnModal && selectedAdvance && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "450px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-md bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
                         
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-emerald-100 bg-emerald-50/50 shrink-0">
                             <div>
-                                <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
-                                    💵 Refund Leftover Cash
+                                <h3 className="m-0 text-[18px] font-semibold text-emerald-700 flex items-center gap-2">
+                                    <i className="fa-solid fa-money-bill-transfer"></i> Refund Leftover Cash
                                 </h3>
-                                <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#64748b" }}>
+                                <p className="m-0 mt-1 text-[13px] text-emerald-600">
                                     Return cash from <b>{selectedAdvance.user?.name || 'N/A'}</b> to Account.
                                 </p>
                             </div>
-                            <button type="button" onClick={() => setShowReturnModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}>
-                                <i className="fa-solid fa-xmark"></i>
+                            <button onClick={() => setShowReturnModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
                         
-                        <form onSubmit={handleReturnSubmit} style={{ padding: "24px" }}>
-                            {returnErrors.error && (
-                                <div style={{ background: "#fee2e2", color: "#b91c1c", padding: "12px", borderRadius: "6px", marginBottom: "16px", fontSize: "0.875rem", fontWeight: "600", display: "flex", alignItems: "center", gap: "8px" }}>
-                                    <i className="fa-solid fa-circle-exclamation"></i>
-                                    {returnErrors.error}
-                                </div>
-                            )}
+                        <form onSubmit={handleReturnSubmit} className="flex flex-col overflow-hidden">
+                            <div className="p-6 overflow-y-auto brass-scroll">
+                                {returnErrors.error && (
+                                    <div className="mb-5 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-[13.5px] font-medium text-red-700">
+                                        <i className="fa-solid fa-circle-exclamation mt-0.5"></i>
+                                        {returnErrors.error}
+                                    </div>
+                                )}
 
-                            <div style={{ flexDirection: "column", display: "flex", marginBottom: "16px" }}>
-                                <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Refund Amount (BDT) *</label>
-                                <input 
-                                    type="number" 
-                                    step="0.01"
-                                    value={returnData.return_amount} 
-                                    onChange={e => setReturnData('return_amount', e.target.value)} 
-                                    style={{ width: "100%", padding: "10px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: "700" }}
-                                    placeholder="Enter returned cash amount" 
-                                    required
-                                />
-                                {returnErrors.return_amount && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{returnErrors.return_amount}</p>}
-                                <small style={{ color: "#64748b", marginTop: "6px", fontSize: "0.75rem" }}>
-                                    This money will be added back to <b>{selectedAdvance.account?.name}</b>.
-                                </small>
+                                <div>
+                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Refund Amount (BDT) *</label>
+                                    <input 
+                                        type="number" 
+                                        step="0.01"
+                                        value={returnData.return_amount} 
+                                        onChange={e => setReturnData('return_amount', e.target.value)} 
+                                        className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[15px] font-bold text-gray-900 outline-none transition-shadow focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50" 
+                                        placeholder="Enter returned cash amount" 
+                                        required
+                                    />
+                                    {returnErrors.return_amount && <p className="text-red-500 text-[12px] mt-1">{returnErrors.return_amount}</p>}
+                                    <div className="mt-2 text-[12px] text-gray-500 flex items-start gap-1.5">
+                                        <i className="fa-solid fa-circle-info mt-0.5 text-blue-500"></i>
+                                        This money will be added back to <b>{selectedAdvance.account?.name}</b>.
+                                    </div>
+                                </div>
                             </div>
 
-                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                <button type="button" onClick={() => setShowReturnModal(false)} style={{ background: "#f1f5f9", color: "#334155", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500" }}>Cancel</button>
-                                <button type="submit" disabled={returnProcessing} style={{ background: "#16a34a", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", opacity: returnProcessing ? 0.7 : 1 }}>
+                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 shrink-0">
+                                <button type="button" onClick={() => setShowReturnModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={returnProcessing} className="rounded-lg bg-emerald-600 px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 disabled:opacity-70">
                                     {returnProcessing ? 'Processing...' : 'Confirm Refund'}
                                 </button>
                             </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
-import { useForm, Head, router, usePage } from "@inertiajs/react";
+import { useForm, Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
 const COMPANY = {
@@ -55,7 +55,7 @@ function numberToWords(amount) {
 /* =========================================
    REUSABLE SEARCHABLE SELECT COMPONENT
 ========================================= */
-function SearchableSelect({ options, value, onChange, placeholder, getLabel, getValue, renderOption, error }) {
+function SearchableSelect({ options, value, onChange, placeholder, getLabel, getValue, renderOption, error, disabled }) {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");
     const wrapperRef = useRef(null);
@@ -82,44 +82,37 @@ function SearchableSelect({ options, value, onChange, placeholder, getLabel, get
     );
 
     return (
-        <div ref={wrapperRef} style={{ position: "relative" }}>
+        <div ref={wrapperRef} className="relative w-full">
             <div
-                onClick={() => setOpen((o) => !o)}
-                style={{
-                    width: "100%", padding: "8px 12px", border: `1px solid ${error ? "#fca5a5" : "#cbd5e1"}`,
-                    borderRadius: "6px", background: "#fff", cursor: "pointer", display: "flex",
-                    justifyContent: "space-between", alignItems: "center", fontSize: "0.875rem",
-                    color: selected ? "#0f172a" : "#94a3b8",
-                }}
+                onClick={() => !disabled && setOpen((o) => !o)}
+                className={`flex w-full cursor-pointer items-center justify-between rounded-lg border px-3.5 py-2.5 text-[14px] outline-none transition-shadow 
+                    ${disabled ? 'bg-gray-100 cursor-not-allowed opacity-70' : 'hover:bg-gray-50 focus:ring-1'} 
+                    ${error ? 'border-red-400 focus:ring-red-500/50' : 'border-gray-300 focus:border-[var(--accent)] focus:ring-[var(--accent)]/50'} 
+                    ${selected ? 'text-gray-900 bg-white' : 'text-gray-500 bg-white'}
+                `}
             >
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span className="truncate flex-1">
                     {selected ? getLabel(selected) : placeholder}
                 </span>
-                <i className="fa-solid fa-chevron-down" style={{ fontSize: "0.7rem", color: "#94a3b8", marginLeft: "8px", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}></i>
+                <i className={`fa-solid fa-chevron-down text-[10px] text-gray-400 shrink-0 ml-2 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}></i>
             </div>
 
-            {open && (
-                <div style={{
-                    position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#fff",
-                    border: "1px solid #cbd5e1", borderRadius: "8px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
-                    zIndex: 60, maxHeight: "260px", display: "flex", flexDirection: "column", overflow: "hidden",
-                }}>
-                    <div style={{ padding: "8px", borderBottom: "1px solid #f1f5f9" }}>
-                        <div style={{ position: "relative" }}>
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Type to search..."
-                                style={{ width: "100%", padding: "6px 10px 6px 30px", border: "1px solid #e2e8f0", borderRadius: "6px", outline: "none", fontSize: "0.8rem", boxSizing: "border-box" }}
-                            />
-                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", fontSize: "0.75rem" }}></i>
-                        </div>
+            {open && !disabled && (
+                <div className="absolute top-full left-0 mt-1 flex max-h-[260px] w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl z-50">
+                    <div className="border-b border-gray-100 bg-gray-50 p-2 shrink-0 relative">
+                        <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[12px]"></i>
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Type to search..."
+                            className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13px] outline-none focus:border-[var(--accent)]"
+                        />
                     </div>
-                    <div style={{ overflowY: "auto" }}>
+                    <div className="overflow-y-auto py-1">
                         {filtered.length === 0 ? (
-                            <div style={{ padding: "14px", textAlign: "center", color: "#94a3b8", fontSize: "0.8rem" }}>No results found</div>
+                            <div className="p-3 text-center text-[13px] text-gray-400">No results found</div>
                         ) : (
                             filtered.map((opt) => {
                                 const isActive = String(getValue(opt)) === String(value);
@@ -127,15 +120,7 @@ function SearchableSelect({ options, value, onChange, placeholder, getLabel, get
                                     <div
                                         key={getValue(opt)}
                                         onClick={() => { onChange(String(getValue(opt))); setOpen(false); setSearch(""); }}
-                                        onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "#f8fafc"; }}
-                                        onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "#fff"; }}
-                                        style={{
-                                            padding: "10px 12px", cursor: "pointer", fontSize: "0.85rem",
-                                            background: isActive ? "#eff6ff" : "#fff",
-                                            color: isActive ? "#2563eb" : "#334155",
-                                            fontWeight: isActive ? "600" : "400",
-                                            borderBottom: "1px solid #f8fafc",
-                                        }}
+                                        className={`cursor-pointer px-3.5 py-2 text-[13.5px] transition-colors ${isActive ? 'bg-[var(--accent-bg)] text-[var(--accent)] font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
                                     >
                                         {renderOption ? renderOption(opt) : getLabel(opt)}
                                     </div>
@@ -149,7 +134,7 @@ function SearchableSelect({ options, value, onChange, placeholder, getLabel, get
     );
 }
 
-export default function Index({ payments = {}, invoices = [], accounts = [], clients = [],years = [],totalAmount = 0, filters = {} }) {
+export default function Index({ payments = {}, invoices = [], accounts = [], clients = [], years = [], totalAmount = 0, filters = {} }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
     const permissions = auth?.permissions || [];
@@ -239,7 +224,6 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
         }, { preserveState: true, replace: true });
     };
 
-
     const handleCopy = () => {
         if (!paymentList.length) return Swal.fire("Empty!", "No data to copy", "warning");
         
@@ -281,7 +265,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                         p { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 14px; }
                         table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; }
                         th, td { padding: 12px 16px; border: 1px solid #cbd5e1; font-size: 13px; }
-                        th { background-color: #f1f5f9; font-weight: 600; color: #475569; text-transform: uppercase; }
+                        th { background-color: #f8fafc; font-weight: 600; color: #475569; text-transform: uppercase; }
                         th:last-child, td:last-child { display: none !important; }
                         table { counter-reset: rowNumber; }
                         tbody tr { counter-increment: rowNumber; }
@@ -303,76 +287,109 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
     const handlePrintReceipt = (payment) => {
         const client = payment.invoice?.client;
         const receiptNo = String(payment.id).padStart(3, '0');
-        const printWindow = window.open('', '_blank', `width=${window.screen.width},height=${window.screen.height}`);
+        const printWindow = window.open('', '_blank');
         
+        const receiptHTML = (copyType) => `
+            <div class="receipt">
+                <div class="watermark">${COMPANY.name}</div>
+                
+                <div class="header">
+                    <div><img src="${COMPANY.logo}" class="logo" alt="Logo" /></div>
+                    <div class="company-details">
+                        <h2>${COMPANY.name}</h2>
+                        ${COMPANY.address}<br/>
+                        Phone: ${COMPANY.phone} | Email: ${COMPANY.email}
+                    </div>
+                </div>
+
+                <div class="title-container">
+                    <div class="title">Money Receipt</div>
+                    <div class="copy-badge">${copyType}</div>
+                </div>
+
+                <div class="content">
+                    <table class="details-table">
+                        <tr>
+                            <td style="width: 50%;"><strong>Receipt No:</strong> #${receiptNo}</td>
+                            <td style="width: 50%; text-align: right;"><strong>Date:</strong> ${payment.payment_date || ''}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"><strong>Received with thanks from:</strong> ${client?.name || 'N/A'} ${client?.company_name ? `(${client.company_name})` : ''}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"><strong>Against Invoice Ref:</strong> ${payment.invoice?.invoice_number || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"><strong>Payment Mode:</strong> ${payment.account?.name || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"><strong>Amount in Words:</strong> <span class="words">${numberToWords(payment.amount)}</span></td>
+                        </tr>
+                        ${payment.note ? `<tr><td colspan="2"><strong>Notes:</strong> ${payment.note}</td></tr>` : ''}
+                    </table>
+                </div>
+
+                <div class="footer-section">
+                    <div class="amount-box">TK. ${Number(payment.amount).toLocaleString('en-IN')}</div>
+                    <div class="signature">
+                        <div class="sign-line">Authorized Signature</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
         printWindow.document.write(`
             <html>
                 <head>
-                    <title>Money Receipt - ${receiptNo}</title>
+                    <title>Money Receipt - #${receiptNo}</title>
                     <style>
-                        @page { margin: 12mm; }
                         * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                        html, body { margin: 0; padding: 0; }
-                        body { font-family: Georgia, 'Times New Roman', serif; padding: 24px; color: #1e293b; }
-                        .receipt { max-width: 720px; margin: 0 auto; border: 2px solid #10b981; border-radius: 6px; padding: 24px 32px; page-break-inside: avoid; break-inside: avoid; }
-                        .header-table { width: 100%; border-collapse: collapse; border-bottom: 3px solid #10b981; margin-bottom: 20px; }
-                        .header-table td { vertical-align: middle; padding-bottom: 14px; }
-                        .header-table td:last-child { text-align: right; vertical-align: top; }
-                        .brand-table { border-collapse: collapse; }
-                        .brand-table td { padding: 0; vertical-align: middle; }
-                        .brand-logo { width: 150px; max-width: 150px;  height: auto; display: block; margin-right: 14px; }
-                        .brand h1 { margin: 0; font-size: 28px; letter-spacing: 1px; color: #0f172a; line-height: 1.1; }
-                        .brand p { margin: 4px 0 0; font-size: 11px; color: #10b981; letter-spacing: 3px; text-transform: uppercase; }
-                        .contact { font-size: 11px; color: #475569; line-height: 1.6; }
-                        .title { text-align: center; font-size: 20px; font-weight: bold; letter-spacing: 4px; margin: 6px 0 26px; text-transform: uppercase; color: #0f172a; }
-                        .field-table { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 14px; }
-                        .field-table td { border-bottom: 1px dotted #94a3b8; padding: 0 24px 5px 0; }
-                        .field-table td:last-child { padding-right: 0; }
-                        .label { color: #64748b; margin-right: 6px; }
-                        .value { font-weight: 600; color: #0f172a; }
-                        .footer-table { width: 100%; border-collapse: collapse; margin-top: 36px; }
-                        .footer-table td { vertical-align: bottom; width: 33.33%; }
-                        .taka-box { display: inline-block; border: 2px solid #0f172a; border-radius: 4px; padding: 10px 22px; font-weight: bold; font-size: 16px; }
-                        .sign { text-align: center; font-size: 12px; color: #475569; }
-                        .sign .line { border-top: 1px solid #334155; width: 150px; margin: 0 auto 6px; }
+                        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fff; }
+                        
+                        @page { size: A4 portrait; margin: 10mm; }
+                        
+                        .page-container {
+                            width: 190mm;
+                            display: flex;
+                            flex-direction: column;
+                        }
+                        
+                        .receipt {
+                            border: 2px solid #147a5b;
+                            border-radius: 10px;
+                            padding: 16px 24px;
+                            position: relative;
+                            overflow: hidden;
+                            display: flex;
+                            flex-direction: column;
+                        }
+
+                        .watermark { position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); font-size: 50px; font-weight: 900; color: rgba(20, 122, 91, 0.04); z-index: 0; pointer-events: none; text-transform: uppercase; white-space: nowrap; letter-spacing: 8px; }
+                        
+                        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 10px; position: relative; z-index: 1; }
+                        .logo { height: 36px; width: auto; }
+                        .company-details { text-align: right; font-size: 10px; line-height: 1.4; color: #475569; }
+                        .company-details h2 { margin: 0 0 2px 0; font-size: 15px; color: #147a5b; text-transform: uppercase; letter-spacing: 1px; }
+                        
+                        .title-container { text-align: center; margin-bottom: 10px; position: relative; z-index: 1; }
+                        .title { display: inline-block; font-size: 14px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; color: #147a5b; background: #f0fdf4; padding: 4px 16px; border: 1px solid #147a5b; border-radius: 4px; }
+                        .copy-badge { position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 9px; font-weight: bold; color: #64748b; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; background: #f8fafc; }
+
+                        .content { position: relative; z-index: 1; }
+                        .details-table { width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.5; color: #1e293b; }
+                        .details-table td { padding: 4px 0; border-bottom: 1px dotted #cbd5e1; }
+                        .details-table strong { color: #475569; font-weight: 600; margin-right: 6px; }
+                        .words { font-weight: 700; font-style: italic; color: #0f172a; text-transform: capitalize; }
+                        
+                        .footer-section { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 14px; padding-top: 10px; position: relative; z-index: 1; }
+                        .amount-box { border: 2px solid #147a5b; border-radius: 6px; padding: 7px 18px; font-weight: 800; font-size: 15px; color: #147a5b; background: #f0fdf4; box-shadow: 2px 2px 0px rgba(20, 122, 91, 0.2); }
+                        .signature { text-align: center; font-size: 11px; color: #475569; width: 160px; }
+                        .sign-line { border-top: 1px solid #0f172a; padding-top: 5px; font-weight: 600; }
                     </style>
                 </head>
                 <body>
-                    <div class="receipt">
-                        <table class="header-table"><tr>
-                            <td>
-                                <table class="brand-table">
-                                    <tr>
-                                        <td>
-                                            <img src="${COMPANY.logo}" class="brand-logo" alt="Logo" />
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
-                            <td class="contact">
-                                ${COMPANY.phone}<br/>
-                                ${COMPANY.email}<br/>
-                                ${COMPANY.website}<br/>
-                                ${COMPANY.address}
-                            </td>
-                        </tr></table>
-                        <div class="title">Money Receipt</div>
-                        <table class="field-table"><tr>
-                            <td style="width:220px;"><span class="label">SL NO:</span><span class="value">${receiptNo}</span></td>
-                            <td><span class="label">Date:</span><span class="value">${payment.payment_date || ''}</span></td>
-                        </tr></table>
-                        <table class="field-table"><tr><td><span class="label">Received with thanks from:</span><span class="value">${client?.name || 'N/A'}</span></td></tr></table>
-                        <table class="field-table"><tr><td><span class="label">Address:</span><span class="value">${client?.address || '-'}</span></td></tr></table>
-                        <table class="field-table"><tr><td><span class="label">In Words:</span><span class="value">${numberToWords(payment.amount)}</span></td></tr></table>
-                        <table class="field-table"><tr>
-                            <td><span class="label">Against Invoice:</span><span class="value">${payment.invoice?.invoice_number || '-'}</span></td>
-                            <td><span class="label">Deposited To:</span><span class="value">${payment.account?.name || '-'}</span></td>
-                        </tr></table>
-                        <table class="footer-table"><tr>
-                            <td><div class="taka-box">Taka: ${Number(payment.amount).toLocaleString('en-IN')}</div></td>
-                            <td class="sign"><div class="line"></div>Received By</td>
-                            <td class="sign"><div class="line"></div>For ${COMPANY.name}</td>
-                        </tr></table>
+                    <div class="page-container">
+                        ${receiptHTML('Customer Copy')}
                     </div>
                 </body>
             </html>
@@ -466,164 +483,230 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
         <AdminLayout>
             <Head title="Receive Payments" />
 
-            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc" }}>
-                <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-                    <h1 className="page-title" style={{ fontSize: "1.5rem", fontWeight: "700", color: "#0f172a" }}>Invoice Payments</h1>
+            <div className="flex flex-col gap-6">
+                {/* Page Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-[22px] font-bold text-[#202223]">Invoice Payments</h1>
+                        <p className="text-[14px] text-gray-500 mt-1">Manage and record payments received from clients.</p>
+                    </div>
 
-                    <div style={{ fontSize: '1rem', fontWeight: '700', color: '#166534', padding: '10px 20px', background: '#f0fdf4', borderRadius: '8px', border: "1px solid #bbf7d0" }}>
-                        <i className="fa-solid fa-sack-dollar" style={{ marginRight: "8px", color: "#16a34a" }}></i>
-                        Total Received: TK. {Number(totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-2.5 text-emerald-700">
+                        <i className="fa-solid fa-sack-dollar text-emerald-600"></i>
+                        <span className="text-[14px] font-bold uppercase tracking-wider text-emerald-800">Total Received:</span>
+                        <span className="text-[18px] font-bold">TK. {Number(totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                 </div>
 
-                <div className="card-container" style={{ background: "#fff", borderRadius: "12px", boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)", border: "1px solid #e2e8f0", overflow: "hidden" }}>
-                    <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 24px", borderBottom: "1px solid #f1f5f9" }}>
-                        <div className="card-title" style={{ fontSize: "1.1rem", fontWeight: "600", color: "#1e293b", display: "flex", alignItems: "center", gap: "10px" }}>
-                            <i className="fa-solid fa-money-bill-wave" style={{ color: "#3b82f6" }}></i> Payment History
+                {/* Main Card */}
+                <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
+                    {/* Card Header & Actions */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
+                        <div className="text-[16px] font-semibold text-[#202223] flex items-center gap-2.5">
+                            <i className="fa-solid fa-money-bill-wave text-[var(--accent)]"></i> Payment History
                         </div>
                         {hasPermission('create_receive_payment') && (
-                        <button onClick={openCreateModal} style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "8px", fontWeight: "600", border: "none", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px" }}>
-                            <i className="fa-solid fa-plus"></i> Receive Payment
-                        </button>
+                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13.5px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50">
+                                <i className="fa-solid fa-plus"></i> Receive Payment
+                            </button>
                         )}
                     </div>
 
-                    <div className="table-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '16px' }}>
-                        <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                            Show 
-                            <select value={perPage} onChange={handlePerPageChange} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", outline: "none", cursor: "pointer" }}>
-                                <option value={10}>10 Entries</option>
-                                <option value={25}>25 Entries</option>
-                                <option value={50}>50 Entries</option>
-                                <option value={100}>100 Entries</option>
-                                <option value={500}>500 Entries</option>
-                                <option value={1000}>1000 Entries</option>
-                                <option value="all">All</option>
-                            </select>
-                        </div>
-
-                        <div className="export-buttons" style={{ display: 'flex', gap: '8px' }}>
-                            <button onClick={handleCopy} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}><i className="fas fa-copy"></i> Copy</button>
-                            <button onClick={handleExportCSV} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}><i className="fas fa-file-excel text-green-600"></i> Excel</button>
-                            <button onClick={handlePrint} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}><i className="fas fa-file-pdf text-red-600"></i> PDF</button>
-                            <button onClick={handlePrint} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}><i className="fas fa-print text-gray-600"></i> Print</button>
-                        </div>
-
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', padding: '16px 24px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
-    
-                            {/* Client Filter */}
-                            <div style={{ minWidth: "200px" }}>
-                                <SearchableSelect
-                                    options={[{ id: "", name: "All Clients" }, ...clients]}
-                                    value={clientId}
-                                    onChange={handleClientFilter}
-                                    placeholder="Filter by Client"
-                                    getValue={(c) => c.id}
-                                    getLabel={(c) => c.name}
-                                />
-                            </div>
-
-                            {/* Year Filter */}
-                            <select value={year} onChange={handleYearFilter} style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", fontSize: "0.875rem" }}>
-                                <option value="">All Years</option>
-                                {years.map((y) => <option key={y} value={y}>{y}</option>)}
-                            </select>
-
-                            {/* Date Range */}
-                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                <input type="date" value={dateFrom} onChange={handleDateFromChange} style={{ padding: "7px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "0.875rem" }} />
-                                <span style={{ color: "#94a3b8", fontSize: "0.8rem" }}>to</span>
-                                <input type="date" value={dateTo} onChange={handleDateToChange} style={{ padding: "7px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "0.875rem" }} />
-                            </div>
-
-                            {/* Reset button */}
-                            {(clientId || year || dateFrom || dateTo || searchTerm) && (
-                                <button
-                                    onClick={() => {
-                                        setSearchTerm(""); setClientId(""); setYear(""); setDateFrom(""); setDateTo("");
-                                        router.get(route("invoice-payments.index"), { per_page: perPage }, { preserveState: true, replace: true });
-                                    }}
-                                    style={{ padding: "8px 14px", borderRadius: "6px", border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer" }}
+                    {/* Toolbar */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30 border-b border-gray-100">
+                        
+                        <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
+                            {/* Show Entries */}
+                            <div className="flex items-center gap-2">
+                                <span>Show</span>
+                                <select 
+                                    value={perPage} 
+                                    onChange={handlePerPageChange} 
+                                    className="w-[100px] appearance-none bg-none rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
                                 >
-                                    <i className="fa-solid fa-xmark"></i> Clear Filters
+                                    <option value={10}>10 Entries</option>
+                                    <option value={25}>25 Entries</option>
+                                    <option value={50}>50 Entries</option>
+                                    <option value={100}>100 Entries</option>
+                                    <option value={500}>500 Entries</option>
+                                    <option value={1000}>1000 Entries</option>
+                                    <option value="all">All</option>
+                                </select>
+                            </div>
+
+                            <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
+
+                            {/* Export Buttons */}
+                            <div className="flex items-center gap-1.5">
+                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-copy text-blue-500"></i> Copy
                                 </button>
-                            )}
+                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-file-excel text-emerald-500"></i> Excel
+                                </button>
+                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-print text-gray-500"></i> Print
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="search-box" style={{ position: "relative" }}>
-                            <input
-                                type="text" placeholder="Search by invoice #, client, account..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                                style={{ width: "240px", padding: "6px 12px", paddingLeft: "36px", fontSize: "0.875rem", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }}
+                        {/* Search */}
+                        <div className="relative w-full sm:w-[260px]">
+                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                            <input 
+                                type="text" 
+                                placeholder="Search invoice, client, account..." 
+                                value={searchTerm} 
+                                onChange={(e) => setSearchTerm(e.target.value)} 
+                                className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
                             />
-                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
                         </div>
                     </div>
 
-                    <table id="printable-payment-table" className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.875rem" }}>
-                        <thead>
-                            <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
-                                <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Date</th>
-                                <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Invoice & Client</th>
-                                <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Account</th>
-                                <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Amount</th>
-                                <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem", textAlign: "right" }}>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody style={{ color: "#334155" }}>
-                            {paymentList.length === 0 ? (
+                    {/* Filter Row */}
+                    <div className="flex flex-wrap items-center gap-3 px-6 py-4 bg-gray-50/30">
+                        {/* Client Filter */}
+                        <div className="w-[220px]">
+                            <SearchableSelect
+                                options={[{ id: "", name: "All Clients" }, ...clients]}
+                                value={clientId}
+                                onChange={handleClientFilter}
+                                placeholder="Filter by Client"
+                                getValue={(c) => c.id}
+                                getLabel={(c) => c.name}
+                            />
+                        </div>
+
+                        {/* Year Filter */}
+                        <div className="flex items-center gap-2 ">
+                            <i className="fa-solid fa-calendar text-[var(--accent)]"></i>
+                            <select 
+                                value={year} 
+                                onChange={handleYearFilter} 
+                                className="w-[100px] rounded-md border border-gray-300 bg-white px-3 py-2 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                            >
+                                <option value="">All Years</option>
+                                {years.map((y) => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                        </div>
+
+                        {/* Date Range Filter */}
+                        <div className="flex items-center gap-2">
+                            <i className="fa-regular fa-calendar-days text-[var(--accent)]"></i>
+                            <input 
+                                type="date" 
+                                value={dateFrom} 
+                                onChange={handleDateFromChange} 
+                                className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-[13px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                            />
+                            <span className="text-gray-400">–</span>
+                            <input 
+                                type="date" 
+                                value={dateTo} 
+                                onChange={handleDateToChange} 
+                                className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-[13px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                            />
+                        </div>
+
+                        {/* Reset Filters */}
+                        {(clientId || year || dateFrom || dateTo || searchTerm) && (
+                            <button
+                                onClick={() => {
+                                    setSearchTerm(""); setClientId(""); setYear(""); setDateFrom(""); setDateTo("");
+                                    router.get(route("invoice-payments.index"), { per_page: perPage }, { preserveState: true, replace: true });
+                                }}
+                                className="ml-auto flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-[13px] font-medium text-red-600 transition-colors hover:bg-red-100"
+                            >
+                                <i className="fa-solid fa-xmark"></i> Clear Filters
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Data Table */}
+                    <div className="overflow-x-auto brass-scroll border-t border-[#e1e3e5]">
+                        <table id="printable-payment-table" className="w-full text-left border-collapse whitespace-nowrap">
+                            <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
                                 <tr>
-                                    <td colSpan="5" style={{ padding: "32px", textAlign: "center", color: "#64748b" }}>No payments found.</td>
+                                    <th className="px-6 py-4 w-12">SL</th>
+                                    <th className="px-6 py-4">Date</th>
+                                    <th className="px-6 py-4">Invoice & Client</th>
+                                    <th className="px-6 py-4">Account</th>
+                                    <th className="px-6 py-4 text-right">Amount</th>
+                                    <th className="px-6 py-4 text-right">Actions</th>
                                 </tr>
-                            ) : (
-                                paymentList.map((payment, idx) => (
-                                    <tr key={payment.id} style={{ borderBottom: "1px solid #f1f5f9", background: idx % 2 === 0 ? "#fff" : "#fdfdfd" }}>
-                                        <td style={{ padding: "16px 24px", fontWeight: "500" }}>{payment.payment_date}</td>
-                                        <td style={{ padding: "16px 24px" }}>
-                                            <div style={{ fontWeight: "600", color: "#2563eb", marginBottom: "2px" }}>{payment.invoice?.invoice_number || "N/A"}</div>
-                                            <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: "500" }}>{payment.invoice?.client?.name}</div>
+                            </thead>
+                            <tbody className="text-[13.5px] text-[#202223]">
+                                {paymentList.length > 0 ? paymentList.map((payment, idx) => (
+                                    <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                        <td className="px-6 py-4 font-medium text-gray-500">
+                                            {payments.from ? payments.from + idx : idx + 1}
                                         </td>
-                                        <td style={{ padding: "16px 24px" }}>
-                                            <span style={{ background: "#f1f5f9", padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "600", color: "#475569", border: "1px solid #e2e8f0" }}>
-                                                {payment.account?.name || "N/A"}
+                                        <td className="px-6 py-4 font-medium text-gray-600">{payment.payment_date}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="font-bold text-blue-600">{payment.invoice?.invoice_number || "N/A"}</div>
+                                            <div className="text-[12px] text-gray-500 mt-0.5"><i className="fa-regular fa-user mr-1"></i>{payment.invoice?.client?.name}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-[12px] font-semibold text-gray-600">
+                                                <i className="fa-solid fa-building-columns text-gray-400"></i> {payment.account?.name || "N/A"}
                                             </span>
                                         </td>
-                                        <td style={{ padding: "16px 24px", color: "#16a34a", fontWeight: "700", fontSize: "0.95rem" }}>TK. {parseFloat(payment.amount).toLocaleString('en-IN')}</td>
-                                        <td style={{ padding: "16px 24px", textAlign: "right" }}>
-                                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                        <td className="px-6 py-4 text-right font-bold text-emerald-600 text-[14.5px]">
+                                            TK. {parseFloat(payment.amount).toLocaleString('en-IN')}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-1.5">
                                                 {hasPermission('view_receive_payment') && (
-                                                <button onClick={() => openShowModal(payment)} style={{ border: "none", background: "#f0f5ff", color: "#2563eb", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }}><i className="fa-regular fa-eye"></i></button>
+                                                    <button onClick={() => openShowModal(payment)} className="flex h-7 w-7 items-center justify-center rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="View">
+                                                        <i className="fa-regular fa-eye text-[12px]"></i>
+                                                    </button>
                                                 )}
-                                                <button onClick={() => handlePrintReceipt(payment)} style={{ border: "none", background: "#f0fdf4", color: "#16a34a", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }} title="Print Receipt"><i className="fa-solid fa-print"></i></button>
-
+                                                <button onClick={() => handlePrintReceipt(payment)} className="flex h-7 w-7 items-center justify-center rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors" title="Print Receipt">
+                                                    <i className="fa-solid fa-print text-[12px]"></i>
+                                                </button>
                                                 {hasPermission('edit_receive_payment') && (
-                                                <button onClick={() => openEditModal(payment)} style={{ border: "none", background: "#fff7ed", color: "#ea580c", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }}><i className="fa-regular fa-pen-to-square"></i></button>
+                                                    <button onClick={() => openEditModal(payment)} className="flex h-7 w-7 items-center justify-center rounded bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors" title="Edit">
+                                                        <i className="fa-regular fa-pen-to-square text-[12px]"></i>
+                                                    </button>
                                                 )}
                                                 {hasPermission('delete_receive_payment') && (
-                                                <button onClick={() => handleDelete(payment.id)} style={{ border: "none", background: "#fef2f2", color: "#dc2626", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }}><i className="fa-regular fa-trash-can"></i></button>
+                                                    <button onClick={() => handleDelete(payment.id)} className="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete">
+                                                        <i className="fa-regular fa-trash-can text-[12px]"></i>
+                                                    </button>
                                                 )}
                                             </div>
                                         </td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                )) : (
+                                    <tr>
+                                        <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <i className="fa-solid fa-money-bill-transfer text-4xl text-gray-300 mb-3"></i>
+                                                <p>No payments found.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
 
+                    {/* Pagination */}
                     {payments.links && payments.links.length > 3 && (
-                        <div className="pagination-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc' }}>
-                            <div style={{ fontSize: '0.875rem', color: '#64748b', fontWeight: '500' }}>
-                                Showing <span style={{ color: '#0f172a', fontWeight: '600' }}>{payments.from || 0}</span> to <span style={{ color: '#0f172a', fontWeight: '600' }}>{payments.to || 0}</span> of <span style={{ color: '#0f172a', fontWeight: '600' }}>{payments.total || 0}</span> entries
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#e1e3e5] bg-[#f6f6f7] px-6 py-4">
+                            <div className="text-[13px] text-gray-500">
+                                Showing {payments.from || 0} to {payments.to || 0} of {payments.total || 0} entries
                             </div>
-                            <div style={{ display: 'flex', gap: '6px' }}>
+                            <div className="flex flex-wrap items-center gap-1">
                                 {payments.links.map((link, index) => (
-                                    <button
-                                        key={index} disabled={!link.url}
+                                    <button 
+                                        key={index} 
                                         onClick={() => goToPage(link.url)}
-                                        style={{
-                                            padding: '6px 12px', fontSize: '0.875rem', border: link.active ? '1px solid #2563eb' : '1px solid #cbd5e1', borderRadius: '6px',
-                                            background: link.active ? '#2563eb' : '#fff', color: link.active ? '#fff' : '#475569', cursor: link.url ? 'pointer' : 'not-allowed',
-                                            opacity: link.url ? 1 : 0.6, fontWeight: link.active ? '600' : '500'
-                                        }} dangerouslySetInnerHTML={{ __html: link.label }}
+                                        disabled={!link.url}
+                                        className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] transition-colors
+                                            ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : link.url ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'}
+                                        `}
+                                        dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }}
                                     />
                                 ))}
                             </div>
@@ -632,41 +715,49 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                 </div>
             </div>
 
-            {/* ADD / EDIT MODAL */}
+            {/* --- ADD / EDIT MODAL --- */}
             {showModal && (
-                <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
-                    <div className="modal-content" style={{ background: "#fff", width: "100%", maxWidth: "900px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)" }}>
-                        <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', padding: '18px 24px' }}>
-                            <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '700', color: '#0f172a' }}>{editMode ? "✏️ Edit Payment Record" : "💰 Receive New Payment"}</h3>
-                            <button onClick={() => setShowModal(false)} style={{ background: 'transparent', border: 'none', fontSize: '1.25rem', cursor: 'pointer', color: '#94a3b8' }}>&times;</button>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                            <h3 className="text-[18px] font-semibold text-[#202223] flex items-center gap-2">
+                                <i className={`fa-solid ${editMode ? 'fa-pen-to-square' : 'fa-sack-dollar'} text-[var(--accent)]`}></i>
+                                {editMode ? "Edit Payment Record" : "Receive New Payment"}
+                            </h3>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
+                            </button>
                         </div>
-                        <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Select Invoice *</label>
+                        
+                        {/* Body */}
+                        <form onSubmit={handleSubmit} className="overflow-y-auto brass-scroll p-6 flex flex-col gap-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Select Invoice *</label>
                                     <SearchableSelect
                                         options={invoices}
                                         value={data.invoice_id}
                                         onChange={handleInvoiceSelect}
-                                        placeholder="-- Select Invoice --"
+                                        placeholder="-- Search & Select Invoice --"
                                         error={errors.invoice_id}
                                         getValue={(inv) => inv.id}
                                         getLabel={(inv) => `${inv.invoice_number} (${inv.client?.name || "N/A"}) - Due: TK. ${parseFloat(inv.due_amount ?? inv.grand_total).toLocaleString('en-IN')}`}
                                     />
-                                    {errors.invoice_id && <span style={{ color: "#ef4444", fontSize: "0.75rem", display: "block" }}>{errors.invoice_id}</span>}
+                                    {errors.invoice_id && <span className="mt-1 block text-[12px] text-red-500">{errors.invoice_id}</span>}
                                 </div>
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Receive In (Account) *</label>
+                                <div>
+                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Receive In (Account) *</label>
                                     <SearchableSelect
                                         options={accounts}
                                         value={data.account_id}
                                         onChange={(val) => setData("account_id", val)}
-                                        placeholder="-- Select Account --"
+                                        placeholder="-- Select Bank/Cash Account --"
                                         error={errors.account_id}
                                         getValue={(acc) => acc.id}
                                         getLabel={(acc) => `${acc.name} (Balance: TK. ${parseFloat(acc.current_balance).toLocaleString('en-IN')})`}
                                     />
-                                    {errors.account_id && <span style={{ color: "#ef4444", fontSize: "0.75rem", display: "block" }}>{errors.account_id}</span>}
+                                    {errors.account_id && <span className="mt-1 block text-[12px] text-red-500">{errors.account_id}</span>}
                                 </div>
                             </div>
 
@@ -675,33 +766,31 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                 if (!selectedInvoice) return null;
                                 const due = parseFloat(selectedInvoice.due_amount ?? selectedInvoice.grand_total);
                                 return (
-                                    <div style={{ marginTop: "16px", padding: "10px 14px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                        <span style={{ fontSize: "0.8rem", fontWeight: "600", color: "#1e40af" }}>Client's Remaining Due for {selectedInvoice.invoice_number}</span>
-                                        <span style={{ fontSize: "1rem", fontWeight: "800", color: "#1d4ed8" }}>TK. {due.toLocaleString('en-IN')}</span>
+                                    <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                                        <span className="text-[13px] font-semibold text-blue-800">
+                                            <i className="fa-solid fa-circle-info mr-2"></i>
+                                            Client's Remaining Due for {selectedInvoice.invoice_number}
+                                        </span>
+                                        <span className="text-[16px] font-extrabold text-blue-700">TK. {due.toLocaleString('en-IN')}</span>
                                     </div>
                                 );
                             })()}
 
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginTop: "16px" }}>
-                                <div className="form-group">
-    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>
-        Cash Received (TK.) *
-    </label>
-    <input 
-        type="number" 
-        step="0.01" 
-        value={data.amount} 
-        onChange={(e) => setData("amount", e.target.value)} 
-        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", background: "#f0fdf4", color: "#166534", fontWeight: "bold" }} 
-        required 
-    />
-    {errors.amount && <span style={{ color: "#ef4444", fontSize: "0.75rem", display: "block" }}>{errors.amount}</span>}
-</div>
-
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>
-                                        Discount / Waiver (TK.)
-                                    </label>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 border-t border-gray-100 pt-5">
+                                <div>
+                                    <label className="block text-[13px] font-semibold text-emerald-700 mb-1.5">Cash Received (TK.) *</label>
+                                    <input 
+                                        type="number" 
+                                        step="0.01" 
+                                        value={data.amount} 
+                                        onChange={(e) => setData("amount", e.target.value)} 
+                                        className="w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-[15px] font-bold text-emerald-800 outline-none transition-shadow focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50" 
+                                        required 
+                                    />
+                                    {errors.amount && <span className="mt-1 block text-[12px] text-red-500">{errors.amount}</span>}
+                                </div>
+                                <div>
+                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Discount / Waiver (TK.)</label>
                                     <input 
                                         type="number" 
                                         step="0.01" 
@@ -717,62 +806,101 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                                     const discount = parseFloat(discValue) || 0;
                                                     newAmount = Math.max(due - discount, 0).toString();
                                                 }
-
                                                 return { ...prevData, discount_amount: discValue, amount: newAmount };
                                             });
                                         }} 
                                         placeholder="Leave empty if none" 
-                                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", background: editMode ? "#f1f5f9" : "#fff" }} 
+                                        className={`w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow ${editMode ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white text-gray-900 focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50'}`} 
                                         disabled={editMode} 
                                     />
-                                    {errors.discount_amount && <span style={{ color: "#ef4444", fontSize: "0.75rem", display: "block" }}>{errors.discount_amount}</span>}
+                                    {errors.discount_amount && <span className="mt-1 block text-[12px] text-red-500">{errors.discount_amount}</span>}
                                 </div>
-
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Payment Date *</label>
-                                    <input type="date" value={data.payment_date} onChange={(e) => setData("payment_date", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }} required />
-                                    {errors.payment_date && <span style={{ color: "#ef4444", fontSize: "0.75rem", display: "block" }}>{errors.payment_date}</span>}
+                                <div>
+                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Payment Date *</label>
+                                    <input 
+                                        type="date" 
+                                        value={data.payment_date} 
+                                        onChange={(e) => setData("payment_date", e.target.value)} 
+                                        className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                        required 
+                                    />
+                                    {errors.payment_date && <span className="mt-1 block text-[12px] text-red-500">{errors.payment_date}</span>}
                                 </div>
                             </div>
 
-                            <div className="form-group" style={{ marginTop: "16px" }}>
-                                <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Note (Optional)</label>
-                                <textarea value={data.note} onChange={(e) => setData("note", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }} rows="2" />
-                            </div>
-                            <div className="modal-footer" style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                                <button type="button" onClick={() => setShowModal(false)} style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "8px 16px", borderRadius: "6px", fontWeight: "600", cursor: "pointer" }}>Cancel</button>
-                                <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "6px", fontWeight: "600", cursor: "pointer", opacity: processing ? 0.7 : 1 }}>{processing ? "Saving..." : "Save Record"}</button>
+                            <div className="border-t border-gray-100 pt-5">
+                                <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Note (Optional)</label>
+                                <textarea 
+                                    value={data.note} 
+                                    onChange={(e) => setData("note", e.target.value)} 
+                                    placeholder="Add any additional notes..."
+                                    className="w-full rounded-lg border border-gray-300 bg-white p-3 text-[14px] text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 resize-y min-h-[80px]" 
+                                />
                             </div>
                         </form>
+
+                        {/* Footer */}
+                        <div className="flex items-center justify-end gap-3 border-t border-gray-100 bg-gray-50/50 px-6 py-4 shrink-0">
+                            <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
+                                Cancel
+                            </button>
+                            <button type="submit" onClick={handleSubmit} disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70">
+                                {processing ? "Saving..." : "Save Record"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
 
-            {/* DETAILS MODAL */}
+            {/* --- DETAILS MODAL --- */}
             {showDetailsModal && selectedPayment && (
-                <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
-                    <div className="modal-content" style={{ background: "#fff", width: "100%", maxWidth: "480px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)", overflow: "hidden" }}>
-                        <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', padding: '18px 24px' }}>
-                            <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '700', color: '#0f172a' }}>📄 Payment Receipt</h3>
-                            <button onClick={() => setShowDetailsModal(false)} style={{ background: 'transparent', border: 'none', fontSize: '1.25rem', cursor: 'pointer', color: '#94a3b8' }}>&times;</button>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-md bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                            <h3 className="text-[18px] font-semibold text-[#202223] flex items-center gap-2">
+                                <i className="fa-solid fa-file-invoice-dollar text-[var(--accent)]"></i> Payment Receipt
+                            </h3>
+                            <button onClick={() => setShowDetailsModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
+                            </button>
                         </div>
-                        <div style={{ padding: "24px" }}>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "0.875rem" }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #e2e8f0", paddingBottom: "8px" }}><span style={{ color: "#64748b", fontWeight: "500" }}>Client Name:</span><span style={{ color: "#0f172a", fontWeight: "600" }}>{selectedPayment.invoice?.client?.name}</span></div>
-                                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #e2e8f0", paddingBottom: "8px" }}><span style={{ color: "#64748b", fontWeight: "500" }}>Invoice Ref:</span><span style={{ color: "#2563eb", fontWeight: "700" }}>{selectedPayment.invoice?.invoice_number || "N/A"}</span></div>
-                                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #e2e8f0", paddingBottom: "8px" }}><span style={{ color: "#64748b", fontWeight: "500" }}>Account Credited:</span><span style={{ color: "#0f172a", fontWeight: "600" }}>{selectedPayment.account?.name}</span></div>
-                                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #e2e8f0", paddingBottom: "8px" }}><span style={{ color: "#64748b", fontWeight: "500" }}>Payment Date:</span><span style={{ color: "#0f172a", fontWeight: "600" }}>{selectedPayment.payment_date}</span></div>
-                                <div style={{ background: "#f0fdf4", padding: "16px", borderRadius: "8px", border: "1px solid #bbf7d0", marginTop: "12px", textAlign: "center" }}>
-                                    <p style={{ color: "#166534", fontWeight: "600", margin: "0 0 4px 0", fontSize: "0.815rem", textTransform: "uppercase" }}>Total Received Amount</p>
-                                    <p style={{ fontSize: "1.75rem", fontWeight: "800", color: "#16a34a", margin: 0 }}>TK. {parseFloat(selectedPayment.amount).toLocaleString('en-IN')}</p>
+                        
+                        {/* Body */}
+                        <div className="p-6">
+                            <div className="flex flex-col gap-4 text-[14px]">
+                                <div className="flex justify-between border-b border-dashed border-gray-200 pb-2">
+                                    <span className="text-gray-500 font-medium">Client Name:</span>
+                                    <span className="text-gray-900 font-semibold">{selectedPayment.invoice?.client?.name}</span>
+                                </div>
+                                <div className="flex justify-between border-b border-dashed border-gray-200 pb-2">
+                                    <span className="text-gray-500 font-medium">Invoice Ref:</span>
+                                    <span className="text-blue-600 font-bold">{selectedPayment.invoice?.invoice_number || "N/A"}</span>
+                                </div>
+                                <div className="flex justify-between border-b border-dashed border-gray-200 pb-2">
+                                    <span className="text-gray-500 font-medium">Account Credited:</span>
+                                    <span className="text-gray-900 font-semibold">{selectedPayment.account?.name}</span>
+                                </div>
+                                <div className="flex justify-between border-b border-dashed border-gray-200 pb-2">
+                                    <span className="text-gray-500 font-medium">Payment Date:</span>
+                                    <span className="text-gray-900 font-semibold">{selectedPayment.payment_date}</span>
+                                </div>
+                                
+                                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-center">
+                                    <p className="mb-1 text-[12px] font-bold uppercase tracking-wider text-emerald-700">Total Received Amount</p>
+                                    <p className="text-[28px] font-extrabold text-emerald-600 m-0">TK. {parseFloat(selectedPayment.amount).toLocaleString('en-IN')}</p>
                                 </div>
                             </div>
-                            <div style={{ marginTop: '24px', display: 'flex', gap: '10px' }}>
-                                <button type="button" onClick={() => handlePrintReceipt(selectedPayment)} style={{ flex: 1, padding: "10px", background: "#16a34a", color: "#fff", border: "none", borderRadius: "6px", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                                    <i className="fa-solid fa-print"></i> Print Receipt
-                                </button>
-                                <button type="button" onClick={() => setShowDetailsModal(false)} style={{ flex: 1, padding: "10px", background: "#64748b", color: "#fff", border: "none", borderRadius: "6px", fontWeight: "600", cursor: "pointer" }}>Close</button>
-                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex items-center gap-3 border-t border-gray-100 bg-gray-50/50 px-6 py-4">
+                            <button type="button" onClick={() => handlePrintReceipt(selectedPayment)} className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50">
+                                <i className="fa-solid fa-print"></i> Print Receipt
+                            </button>
+                            <button type="button" onClick={() => setShowDetailsModal(false)} className="flex-1 rounded-lg bg-gray-800 px-5 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-700/50">
+                                Close
+                            </button>
                         </div>
                     </div>
                 </div>

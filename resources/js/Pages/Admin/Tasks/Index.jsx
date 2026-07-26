@@ -3,6 +3,88 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { useForm, Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
+/* =========================================
+   REUSABLE SEARCHABLE SELECT COMPONENT
+========================================= */
+function SearchableSelect({ options, value, onChange, placeholder, getLabel, getValue, renderOption, error, disabled }) {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState("");
+    const wrapperRef = useRef(null);
+    const inputRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(e) {
+            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+                setOpen(false);
+                setSearch("");
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        if (open && inputRef.current) inputRef.current.focus();
+    }, [open]);
+
+    const selected = options.find((opt) => String(getValue(opt)) === String(value));
+    const filtered = options.filter((opt) =>
+        getLabel(opt).toLowerCase().includes(search.toLowerCase())
+    );
+
+    return (
+        <div ref={wrapperRef} className="relative w-full">
+            <div
+                onClick={() => !disabled && setOpen((o) => !o)}
+                className={`flex w-full cursor-pointer items-center justify-between rounded-lg border px-3.5 py-2.5 text-[14px] outline-none transition-shadow 
+                    ${disabled ? 'bg-gray-100 cursor-not-allowed opacity-70' : 'hover:bg-gray-50 focus:ring-1'} 
+                    ${error ? 'border-red-400 focus:ring-red-500/50' : 'border-gray-300 focus:border-[var(--accent)] focus:ring-[var(--accent)]/50'} 
+                    ${selected ? 'text-gray-900 bg-white' : 'text-gray-500 bg-white'}
+                `}
+            >
+                <span className="truncate flex-1">
+                    {selected ? getLabel(selected) : placeholder}
+                </span>
+                <i className={`fa-solid fa-chevron-down text-[10px] text-gray-400 shrink-0 ml-2 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}></i>
+            </div>
+
+            {open && !disabled && (
+                <div className="absolute top-full left-0 mt-1 flex max-h-[260px] w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl z-50">
+                    <div className="border-b border-gray-100 bg-gray-50 p-2 shrink-0 relative">
+                        <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[12px]"></i>
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Type to search..."
+                            className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13px] outline-none focus:border-[var(--accent)]"
+                        />
+                    </div>
+                    <div className="overflow-y-auto py-1">
+                        {filtered.length === 0 ? (
+                            <div className="p-3 text-center text-[13px] text-gray-400">No results found</div>
+                        ) : (
+                            filtered.map((opt) => {
+                                const isActive = String(getValue(opt)) === String(value);
+                                return (
+                                    <div
+                                        key={getValue(opt)}
+                                        onClick={() => { onChange(String(getValue(opt))); setOpen(false); setSearch(""); }}
+                                        className={`cursor-pointer px-3.5 py-2 text-[13.5px] transition-colors ${isActive ? 'bg-[var(--accent-bg)] text-[var(--accent)] font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+                                    >
+                                        {renderOption ? renderOption(opt) : getLabel(opt)}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function Index({ tasks = { data: [], links: [] }, projects = [], users = [] }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
@@ -84,9 +166,44 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
         link.click();
     };
 
+    const handlePrint = () => {
+        const tableContent = document.getElementById("printable-table");
+        if (!tableContent) return;
+
+        const printWindow = window.open('', '_blank', `width=${window.screen.width},height=${window.screen.height},top=0,left=0`);
+        
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Tasks Report</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 30px; color: #334155; }
+                        h2 { text-align: center; color: #0f172a; margin-bottom: 5px; }
+                        p { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 14px; }
+                        table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; }
+                        th, td { padding: 12px 16px; border: 1px solid #cbd5e1; font-size: 13px; }
+                        th { background-color: #f8fafc; font-weight: 600; color: #475569; text-transform: uppercase; }
+                        th:last-child, td:last-child { display: none !important; }
+                    </style>
+                </head>
+                <body>
+                    <h2>Tasks Directory Report</h2>
+                    <p>Generated Report Date: ${new Date().toLocaleDateString()}</p>
+                    ${tableContent.outerHTML}
+                </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 250);
+    };
+
     const openCreateModal = () => {
         clearErrors();
-
         setData({
             id: '',
             project_id: '',
@@ -97,7 +214,6 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
             status: 'todo',     
             due_date: ''
         });
-
         setEditMode(false);
         setShowModal(true);
     };
@@ -106,8 +222,8 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
         clearErrors();
         setData({
             id: task.id,
-            project_id: task.project_id,
-            assigned_to: task.assigned_to,
+            project_id: task.project_id || '',
+            assigned_to: task.assigned_to || '',
             title: task.title,
             description: task.description || "",
             priority: task.priority,
@@ -118,7 +234,6 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
         setShowModal(true);
     };
 
-    // View Modal ওপেন করার ফাংশন
     const openViewModal = (task) => {
         setSelectedTask(task);
         setShowViewModal(true);
@@ -126,6 +241,10 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        
+        if (!data.project_id) return Swal.fire("Required", "Please select a Project.", "warning");
+        if (!data.assigned_to) return Swal.fire("Required", "Please assign this task to personnel.", "warning");
+
         if (editMode) {
             put(route("admin.tasks.update", data.id), {
                 onSuccess: () => {
@@ -167,135 +286,171 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
 
     const getPriorityBadge = (priority) => {
         const styles = {
-            low: "bg-gray-100 text-gray-700 ring-1 ring-gray-300",
-            medium: "bg-blue-100 text-blue-700 ring-1 ring-blue-300",
-            high: "bg-orange-100 text-orange-700 ring-1 ring-orange-300",
-            urgent: "bg-red-100 text-red-700 ring-1 ring-red-300 animate-pulse"
+            low: "bg-gray-100 text-gray-700 border border-gray-200",
+            medium: "bg-blue-100 text-blue-700 border border-blue-200",
+            high: "bg-orange-100 text-orange-700 border border-orange-200",
+            urgent: "bg-red-100 text-red-700 border border-red-200 animate-pulse"
         };
-        return styles[priority] || "bg-gray-100 text-gray-700";
+        return styles[priority] || "bg-gray-100 text-gray-700 border border-gray-200";
     };
 
     const getStatusBadge = (status) => {
         const styles = {
-            todo: "bg-slate-100 text-slate-800 border border-slate-300",
-            in_progress: "bg-amber-100 text-amber-800 border border-amber-300",
-            review: "bg-purple-100 text-purple-800 border border-purple-300",
-            done: "bg-emerald-100 text-emerald-800 border border-emerald-300"
+            todo: "bg-slate-100 text-slate-700 border border-slate-200",
+            in_progress: "bg-amber-100 text-amber-700 border border-amber-200",
+            review: "bg-purple-100 text-purple-700 border border-purple-200",
+            done: "bg-emerald-100 text-emerald-700 border border-emerald-200"
         };
-        return styles[status] || "bg-gray-100 text-gray-800";
+        return styles[status] || "bg-gray-100 text-gray-700 border border-gray-200";
     };
 
     return (
         <AdminLayout>
             <Head title="Tasks Management" />
-            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc" }}>
+
+            <div className="flex flex-col gap-6">
                 
-                <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+                {/* Page Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 className="page-title" style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Task Workspace</h1>
-                        <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Manage, track and update team assignments seamlessly.</p>
+                        <h1 className="text-[22px] font-bold text-[#202223]">Task Workspace</h1>
+                        <p className="text-[14px] text-gray-500 mt-1">Manage, track and update team assignments seamlessly.</p>
                     </div>
                 </div>
 
-                <div className="card-container" style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
+                {/* Main Card */}
+                <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
                     
-                    <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
-                        <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
-                            <i className="fa-solid fa-list-check" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Current Active Tasks
+                    {/* Card Header & Actions */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
+                        <div className="text-[16px] font-semibold text-[#202223] flex items-center gap-2.5">
+                            <i className="fa-solid fa-list-check text-[var(--accent)]"></i> Current Active Tasks
                         </div>
                         {hasPermission('create_task') && (
-                        <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
-                            <i className="fa-solid fa-plus"></i> Add New Task
-                        </button>
+                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13.5px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50">
+                                <i className="fa-solid fa-plus"></i> Add New Task
+                            </button>
                         )}
                     </div>
 
-                    <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
-                        <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                            Show 
-                            <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
-                                <option value={10}>10 Entries</option>
-                                <option value={25}>25 Entries</option>
-                                <option value={50}>50 Entries</option>
-                                <option value={100}>100 Entries</option>
-                                <option value={500}>500 Entries</option>
-                                <option value={1000}>1000 Entries</option>
-                                <option value="all">All</option>
-                            </select>
+                    {/* Toolbar */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30">
+                        
+                        <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
+                            {/* Show Entries */}
+                            <div className="flex items-center gap-2">
+                                <span>Show</span>
+                                <select 
+                                    value={perPage} 
+                                    onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                    className="w-[140px] appearance-none bg-none rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                >
+                                    <option value={10}>10 Entries</option>
+                                    <option value={25}>25 Entries</option>
+                                    <option value={50}>50 Entries</option>
+                                    <option value={100}>100 Entries</option>
+                                    <option value={500}>500 Entries</option>
+                                    <option value={1000}>1000 Entries</option>
+                                    <option value="all">All</option>
+                                </select>
+                            </div>
+
+                            <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
+
+                            {/* Export Buttons */}
+                            <div className="flex items-center gap-1.5">
+                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-copy text-blue-500"></i> Copy
+                                </button>
+                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-file-excel text-emerald-500"></i> CSV
+                                </button>
+                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-print text-gray-500"></i> Print
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="export-buttons" style={{ display: "flex", gap: "8px" }}>
-                            <button type="button" className="export-btn" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-copy text-blue-500"></i> Copy
-                            </button>
-                            <button type="button" className="export-btn" onClick={handleExportCSV} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-file-excel text-emerald-500"></i> Excel/CSV
-                            </button>
-                            <button type="button" className="export-btn" onClick={() => window.print()} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-print text-slate-500"></i> Print
-                            </button>
-                        </div>
-
-                        <div className="search-box" style={{ position: "relative" }}>
-                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
-                            <input type="text" placeholder="Search task..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "260px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
+                        {/* Search */}
+                        <div className="relative w-full sm:w-[260px]">
+                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                            <input 
+                                type="text" 
+                                placeholder="Search tasks..." 
+                                value={searchTerm} 
+                                onChange={(e) => setSearchTerm(e.target.value)} 
+                                className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                            />
                         </div>
                     </div>
 
-                    <div style={{ overflowX: "auto" }}>
-                        <table className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                            <thead>
-                                <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "60px" }}>SL</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Task Details</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Project</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Assignee</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Priority</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Status</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Due Date</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>Actions</th>
+                    {/* Data Table */}
+                    <div className="overflow-x-auto brass-scroll border-t border-[#e1e3e5]">
+                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                            <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
+                                <tr>
+                                    <th className="px-6 py-4 w-12">SL</th>
+                                    <th className="px-6 py-4">Task Details</th>
+                                    <th className="px-6 py-4">Project</th>
+                                    <th className="px-6 py-4">Assignee</th>
+                                    <th className="px-6 py-4 text-center">Priority</th>
+                                    <th className="px-6 py-4 text-center">Status</th>
+                                    <th className="px-6 py-4 text-center">Due Date</th>
+                                    <th className="px-6 py-4 text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody style={{ color: "#334155", fontSize: "0.915rem" }}>
+                            <tbody className="text-[13.5px] text-[#202223]">
                                 {tasks.data && tasks.data.length > 0 ? (
                                     tasks.data.map((task, index) => (
-                                        <tr key={task.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                                            <td style={{ padding: "16px 24px", color: "#64748b", fontWeight: "500" }}>
+                                        <tr key={task.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                            <td className="px-6 py-4 font-medium text-gray-500">
                                                 {tasks.from ? tasks.from + index : index + 1}
                                             </td>
-                                            <td style={{ padding: "16px 24px", fontWeight: "600", color: "#0f172a" }}>
-                                                <div>{task.title}</div>
-                                                {task.description && <span style={{ fontSize: "0.75rem", fontWeight: "400", color: "#64748b", display: "block", marginTop: "2px" }}>{task.description.substring(0, 40)}...</span>}
+                                            <td className="px-6 py-4">
+                                                <div className="font-semibold text-gray-900">{task.title}</div>
+                                                {task.description && (
+                                                    <span className="text-[12px] text-gray-500 mt-1 block max-w-[250px] truncate">
+                                                        {task.description}
+                                                    </span>
+                                                )}
                                             </td>
-                                            <td style={{ padding: "16px 24px", color: "#475569" }}>{task.project?.title || "N/A"}</td>
-                                            <td style={{ padding: "16px 24px" }}>{task.assignee?.name || "Unassigned"}</td>
-                                            <td style={{ padding: "16px 24px" }}>
-                                                <span className={getPriorityBadge(task.priority)} style={{ padding: "4px 10px", borderRadius: "50px", fontSize: "0.75rem", fontWeight: "600", textTransform: "uppercase" }}>
+                                            <td className="px-6 py-4 text-gray-700 font-medium">
+                                                {task.project?.title || "N/A"}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-[12px] font-semibold text-gray-700">
+                                                    <i className="fa-regular fa-user text-blue-500"></i> {task.assignee?.name || "Unassigned"}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${getPriorityBadge(task.priority)}`}>
                                                     {task.priority}
                                                 </span>
                                             </td>
-                                            <td style={{ padding: "16px 24px" }}>
-                                                <span className={getStatusBadge(task.status)} style={{ padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "600", textTransform: "uppercase" }}>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className={`inline-flex items-center justify-center rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${getStatusBadge(task.status)}`}>
                                                     {task.status ? task.status.replace("_", " ") : ""}
                                                 </span>
                                             </td>
-                                            <td style={{ padding: "16px 24px", color: "#64748b" }}>{task.due_date || "-"}</td>
-                                            <td style={{ padding: "16px 24px", textAlign: "right" }}>
-                                                <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                            <td className="px-6 py-4 text-center text-gray-500 font-medium">
+                                                {task.due_date || "-"}
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex items-center justify-end gap-1.5">
                                                     {hasPermission('view_tasks') && (
-                                                    <button onClick={() => openViewModal(task)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
-                                                        <i className="fa-regular fa-eye"></i>
-                                                    </button>
+                                                        <button onClick={() => openViewModal(task)} className="flex h-7 w-7 items-center justify-center rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors" title="View Details">
+                                                            <i className="fa-regular fa-eye text-[12px]"></i>
+                                                        </button>
                                                     )}
                                                     {hasPermission('edit_task') && (
-                                                    <button onClick={() => openEditModal(task)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit Task">
-                                                        <i className="fa-regular fa-pen-to-square"></i>
-                                                    </button>
+                                                        <button onClick={() => openEditModal(task)} className="flex h-7 w-7 items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors" title="Edit Task">
+                                                            <i className="fa-regular fa-pen-to-square text-[12px]"></i>
+                                                        </button>
                                                     )}
                                                     {hasPermission('delete_task') && (
-                                                    <button onClick={() => handleDelete(task.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete Task">
-                                                        <i className="fa-regular fa-trash-can"></i>
-                                                    </button>
+                                                        <button onClick={() => handleDelete(task.id)} className="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete Task">
+                                                            <i className="fa-regular fa-trash-can text-[12px]"></i>
+                                                        </button>
                                                     )}
                                                 </div>
                                             </td>
@@ -303,47 +458,35 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="7" style={{ textAlign: "center", padding: "32px", color: "#94a3b8" }}>No tasks found.</td>
+                                        <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <i className="fa-solid fa-list-check text-4xl text-gray-300 mb-3"></i>
+                                                <p>No tasks found.</p>
+                                            </div>
+                                        </td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
 
-                    {/* Pagination Links */}
+                    {/* Pagination */}
                     {tasks.links && tasks.links.length > 3 && (
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
-                            <div style={{ color: "#64748b", fontSize: "0.875rem" }}>
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#e1e3e5] bg-[#f6f6f7] px-6 py-4">
+                            <div className="text-[13px] text-gray-500">
                                 Showing {tasks.from || 0} to {tasks.to || 0} of {tasks.total || 0} entries
                             </div>
-                            <div style={{ display: "flex", gap: "6px" }}>
+                            <div className="flex flex-wrap items-center gap-1">
                                 {tasks.links.map((link, index) => (
                                     <Link 
                                         key={index} 
                                         href={link.url || "#"} 
-                                        style={{ 
-                                            padding: "6px 12px", 
-                                            border: "1px solid #cbd5e1", 
-                                            borderRadius: "6px", 
-                                            fontSize: "0.875rem", 
-                                            color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"), 
-                                            backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"), 
-                                            pointerEvents: link.url ? "auto" : "none", 
-                                            textDecoration: "none",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            minWidth: "32px"
-                                        }} 
+                                        className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] transition-colors
+                                            ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : link.url ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'border-gray-200 bg-gray-100 text-gray-400 pointer-events-none'}
+                                        `}
                                         preserveState
                                     >
-                                        {link.label.includes("Previous") ? (
-                                            <i className="fa-solid fa-chevron-left"></i>
-                                        ) : link.label.includes("Next") ? (
-                                            <i className="fa-solid fa-chevron-right"></i>
-                                        ) : (
-                                            link.label.replace("&laquo;", "").replace("&raquo;", "")
-                                        )}
+                                        {link.label.includes("Previous") ? <i className="fa-solid fa-chevron-left text-[10px]"></i> : link.label.includes("Next") ? <i className="fa-solid fa-chevron-right text-[10px]"></i> : link.label.replace("&laquo;", "").replace("&raquo;", "")}
                                     </Link>
                                 ))}
                             </div>
@@ -352,126 +495,202 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
                 </div>
             </div>
 
+            {/* --- VIEW DETAILS MODAL --- */}
             {showViewModal && selectedTask && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
-                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
-                                <i className="fa-regular fa-file-lines" style={{ marginRight: "8px", color: "#2563eb" }}></i> Task Details View
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                            <h3 className="text-[18px] font-semibold text-[#202223] flex items-center gap-2">
+                                <i className="fa-regular fa-file-lines text-[var(--accent)]"></i> Task Details
                             </h3>
-                            <button type="button" onClick={() => setShowViewModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}>
-                                <i className="fa-solid fa-xmark"></i>
+                            <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
-                        <div style={{ padding: "24px" }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
-                                <div style={{ gridColumn: "span 2" }}>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Task Title</span>
-                                    <div style={{ fontSize: "1.25rem", fontWeight: "700", color: "#0f172a" }}>{selectedTask.title}</div>
+                        
+                        {/* Modal Body */}
+                        <div className="p-6 overflow-y-auto brass-scroll">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+                                <div className="sm:col-span-2">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Task Title</span>
+                                    <div className="text-[20px] font-bold text-gray-900">{selectedTask.title}</div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Project Name</span>
-                                    <div style={{ fontWeight: "600", color: "#334155" }}><i className="fa-solid fa-folder text-amber-500" style={{ marginRight: "6px" }}></i>{selectedTask.project?.title || "N/A"}</div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Project Name</span>
+                                    <div className="font-semibold text-gray-800 flex items-center gap-2">
+                                        <i className="fa-solid fa-folder text-[var(--accent)]"></i>
+                                        {selectedTask.project?.title || "N/A"}
+                                    </div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Assigned Personnel</span>
-                                    <div style={{ fontWeight: "600", color: "#334155" }}><i className="fa-solid fa-user text-blue-500" style={{ marginRight: "6px" }}></i>{selectedTask.assignee?.name || "Unassigned"}</div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Assigned Personnel</span>
+                                    <div className="font-semibold text-gray-800 flex items-center gap-2">
+                                        <i className="fa-solid fa-user text-blue-500"></i>
+                                        {selectedTask.assignee?.name || "Unassigned"}
+                                    </div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Priority Rating</span>
-                                    <span className={getPriorityBadge(selectedTask.priority)} style={{ padding: "4px 12px", borderRadius: "50px", fontSize: "0.75rem", fontWeight: "600", textTransform: "uppercase", display: "inline-block" }}>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">Priority Level</span>
+                                    <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${getPriorityBadge(selectedTask.priority)}`}>
                                         {selectedTask.priority}
                                     </span>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Workflow Status</span>
-                                    <span className={getStatusBadge(selectedTask.status)} style={{ padding: "4px 12px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "600", textTransform: "uppercase", display: "inline-block" }}>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">Workflow Status</span>
+                                    <span className={`inline-block px-3 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${getStatusBadge(selectedTask.status)}`}>
                                         {selectedTask.status ? selectedTask.status.replace("_", " ") : "TODO"}
                                     </span>
                                 </div>
-                                <div style={{ gridColumn: "span 2" }}>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Deadline / Due Date</span>
-                                    <div style={{ color: "#475569", fontWeight: "500" }}><i className="fa-regular fa-calendar-days text-rose-500" style={{ marginRight: "6px" }}></i>{selectedTask.due_date || "No deadline assigned"}</div>
+                                <div className="sm:col-span-2">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Deadline / Due Date</span>
+                                    <div className="font-medium text-gray-700 flex items-center gap-2">
+                                        <i className="fa-regular fa-calendar-days text-rose-500"></i>
+                                        {selectedTask.due_date || "No deadline assigned"}
+                                    </div>
                                 </div>
                             </div>
-                            <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
-                                <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Detailed Description / Context</span>
-                                <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "8px", border: "1px solid #e2e8f0", color: "#475569", fontSize: "0.9rem", lineHeight: "1.6", minHeight: "80px", whiteSpace: "pre-line" }}>
-                                    {selectedTask.description || "No descriptions or scope notes provided for this task."}
+
+                            <div className="border-t border-gray-100 pt-5">
+                                <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">Detailed Description / Context</span>
+                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-gray-700 text-[14px] leading-relaxed min-h-[80px] whitespace-pre-line">
+                                    {selectedTask.description || <span className="italic text-gray-400">No descriptions or scope notes provided for this task.</span>}
                                 </div>
                             </div>
-                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                <button type="button" onClick={() => setShowViewModal(false)} style={{ background: "#1e293b", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500" }}>Close Portal</button>
-                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end shrink-0">
+                            <button onClick={() => setShowViewModal(false)} className="rounded-lg bg-gray-800 px-6 py-2 text-[14px] font-medium text-white transition-colors hover:bg-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-700/50">
+                                Close Details
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* --- ২. CREATE / EDIT FORM MODAL --- */}
+            {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
-                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                            <h3 className="text-[18px] font-semibold text-[#202223]">
                                 {editMode ? "📝 Modify Task Records" : "✨ Create New Project Task"}
                             </h3>
-                            <button type="button" onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}>
-                                <i className="fa-solid fa-xmark"></i>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
-                        <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                                <div style={{ gridColumn: "span 2" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Task Title *</label>
-                                    <input type="text" value={data.title} onChange={(e) => setData("title", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} required />
-                                    {errors.title && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.title}</p>}
+                        
+                        {/* Modal Body & Form */}
+                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
+                            <div className="p-6 overflow-y-auto brass-scroll">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                                    
+                                    <div className="md:col-span-2">
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Task Title *</label>
+                                        <input 
+                                            type="text" 
+                                            value={data.title} 
+                                            onChange={(e) => setData("title", e.target.value)} 
+                                            placeholder="Enter descriptive task title" 
+                                            required 
+                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                        />
+                                        {errors.title && <p className="text-red-500 text-[12px] mt-1">{errors.title}</p>}
+                                    </div>
+
+                                    {/* --- Searchable Select for Project --- */}
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Project Allocation *</label>
+                                        <SearchableSelect
+                                            options={projects}
+                                            value={data.project_id}
+                                            onChange={(val) => setData("project_id", val)}
+                                            placeholder="-- Select Project --"
+                                            error={errors.project_id}
+                                            getValue={(p) => p.id}
+                                            getLabel={(p) => p.title}
+                                        />
+                                        {errors.project_id && <p className="text-red-500 text-[12px] mt-1">{errors.project_id}</p>}
+                                    </div>
+
+                                    {/* --- Searchable Select for Assignee --- */}
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Assign To Personnel *</label>
+                                        <SearchableSelect
+                                            options={users}
+                                            value={data.assigned_to}
+                                            onChange={(val) => setData("assigned_to", val)}
+                                            placeholder="-- Assign To --"
+                                            error={errors.assigned_to}
+                                            getValue={(u) => u.id}
+                                            getLabel={(u) => u.name}
+                                        />
+                                        {errors.assigned_to && <p className="text-red-500 text-[12px] mt-1">{errors.assigned_to}</p>}
+                                    </div>
                                 </div>
-                                <div style={{ gridColumn: "span 1" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Project Allocation *</label>
-                                    <select value={data.project_id} onChange={(e) => setData("project_id", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }} required>
-                                        <option value="">Select Project</option>
-                                        {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-                                    </select>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Priority Level</label>
+                                        <select 
+                                            value={data.priority} 
+                                            onChange={(e) => setData("priority", e.target.value)} 
+                                            className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                        >
+                                            <option value="low">Low</option>
+                                            <option value="medium">Medium</option>
+                                            <option value="high">High</option>
+                                            <option value="urgent">Urgent</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Workflow Status</label>
+                                        <select 
+                                            value={data.status} 
+                                            onChange={(e) => setData("status", e.target.value)} 
+                                            className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                        >
+                                            <option value="todo">To Do</option>
+                                            <option value="in_progress">In Progress</option>
+                                            <option value="review">Review</option>
+                                            <option value="done">Done</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Target Due Date</label>
+                                        <input 
+                                            type="date" 
+                                            value={data.due_date} 
+                                            onChange={(e) => setData("due_date", e.target.value)} 
+                                            className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                        />
+                                    </div>
                                 </div>
-                                <div style={{ gridColumn: "span 1" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Assign To Personnel *</label>
-                                    <select value={data.assigned_to} onChange={(e) => setData("assigned_to", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }} required>
-                                        <option value="">Select User</option>
-                                        {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Priority Level</label>
-                                    <select value={data.priority} onChange={(e) => setData("priority", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
-                                        <option value="low">Low</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="high">High</option>
-                                        <option value="urgent">Urgent</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Workflow Status</label>
-                                    <select value={data.status} onChange={(e) => setData("status", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}>
-                                        <option value="todo">To Do</option>
-                                        <option value="in_progress">In Progress</option>
-                                        <option value="review">Review</option>
-                                        <option value="done">Done</option>
-                                    </select>
-                                </div>
-                                <div style={{ gridColumn: "span 2" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Target Due Date</label>
-                                    <input type="date" value={data.due_date} onChange={(e) => setData("due_date", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }} />
+
+                                <div className="border-t border-gray-100 pt-5">
+                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Task Description / Notes</label>
+                                    <textarea 
+                                        value={data.description} 
+                                        onChange={(e) => setData("description", e.target.value)} 
+                                        rows="3" 
+                                        placeholder="Write task details or requirements..."
+                                        className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none resize-y min-h-[80px] transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                    ></textarea>
                                 </div>
                             </div>
-                            <div style={{ marginTop: "16px" }}>
-                                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Task Description / Notes</label>
-                                <textarea value={data.description} onChange={(e) => setData("description", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", resize: "vertical" }} rows="3"></textarea>
-                            </div>
-                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                <button type="button" onClick={() => setShowModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569" }}>Dismiss</button>
-                                <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", opacity: processing ? 0.7 : 1 }}>
-                                    {processing ? "Saving Changes..." : "Commit Assignment"}
+
+                            {/* Modal Footer */}
+                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 shrink-0">
+                                <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
+                                    Dismiss
+                                </button>
+                                <button type="submit" disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70">
+                                    {processing ? "Saving..." : "Commit Assignment"}
                                 </button>
                             </div>
                         </form>

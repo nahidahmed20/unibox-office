@@ -1,8 +1,62 @@
 import React from 'react';
-import AdminLayout from '@/Layouts/AdminLayout'; 
+import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, Link } from '@inertiajs/react';
 
-export default function Dashboard({ 
+/* ---------------------------------------------------------------- */
+/*  Design tokens shared with AdminLayout — `--accent` etc. are set */
+/*  on AdminLayout's root and inherit down here automatically.      */
+/*  `--accent-ink` is a darker brass tuned for text on a white card */
+/*  (the light `--accent-bright` from the sidebar is too pale here).*/
+/* ---------------------------------------------------------------- */
+
+const TONE_STYLES = {
+    ink: { chip: 'bg-[#0A0E1A] text-[var(--accent-bright)]', value: 'text-[#1D2029]' },
+    accent: { chip: 'bg-[var(--accent-bg)] text-[var(--accent-ink)]', value: 'text-[var(--accent-ink)]' },
+    emerald: { chip: 'bg-emerald-50 text-emerald-600', value: 'text-emerald-700' },
+    rose: { chip: 'bg-rose-50 text-rose-600', value: 'text-rose-700' },
+    slate: { chip: 'bg-slate-100 text-slate-600', value: 'text-slate-700' },
+};
+
+const SectionLabel = ({ children }) => (
+    <div className="mb-3 flex items-center gap-2">
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-ink)]" />
+        <h2 className="whitespace-nowrap text-xs font-bold uppercase tracking-wider text-gray-500 sm:text-sm">{children}</h2>
+        <span className="h-px flex-1 bg-gray-200" />
+    </div>
+);
+
+const StatCard = ({ label, value, icon, tone = 'ink', hero = false, note, noteTone = 'default' }) => {
+    const t = TONE_STYLES[tone];
+    return (
+        <div
+            className={`group flex items-center justify-between gap-3 rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-5 ${
+                hero ? 'border-[var(--accent)]/40 ring-1 ring-[var(--accent)]/15' : 'border-[#ECEDF0]'
+            }`}
+        >
+            <div className="min-w-0 flex-1">
+                <h3 className="truncate text-xs font-medium text-gray-500 sm:text-sm">{label}</h3>
+                <p className={`mt-1 truncate text-xl font-bold tabular-nums sm:text-2xl ${t.value}`}>{value}</p>
+                {note && (
+                    <p className={`mt-0.5 text-[11px] font-semibold sm:text-xs ${noteTone === 'alert' ? 'text-rose-500' : 'text-gray-400'}`}>
+                        {note}
+                    </p>
+                )}
+            </div>
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg sm:h-12 sm:w-12 sm:text-xl ${t.chip}`}>
+                <i className={`fa-solid ${icon}`}></i>
+            </div>
+        </div>
+    );
+};
+
+const money = (n) => (
+    <>
+        <span className="mr-1 text-xs font-semibold sm:text-sm">TK.</span>
+        {(n || 0).toLocaleString('en-IN')}
+    </>
+);
+
+export default function Dashboard({
     stats = {
         totalEmployees: 45,
         presentToday: 42,
@@ -13,238 +67,139 @@ export default function Dashboard({
         monthlyExpenses: 3200,
         pendingLeaves: 3,
         pendingRequisitions: 4,
-        totalInvestment: 500000, 
+        totalInvestment: 500000,
         totalClients: 18,
         totalBalance: 150000,
         cashBalance: 25000,
         bankBalance: 125000,
         totalProjectDue: 15000,
-        totalClientDue: 35000
+        totalClientDue: 35000,
     },
     recentNotices = [],
     recentTasks = [],
-    recentTransactions = []
+    recentTransactions = [],
 }) {
     return (
         <AdminLayout>
-            <div className="slider-page-wrapper p-3 sm:p-6 max-w-[1600px] mx-auto">
+            <div className="slider-page-wrapper mx-auto max-w-[1600px] p-3 sm:p-6" style={{ '--accent-ink': '#8A6A24' }}>
                 <Head title="Dashboard Overview" />
 
                 {/* --- Header --- */}
-                <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                     <div>
-                        <h1 className="text-xl sm:text-2xl font-bold text-[#202223]">Dashboard Overview</h1>
-                        <p className="text-gray-500 text-xs sm:text-sm mt-0.5">Welcome back! Here is your business at a glance.</p>
+                        <h1 className="text-xl font-bold text-[#202223] sm:text-2xl">Dashboard Overview</h1>
+                        <p className="mt-0.5 text-xs text-gray-500 sm:text-sm">Welcome back! Here is your business at a glance.</p>
                     </div>
-                    <div className="self-start sm:self-auto text-xs sm:text-sm font-medium text-gray-500 bg-white px-3.5 py-2 rounded-md border shadow-sm flex items-center whitespace-nowrap">
-                        <i className="fa-regular fa-calendar mr-2"></i> 
+                    <div className="flex items-center gap-2 self-start whitespace-nowrap rounded-md border border-[#ECEDF0] bg-white px-3.5 py-2 text-xs font-medium text-gray-500 shadow-sm sm:self-auto sm:text-sm">
+                        <i className="fa-regular fa-calendar text-[var(--accent-ink)]"></i>
                         {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                     </div>
                 </div>
-                
+
                 {/* --- Row 1: Accounts & Assets --- */}
-                <h2 className="text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Accounts & Assets</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8">
-                    
-                    <div className="bg-white p-4 sm:p-5 rounded-lg border shadow-sm flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                            <h3 className="text-xs sm:text-sm text-gray-500 font-medium truncate">Total Available Balance</h3>
-                            <p className="text-xl sm:text-2xl font-bold mt-1 text-blue-700 truncate">
-                                <span className="text-xs sm:text-sm font-semibold mr-1">TK.</span>
-                                {(stats.totalBalance || 0).toLocaleString('en-IN')}
-                            </p>
-                        </div>
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-lg sm:text-xl shrink-0">
-                            <i className="fa-solid fa-wallet"></i>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 sm:p-5 rounded-lg border shadow-sm flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                            <h3 className="text-xs sm:text-sm text-gray-500 font-medium truncate">Cash in Hand</h3>
-                            <p className="text-xl sm:text-2xl font-bold mt-1 text-green-600 truncate">
-                                <span className="text-xs sm:text-sm font-semibold mr-1">TK.</span>
-                                {(stats.cashBalance || 0).toLocaleString('en-IN')}
-                            </p>
-                        </div>
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-green-50 text-green-600 flex items-center justify-center text-lg sm:text-xl shrink-0">
-                            <i className="fa-solid fa-money-bill-wave"></i>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 sm:p-5 rounded-lg border shadow-sm flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                            <h3 className="text-xs sm:text-sm text-gray-500 font-medium truncate">Bank & Mobile Banking</h3>
-                            <p className="text-xl sm:text-2xl font-bold mt-1 text-teal-600 truncate">
-                                <span className="text-xs sm:text-sm font-semibold mr-1">TK.</span>
-                                {(stats.bankBalance || 0).toLocaleString('en-IN')}
-                            </p>
-                        </div>
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center text-lg sm:text-xl shrink-0">
-                            <i className="fa-solid fa-building-columns"></i>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 sm:p-5 rounded-lg border shadow-sm flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                            <h3 className="text-xs sm:text-sm text-gray-500 font-medium truncate">Total Capital / Invest</h3>
-                            <p className="text-xl sm:text-2xl font-bold mt-1 text-indigo-700 truncate">
-                                <span className="text-xs sm:text-sm font-semibold mr-1">TK.</span>
-                                {(stats.totalInvestment || 0).toLocaleString('en-IN')}
-                            </p>
-                        </div>
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg sm:text-xl shrink-0">
-                            <i className="fa-solid fa-sack-dollar"></i>
-                        </div>
-                    </div>
+                <SectionLabel>Accounts & Assets</SectionLabel>
+                <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
+                    <StatCard hero tone="accent" label="Total Available Balance" value={money(stats.totalBalance)} icon="fa-wallet" />
+                    <StatCard tone="ink" label="Cash in Hand" value={money(stats.cashBalance)} icon="fa-money-bill-wave" />
+                    <StatCard tone="ink" label="Bank & Mobile Banking" value={money(stats.bankBalance)} icon="fa-building-columns" />
+                    <StatCard tone="ink" label="Total Capital / Invest" value={money(stats.totalInvestment)} icon="fa-sack-dollar" />
                 </div>
 
                 {/* --- Row 2: Finance, Dues & Payables --- */}
-                <h2 className="text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Finance, Dues & Payables</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8">
-                    
-                    <div className="bg-white p-4 sm:p-5 rounded-lg border shadow-sm flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                            <h3 className="text-xs sm:text-sm text-gray-500 font-medium truncate">Monthly Revenue</h3>
-                            <p className="text-xl sm:text-2xl font-bold mt-1 text-emerald-600 truncate">
-                                <span className="text-xs sm:text-sm font-semibold mr-1">TK.</span>
-                                {(stats.monthlyRevenue || 0).toLocaleString('en-IN')}
-                            </p>
-                        </div>
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg sm:text-xl shrink-0">
-                            <i className="fa-solid fa-chart-line"></i>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 sm:p-5 rounded-lg border shadow-sm flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                            <h3 className="text-xs sm:text-sm text-gray-500 font-medium truncate">Monthly Expenses</h3>
-                            <p className="text-xl sm:text-2xl font-bold mt-1 text-orange-600 truncate">
-                                <span className="text-xs sm:text-sm font-semibold mr-1">TK.</span>
-                                {(stats.monthlyExpenses || 0).toLocaleString('en-IN')}
-                            </p>
-                        </div>
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center text-lg sm:text-xl shrink-0">
-                            <i className="fa-solid fa-receipt"></i>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 sm:p-5 rounded-lg border shadow-sm flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                            <h3 className="text-xs sm:text-sm text-gray-500 font-medium truncate">Client Dues (Receivable)</h3>
-                            <p className="text-xl sm:text-2xl font-bold mt-1 text-blue-600 truncate">
-                                <span className="text-xs sm:text-sm font-semibold mr-1">TK.</span>
-                                {(stats.totalClientDue || 0).toLocaleString('en-IN')}
-                            </p>
-                            <p className="text-[11px] sm:text-xs text-rose-500 font-semibold mt-0.5">{stats.unpaidInvoices} Unpaid Invoices</p>
-                        </div>
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-lg sm:text-xl shrink-0">
-                            <i className="fa-solid fa-file-invoice-dollar"></i>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 sm:p-5 rounded-lg border shadow-sm flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                            <h3 className="text-xs sm:text-sm text-gray-500 font-medium truncate">Vendor Dues (Payable)</h3>
-                            <p className="text-xl sm:text-2xl font-bold mt-1 text-rose-600 truncate">
-                                <span className="text-xs sm:text-sm font-semibold mr-1">TK.</span>
-                                {(stats.totalProjectDue || 0).toLocaleString('en-IN')}
-                            </p>
-                            <p className="text-[11px] sm:text-xs text-gray-400 mt-0.5">To be paid</p>
-                        </div>
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-lg sm:text-xl shrink-0">
-                            <i className="fa-solid fa-hand-holding-dollar"></i>
-                        </div>
-                    </div>
+                <SectionLabel>Finance, Dues & Payables</SectionLabel>
+                <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
+                    <StatCard tone="emerald" label="Monthly Revenue" value={money(stats.monthlyRevenue)} icon="fa-chart-line" />
+                    <StatCard tone="rose" label="Monthly Expenses" value={money(stats.monthlyExpenses)} icon="fa-receipt" />
+                    <StatCard
+                        tone="accent"
+                        label="Client Dues (Receivable)"
+                        value={money(stats.totalClientDue)}
+                        icon="fa-file-invoice-dollar"
+                        note={`${stats.unpaidInvoices} Unpaid Invoices`}
+                        noteTone="alert"
+                    />
+                    <StatCard
+                        tone="slate"
+                        label="Vendor Dues (Payable)"
+                        value={money(stats.totalProjectDue)}
+                        icon="fa-hand-holding-dollar"
+                        note="To be paid"
+                    />
                 </div>
 
                 {/* --- Row 3: Operations & HR --- */}
-                <h2 className="text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Operations & HR</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8">
-                    <div className="bg-white p-4 sm:p-5 rounded-lg border shadow-sm flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                            <h3 className="text-xs sm:text-sm text-gray-500 font-medium truncate">Active Projects</h3>
-                            <p className="text-xl sm:text-2xl font-bold mt-1 text-[#202223]">{stats.activeProjects}</p>
-                        </div>
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-lg sm:text-xl shrink-0">
-                            <i className="fa-solid fa-layer-group"></i>
-                        </div>
-                    </div>
-                    
-                    <div className="bg-white p-4 sm:p-5 rounded-lg border shadow-sm flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                            <h3 className="text-xs sm:text-sm text-gray-500 font-medium truncate">Total Clients</h3>
-                            <p className="text-xl sm:text-2xl font-bold mt-1 text-[#202223]">{stats.totalClients}</p>
-                        </div>
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-lg sm:text-xl shrink-0">
-                            <i className="fa-solid fa-users-line"></i>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 sm:p-5 rounded-lg border shadow-sm flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                            <h3 className="text-xs sm:text-sm text-gray-500 font-medium truncate">Present Today</h3>
-                            <p className="text-xl sm:text-2xl font-bold mt-1 text-[#202223]">
-                                {stats.presentToday} <span className="text-xs sm:text-sm font-normal text-gray-400">/ {stats.totalEmployees}</span>
-                            </p>
-                        </div>
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-lg sm:text-xl shrink-0">
-                            <i className="fa-solid fa-user-check"></i>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 sm:p-5 rounded-lg border shadow-sm flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                            <h3 className="text-xs sm:text-sm text-gray-500 font-medium truncate">Requisitions</h3>
-                            <p className="text-xl sm:text-2xl font-bold mt-1 text-[#202223]">
-                                {stats.pendingRequisitions} <span className="text-xs sm:text-sm font-normal text-yellow-600">Pending</span>
-                            </p>
-                        </div>
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-lg sm:text-xl shrink-0">
-                            <i className="fa-solid fa-clipboard-list"></i>
-                        </div>
-                    </div>
+                <SectionLabel>Operations & HR</SectionLabel>
+                <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
+                    <StatCard tone="ink" label="Active Projects" value={stats.activeProjects} icon="fa-layer-group" />
+                    <StatCard tone="ink" label="Total Clients" value={stats.totalClients} icon="fa-users-line" />
+                    <StatCard
+                        tone="ink"
+                        label="Present Today"
+                        value={
+                            <>
+                                {stats.presentToday} <span className="text-xs font-normal text-gray-400 sm:text-sm">/ {stats.totalEmployees}</span>
+                            </>
+                        }
+                        icon="fa-user-check"
+                    />
+                    <StatCard
+                        tone="ink"
+                        label="Requisitions"
+                        value={
+                            <>
+                                {stats.pendingRequisitions} <span className="text-xs font-normal text-[var(--accent-ink)] sm:text-sm">Pending</span>
+                            </>
+                        }
+                        icon="fa-clipboard-list"
+                    />
                 </div>
 
                 {/* --- Section 4: Lists & Activity --- */}
-                <h2 className="text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Recent Activities</h2>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    
+                <SectionLabel>Recent Activities</SectionLabel>
+
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                     {/* Recent Transactions Table */}
-                    <div className="lg:col-span-2 bg-white rounded-lg border shadow-sm flex flex-col overflow-hidden">
-                        <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b flex justify-between items-center">
-                            <h3 className="font-bold text-sm sm:text-base text-[#202223]">
-                                <i className="fa-solid fa-arrow-right-arrow-left text-gray-400 mr-2"></i> Recent Transactions
+                    <div className="flex flex-col overflow-hidden rounded-lg border border-[#ECEDF0] bg-white shadow-sm lg:col-span-2">
+                        <div className="flex items-center justify-between border-b px-4 py-3.5 sm:px-5 sm:py-4">
+                            <h3 className="text-sm font-bold text-[#202223] sm:text-base">
+                                <i className="fa-solid fa-arrow-right-arrow-left mr-2 text-[var(--accent-ink)]"></i> Recent Transactions
                             </h3>
-                            <Link href={route('admin.transactions.index')} className="text-xs sm:text-sm text-blue-600 hover:underline font-medium">View Ledger</Link>
+                            <Link href={route('admin.transactions.index')} className="text-xs font-medium text-[var(--accent-ink)] hover:text-[var(--accent)] hover:underline sm:text-sm">
+                                View Ledger
+                            </Link>
                         </div>
-                        
-                        <div className="p-0 overflow-x-auto">
-                            <table className="w-full text-left border-collapse min-w-[500px]">
+
+                        <div className="overflow-x-auto p-0">
+                            <table className="w-full min-w-[500px] border-collapse text-left">
                                 <thead>
-                                    <tr className="bg-gray-50 border-b">
-                                        <th className="px-3 sm:px-4 py-3 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Date</th>
-                                        <th className="px-3 sm:px-4 py-3 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Account</th>
-                                        <th className="px-3 sm:px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Description</th>
-                                        <th className="px-3 sm:px-4 py-3 text-xs font-semibold text-gray-500 uppercase text-right whitespace-nowrap">Amount</th>
+                                    <tr className="border-b bg-gray-50">
+                                        <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold uppercase text-gray-500 sm:px-4">Date</th>
+                                        <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold uppercase text-gray-500 sm:px-4">Account</th>
+                                        <th className="px-3 py-3 text-xs font-semibold uppercase text-gray-500 sm:px-4">Description</th>
+                                        <th className="whitespace-nowrap px-3 py-3 text-right text-xs font-semibold uppercase text-gray-500 sm:px-4">Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {recentTransactions.length > 0 ? (
-                                        recentTransactions.map(trx => (
-                                            <tr key={trx.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm text-gray-500 whitespace-nowrap">{trx.transaction_date}</td>
-                                                <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-gray-800 whitespace-nowrap">{trx.account?.name || '-'}</td>
-                                                <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm text-gray-600 truncate max-w-[150px] sm:max-w-[250px]">{trx.description}</td>
-                                                <td className={`px-3 sm:px-4 py-3 text-xs sm:text-sm font-bold text-right whitespace-nowrap ${trx.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                                        recentTransactions.map((trx) => (
+                                            <tr key={trx.id} className="transition-colors hover:bg-gray-50">
+                                                <td className="whitespace-nowrap px-3 py-3 text-xs text-gray-500 sm:px-4 sm:text-sm">{trx.transaction_date}</td>
+                                                <td className="whitespace-nowrap px-3 py-3 text-xs font-medium text-gray-800 sm:px-4 sm:text-sm">{trx.account?.name || '-'}</td>
+                                                <td className="max-w-[150px] truncate px-3 py-3 text-xs text-gray-600 sm:max-w-[250px] sm:px-4 sm:text-sm">{trx.description}</td>
+                                                <td
+                                                    className={`whitespace-nowrap px-3 py-3 text-right text-xs font-bold tabular-nums sm:px-4 sm:text-sm ${
+                                                        trx.type === 'credit' ? 'text-emerald-600' : 'text-rose-600'
+                                                    }`}
+                                                >
                                                     {trx.type === 'credit' ? '+' : '-'}TK. {parseFloat(trx.amount).toLocaleString('en-IN')}
                                                 </td>
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan="4" className="px-4 py-8 text-center text-xs sm:text-sm text-gray-500">No recent transactions found.</td>
+                                            <td colSpan="4" className="px-4 py-8 text-center text-xs text-gray-500 sm:text-sm">
+                                                No recent transactions found.
+                                            </td>
                                         </tr>
                                     )}
                                 </tbody>
@@ -254,61 +209,66 @@ export default function Dashboard({
 
                     {/* Right Column: Tasks & Notices Stacked */}
                     <div className="flex flex-col gap-6">
-                        
                         {/* Recent Tasks */}
-                        <div className="bg-white rounded-lg border shadow-sm">
-                            <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b flex justify-between items-center">
-                                <h3 className="font-bold text-sm sm:text-base text-[#202223]">
-                                    <i className="fa-solid fa-list-check text-gray-400 mr-2"></i> Recent Tasks
+                        <div className="rounded-lg border border-[#ECEDF0] bg-white shadow-sm">
+                            <div className="flex items-center justify-between border-b px-4 py-3.5 sm:px-5 sm:py-4">
+                                <h3 className="text-sm font-bold text-[#202223] sm:text-base">
+                                    <i className="fa-solid fa-list-check mr-2 text-[var(--accent-ink)]"></i> Recent Tasks
                                 </h3>
-                                <Link href={route('admin.tasks.index')} className="text-xs sm:text-sm text-blue-600 hover:underline font-medium">View All</Link>
+                                <Link href={route('admin.tasks.index')} className="text-xs font-medium text-[var(--accent-ink)] hover:text-[var(--accent)] hover:underline sm:text-sm">
+                                    View All
+                                </Link>
                             </div>
                             <div className="p-0">
                                 <ul className="divide-y divide-gray-100">
-                                    {recentTasks.map(task => (
-                                        <li key={task.id} className="p-3.5 sm:p-4 hover:bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    {recentTasks.map((task) => (
+                                        <li key={task.id} className="flex flex-col justify-between gap-2 p-3.5 hover:bg-gray-50 sm:flex-row sm:items-center sm:p-4">
                                             <div className="min-w-0">
-                                                <p className="font-semibold text-xs sm:text-sm text-gray-800 truncate">{task.title}</p>
-                                                <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded mt-1 inline-block ${task.priority === 'high' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                <p className="truncate text-xs font-semibold text-gray-800 sm:text-sm">{task.title}</p>
+                                                <span
+                                                    className={`mt-1 inline-block rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
+                                                        task.priority === 'high' ? 'bg-red-100 text-red-700' : 'bg-[var(--accent-bg)] text-[var(--accent-ink)]'
+                                                    }`}
+                                                >
                                                     {task.priority} Priority
                                                 </span>
                                             </div>
-                                            <span className="self-start sm:self-auto text-[11px] sm:text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded whitespace-nowrap">
+                                            <span className="self-start whitespace-nowrap rounded bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-500 sm:self-auto sm:text-xs">
                                                 {task.status.replace('_', ' ').toUpperCase()}
                                             </span>
                                         </li>
                                     ))}
-                                    {recentTasks.length === 0 && <li className="p-4 text-xs sm:text-sm text-gray-500 text-center">No recent tasks.</li>}
+                                    {recentTasks.length === 0 && <li className="p-4 text-center text-xs text-gray-500 sm:text-sm">No recent tasks.</li>}
                                 </ul>
                             </div>
                         </div>
 
                         {/* Notice Board */}
-                        <div className="bg-white rounded-lg border shadow-sm">
-                            <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b flex justify-between items-center">
-                                <h3 className="font-bold text-sm sm:text-base text-[#202223]">
-                                    <i className="fa-solid fa-bullhorn text-gray-400 mr-2"></i> Notice Board
+                        <div className="rounded-lg border border-[#ECEDF0] bg-white shadow-sm">
+                            <div className="flex items-center justify-between border-b px-4 py-3.5 sm:px-5 sm:py-4">
+                                <h3 className="text-sm font-bold text-[#202223] sm:text-base">
+                                    <i className="fa-solid fa-bullhorn mr-2 text-[var(--accent-ink)]"></i> Notice Board
                                 </h3>
-                                <Link href={route('admin.notices.index')} className="text-xs sm:text-sm text-blue-600 hover:underline font-medium">View All</Link>
+                                <Link href={route('admin.notices.index')} className="text-xs font-medium text-[var(--accent-ink)] hover:text-[var(--accent)] hover:underline sm:text-sm">
+                                    View All
+                                </Link>
                             </div>
                             <div className="p-0">
                                 <ul className="divide-y divide-gray-100">
-                                    {recentNotices.map(notice => (
-                                        <li key={notice.id} className="p-3.5 sm:p-4 hover:bg-gray-50">
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4">
-                                                <p className="font-semibold text-xs sm:text-sm text-blue-800 break-words">{notice.title}</p>
-                                                <span className="text-[11px] sm:text-xs text-gray-400 whitespace-nowrap shrink-0">{notice.date}</span>
+                                    {recentNotices.map((notice) => (
+                                        <li key={notice.id} className="p-3.5 hover:bg-gray-50 sm:p-4">
+                                            <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center sm:gap-4">
+                                                <p className="break-words text-xs font-semibold text-[var(--accent-ink)] sm:text-sm">{notice.title}</p>
+                                                <span className="shrink-0 whitespace-nowrap text-[11px] text-gray-400 sm:text-xs">{notice.date}</span>
                                             </div>
                                         </li>
                                     ))}
-                                    {recentNotices.length === 0 && <li className="p-4 text-xs sm:text-sm text-gray-500 text-center">No active notices.</li>}
+                                    {recentNotices.length === 0 && <li className="p-4 text-center text-xs text-gray-500 sm:text-sm">No active notices.</li>}
                                 </ul>
                             </div>
                         </div>
-
                     </div>
                 </div>
-
             </div>
         </AdminLayout>
     );

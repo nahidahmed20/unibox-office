@@ -105,6 +105,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('leaves', LeaveController::class)->names('admin.leaves');
     Route::get('/financial-reports', [ReportController::class, 'financialSummary'])->name('admin.reports.financial');
     Route::get('account/transactions', [ReportController::class, 'transactionsReport'])->name('admin.account.transactions');
+    Route::get('reports/client-ledger', [ReportController::class, 'clientLedger'])->name('admin.reports.client-ledger');
 
     Route::post('/project-expenses/{id}/move-to-wallet', [ProjectExpenseController::class, 'moveToWallet'])->name('admin.project-expenses.move-to-wallet');
 

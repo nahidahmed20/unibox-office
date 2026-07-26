@@ -4,7 +4,7 @@ import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2'; 
 
 export default function Index({ accounts = { data: [], links: [] }, totalBalance }) {
-   
+    
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
     const permissions = auth?.permissions || [];
@@ -81,16 +81,18 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
                 <head>
                     <title>Accounts & Balances Report</title>
                     <style>
-                        body { font-family: Arial, sans-serif; padding: 20px; color: #334155; }
-                        h2 { text-align: center; color: #1e293b; margin-bottom: 20px; }
-                        table { width: 100%; border-collapse: collapse; text-align: left; }
-                        th, td { padding: 12px; border: 1px solid #cbd5e1; font-size: 13px; }
-                        th { background-color: #f1f5f9; font-weight: 600; text-transform: uppercase; }
+                        body { font-family: Arial, sans-serif; padding: 30px; color: #334155; }
+                        h2 { text-align: center; color: #0f172a; margin-bottom: 5px; }
+                        p { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 14px; }
+                        table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; }
+                        th, td { padding: 12px 16px; border: 1px solid #cbd5e1; font-size: 13px; }
+                        th { background-color: #f8fafc; font-weight: 600; color: #475569; text-transform: uppercase; }
                         th:last-child, td:last-child { display: none !important; } /* Hide Actions */
                     </style>
                 </head>
                 <body>
                     <h2>Accounts & Balances Report</h2>
+                    <p>Generated Report Date: ${new Date().toLocaleDateString()}</p>
                     ${tableContent.outerHTML}
                 </body>
             </html>
@@ -102,23 +104,22 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
     };
 
     // --- Modals & Submits ---
-   const openCreateModal = () => {
+    const openCreateModal = () => {
         clearErrors(); 
         
         setData({
             id: '',
             name: '',
-            type: '', 
+            type: 'cash', 
             opening_balance: 0, 
             current_balance: 0, 
             account_number: '',
-            is_active: true    
+            is_active: 1    
         });
 
         setEditMode(false); 
         setShowModal(true);
     };
-
 
     const openEditModal = (acc) => {
         clearErrors(); 
@@ -178,123 +179,144 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
         <AdminLayout>
             <Head title="Accounts & Balances" />
             
-            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc" }}>
+            <div className="flex flex-col gap-6">
                 
-                {/* Header */}
-                <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '15px' }}>
+                {/* Page Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 className="page-title" style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Accounts Workspace</h1>
-                        <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Manage cash, bank and mobile banking accounts.</p>
+                        <h1 className="text-[22px] font-bold text-[#202223]">Accounts Workspace</h1>
+                        <p className="text-[14px] text-gray-500 mt-1">Manage cash, bank and mobile banking accounts.</p>
                     </div>
                 </div>
 
-                <div className="card-container" style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
+                {/* Main Card */}
+                <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
                     
-                    {/* Card Header */}
-                    <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
-                        <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
-                            <i className="fa-solid fa-vault" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Account List
+                    {/* Card Header & Actions */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
+                        <div className="text-[16px] font-semibold text-[#202223] flex items-center gap-2.5">
+                            <i className="fa-solid fa-vault text-[var(--accent)]"></i> Account List
                         </div>
                         {(isSuperAdmin || hasPermission('create_account')) && (
-                            <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
+                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13.5px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50">
                                 <i className="fa-solid fa-plus"></i> Add Account
                             </button>
                         )}
                     </div>
 
                     {/* Toolbar */}
-                    <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
-                        <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                            Show 
-                            <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
-                                <option value={10}>10 Entries</option>
-                                <option value={25}>25 Entries</option>
-                                <option value={50}>50 Entries</option>
-                                <option value={100}>100 Entries</option>
-                                <option value={500}>500 Entries</option>
-                                <option value={1000}>1000 Entries</option>
-                                <option value="all">All</option>
-                            </select>
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30">
+                        
+                        <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
+                            {/* Show Entries */}
+                            <div className="flex items-center gap-2">
+                                <span>Show</span>
+                                <select 
+                                    value={perPage} 
+                                    onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                    className="w-[100px] appearance-none bg-none rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                >
+                                    <option value={10}>10 Entries</option>
+                                    <option value={25}>25 Entries</option>
+                                    <option value={50}>50 Entries</option>
+                                    <option value={100}>100 Entries</option>
+                                    <option value={500}>500 Entries</option>
+                                    <option value={1000}>1000 Entries</option>
+                                    <option value="all">All</option>
+                                </select>
+                            </div>
+
+                            <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
+
+                            {/* Export Buttons */}
+                            <div className="flex items-center gap-1.5">
+                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-copy text-blue-500"></i> Copy
+                                </button>
+                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-file-excel text-emerald-500"></i> CSV
+                                </button>
+                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-print text-gray-500"></i> Print
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="export-buttons" style={{ display: "flex", gap: "8px" }}>
-                            <button type="button" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-copy text-blue-500"></i> Copy
-                            </button>
-                            <button type="button" onClick={handleExportCSV} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-file-excel text-emerald-500"></i> CSV
-                            </button>
-                            <button type="button" onClick={handlePrint} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-print text-slate-500"></i> Print
-                            </button>
-                        </div>
-
-                        <div className="search-box" style={{ position: "relative" }}>
-                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
-                            <input type="text" placeholder="Search account..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "260px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
+                        {/* Search */}
+                        <div className="relative w-full sm:w-[260px]">
+                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                            <input 
+                                type="text" 
+                                placeholder="Search account..." 
+                                value={searchTerm} 
+                                onChange={(e) => setSearchTerm(e.target.value)} 
+                                className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                            />
                         </div>
                     </div>
 
-                    {/* Table */}
-                    <div style={{ overflowX: 'auto' }}>
-                        <table id="printable-table" className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                            <thead>
-                                <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "60px" }}>SL</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>ACCOUNT NAME</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>TYPE</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>A/C NUMBER</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>OPENING BAL.</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>CURRENT BAL.</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>STATUS</th>
-                                    
+                    {/* Data Table */}
+                    <div className="overflow-x-auto brass-scroll border-t border-[#e1e3e5]">
+                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[800px]">
+                            <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
+                                <tr>
+                                    <th className="px-6 py-4 w-12">SL</th>
+                                    <th className="px-6 py-4">Account Name</th>
+                                    <th className="px-6 py-4">Type</th>
+                                    <th className="px-6 py-4">A/C Number</th>
+                                    <th className="px-6 py-4 text-right">Opening Bal.</th>
+                                    <th className="px-6 py-4 text-right">Current Bal.</th>
+                                    <th className="px-6 py-4 text-center">Status</th>
                                     {isSuperAdmin && (
-                                        <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>ACTIONS</th>
+                                        <th className="px-6 py-4 text-right">Actions</th>
                                     )}
                                 </tr>
                             </thead>
-                            <tbody style={{ color: "#334155", fontSize: "0.915rem" }}>
+                            <tbody className="text-[13.5px] text-[#202223]">
                                 {accList.length > 0 ? (
                                     accList.map((acc, index) => (
-                                        <tr key={acc.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                                            <td style={{ padding: "16px 24px", color: "#64748b", fontWeight: "500" }}>
+                                        <tr key={acc.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                            <td className="px-6 py-4 font-medium text-gray-500">
                                                 {accounts.from ? accounts.from + index : index + 1}
                                             </td>
-                                            <td style={{ padding: "16px 24px", fontWeight: '600', color: '#0f172a' }}>{acc.name}</td>
-                                            <td style={{ padding: "16px 24px", textTransform: 'capitalize' }}>
-                                                <span style={{ 
-                                                    padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "600",
-                                                    background: acc.type === 'cash' ? '#dcfce7' : (acc.type === 'bank' ? '#dbeafe' : '#f3e8ff'),
-                                                    color: acc.type === 'cash' ? '#15803d' : (acc.type === 'bank' ? '#1d4ed8' : '#7e22ce')
-                                                }}>
+                                            <td className="px-6 py-4 font-bold text-gray-900">{acc.name}</td>
+                                            <td className="px-6 py-4 capitalize">
+                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider border
+                                                    ${acc.type === 'cash' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : ''}
+                                                    ${acc.type === 'bank' ? 'bg-blue-50 text-blue-600 border-blue-200' : ''}
+                                                    ${acc.type === 'mobile_banking' ? 'bg-purple-50 text-purple-600 border-purple-200' : ''}
+                                                `}>
                                                     {acc.type.replace('_', ' ')}
                                                 </span>
                                             </td>
-                                            <td style={{ padding: "16px 24px", color: "#475569" }}>{acc.account_number || '-'}</td>
-                                            <td style={{ padding: "16px 24px", textAlign: 'right', color: '#64748b' }}>
+                                            <td className="px-6 py-4 text-gray-500 font-medium">{acc.account_number || '-'}</td>
+                                            <td className="px-6 py-4 text-right text-gray-500">
                                                 {parseFloat(acc.opening_balance).toLocaleString('en-IN')}
                                             </td>
-                                            <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '700', color: acc.current_balance < 0 ? '#dc2626' : '#16a34a' }}>
+                                            <td className={`px-6 py-4 text-right font-bold ${acc.current_balance < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                                                 {parseFloat(acc.current_balance).toLocaleString('en-IN')}
                                             </td>
-                                            <td style={{ padding: "16px 24px", textAlign: 'center' }}>
-                                                <span style={{ color: acc.is_active ? '#15803d' : '#dc2626', fontWeight: '600', fontSize: '0.85rem' }}>
-                                                    {acc.is_active ? '● Active' : '● Inactive'}
+                                            <td className="px-6 py-4 text-center">
+                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider
+                                                    ${acc.is_active ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}
+                                                `}>
+                                                    <span className={`h-1.5 w-1.5 rounded-full ${acc.is_active ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                                                    {acc.is_active ? 'Active' : 'Inactive'}
                                                 </span>
                                             </td>
                                             
                                             {isSuperAdmin && (
-                                                <td style={{ padding: "16px 24px", textAlign: "center" }}>
-                                                    <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex items-center justify-end gap-1.5">
                                                         {hasPermission('view_account') && (
-                                                        <button onClick={() => openEditModal(acc)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit">
-                                                            <i className="fa-regular fa-pen-to-square"></i>
-                                                        </button>
+                                                            <button onClick={() => openEditModal(acc)} className="flex h-7 w-7 items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors" title="Edit">
+                                                                <i className="fa-regular fa-pen-to-square text-[12px]"></i>
+                                                            </button>
                                                         )}
                                                         {hasPermission('delete_account') && (
-                                                        <button onClick={() => handleDelete(acc.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
-                                                            <i className="fa-regular fa-trash-can"></i>
-                                                        </button>
+                                                            <button onClick={() => handleDelete(acc.id)} className="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete">
+                                                                <i className="fa-regular fa-trash-can text-[12px]"></i>
+                                                            </button>
                                                         )}
                                                     </div>
                                                 </td>
@@ -303,8 +325,11 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={isSuperAdmin ? "8" : "7"} style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>
-                                            No accounts found.
+                                        <td colSpan={isSuperAdmin ? "8" : "7"} className="px-6 py-12 text-center text-gray-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <i className="fa-solid fa-vault text-4xl text-gray-300 mb-3"></i>
+                                                <p>No accounts found.</p>
+                                            </div>
                                         </td>
                                     </tr>
                                 )}
@@ -313,116 +338,140 @@ export default function Index({ accounts = { data: [], links: [] }, totalBalance
                     </div>
 
                     {/* Pagination & Total Balance Section */}
-                    <div style={{ padding: "20px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-                            {/* Total Balance (Always Visible) */}
-                            <div style={{ fontWeight: "700", color: "#15803d", fontSize: "1rem", background: "#dcfce7", padding: "8px 20px", borderRadius: "50px", border: "1px solid #bbf7d0" }}>
-                                Total Net Balance: TK. {Number(totalBalance ?? 0).toLocaleString('en-IN')}
-                            </div>
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#e1e3e5] bg-[#f6f6f7] px-6 py-4">
+                        {/* Total Balance (Always Visible) */}
+                        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-emerald-700">
+                            <span className="text-[13px] font-bold uppercase tracking-wider text-emerald-800">Total Net Balance:</span>
+                            <span className="text-[16px] font-bold">TK. {Number(totalBalance ?? 0).toLocaleString('en-IN')}</span>
+                        </div>
 
-                            {/* Pagination Links */}
+                        {/* Pagination Links */}
+                        <div className="flex flex-col sm:flex-row items-center gap-4">
+                            {accounts.total > 0 && (
+                                <div className="text-[13px] text-gray-500 text-center sm:text-right">
+                                    Showing {accounts.from || 0} to {accounts.to || 0} of {accounts.total || 0} entries
+                                </div>
+                            )}
+
                             {accounts.links && accounts.links.length > 3 && (
-                                <div style={{ display: "flex", gap: "6px" }}>
+                                <div className="flex flex-wrap items-center gap-1">
                                     {accounts.links.map((link, index) => (
                                         <Link 
                                             key={index} 
                                             href={link.url || "#"} 
-                                            style={{ 
-                                                padding: "6px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.875rem", 
-                                                color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"), 
-                                                backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"), 
-                                                pointerEvents: link.url ? "auto" : "none", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "32px"
-                                            }} 
+                                            className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] transition-colors
+                                                ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : link.url ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'border-gray-200 bg-gray-100 text-gray-400 pointer-events-none'}
+                                            `}
                                             preserveState
                                         >
-                                            {link.label.includes("Previous") ? <i className="fa-solid fa-chevron-left"></i> : link.label.includes("Next") ? <i className="fa-solid fa-chevron-right"></i> : link.label.replace("&laquo;", "").replace("&raquo;", "")}
+                                            {link.label.includes("Previous") ? <i className="fa-solid fa-chevron-left text-[10px]"></i> : link.label.includes("Next") ? <i className="fa-solid fa-chevron-right text-[10px]"></i> : link.label.replace("&laquo;", "").replace("&raquo;", "")}
                                         </Link>
                                     ))}
                                 </div>
                             )}
                         </div>
-
-                        {/* Showing Info */}
-                        {accounts.total > 0 && (
-                            <div style={{ color: "#64748b", fontSize: "0.875rem", marginTop: "12px", textAlign: "right" }}>
-                                Showing {accounts.from || 0} to {accounts.to || 0} of {accounts.total || 0} entries
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
 
+            {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && isSuperAdmin && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
-                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                            <h3 className="text-[18px] font-semibold text-[#202223]">
                                 {editMode ? "📝 Update Account" : "✨ Add New Account"}
                             </h3>
-                            <button type="button" onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}><i className="fa-solid fa-xmark"></i></button>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
+                            </button>
                         </div>
-                        <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
-                            
-                            <div style={{ marginBottom: "16px" }}>
-                                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Account Name *</label>
-                                <input type="text" value={data.name} onChange={e => setData('name', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} placeholder="e.g. Main Cash, DBBL Bank" required />
-                                {errors.name && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.name}</p>}
+                        
+                        {/* Modal Body & Form */}
+                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
+                            <div className="p-6 overflow-y-auto brass-scroll">
+                                <div className="flex flex-col gap-5">
+                                    
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Account Name *</label>
+                                        <input 
+                                            type="text" 
+                                            value={data.name} 
+                                            onChange={e => setData('name', e.target.value)} 
+                                            placeholder="e.g. Main Cash, DBBL Bank" 
+                                            required 
+                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                        />
+                                        {errors.name && <p className="text-red-500 text-[12px] mt-1">{errors.name}</p>}
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Account Type *</label>
+                                            <select 
+                                                value={data.type} 
+                                                onChange={e => setData('type', e.target.value)} 
+                                                className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer" 
+                                                required
+                                            >
+                                                <option value="cash">Cash</option>
+                                                <option value="bank">Bank Account</option>
+                                                <option value="mobile_banking">Mobile Banking</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">A/C Number (Optional)</label>
+                                            <input 
+                                                type="text" 
+                                                value={data.account_number} 
+                                                onChange={e => setData('account_number', e.target.value)} 
+                                                placeholder="If bank/mobile" 
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Opening Balance</label>
+                                            <input 
+                                                type="number" 
+                                                step="0.01" 
+                                                value={data.opening_balance} 
+                                                onChange={e => setData('opening_balance', e.target.value)} 
+                                                disabled={editMode && !isSuperAdmin} 
+                                                placeholder="0.00" 
+                                                className={`w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow ${editMode && !isSuperAdmin ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50'}`} 
+                                            />
+                                            {editMode && !isSuperAdmin && (
+                                                <p className="text-gray-500 text-[11px] mt-1.5 italic">
+                                                    Opening balance cannot be edited by your role.
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Status</label>
+                                            <select 
+                                                value={data.is_active} 
+                                                onChange={e => setData('is_active', e.target.value)} 
+                                                className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                            >
+                                                <option value={1}>Active</option>
+                                                <option value={0}>Inactive</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Account Type *</label>
-                                    <select value={data.type} onChange={e => setData('type', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} required>
-                                        <option value="cash">Cash</option>
-                                        <option value="bank">Bank Account</option>
-                                        <option value="mobile_banking">Mobile Banking</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>A/C Number (Optional)</label>
-                                    <input type="text" value={data.account_number} onChange={e => setData('account_number', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} placeholder="If bank/mobile" />
-                                </div>
-                            </div>
-
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Opening Balance</label>
-                                    <input 
-                                        type="number" 
-                                        step="0.01" 
-                                        value={data.opening_balance} 
-                                        onChange={e => setData('opening_balance', e.target.value)} 
-                                        disabled={editMode && !isSuperAdmin} 
-                                        style={{ 
-                                            width: "100%", 
-                                            padding: "8px 12px", 
-                                            borderRadius: "6px", 
-                                            border: "1px solid #cbd5e1", 
-                                            outline: "none", 
-                                            background: (editMode && !isSuperAdmin) ? "#f1f5f9" : "#fff" 
-                                        }} 
-                                        placeholder="0.00" 
-                                    />
-
-                                    {editMode && !isSuperAdmin && (
-                                        <p style={{ fontSize: "0.7rem", color: "#94a3b8", marginTop: "4px" }}>
-                                            Opening balance cannot be edited by your role.
-                                        </p>
-                                    )}
-                                </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Status</label>
-                                    <select value={data.is_active} onChange={e => setData('is_active', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }}>
-                                        <option value={1}>Active</option>
-                                        <option value={0}>Inactive</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                <button type="button" onClick={() => setShowModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569", fontWeight: "500" }}>Dismiss</button>
-                                <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", opacity: processing ? 0.7 : 1 }}>
-                                    {processing ? "Saving Changes..." : "Commit Account"}
+                            {/* Modal Footer */}
+                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 shrink-0">
+                                <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
+                                    Dismiss
+                                </button>
+                                <button type="submit" disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70">
+                                    {processing ? "Saving..." : "Commit Account"}
                                 </button>
                             </div>
                         </form>

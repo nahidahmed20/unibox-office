@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'; 
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router, Link , usePage} from '@inertiajs/react';
+import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2'; 
+import Select from 'react-select';
 
 export default function Index({ investments = {}, accounts = [], filters = {}, totalAmount = 0 }) {
     const { auth } = usePage().props;
@@ -87,9 +88,9 @@ export default function Index({ investments = {}, accounts = [], filters = {}, t
                         body { font-family: Arial, sans-serif; padding: 30px; color: #334155; }
                         h2 { text-align: center; color: #0f172a; margin-bottom: 5px; }
                         p { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 14px; }
-                        table { width: 100%; border-collapse: collapse; text-align: left; }
+                        table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; }
                         th, td { padding: 12px 16px; border: 1px solid #cbd5e1; font-size: 13px; }
-                        th { background-color: #f1f5f9; font-weight: 600; color: #475569; }
+                        th { background-color: #f8fafc; font-weight: 600; color: #475569; text-transform: uppercase; }
                         th:last-child, td:last-child { display: none !important; }
                     </style>
                 </head>
@@ -107,17 +108,15 @@ export default function Index({ investments = {}, accounts = [], filters = {}, t
 
     const openCreateModal = () => {
         clearErrors();
-
         setData({
             id: '',
             account_id: '',
-            amount: 0,
+            amount: '',
             investor_name: '',
             investment_date: new Date().toISOString().slice(0, 10),
-            purpose: '',
+            purpose: 'Office Purpose',
             notes: ''
         });
-
         setEditMode(false);
         setShowModal(true);
     };
@@ -139,6 +138,9 @@ export default function Index({ investments = {}, accounts = [], filters = {}, t
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        
+        if (!data.account_id) return Swal.fire("Required", "Please select a deposit account.", "warning");
+
         if (editMode) {
             put(route('admin.investments.update', data.id), { 
                 onSuccess: () => {
@@ -179,130 +181,173 @@ export default function Index({ investments = {}, accounts = [], filters = {}, t
 
     const totalInvestment = parseFloat(totalAmount || 0);
 
+    // React-Select Custom Styles
+    const selectStyles = {
+        control: (provided, state) => ({
+            ...provided, 
+            minHeight: "42px", 
+            borderRadius: "0.5rem",
+            border: state.isFocused ? "1px solid var(--accent)" : "1px solid #d1d5db",
+            boxShadow: state.isFocused ? "0 0 0 1px rgba(200, 155, 60, 0.5)" : "none",
+            "&:hover": { borderColor: "#9ca3af" },
+            fontSize: "13.5px",
+            background: "#fff",
+            padding: "0px"
+        }),
+        valueContainer: (provided) => ({ ...provided, padding: "2px 10px" }),
+        placeholder: (provided) => ({ ...provided, color: "#9ca3af", fontSize: "13.5px" }),
+        singleValue: (provided) => ({ ...provided, color: "#111827", fontSize: "13.5px" }),
+        option: (provided, state) => ({
+            ...provided, fontSize: "13.5px",
+            backgroundColor: state.isSelected ? "var(--accent)" : state.isFocused ? "var(--accent-bg)" : "#fff",
+            color: state.isSelected ? "#fff" : "#111827", cursor: "pointer",
+        }),
+        menuPortal: base => ({ ...base, zIndex: 9999 })
+    };
+
     return (
         <AdminLayout>
             <Head title="Investments Management" />
             
-            <div style={{ padding: "24px", background: "#f8fafc", minHeight: "100vh" }}>
+            <div className="flex flex-col gap-6">
                 
-                {/* Header Section */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: "24px" }}>
+                {/* Page Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Investments Management</h1>
-                        <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Track and manage asset allocations, seed funding, and corporate capitals.</p>
+                        <h1 className="text-[22px] font-bold text-[#202223]">Investments Management</h1>
+                        <p className="text-[14px] text-gray-500 mt-1">Track and manage asset allocations, seed funding, and corporate capitals.</p>
                     </div>
-                    
-                    <div style={{ fontSize: '1.05rem', fontWeight: '700', color: '#0f766e', padding: '12px 20px', background: '#f0fdfa', borderRadius: '8px', border: "1px solid #ccfbf1", boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" }}>
-                        <i className="fa-solid fa-chart-line" style={{ marginRight: "8px", color: "#0d9488" }}></i>
-                        Page Total: <span style={{ fontSize: "1.2rem" }}>TK{totalInvestment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+
+                    <div className="flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-5 py-2.5 text-teal-700 shadow-sm">
+                        <i className="fa-solid fa-chart-line text-teal-600"></i>
+                        <span className="text-[14px] font-bold uppercase tracking-wider text-teal-800">Page Total:</span>
+                        <span className="text-[18px] font-bold">TK. {totalInvestment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                 </div>
 
                 {/* Main Card Container */}
-                <div style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
+                <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
                     
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
-                        <div style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
-                            <i className="fa-solid fa-money-bill-trend-up" style={{ marginRight: "8px", color: "#2563eb" }}></i> Capital & Investments Directory
+                    {/* Card Header & Actions */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
+                        <div className="text-[16px] font-semibold text-[#202223] flex items-center gap-2.5">
+                            <i className="fa-solid fa-money-bill-trend-up text-[var(--accent)]"></i> Capital & Investments Directory
                         </div>
                         {hasPermission('create_investment') && (
-                        <button onClick={openCreateModal} style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 4px rgba(37, 99, 235, 0.2)" }}>
-                            <i className="fa-solid fa-plus"></i> Log Investment
-                        </button>
+                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13.5px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50">
+                                <i className="fa-solid fa-plus"></i> Log Investment
+                            </button>
                         )}
                     </div>
 
-                    <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
-                        <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                            Show 
-                            <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
-                                <option value={10}>10 Entries</option>
-                                <option value={25}>25 Entries</option>
-                                <option value={50}>50 Entries</option>
-                                <option value={100}>100 Entries</option>
-                                <option value={500}>500 Entries</option>
-                                <option value={1000}>1000 Entries</option>
-                                <option value="all">All</option>
-                            </select>
+                    {/* Toolbar */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30">
+                        
+                        <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
+                            {/* Show Entries */}
+                            <div className="flex items-center gap-2">
+                                <span>Show</span>
+                                <select 
+                                    value={perPage} 
+                                    onChange={(e) => setPerPage(e.target.value === "all" ? "all" : e.target.value)} 
+                                    className="w-[100px] appearance-none bg-none rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                >
+                                    <option value={10}>10 Entries</option>
+                                    <option value={25}>25 Entries</option>
+                                    <option value={50}>50 Entries</option>
+                                    <option value={100}>100 Entries</option>
+                                    <option value={500}>500 Entries</option>
+                                    <option value={1000}>1000 Entries</option>
+                                    <option value="all">All</option>
+                                </select>
+                            </div>
+
+                            <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
+
+                            {/* Export Buttons */}
+                            <div className="flex items-center gap-1.5">
+                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-copy text-blue-500"></i> Copy
+                                </button>
+                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-file-excel text-emerald-500"></i> CSV
+                                </button>
+                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-print text-gray-500"></i> Print
+                                </button>
+                            </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                            <button type="button" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
-                                <i className="fas fa-copy text-blue-500"></i> Copy
-                            </button>
-                            <button type="button" onClick={handleExportCSV} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
-                                <i className="fas fa-file-excel text-emerald-500"></i> Excel
-                            </button>
-                            <button type="button" onClick={handlePrint} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: "500" }}>
-                                <i className="fas fa-print text-slate-500"></i> Print
-                            </button>
-                        </div>
-
-                        <div style={{ position: "relative" }}>
-                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
+                        {/* Search */}
+                        <div className="relative w-full sm:w-[260px]">
+                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
                             <input 
                                 type="text" 
                                 placeholder="Search investor or purpose..." 
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                style={{ padding: "8px 12px 8px 36px", width: "260px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }}
+                                value={searchTerm} 
+                                onChange={(e) => setSearchTerm(e.target.value)} 
+                                className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
                             />
                         </div>
                     </div>
 
-                    <div style={{ overflowX: 'auto' }}>
-                        <table id="printable-investment-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                            <thead>
-                                <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "60px" }}>SL</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>INVESTOR NAME</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>INVESTMENT DATE</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>PURPOSE TARGET</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>AMOUNT</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center", width: "120px" }}>ACTIONS</th>
+                    {/* Data Table */}
+                    <div className="overflow-x-auto brass-scroll border-t border-[#e1e3e5]">
+                        <table id="printable-investment-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                            <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
+                                <tr>
+                                    <th className="px-6 py-4 w-12">SL</th>
+                                    <th className="px-6 py-4">Investor Name</th>
+                                    <th className="px-6 py-4">Investment Date</th>
+                                    <th className="px-6 py-4">Purpose Target</th>
+                                    <th className="px-6 py-4 text-right">Amount</th>
+                                    <th className="px-6 py-4 text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody style={{ color: "#334155", fontSize: "0.915rem" }}>
+                            <tbody className="text-[13.5px] text-[#202223]">
                                 {investmentList.length > 0 ? (
                                     investmentList.map((inv, index) => (
-                                        <tr key={inv.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                                            <td style={{ padding: "16px 24px", color: "#64748b", fontWeight: "500" }}>
+                                        <tr key={inv.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                            <td className="px-6 py-4 font-medium text-gray-500">
                                                 {(investments.current_page - 1) * investments.per_page + index + 1}
                                             </td>
-                                            <td style={{ padding: "16px 24px" }}>
-                                                <div style={{ fontWeight: '600', color: '#0f172a' }}>{inv.investor_name}</div>
+                                            <td className="px-6 py-4">
+                                                <div className="font-bold text-gray-900">{inv.investor_name}</div>
                                                 {inv.account && (
-                                                    <div style={{ fontSize: "0.75rem", color: "#6366f1", marginTop: "4px", display: "inline-block", background: "#e0e7ff", padding: "2px 8px", borderRadius: "12px", fontWeight: "600" }}>
-                                                        <i className="fa-solid fa-building-columns" style={{ marginRight: "4px" }}></i>
-                                                        {inv.account.name}
+                                                    <div className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-[11px] font-bold text-indigo-600">
+                                                        <i className="fa-solid fa-building-columns text-[10px]"></i> {inv.account.name}
                                                     </div>
                                                 )}
-                                                {inv.notes && <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "4px" }}>{inv.notes}</div>}
+                                                {inv.notes && (
+                                                    <div className="text-[12px] text-gray-500 mt-1.5 max-w-[220px] truncate">
+                                                        {inv.notes}
+                                                    </div>
+                                                )}
                                             </td>
-                                            <td style={{ padding: "16px 24px", color: "#475569" }}>{inv.investment_date}</td>
-                                            <td style={{ padding: "16px 24px" }}>
-                                                <span style={{ 
-                                                    padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600',
-                                                    background: inv.purpose === 'Work Purpose' ? '#e0f2fe' : inv.purpose === 'Office Purpose' ? '#dcfce7' : '#f1f5f9', 
-                                                    color: inv.purpose === 'Work Purpose' ? '#0369a1' : inv.purpose === 'Office Purpose' ? '#15803d' : '#475569' 
-                                                }}>
+                                            <td className="px-6 py-4 text-gray-500 font-medium">
+                                                {inv.investment_date}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider
+                                                    ${inv.purpose === 'Work Purpose' ? 'bg-sky-50 text-sky-600 border border-sky-200' : inv.purpose === 'Office Purpose' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-gray-100 text-gray-600 border border-gray-200'}
+                                                `}>
                                                     {inv.purpose}
                                                 </span>
                                             </td>
-                                            <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '700', color: '#0d9488' }}>
-                                                Tk. {parseFloat(inv.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                            <td className="px-6 py-4 text-right font-bold text-teal-600 text-[14.5px]">
+                                                TK. {parseFloat(inv.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                             </td>
-                                            <td style={{ padding: "16px 24px", textAlign: 'center' }}>
-                                                <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex items-center justify-end gap-1.5">
                                                     {hasPermission('edit_investment') && (
-                                                    <button onClick={() => openEditModal(inv)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit Record">
-                                                        <i className="fa-regular fa-pen-to-square"></i>
-                                                    </button>
+                                                        <button onClick={() => openEditModal(inv)} className="flex h-7 w-7 items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors" title="Edit Record">
+                                                            <i className="fa-regular fa-pen-to-square text-[12px]"></i>
+                                                        </button>
                                                     )}
                                                     {hasPermission('delete_client') && (
-                                                    <button onClick={() => handleDelete(inv.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete Record">
-                                                        <i className="fa-regular fa-trash-can"></i>
-                                                    </button>
+                                                        <button onClick={() => handleDelete(inv.id)} className="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete Record">
+                                                            <i className="fa-regular fa-trash-can text-[12px]"></i>
+                                                        </button>
                                                     )}
                                                 </div>
                                             </td>
@@ -310,161 +355,151 @@ export default function Index({ investments = {}, accounts = [], filters = {}, t
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="6" style={{ textAlign: 'center', padding: '36px', color: '#94a3b8' }}>No investment records found.</td>
+                                        <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <i className="fa-solid fa-money-bill-trend-up text-4xl text-gray-300 mb-3"></i>
+                                                <p>No investment records found.</p>
+                                            </div>
+                                        </td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
 
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderTop: "1px solid #f1f5f9", background: "#f8fafc", flexWrap: "wrap", gap: "16px" }}>
-                        <div style={{ color: "#64748b", fontSize: "0.85rem" }}>
-                            Showing <b>{investments.from || 0}</b> to <b>{investments.to || 0}</b> of <b>{investments.total || 0}</b> entries
-                        </div>
-                        {investments.links && investments.links.length > 3 && (
-                            <div style={{ display: "flex", gap: "4px" }}>
-                                {investments.links.map((link, i) => {
-                                    return link.url === null ? (
-                                        <span 
-                                            key={i} 
-                                            style={{ padding: "8px 14px", border: "1px solid #e2e8f0", borderRadius: "6px", color: "#cbd5e1", fontSize: "0.85rem", cursor: "not-allowed", background: "#fff" }}
-                                            dangerouslySetInnerHTML={{ __html: link.label }}
-                                        />
-                                    ) : (
-                                        <Link
-                                            key={i}
-                                            href={link.url}
-                                            preserveState
-                                            style={{
-                                                padding: "8px 14px",
-                                                border: "1px solid #cbd5e1",
-                                                borderRadius: "6px",
-                                                fontSize: "0.85rem",
-                                                textDecoration: "none",
-                                                fontWeight: link.active ? "700" : "500",
-                                                background: link.active ? "#2563eb" : "#ffffff",
-                                                color: link.active ? "#ffffff" : "#475569",
-                                                boxShadow: link.active ? "0 2px 4px rgba(37, 99, 235, 0.2)" : "none"
-                                            }}
-                                            dangerouslySetInnerHTML={{ __html: link.label }}
-                                        />
-                                    );
-                                })}
+                    {/* Pagination */}
+                    {investments.links && investments.links.length > 3 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#e1e3e5] bg-[#f6f6f7] px-6 py-4">
+                            <div className="text-[13px] text-gray-500">
+                                Showing {investments.from || 0} to {investments.to || 0} of {investments.total || 0} entries
                             </div>
-                        )}
-                    </div>
+                            <div className="flex flex-wrap items-center gap-1">
+                                {investments.links.map((link, i) => (
+                                    <Link 
+                                        key={i} 
+                                        href={link.url || "#"} 
+                                        className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] transition-colors
+                                            ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : link.url ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'border-gray-200 bg-gray-100 text-gray-400 pointer-events-none'}
+                                        `}
+                                        preserveState
+                                        dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* --- CREATE / EDIT FORM MODAL SECTION --- */}
+            {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "750px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
-                        
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
-                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                            <h3 className="text-[18px] font-semibold text-[#202223]">
                                 {editMode ? '📝 Edit Investment Info' : '✨ Log New Investment'}
                             </h3>
-                            <button type="button" onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}>
-                                <i className="fa-solid fa-xmark"></i>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
                         
-                        <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
-                            {/* 1st Row: Investor Name and Select Account */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>
-                                <div style={{ flexDirection: "column", display: "flex" }}>
-                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Investor Name *</label>
-                                    <input 
-                                        type="text" 
-                                        value={data.investor_name} 
-                                        onChange={e => setData('investor_name', e.target.value)} 
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: "500" }}
-                                        placeholder="e.g., John Doe" 
-                                        required
-                                    />
-                                    {errors.investor_name && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.investor_name}</p>}
+                        {/* Modal Body & Form */}
+                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
+                            <div className="p-6 overflow-y-auto brass-scroll">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Investor Name *</label>
+                                        <input 
+                                            type="text" 
+                                            value={data.investor_name} 
+                                            onChange={e => setData('investor_name', e.target.value)} 
+                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                            placeholder="e.g., John Doe" 
+                                            required
+                                        />
+                                        {errors.investor_name && <p className="text-red-500 text-[12px] mt-1">{errors.investor_name}</p>}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Deposit To Account *</label>
+                                        <Select
+                                            options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${a.current_balance})` }))}
+                                            value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${a.current_balance})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
+                                            onChange={(selected) => setData("account_id", selected ? selected.value : "")}
+                                            placeholder="-- Search & Choose Account --"
+                                            isSearchable
+                                            isClearable
+                                            styles={selectStyles}
+                                            menuPosition="fixed"
+                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                        />
+                                        {errors.account_id && <p className="text-red-500 text-[12px] mt-1">{errors.account_id}</p>}
+                                    </div>
                                 </div>
 
-                                <div style={{ flexDirection: "column", display: "flex" }}>
-                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Deposit To Account *</label>
-                                    <select 
-                                        value={data.account_id} 
-                                        onChange={e => setData('account_id', e.target.value)} 
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", background: "#fff", color: "#334155", height: "42px" }}
-                                        required
-                                    >
-                                        <option value="">-- Select Account --</option>
-                                        {accounts.map(acc => (
-                                            <option key={acc.id} value={acc.id}>
-                                                {acc.name} (Balance: {parseFloat(acc.current_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })})
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {errors.account_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.account_id}</p>}
-                                </div>
-                            </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Amount (TK) *</label>
+                                        <input 
+                                            type="number" 
+                                            step="0.01"
+                                            value={data.amount} 
+                                            onChange={e => setData('amount', e.target.value)} 
+                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[15px] font-bold text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                            placeholder="0.00" 
+                                            required
+                                        />
+                                        {errors.amount && <p className="text-red-500 text-[12px] mt-1">{errors.amount}</p>}
+                                    </div>
 
-                            {/* 2nd Row: Amount and Date */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: "16px" }}>
-                                <div style={{ flexDirection: "column", display: "flex" }}>
-                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Amount (TK) *</label>
-                                    <input 
-                                        type="number" 
-                                        step="0.01"
-                                        value={data.amount} 
-                                        onChange={e => setData('amount', e.target.value)} 
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontWeight: "700" }}
-                                        placeholder="0.00" 
-                                        required
-                                    />
-                                    {errors.amount && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.amount}</p>}
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Investment Date *</label>
+                                        <input 
+                                            type="date" 
+                                            value={data.investment_date} 
+                                            onChange={e => setData('investment_date', e.target.value)} 
+                                            className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                            required
+                                        />
+                                        {errors.investment_date && <p className="text-red-500 text-[12px] mt-1">{errors.investment_date}</p>}
+                                    </div>
                                 </div>
 
-                                <div style={{ flexDirection: "column", display: "flex" }}>
-                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Investment Date *</label>
-                                    <input 
-                                        type="date" 
-                                        value={data.investment_date} 
-                                        onChange={e => setData('investment_date', e.target.value)} 
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", color: "#334155", height: "42px" }}
-                                        required
-                                    />
-                                    {errors.investment_date && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.investment_date}</p>}
-                                </div>
-                            </div>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: "16px" }}>
-                                <div style={{ flexDirection: "column", display: "flex" }}>
-                                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Purpose *</label>
+                                <div className="mb-5">
+                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Purpose *</label>
                                     <select 
                                         value={data.purpose} 
                                         onChange={e => setData('purpose', e.target.value)} 
-                                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", background: "#fff", color: "#334155", height: "42px" }}
+                                        className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
                                     >
                                         <option value="Office Purpose">Office Purpose</option>
                                         <option value="Work Purpose">Work Purpose</option>
                                         <option value="Other Purpose">Other Purpose</option>
                                     </select>
-                                    {errors.purpose && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.purpose}</p>}
+                                    {errors.purpose && <p className="text-red-500 text-[12px] mt-1">{errors.purpose}</p>}
+                                </div>
+
+                                <div className="border-t border-gray-100 pt-5">
+                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Notes</label>
+                                    <textarea 
+                                        value={data.notes} 
+                                        onChange={e => setData('notes', e.target.value)} 
+                                        rows="3"
+                                        className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none resize-y min-h-[80px] transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                        placeholder="Any additional funding details..." 
+                                    ></textarea>
+                                    {errors.notes && <p className="text-red-500 text-[12px] mt-1">{errors.notes}</p>}
                                 </div>
                             </div>
 
-                            <div style={{ flexDirection: "column", display: "flex", marginBottom: "20px" }}>
-                                <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Notes</label>
-                                <textarea 
-                                    value={data.notes} 
-                                    onChange={e => setData('notes', e.target.value)} 
-                                    rows="3"
-                                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", resize: "none" }}
-                                    placeholder="Any additional funding details..." 
-                                ></textarea>
-                                {errors.notes && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px", margin: 0 }}>{errors.notes}</p>}
-                            </div>
-
-                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                <button type="button" onClick={() => setShowModal(false)} style={{ background: "#f1f5f9", color: "#334155", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500" }}>Cancel</button>
-                                <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", opacity: processing ? 0.7 : 1 }}>
+                            {/* Modal Footer */}
+                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 shrink-0">
+                                <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70">
                                     {processing ? 'Saving...' : 'Save Investment'}
                                 </button>
                             </div>

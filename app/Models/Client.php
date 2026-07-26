@@ -6,30 +6,41 @@ use Illuminate\Database\Eloquent\Model;
 
 class Client extends Model {
     protected $guarded = [];
+    
+    protected $appends = ['total_invoiced', 'total_paid', 'total_due', 'advance_balance'];
+
+    // Relationships
     public function projects() { return $this->hasMany(Project::class); }
     public function invoices() { return $this->hasMany(Invoice::class); }
-    public function clientAdvances()
+    public function clientAdvances() { return $this->hasMany(ClientAdvance::class); }
+
+    public function getTotalInvoicedAttribute()
     {
-        return $this->hasMany(ClientAdvance::class);
+        return $this->invoices()->sum('grand_total') ?? 0;
     }
 
-
-    public function getFinancialSummaryAttribute()
+    public function getTotalPaidAttribute()
     {
-        $totalBilled = $this->invoices()->sum('grand_total');
-        
-        $totalInvoicePaid = InvoicePayment::whereHas('invoice', function($q) {
+        return InvoicePayment::whereHas('invoice', function($q) {
             $q->where('client_id', $this->id);
-        })->sum('amount');
+        })->sum('amount') ?? 0;
+    }
 
-        $unsettledAdvance = $this->clientAdvances()->where('is_settled', false)->sum('amount');
+    public function getAdvanceBalanceAttribute()
+    {
+        return $this->clientAdvances()->where('is_settled', false)->sum('amount') ?? 0;
+    }
 
-        $totalPaid = $totalInvoicePaid + $unsettledAdvance;
+    // ৪. Current Due (মোট বকেয়া)
+    public function getTotalDueAttribute()
+    {
+        $totalBilled = $this->total_invoiced;
+        $totalPaid = $this->total_paid;
+        
+        $advanceUsed = $this->invoices()->sum('advance_used') ?? 0;
 
-        return [
-            'total_billed' => $totalBilled,
-            'total_paid' => $totalPaid,
-            'current_due' => $totalBilled - $totalPaid
-        ];
+        $due = $totalBilled - ($totalPaid + $advanceUsed);
+        
+        return $due > 0 ? $due : 0;
     }
 }

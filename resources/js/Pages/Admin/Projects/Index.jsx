@@ -116,16 +116,18 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                 <head>
                     <title>Projects Report</title>
                     <style>
-                        body { font-family: Arial, sans-serif; padding: 20px; color: #334155; }
-                        h2 { text-align: center; color: #1e293b; margin-bottom: 20px; }
-                        table { width: 100%; border-collapse: collapse; text-align: left; }
-                        th, td { padding: 12px; border: 1px solid #cbd5e1; }
-                        th { background-color: #f1f5f9; font-weight: 600; text-transform: uppercase; font-size: 12px; }
+                        body { font-family: Arial, sans-serif; padding: 30px; color: #334155; }
+                        h2 { text-align: center; color: #0f172a; margin-bottom: 5px; }
+                        p { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 14px; }
+                        table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; }
+                        th, td { padding: 12px 16px; border: 1px solid #cbd5e1; font-size: 13px; }
+                        th { background-color: #f8fafc; font-weight: 600; color: #475569; text-transform: uppercase; }
                         th:last-child, td:last-child { display: none !important; }
                     </style>
                 </head>
                 <body>
-                    <h2>Projects Report</h2>
+                    <h2>Projects Directory Report</h2>
+                    <p>Generated Report Date: ${new Date().toLocaleDateString()}</p>
                     ${tableContent.outerHTML}
                 </body>
             </html>
@@ -244,15 +246,14 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
     const getStatusStyles = (status) => {
         const styles = {
-            planning: { bg: "#f1f5f9", color: "#1e293b", border: "1px solid #cbd5e1" },
-            in_progress: { bg: "#fef3c7", color: "#92400e", border: "1px solid #fbd38d" },
-            completed: { bg: "#d1fae5", color: "#065f46", border: "1px solid #6ee7b7" },
-            on_hold: { bg: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5" }
+            planning: "bg-gray-100 text-gray-700 border-gray-200",
+            in_progress: "bg-amber-100 text-amber-700 border-amber-200",
+            completed: "bg-emerald-100 text-emerald-700 border-emerald-200",
+            on_hold: "bg-red-100 text-red-700 border-red-200"
         };
         return styles[status] || styles.planning;
     };
 
-    // স্ট্যাটাস লিস্ট 
     const statusOptions = [
         { value: "planning", label: "Planning" },
         { value: "in_progress", label: "In Progress" },
@@ -263,33 +264,44 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
     return (
         <AdminLayout>
             <Head title="Projects Management" />
-            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc" }}>
+
+            <div className="flex flex-col gap-6">
                 
-                <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+                {/* Page Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 className="page-title" style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Project Workspace</h1>
-                        <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Manage, track and oversee client projects seamlessly.</p>
+                        <h1 className="text-[22px] font-bold text-[#202223]">Project Workspace</h1>
+                        <p className="text-[14px] text-gray-500 mt-1">Manage, track and oversee client projects seamlessly.</p>
                     </div>
                 </div>
 
-                <div className="card-container" style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
+                {/* Main Card */}
+                <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
                     
-                    <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
-                        <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
-                            <i className="fa-solid fa-layer-group" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Current Active Projects
+                    {/* Card Header & Actions */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
+                        <div className="text-[16px] font-semibold text-[#202223] flex items-center gap-2.5">
+                            <i className="fa-solid fa-layer-group text-[var(--accent)]"></i> Current Active Projects
                         </div>
                         {hasPermission('create_project') && (
-                        <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
-                            <i className="fa-solid fa-plus"></i> Add New Project
-                        </button>
+                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13.5px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50">
+                                <i className="fa-solid fa-plus"></i> Add New Project
+                            </button>
                         )}
                     </div>
 
-                    <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
-                        <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", alignItems: "center" }}>
-                            <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                                Show 
-                                <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
+                    {/* Toolbar */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30 border-b border-gray-100">
+                        
+                        <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
+                            {/* Show Entries */}
+                            <div className="flex items-center gap-2">
+                                <span>Show</span>
+                                <select 
+                                    value={perPage} 
+                                    onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                    className="w-[100px] appearance-none bg-none rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                >
                                     <option value={10}>10 Entries</option>
                                     <option value={25}>25 Entries</option>
                                     <option value={50}>50 Entries</option>
@@ -299,179 +311,188 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                     <option value="all">All</option>
                                 </select>
                             </div>
-                            <div className="export-buttons" style={{ display: "flex", gap: "8px" }}>
-                                <button type="button" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
+
+                            <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
+
+                            {/* Export Buttons */}
+                            <div className="flex items-center gap-1.5">
+                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
                                     <i className="fas fa-copy text-blue-500"></i> Copy
                                 </button>
-                                <button type="button" onClick={handleExportCSV} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
+                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
                                     <i className="fas fa-file-excel text-emerald-500"></i> CSV
                                 </button>
-                                <button type="button" onClick={handlePrint} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                    <i className="fas fa-print text-slate-500"></i> Print
+                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-print text-gray-500"></i> Print
                                 </button>
                             </div>
                         </div>
 
-                        {/* --- Filters Area --- */}
-                        <div ref={filterRef} style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-                            
-                            {/* 1. Client Searchable Filter Dropdown */}
-                            <div style={{ position: "relative", width: "200px" }}>
-                                <div 
-                                    onClick={() => { setShowClientFilterDropdown(!showClientFilterDropdown); setShowStatusFilterDropdown(false); }}
-                                    style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", fontSize: "0.875rem", color: filterClient ? "#0f172a" : "#64748b", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                                >
-                                    <span>
-                                        {filterClient 
-                                            ? (clients.find(c => c.id == filterClient)?.name || "All Clients") 
-                                            : "All Clients"}
-                                    </span>
-                                    {filterClient ? (
-                                        <i className="fa-solid fa-times" style={{ color: "#ef4444" }} onClick={(e) => { e.stopPropagation(); setFilterClient(""); }}></i>
-                                    ) : (
-                                        <i className="fa-solid fa-chevron-down" style={{ fontSize: "0.75rem" }}></i>
-                                    )}
-                                </div>
-
-                                {showClientFilterDropdown && (
-                                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", maxHeight: "250px", display: "flex", flexDirection: "column" }}>
-                                        <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
-                                            <input 
-                                                type="text" 
-                                                placeholder="Search client..." 
-                                                value={clientFilterSearch}
-                                                onChange={(e) => setClientFilterSearch(e.target.value)}
-                                                style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }}
-                                                autoFocus
-                                            />
-                                        </div>
-                                        <div style={{ overflowY: "auto", padding: "4px 0" }}>
-                                            <div 
-                                                onClick={() => { setFilterClient(""); setShowClientFilterDropdown(false); }}
-                                                style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.875rem", color: "#334155" }}
-                                                onMouseEnter={(e) => e.target.style.background = "#f1f5f9"}
-                                                onMouseLeave={(e) => e.target.style.background = "transparent"}
-                                            >
-                                                All Clients
-                                            </div>
-                                            {clients.filter(c => c.name.toLowerCase().includes(clientFilterSearch.toLowerCase())).map(c => (
-                                                <div 
-                                                    key={c.id} 
-                                                    onClick={() => { setFilterClient(c.id); setShowClientFilterDropdown(false); setClientFilterSearch(""); }}
-                                                    style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.875rem", color: "#334155", background: filterClient == c.id ? "#f0fdf4" : "transparent" }}
-                                                    onMouseEnter={(e) => e.target.style.background = "#f1f5f9"}
-                                                    onMouseLeave={(e) => e.target.style.background = filterClient == c.id ? "#f0fdf4" : "transparent"}
-                                                >
-                                                    {c.name}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* 2. Status Searchable Filter Dropdown */}
-                            <div style={{ position: "relative", width: "160px" }}>
-                                <div 
-                                    onClick={() => { setShowStatusFilterDropdown(!showStatusFilterDropdown); setShowClientFilterDropdown(false); }}
-                                    style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", fontSize: "0.875rem", color: filterStatus ? "#0f172a" : "#64748b", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                                >
-                                    <span>
-                                        {filterStatus 
-                                            ? (statusOptions.find(s => s.value === filterStatus)?.label || "All Status") 
-                                            : "All Status"}
-                                    </span>
-                                    {filterStatus ? (
-                                        <i className="fa-solid fa-times" style={{ color: "#ef4444" }} onClick={(e) => { e.stopPropagation(); setFilterStatus(""); }}></i>
-                                    ) : (
-                                        <i className="fa-solid fa-chevron-down" style={{ fontSize: "0.75rem" }}></i>
-                                    )}
-                                </div>
-
-                                {showStatusFilterDropdown && (
-                                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", maxHeight: "250px", display: "flex", flexDirection: "column" }}>
-                                        <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
-                                            <input 
-                                                type="text" 
-                                                placeholder="Search status..." 
-                                                value={statusFilterSearch}
-                                                onChange={(e) => setStatusFilterSearch(e.target.value)}
-                                                style={{ width: "100%", padding: "6px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }}
-                                                autoFocus
-                                            />
-                                        </div>
-                                        <div style={{ overflowY: "auto", padding: "4px 0" }}>
-                                            <div 
-                                                onClick={() => { setFilterStatus(""); setShowStatusFilterDropdown(false); }}
-                                                style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.875rem", color: "#334155" }}
-                                                onMouseEnter={(e) => e.target.style.background = "#f1f5f9"}
-                                                onMouseLeave={(e) => e.target.style.background = "transparent"}
-                                            >
-                                                All Status
-                                            </div>
-                                            {statusOptions.filter(s => s.label.toLowerCase().includes(statusFilterSearch.toLowerCase())).map(s => (
-                                                <div 
-                                                    key={s.value} 
-                                                    onClick={() => { setFilterStatus(s.value); setShowStatusFilterDropdown(false); setStatusFilterSearch(""); }}
-                                                    style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.875rem", color: "#334155", background: filterStatus === s.value ? "#f0fdf4" : "transparent" }}
-                                                    onMouseEnter={(e) => e.target.style.background = "#f1f5f9"}
-                                                    onMouseLeave={(e) => e.target.style.background = filterStatus === s.value ? "#f0fdf4" : "transparent"}
-                                                >
-                                                    {s.label}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Main Text Search */}
-                            <div className="search-box" style={{ position: "relative" }}>
-                                <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
-                                <input type="text" placeholder="Search project..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "220px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
-                            </div>
+                        {/* Search */}
+                        <div className="relative w-full sm:w-[260px]">
+                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                            <input 
+                                type="text" 
+                                placeholder="Search project..." 
+                                value={searchTerm} 
+                                onChange={(e) => setSearchTerm(e.target.value)} 
+                                className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                            />
                         </div>
                     </div>
 
-                    <div style={{ overflowX: "auto" }}>
-                        <table className="data-table" id="printable-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                            <thead>
-                                <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "60px" }}>SL</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Project Details</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Client</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Budget</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Status</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Deadline</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>Actions</th>
+                    {/* Filter Row */}
+                    <div className="flex flex-wrap items-center gap-3 px-6 py-4 bg-gray-50/30" ref={filterRef}>
+                        
+                        {/* Client Filter Dropdown */}
+                        <div className="relative w-full sm:w-[240px]">
+                            <div 
+                                onClick={() => { setShowClientFilterDropdown(!showClientFilterDropdown); setShowStatusFilterDropdown(false); }}
+                                className="flex w-full cursor-pointer items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-colors hover:bg-gray-50 focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                            >
+                                <span className={`flex items-center gap-2 overflow-hidden whitespace-nowrap ${filterClient ? 'text-gray-900' : 'text-gray-500'}`}>
+                                    {filterClient ? (clients.find(c => c.id == filterClient)?.name || "All Clients") : "All Clients"}
+                                </span>
+                                {filterClient ? (
+                                    <i className="fa-solid fa-times text-red-500 hover:text-red-700 p-1" onClick={(e) => { e.stopPropagation(); setFilterClient(""); }}></i>
+                                ) : (
+                                    <i className="fa-solid fa-chevron-down text-[10px] text-gray-400"></i>
+                                )}
+                            </div>
+                            
+                            {showClientFilterDropdown && (
+                                <div className="absolute top-full left-0 mt-1 flex max-h-[250px] w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg z-50">
+                                    <div className="border-b border-gray-100 bg-gray-50 p-2">
+                                        <input 
+                                            type="text" 
+                                            placeholder="Search client..." 
+                                            value={clientFilterSearch}
+                                            onChange={(e) => setClientFilterSearch(e.target.value)}
+                                            className="w-full rounded border border-gray-300 px-2.5 py-1.5 text-[13px] outline-none focus:border-[var(--accent)]"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div className="overflow-y-auto py-1">
+                                        <div 
+                                            onClick={() => { setFilterClient(""); setShowClientFilterDropdown(false); }}
+                                            className="cursor-pointer px-3 py-2 text-[13px] text-gray-700 hover:bg-gray-50"
+                                        >
+                                            All Clients
+                                        </div>
+                                        {clients.filter(c => c.name.toLowerCase().includes(clientFilterSearch.toLowerCase())).map(c => (
+                                            <div 
+                                                key={c.id} 
+                                                onClick={() => { setFilterClient(c.id); setShowClientFilterDropdown(false); setClientFilterSearch(""); }}
+                                                className={`cursor-pointer px-3 py-2 text-[13px] hover:bg-gray-50 ${filterClient == c.id ? 'bg-[var(--accent-bg)] font-semibold' : ''}`}
+                                            >
+                                                {c.name}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Status Filter Dropdown */}
+                        <div className="relative w-full sm:w-[180px]">
+                            <div 
+                                onClick={() => { setShowStatusFilterDropdown(!showStatusFilterDropdown); setShowClientFilterDropdown(false); }}
+                                className="flex w-full cursor-pointer items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-colors hover:bg-gray-50 focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                            >
+                                <span className={`flex items-center gap-2 overflow-hidden whitespace-nowrap ${filterStatus ? 'text-gray-900' : 'text-gray-500'}`}>
+                                    {filterStatus ? (statusOptions.find(s => s.value === filterStatus)?.label || "All Status") : "All Status"}
+                                </span>
+                                {filterStatus ? (
+                                    <i className="fa-solid fa-times text-red-500 hover:text-red-700 p-1" onClick={(e) => { e.stopPropagation(); setFilterStatus(""); }}></i>
+                                ) : (
+                                    <i className="fa-solid fa-chevron-down text-[10px] text-gray-400"></i>
+                                )}
+                            </div>
+
+                            {showStatusFilterDropdown && (
+                                <div className="absolute top-full left-0 mt-1 flex max-h-[250px] w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg z-50">
+                                    <div className="border-b border-gray-100 bg-gray-50 p-2">
+                                        <input 
+                                            type="text" 
+                                            placeholder="Search status..." 
+                                            value={statusFilterSearch}
+                                            onChange={(e) => setStatusFilterSearch(e.target.value)}
+                                            className="w-full rounded border border-gray-300 px-2.5 py-1.5 text-[13px] outline-none focus:border-[var(--accent)]"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div className="overflow-y-auto py-1">
+                                        <div 
+                                            onClick={() => { setFilterStatus(""); setShowStatusFilterDropdown(false); }}
+                                            className="cursor-pointer px-3 py-2 text-[13px] text-gray-700 hover:bg-gray-50"
+                                        >
+                                            All Status
+                                        </div>
+                                        {statusOptions.filter(s => s.label.toLowerCase().includes(statusFilterSearch.toLowerCase())).map(s => (
+                                            <div 
+                                                key={s.value} 
+                                                onClick={() => { setFilterStatus(s.value); setShowStatusFilterDropdown(false); setStatusFilterSearch(""); }}
+                                                className={`cursor-pointer px-3 py-2 text-[13px] hover:bg-gray-50 ${filterStatus === s.value ? 'bg-[var(--accent-bg)] font-semibold' : ''}`}
+                                            >
+                                                {s.label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Data Table */}
+                    <div className="overflow-x-auto brass-scroll border-t border-[#e1e3e5]">
+                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                            <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
+                                <tr>
+                                    <th className="px-6 py-4 w-12">SL</th>
+                                    <th className="px-6 py-4">Project Details</th>
+                                    <th className="px-6 py-4">Client</th>
+                                    <th className="px-6 py-4">Budget</th>
+                                    <th className="px-6 py-4">Status</th>
+                                    <th className="px-6 py-4">Deadline</th>
+                                    <th className="px-6 py-4 text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody style={{ color: "#334155", fontSize: "0.915rem" }}>
+                            <tbody className="text-[13.5px] text-[#202223]">
                                 {projects.data && projects.data.length > 0 ? (
                                     projects.data.map((project, index) => {
                                         const isCompleted = project.status === 'completed';
                                         const canModify = !isCompleted || is_super_admin;
-                                        const statusStyle = getStatusStyles(project.status);
+                                        const statusClass = getStatusStyles(project.status);
 
                                         return (
-                                            <tr key={project.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                                                <td style={{ padding: "16px 24px", color: "#64748b", fontWeight: "500" }}>
+                                            <tr key={project.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                                <td className="px-6 py-4 font-medium text-gray-500">
                                                     {projects.from ? projects.from + index : index + 1}
                                                 </td>
-                                                <td style={{ padding: "16px 24px", fontWeight: "600", color: "#0f172a" }}>
-                                                    <div>{project.title}</div>
-                                                    {project.description && <span style={{ fontSize: "0.75rem", fontWeight: "400", color: "#64748b", display: "block", marginTop: "2px" }}>{project.description.substring(0, 40)}...</span>}
+                                                <td className="px-6 py-4">
+                                                    <div className="font-semibold text-gray-900">{project.title}</div>
+                                                    {project.description && (
+                                                        <span className="text-[12px] text-gray-500 mt-1 block max-w-[250px] truncate">
+                                                            {project.description}
+                                                        </span>
+                                                    )}
                                                 </td>
-                                                <td style={{ padding: "16px 24px", color: "#475569" }}>{project.client?.name || "N/A"}</td>
-                                                <td style={{ padding: "16px 24px" }}>
-                                                    {project.budget ? `TK. ${Number(project.budget).toLocaleString()}` : "-"}
+                                                <td className="px-6 py-4 text-gray-700 font-medium">
+                                                    {project.client?.name || "N/A"}
                                                 </td>
-                                                <td style={{ padding: "16px 24px" }}>
+                                                <td className="px-6 py-4">
+                                                    {project.budget ? (
+                                                        <span className="font-bold text-gray-900">TK. {Number(project.budget).toLocaleString('en-IN')}</span>
+                                                    ) : (
+                                                        <span className="text-gray-400 italic">Not Set</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4">
                                                     <select 
                                                         value={project.status} 
                                                         onChange={(e) => handleQuickStatusChange(project.id, e.target.value)}
                                                         disabled={!canModify}
-                                                        style={{ background: statusStyle.bg, color: statusStyle.color, border: statusStyle.border, padding: "4px 8px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "700", textTransform: "uppercase", outline: "none", cursor: canModify ? "pointer" : "not-allowed", appearance: canModify ? "auto" : "none" }}
+                                                        className={`appearance-none bg-none border px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider outline-none transition-shadow focus:ring-2 focus:ring-offset-1 ${canModify ? 'cursor-pointer focus:ring-[var(--accent)]/50' : 'cursor-not-allowed opacity-80'} ${statusClass}`}
                                                     >
                                                         <option value="planning">Planning</option>
                                                         <option value="in_progress">In Progress</option>
@@ -479,30 +500,32 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                                         <option value="completed">Completed</option>
                                                     </select>
                                                 </td>
-                                                <td style={{ padding: "16px 24px", color: "#64748b" }}>{project.deadline || "-"}</td>
-                                                <td style={{ padding: "16px 24px", textAlign: "right" }}>
-                                                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                                <td className="px-6 py-4 text-gray-500 font-medium">
+                                                    {project.deadline || "-"}
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex items-center justify-end gap-1.5">
                                                         {hasPermission('view_project') && (
-                                                        <button onClick={() => openViewModal(project)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
-                                                            <i className="fa-regular fa-eye"></i>
-                                                        </button>
+                                                            <button onClick={() => openViewModal(project)} className="flex h-7 w-7 items-center justify-center rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="View Details">
+                                                                <i className="fa-regular fa-eye text-[12px]"></i>
+                                                            </button>
                                                         )}
                                                         {canModify ? (
                                                             <>
-                                                            {hasPermission('edit_project') && (
-                                                                <button onClick={() => openEditModal(project)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit Project">
-                                                                    <i className="fa-regular fa-pen-to-square"></i>
-                                                                </button>
+                                                                {hasPermission('edit_project') && (
+                                                                    <button onClick={() => openEditModal(project)} className="flex h-7 w-7 items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors" title="Edit Project">
+                                                                        <i className="fa-regular fa-pen-to-square text-[12px]"></i>
+                                                                    </button>
                                                                 )}
                                                                 {hasPermission('delete_project') && (
-                                                                <button onClick={() => handleDelete(project.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete Project">
-                                                                    <i className="fa-regular fa-trash-can"></i>
-                                                                </button>
+                                                                    <button onClick={() => handleDelete(project.id)} className="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete Project">
+                                                                        <i className="fa-regular fa-trash-can text-[12px]"></i>
+                                                                    </button>
                                                                 )}
                                                             </>
                                                         ) : (
-                                                            <div title="Completed projects are locked" style={{ padding: "6px 10px", color: "#94a3b8", display: "flex", alignItems: "center", gap: "5px", fontSize: "0.8rem", background: "#f8fafc", borderRadius: "6px" }}>
-                                                                <i className="fa-solid fa-lock"></i> Locked
+                                                            <div className="flex items-center gap-1.5 rounded-md bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-500" title="Completed projects are locked">
+                                                                <i className="fa-solid fa-lock text-[10px]"></i> Locked
                                                             </div>
                                                         )}
                                                     </div>
@@ -512,33 +535,35 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan="7" style={{ textAlign: "center", padding: "32px", color: "#94a3b8" }}>No projects found.</td>
+                                        <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <i className="fa-solid fa-layer-group text-4xl text-gray-300 mb-3"></i>
+                                                <p>No projects found.</p>
+                                            </div>
+                                        </td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
 
+                    {/* Pagination */}
                     {projects.links && projects.links.length > 3 && (
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
-                            <div style={{ color: "#64748b", fontSize: "0.875rem" }}>
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#e1e3e5] bg-[#f6f6f7] px-6 py-4">
+                            <div className="text-[13px] text-gray-500">
                                 Showing {projects.from || 0} to {projects.to || 0} of {projects.total || 0} entries
                             </div>
-                            <div style={{ display: "flex", gap: "6px" }}>
+                            <div className="flex flex-wrap items-center gap-1">
                                 {projects.links.map((link, index) => (
                                     <Link 
                                         key={index} 
                                         href={link.url || "#"} 
-                                        style={{ padding: "6px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.875rem", color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"), backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"), pointerEvents: link.url ? "auto" : "none", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "32px" }} 
+                                        className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] transition-colors
+                                            ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : link.url ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'border-gray-200 bg-gray-100 text-gray-400 pointer-events-none'}
+                                        `}
                                         preserveState
                                     >
-                                        {link.label.includes("Previous") ? (
-                                            <i className="fa-solid fa-chevron-left"></i>
-                                        ) : link.label.includes("Next") ? (
-                                            <i className="fa-solid fa-chevron-right"></i>
-                                        ) : (
-                                            link.label.replace("&laquo;", "").replace("&raquo;", "")
-                                        )}
+                                        {link.label.includes("Previous") ? <i className="fa-solid fa-chevron-left text-[10px]"></i> : link.label.includes("Next") ? <i className="fa-solid fa-chevron-right text-[10px]"></i> : link.label.replace("&laquo;", "").replace("&raquo;", "")}
                                     </Link>
                                 ))}
                             </div>
@@ -549,53 +574,67 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
             {/* --- VIEW DETAILS MODAL --- */}
             {showViewModal && selectedProject && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
-                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
-                                <i className="fa-regular fa-file-lines" style={{ marginRight: "8px", color: "#2563eb" }}></i> Project Details View
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                            <h3 className="text-[18px] font-semibold text-[#202223] flex items-center gap-2">
+                                <i className="fa-regular fa-file-lines text-[var(--accent)]"></i> Project Details
                             </h3>
-                            <button type="button" onClick={() => setShowViewModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}>
-                                <i className="fa-solid fa-xmark"></i>
+                            <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
-                        <div style={{ padding: "24px" }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
-                                <div style={{ gridColumn: "span 2" }}>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Project Title</span>
-                                    <div style={{ fontSize: "1.25rem", fontWeight: "700", color: "#0f172a" }}>{selectedProject.title}</div>
+                        
+                        {/* Modal Body */}
+                        <div className="p-6 overflow-y-auto brass-scroll">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+                                <div className="sm:col-span-2">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Project Title</span>
+                                    <div className="text-[20px] font-bold text-gray-900">{selectedProject.title}</div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Client Name</span>
-                                    <div style={{ fontWeight: "600", color: "#334155" }}><i className="fa-solid fa-user text-blue-500" style={{ marginRight: "6px" }}></i>{selectedProject.client?.name || "N/A"}</div>
-                                </div>
-                                <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Budget Allocated</span>
-                                    <div style={{ fontWeight: "600", color: "#334155" }}>
-                                        <i className="fa-solid fa-money-bill-wave text-emerald-500" style={{ marginRight: "6px" }}></i>
-                                        {selectedProject.budget ? `TK. ${Number(selectedProject.budget).toLocaleString()}` : "Not Set"}
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Client Name</span>
+                                    <div className="font-semibold text-gray-800 flex items-center gap-2">
+                                        <i className="fa-solid fa-user text-blue-500"></i>
+                                        {selectedProject.client?.name || "N/A"}
                                     </div>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Project Status</span>
-                                    <span style={{ ...getStatusStyles(selectedProject.status), padding: "4px 12px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "700", textTransform: "uppercase", display: "inline-block" }}>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Budget Allocated</span>
+                                    <div className="font-semibold text-gray-800 flex items-center gap-2">
+                                        <i className="fa-solid fa-money-bill-wave text-emerald-500"></i>
+                                        {selectedProject.budget ? `TK. ${Number(selectedProject.budget).toLocaleString('en-IN')}` : "Not Set"}
+                                    </div>
+                                </div>
+                                <div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">Project Status</span>
+                                    <span className={`inline-block px-3 py-1 rounded-md border text-[11px] font-bold uppercase tracking-wider ${getStatusStyles(selectedProject.status)}`}>
                                         {selectedProject.status ? selectedProject.status.replace("_", " ") : "PLANNING"}
                                     </span>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Deadline</span>
-                                    <div style={{ color: "#475569", fontWeight: "500" }}><i className="fa-regular fa-calendar-days text-rose-500" style={{ marginRight: "6px" }}></i>{selectedProject.deadline || "No deadline"}</div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Deadline</span>
+                                    <div className="font-medium text-gray-700 flex items-center gap-2">
+                                        <i className="fa-regular fa-calendar-days text-rose-500"></i>
+                                        {selectedProject.deadline || "No deadline"}
+                                    </div>
                                 </div>
                             </div>
-                            <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
-                                <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "6px" }}>Detailed Description</span>
-                                <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "8px", border: "1px solid #e2e8f0", color: "#475569", fontSize: "0.9rem", lineHeight: "1.6", minHeight: "80px", whiteSpace: "pre-line" }}>
-                                    {selectedProject.description || "No descriptions provided for this project."}
+
+                            <div className="border-t border-gray-100 pt-5">
+                                <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">Detailed Description</span>
+                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-gray-700 text-[14px] leading-relaxed min-h-[80px] whitespace-pre-line">
+                                    {selectedProject.description || <span className="italic text-gray-400">No descriptions provided for this project.</span>}
                                 </div>
                             </div>
-                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                <button type="button" onClick={() => setShowViewModal(false)} style={{ background: "#1e293b", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500" }}>Close</button>
-                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end shrink-0">
+                            <button onClick={() => setShowViewModal(false)} className="rounded-lg bg-gray-800 px-6 py-2 text-[14px] font-medium text-white transition-colors hover:bg-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-700/50">
+                                Close Details
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -603,35 +642,44 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
             {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "650px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
-                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                            <h3 className="text-[18px] font-semibold text-[#202223]">
                                 {editMode ? "📝 Modify Project Records" : "✨ Create New Project"}
                             </h3>
-                            <button type="button" onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}>
-                                <i className="fa-solid fa-xmark"></i>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
                         
-                        <div onClick={() => showClientDropdown && setShowClientDropdown(false)} style={{ padding: "24px", maxHeight: "80vh", overflowY: "auto" }}>
-                            <form onSubmit={handleSubmit}>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                                    <div style={{ gridColumn: "span 2" }}>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Project Title *</label>
-                                        <input type="text" value={data.title} onChange={(e) => setData("title", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none" }} required />
-                                        {errors.title && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.title}</p>}
+                        {/* Modal Body & Form */}
+                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
+                            <div className="p-6 overflow-y-auto brass-scroll" onClick={() => showClientDropdown && setShowClientDropdown(false)}>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                    
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Project Title *</label>
+                                        <input 
+                                            type="text" 
+                                            value={data.title} 
+                                            onChange={(e) => setData("title", e.target.value)} 
+                                            placeholder="Enter descriptive project title" 
+                                            required 
+                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                        />
+                                        {errors.title && <p className="text-red-500 text-[12px] mt-1">{errors.title}</p>}
                                     </div>
 
-                                    {/* --- Searchable Client Dropdown (Inside Modal) --- */}
-                                    <div style={{ gridColumn: "span 1", position: "relative" }}>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Client *</label>
-                                        
+                                    {/* --- Custom Searchable Client Dropdown --- */}
+                                    <div className="relative">
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Client *</label>
                                         <div 
                                             onClick={(e) => { e.stopPropagation(); setShowClientDropdown(!showClientDropdown); }}
-                                            style={{ width: "100%", padding: "10px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                                            className={`flex w-full cursor-pointer items-center justify-between rounded-lg border px-3.5 py-2.5 text-[14px] outline-none transition-shadow hover:bg-gray-50 focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 ${data.client_id ? 'border-gray-300 bg-white text-gray-900' : 'border-gray-300 bg-white text-gray-500'}`}
                                         >
-                                            <span style={{ color: data.client_id ? "#0f172a" : "#94a3b8", fontSize: "0.875rem" }}>
+                                            <span className="truncate">
                                                 {data.client_id 
                                                     ? (() => {
                                                         const c = clients.find(cl => cl.id == data.client_id);
@@ -640,25 +688,25 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                                     : "-- Search & Select Client --"
                                                 }
                                             </span>
-                                            <i className={`fa-solid fa-chevron-${showClientDropdown ? 'up' : 'down'}`} style={{ color: "#94a3b8", fontSize: "0.8rem" }}></i>
+                                            <i className={`fa-solid fa-chevron-${showClientDropdown ? 'up' : 'down'} text-[10px] text-gray-400 shrink-0 ml-2`}></i>
                                         </div>
 
                                         {showClientDropdown && (
                                             <div 
                                                 onClick={(e) => e.stopPropagation()}
-                                                style={{ position: "absolute", top: "100%", left: 0, width: "100%", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", marginTop: "4px", zIndex: 50, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", maxHeight: "250px", display: "flex", flexDirection: "column" }}
+                                                className="absolute top-full left-0 mt-1 flex max-h-[250px] w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl z-50"
                                             >
-                                                <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", position: "sticky", top: 0 }}>
+                                                <div className="border-b border-gray-100 bg-gray-50 p-2 shrink-0">
                                                     <input 
                                                         type="text" 
                                                         placeholder="Type client name..." 
                                                         value={clientSearch}
                                                         onChange={(e) => setClientSearch(e.target.value)}
-                                                        style={{ width: "100%", padding: "8px 10px", borderRadius: "4px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.85rem" }}
+                                                        className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-[13px] outline-none focus:border-[var(--accent)]"
                                                         autoFocus
                                                     />
                                                 </div>
-                                                <div style={{ overflowY: "auto", padding: "4px 0" }}>
+                                                <div className="overflow-y-auto py-1">
                                                     {clients.filter(c => 
                                                         c.name.toLowerCase().includes(clientSearch.toLowerCase()) || 
                                                         (c.company_name && c.company_name.toLowerCase().includes(clientSearch.toLowerCase()))
@@ -674,61 +722,90 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                                                     setShowClientDropdown(false);
                                                                     setClientSearch("");
                                                                 }}
-                                                                style={{ padding: "8px 12px", cursor: "pointer", fontSize: "0.9rem", color: "#334155", background: data.client_id == c.id ? "#f0fdf4" : "transparent" }}
-                                                                onMouseEnter={(e) => e.target.style.background = "#f1f5f9"}
-                                                                onMouseLeave={(e) => e.target.style.background = data.client_id == c.id ? "#f0fdf4" : "transparent"}
+                                                                className={`cursor-pointer px-3.5 py-2 text-[13.5px] hover:bg-gray-50 ${data.client_id == c.id ? 'bg-[var(--accent-bg)] font-semibold text-gray-900' : 'text-gray-700'}`}
                                                             >
-                                                                {c.name} {c.company_name ? <span style={{ color: "#64748b", fontSize: "0.8rem" }}>({c.company_name})</span> : ''}
+                                                                {c.name} {c.company_name ? <span className="text-[12px] text-gray-400 ml-1">({c.company_name})</span> : ''}
                                                             </div>
                                                         ))
                                                     ) : (
-                                                        <div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>No client found.</div>
+                                                        <div className="p-3 text-center text-[13px] text-gray-400">No client found.</div>
                                                     )}
                                                 </div>
                                             </div>
                                         )}
-                                        {errors.client_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.client_id}</p>}
+                                        {errors.client_id && <p className="text-red-500 text-[12px] mt-1">{errors.client_id}</p>}
                                     </div>
 
-                                    <div style={{ gridColumn: "span 1" }}>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Budget</label>
-                                        <input type="number" value={data.budget} onChange={(e) => setData("budget", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }} />
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Budget</label>
+                                        <input 
+                                            type="number" 
+                                            value={data.budget} 
+                                            onChange={(e) => setData("budget", e.target.value)} 
+                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                            placeholder="Estimated budget"
+                                        />
                                     </div>
 
-                                    <div style={{ gridColumn: "span 1" }}>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Start Date</label>
-                                        <input type="date" value={data.start_date} onChange={(e) => setData("start_date", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }} />
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Start Date</label>
+                                        <input 
+                                            type="date" 
+                                            value={data.start_date} 
+                                            onChange={(e) => setData("start_date", e.target.value)} 
+                                            className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                        />
                                     </div>
 
-                                    <div style={{ gridColumn: "span 1" }}>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Deadline *</label>
-                                        <input type="date" value={data.deadline} onChange={(e) => setData("deadline", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }} required />
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Deadline *</label>
+                                        <input 
+                                            type="date" 
+                                            value={data.deadline} 
+                                            onChange={(e) => setData("deadline", e.target.value)} 
+                                            className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                            required 
+                                        />
                                     </div>
 
-                                    <div style={{ gridColumn: "span 2" }}>
-                                        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Project Status *</label>
-                                        <select value={data.status} onChange={(e) => setData("status", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }} required>
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Project Status *</label>
+                                        <select 
+                                            value={data.status} 
+                                            onChange={(e) => setData("status", e.target.value)} 
+                                            className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                            required
+                                        >
                                             <option value="planning">Planning</option>
                                             <option value="in_progress">In Progress</option>
                                             <option value="on_hold">On Hold</option>
                                             <option value="completed">Completed</option>
                                         </select>
                                     </div>
-                                </div>
-                                
-                                <div style={{ marginTop: "16px" }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Description / Notes</label>
-                                    <textarea value={data.description} onChange={(e) => setData("description", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", resize: "vertical" }} rows="3"></textarea>
-                                </div>
 
-                                <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                    <button type="button" onClick={() => setShowModal(false)} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", color: "#475569" }}>Dismiss</button>
-                                    <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 18px", borderRadius: "6px", cursor: "pointer", opacity: processing ? 0.7 : 1 }}>
-                                        {processing ? "Saving Changes..." : "Commit Project"}
-                                    </button>
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Description / Notes</label>
+                                        <textarea 
+                                            value={data.description} 
+                                            onChange={(e) => setData("description", e.target.value)} 
+                                            rows="3" 
+                                            placeholder="Write project details or requirements..."
+                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none resize-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                        ></textarea>
+                                    </div>
                                 </div>
-                            </form>
-                        </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 shrink-0">
+                                <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
+                                    Dismiss
+                                </button>
+                                <button type="submit" disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70">
+                                    {processing ? "Saving..." : "Commit Project"}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
