@@ -1,10 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, router, Link, usePage} from '@inertiajs/react';
+import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
 
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+
+const COMPANY = {
+    name: 'UNIBOX',
+    tagline: "Let's Create Together",
+    logo: `${window.location.origin}/images/logo.png`,
+    phone: '+8801627188836',
+    email: 'uniboxbd4u@gmail.com',
+    website: 'www.uniboxbd4u.com',
+    address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
+};
+
 export default function Index({ assets = { data: [], links: [] }, users = [], accounts = [], filters = {} }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
+
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
 
@@ -15,11 +33,6 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
     const [searchTerm, setSearchTerm] = useState(() => filters.search || new URLSearchParams(window.location.search).get('search') || '');
     const [perPage, setPerPage] = useState(() => Number(filters.per_page) || Number(new URLSearchParams(window.location.search).get("per_page")) || 25);
     const isFirstRender = useRef(true);
-
-    const { auth } = usePage().props;
-    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
-    const permissions = auth?.permissions || [];
-    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
 
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
         id: '',
@@ -89,16 +102,31 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
                 <head>
                     <title>Asset Register</title>
                     <style>
-                        body { font-family: Arial, sans-serif; padding: 20px; color: #334155; }
-                        h2 { text-align: center; color: #1e293b; margin-bottom: 20px; }
-                        table { width: 100%; border-collapse: collapse; text-align: left; }
-                        th, td { padding: 12px; border: 1px solid #cbd5e1; font-size: 13px; }
-                        th { background-color: #f1f5f9; font-weight: 600; text-transform: uppercase; }
-                        th:last-child, td:last-child { display: none !important; } /* Hide Actions */
+                        * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px 40px; color: #1e293b; }
+                        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #147a5b; padding-bottom: 15px; margin-bottom: 20px; }
+                        .logo { height: 45px; width: auto; }
+                        .company-details { text-align: right; font-size: 11px; line-height: 1.5; color: #475569; }
+                        .company-details h2 { margin: 0 0 3px 0; font-size: 18px; color: #147a5b; text-transform: uppercase; letter-spacing: 1px; }
+                        h2.report-title { text-align: center; color: #0f172a; margin-bottom: 5px; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; }
+                        p.report-date { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 13px; }
+                        table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; }
+                        th, td { padding: 10px 12px; border: 1px solid #cbd5e1; font-size: 12.5px; }
+                        th { background-color: #f8fafc; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
+                        th:last-child, td:last-child { display: none !important; }
                     </style>
                 </head>
                 <body>
-                    <h2>Company Asset Register</h2>
+                    <div class="header">
+                        <div><img src="${COMPANY.logo}" class="logo" alt="Logo" /></div>
+                        <div class="company-details">
+                            <h2>${COMPANY.name}</h2>
+                            ${COMPANY.address}<br/>
+                            Phone: ${COMPANY.phone} | Email: ${COMPANY.email}
+                        </div>
+                    </div>
+                    <h2 class="report-title">Company Asset Register</h2>
+                    <p class="report-date">Generated on: ${new Date().toLocaleString()}</p>
                     ${tableContent.outerHTML}
                 </body>
             </html>
@@ -112,7 +140,6 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
     // --- Modals & Actions ---
     const openCreateModal = () => {
         clearErrors();
-
         setData({
             id: '',
             account_id: '',
@@ -123,9 +150,8 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
             purchase_price: '',
             assigned_to: '',
             assigned_date: '',
-            condition: 'new' 
+            condition: 'new'
         });
-
         setEditMode(false);
         setShowModal(true);
     };
@@ -195,150 +221,163 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
     // Condition Styling Generator
     const getConditionStyles = (condition) => {
         const styles = {
-            new: { bg: '#dcfce7', color: '#15803d', label: 'New' },
-            good: { bg: '#e0f2fe', color: '#0369a1', label: 'Good' },
-            damaged: { bg: '#fee2e2', color: '#b91c1c', label: 'Damaged' },
-            under_repair: { bg: '#fef9c3', color: '#a16207', label: 'Under Repair' }
+            new: { bg: 'bg-emerald-50 text-emerald-600 border-emerald-200', label: 'New' },
+            good: { bg: 'bg-blue-50 text-blue-600 border-blue-200', label: 'Good' },
+            damaged: { bg: 'bg-red-50 text-red-600 border-red-200', label: 'Damaged' },
+            under_repair: { bg: 'bg-amber-50 text-amber-600 border-amber-200', label: 'Under Repair' }
         };
-        return styles[condition] || { bg: '#f1f5f9', color: '#475569', label: condition };
+        return styles[condition] || { bg: 'bg-gray-100 text-gray-500 border-gray-200', label: condition };
     };
 
     // React-Select Custom Styles
     const selectStyles = {
         control: (provided, state) => ({
-            ...provided, minHeight: "38px", borderRadius: "6px",
-            border: state.isFocused ? "1px solid #3b82f6" : "1px solid #cbd5e1",
-            boxShadow: state.isFocused ? "0 0 0 1px #3b82f6" : "none",
-            "&:hover": { borderColor: "#94a3b8" },
+            ...provided,
+            minHeight: "42px",
+            borderRadius: "0.5rem",
+            border: state.isFocused ? "1px solid var(--accent)" : "1px solid #d1d5db",
+            boxShadow: state.isFocused ? "0 0 0 1px rgba(200, 155, 60, 0.5)" : "none",
+            "&:hover": { borderColor: "#9ca3af" },
+            fontSize: "13.5px",
+            background: "#fff",
         }),
-        valueContainer: (provided) => ({ ...provided, padding: "2px 8px" }),
-        placeholder: (provided) => ({ ...provided, color: "#9ca3af", fontSize: "0.875rem" }),
-        singleValue: (provided) => ({ ...provided, color: "#1e293b", fontSize: "0.875rem" }),
         option: (provided, state) => ({
-            ...provided, fontSize: "0.875rem",
-            backgroundColor: state.isSelected ? "#2563eb" : state.isFocused ? "#eff6ff" : "#fff",
-            color: state.isSelected ? "#fff" : "#1e293b", cursor: "pointer",
+            ...provided,
+            fontSize: "13.5px",
+            backgroundColor: state.isSelected ? "var(--accent)" : state.isFocused ? "var(--accent-bg)" : "#fff",
+            color: state.isSelected ? "#fff" : "#111827", cursor: "pointer",
         }),
+        menuPortal: base => ({ ...base, zIndex: 9999 })
     };
 
     return (
         <AdminLayout>
             <Head title="Asset Management" />
 
-            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc" }}>
+            <div className="flex flex-col gap-6">
 
                 {/* Header */}
-                <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '15px' }}>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 className="page-title" style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Asset Management</h1>
-                        <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Track company assets, assignments, and purchase costs.</p>
+                        <h1 className="text-[22px] font-bold text-[#202223]">Asset Management</h1>
+                        <p className="text-[14px] text-gray-500 mt-1">Track company assets, assignments, and purchase costs.</p>
                     </div>
                 </div>
 
-                <div className="card-container" style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
+                <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
 
-                    {/* Card Header */}
-                    <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
-                        <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
-                            <i className="fa-solid fa-boxes-stacked" style={{ marginRight: "8px", color: "#3b82f6" }}></i> Asset Records
+                    {/* Card Header & Actions */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
+                        <div className="text-[16px] font-semibold text-[#202223] flex items-center gap-2.5">
+                            <i className="fa-solid fa-boxes-stacked text-[var(--accent)]"></i> Asset Records
                         </div>
                         {hasPermission('create_asset') && (
-                        <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13.5px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50">
                             <i className="fa-solid fa-plus"></i> Add Asset
                         </button>
                         )}
                     </div>
 
                     {/* Toolbar */}
-                    <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
-                        <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                            Show
-                            <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
-                                <option value={10}>10 Entries</option>
-                                <option value={25}>25 Entries</option>
-                                <option value={50}>50 Entries</option>
-                                <option value={100}>100 Entries</option>
-                                <option value={500}>500 Entries</option>
-                                <option value={1000}>1000 Entries</option>
-                                <option value="all">All</option>
-                            </select>
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30 border-b border-gray-100">
+                        <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
+                            <div className="flex items-center gap-2">
+                                <span>Show</span>
+                                <select
+                                    value={perPage}
+                                    onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
+                                    className="w-[100px] appearance-none bg-none rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                >
+                                    <option value={10}>10 Entries</option>
+                                    <option value={25}>25 Entries</option>
+                                    <option value={50}>50 Entries</option>
+                                    <option value={100}>100 Entries</option>
+                                    <option value={500}>500 Entries</option>
+                                    <option value={1000}>1000 Entries</option>
+                                    <option value="all">All</option>
+                                </select>
+                            </div>
+
+                            <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
+
+                            <div className="flex items-center gap-1.5">
+                                <button type="button" onClick={handleCopy} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-copy text-blue-500"></i> Copy
+                                </button>
+                                <button type="button" onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-file-csv text-emerald-500"></i> CSV
+                                </button>
+                                <button type="button" onClick={handlePrint} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-print text-gray-500"></i> Print
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="export-buttons" style={{ display: "flex", gap: "8px" }}>
-                            <button type="button" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-copy text-blue-500"></i> Copy
-                            </button>
-                            <button type="button" onClick={handleExportCSV} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-file-excel text-emerald-500"></i> CSV
-                            </button>
-                            <button type="button" onClick={handlePrint} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-print text-slate-500"></i> Print
-                            </button>
-                        </div>
-
-                        <div className="search-box" style={{ position: "relative" }}>
-                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
-                            <input type="text" placeholder="Search name or asset code..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "260px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
+                        <div className="relative w-full sm:w-[260px]">
+                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                            <input
+                                type="text"
+                                placeholder="Search name or asset code..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                            />
                         </div>
                     </div>
 
                     {/* Table */}
-                    <div style={{ overflowX: 'auto' }}>
-                        <table id="printable-table" className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                            <thead>
-                                <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "60px" }}>SL</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>ASSET</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>SERIAL NO</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>ASSIGNED TO</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>PURCHASE PRICE</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>CONDITION</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>ACTIONS</th>
+                    <div className="overflow-x-auto brass-scroll border-t border-[#e1e3e5]">
+                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                            <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
+                                <tr>
+                                    <th className="px-6 py-4 w-12">SL</th>
+                                    <th className="px-6 py-4">Asset</th>
+                                    <th className="px-6 py-4">Serial No</th>
+                                    <th className="px-6 py-4">Assigned To</th>
+                                    <th className="px-6 py-4 text-right">Purchase Price</th>
+                                    <th className="px-6 py-4 text-center">Condition</th>
+                                    <th className="px-6 py-4 text-center">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody style={{ color: "#334155", fontSize: "0.915rem" }}>
+                            <tbody className="text-[13.5px] text-[#202223]">
                                 {assetList.length > 0 ? (
                                     assetList.map((record, index) => {
                                         const conditionStyle = getConditionStyles(record.condition);
                                         return (
-                                            <tr key={record.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                                                <td style={{ padding: "16px 24px", color: "#64748b", fontWeight: "500" }}>
+                                            <tr key={record.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                                <td className="px-6 py-4 font-medium text-gray-500">
                                                     {assets.from ? assets.from + index : index + 1}
                                                 </td>
-                                                <td style={{ padding: "16px 24px" }}>
-                                                    <div style={{ fontWeight: '600', color: '#0f172a' }}>{record.name}</div>
-                                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{record.asset_code}</div>
+                                                <td className="px-6 py-4">
+                                                    <div className="font-bold text-gray-900 text-[14px]">{record.name}</div>
+                                                    <div className="text-[12px] text-gray-500 mt-0.5">{record.asset_code}</div>
                                                 </td>
-                                                <td style={{ padding: "16px 24px", color: '#475569' }}>{record.serial_number || '-'}</td>
-                                                <td style={{ padding: "16px 24px", fontWeight: '500', color: '#1f2937' }}>{record.assignee?.name || 'Unassigned'}</td>
-                                                <td style={{ padding: "16px 24px", textAlign: 'center', color: '#475569', fontWeight: '600' }}>
+                                                <td className="px-6 py-4 font-medium text-gray-600">{record.serial_number || '-'}</td>
+                                                <td className="px-6 py-4 font-bold text-gray-800">{record.assignee?.name || 'Unassigned'}</td>
+                                                <td className="px-6 py-4 text-right font-extrabold text-blue-600 text-[14px]">
                                                     {record.purchase_price ? `TK. ${parseFloat(record.purchase_price).toLocaleString('en-IN')}` : '-'}
                                                 </td>
-                                                <td style={{ padding: "16px 24px", textAlign: 'center' }}>
-                                                    <span style={{
-                                                        padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "700", textTransform: 'uppercase',
-                                                        background: conditionStyle.bg,
-                                                        color: conditionStyle.color
-                                                    }}>
+                                                <td className="px-6 py-4 text-center">
+                                                    <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${conditionStyle.bg}`}>
                                                         {conditionStyle.label}
                                                     </span>
                                                 </td>
-                                                <td style={{ padding: "16px 24px", textAlign: "center" }}>
-                                                    <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                                <td className="px-6 py-4 text-center">
+                                                    <div className="flex items-center justify-center gap-1.5">
                                                         {hasPermission('view_asset') && (
-                                                        <button onClick={() => openViewModal(record)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
-                                                            <i className="fa-regular fa-eye"></i>
-                                                        </button>
+                                                            <button onClick={() => openViewModal(record)} className="flex h-7 w-7 items-center justify-center rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="View Details">
+                                                                <i className="fa-regular fa-eye text-[12px]"></i>
+                                                            </button>
                                                         )}
                                                         {hasPermission('edit_asset') && (
-                                                        <button onClick={() => openEditModal(record)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit">
-                                                            <i className="fa-regular fa-pen-to-square"></i>
-                                                        </button>
+                                                            <button onClick={() => openEditModal(record)} className="flex h-7 w-7 items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors" title="Edit">
+                                                                <i className="fa-regular fa-pen-to-square text-[12px]"></i>
+                                                            </button>
                                                         )}
                                                         {hasPermission('delete_asset') && (
-                                                        <button onClick={() => handleDelete(record.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
-                                                            <i className="fa-regular fa-trash-can"></i>
-                                                        </button>
+                                                            <button onClick={() => handleDelete(record.id)} className="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete">
+                                                                <i className="fa-regular fa-trash-can text-[12px]"></i>
+                                                            </button>
                                                         )}
                                                     </div>
                                                 </td>
@@ -347,7 +386,12 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No asset records found.</td>
+                                        <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <i className="fa-solid fa-boxes-stacked text-4xl text-gray-300 mb-3"></i>
+                                                <p>No asset records found.</p>
+                                            </div>
+                                        </td>
                                     </tr>
                                 )}
                             </tbody>
@@ -355,88 +399,86 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
                     </div>
 
                     {/* Pagination Links */}
-                    <div style={{ padding: "20px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-
-                            <div style={{ color: "#64748b", fontSize: "0.875rem" }}>
+                    {assets.links && assets.links.length > 3 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#e1e3e5] bg-[#f6f6f7] px-6 py-4">
+                            <div className="text-[13px] text-gray-500">
                                 {assets.total > 0 && `Showing ${assets.from || 0} to ${assets.to || 0} of ${assets.total || 0} entries`}
                             </div>
-
-                            {assets.links && assets.links.length > 3 && (
-                                <div style={{ display: "flex", gap: "6px" }}>
-                                    {assets.links.map((link, index) => (
-                                        <Link
-                                            key={index}
-                                            href={link.url || "#"}
-                                            style={{
-                                                padding: "6px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.875rem",
-                                                color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"),
-                                                backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"),
-                                                pointerEvents: link.url ? "auto" : "none", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "32px"
-                                            }}
-                                            preserveState
-                                        >
-                                            {link.label.includes("Previous") ? <i className="fa-solid fa-chevron-left"></i> : link.label.includes("Next") ? <i className="fa-solid fa-chevron-right"></i> : link.label.replace("&laquo;", "").replace("&raquo;", "")}
-                                        </Link>
-                                    ))}
-                                </div>
-                            )}
+                            <div className="flex flex-wrap items-center gap-1">
+                                {assets.links.map((link, index) => (
+                                    <Link
+                                        key={index}
+                                        href={link.url || "#"}
+                                        className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] transition-colors
+                                            ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : link.url ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'border-gray-200 bg-gray-100 text-gray-400 pointer-events-none'}
+                                        `}
+                                        preserveState
+                                        dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }}
+                                    />
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
 
             {/* --- VIEW DETAILS MODAL --- */}
             {showViewModal && selectedRecord && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "500px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
-                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
-                                <i className="fa-regular fa-address-card" style={{ marginRight: "8px", color: "#2563eb" }}></i> Asset Details
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                            <h3 className="text-[18px] font-semibold text-[#202223] flex items-center gap-2">
+                                <i className="fa-regular fa-address-card text-[var(--accent)]"></i> Asset Details
                             </h3>
-                            <button type="button" onClick={() => setShowViewModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}><i className="fa-solid fa-xmark"></i></button>
+                            <button type="button" onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
+                            </button>
                         </div>
-                        <div style={{ padding: "24px" }}>
-                            <div style={{ textAlign: "center", marginBottom: "24px" }}>
-                                <div style={{ fontSize: "1.35rem", fontWeight: "700", color: "#0f172a" }}>
+                        <div className="p-6 overflow-y-auto brass-scroll">
+                            <div className="text-center mb-6">
+                                <div className="text-[22px] font-extrabold text-gray-900">
                                     {selectedRecord.name}
                                 </div>
-                                <div style={{ fontSize: "0.8rem", color: "#94a3b8", marginTop: "2px" }}>{selectedRecord.asset_code}</div>
-                                <span style={{
-                                    background: getConditionStyles(selectedRecord.condition).bg,
-                                    color: getConditionStyles(selectedRecord.condition).color,
-                                    padding: '5px 14px', borderRadius: '50px', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', marginTop: "10px", display: "inline-block"
-                                }}>
+                                <div className="text-[13.5px] font-medium text-gray-500 mt-1">{selectedRecord.asset_code}</div>
+                                <span className={`inline-flex mt-3 px-3.5 py-1.5 rounded-full text-[10.5px] font-bold uppercase tracking-wider border ${getConditionStyles(selectedRecord.condition).bg}`}>
                                     {getConditionStyles(selectedRecord.condition).label}
                                 </span>
                             </div>
 
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "10px" }}>
-                                <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Serial Number</span>
-                                    <div style={{ color: "#334155", fontWeight: "600" }}><i className="fa-solid fa-barcode text-rose-500" style={{ marginRight: "6px" }}></i>{selectedRecord.serial_number || "-"}</div>
+                            <div className="grid grid-cols-2 gap-4 mb-5">
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Serial Number</span>
+                                    <div className="text-[14.5px] font-bold text-gray-800 flex items-center gap-2">
+                                        <i className="fa-solid fa-barcode text-rose-400"></i>{selectedRecord.serial_number || "-"}
+                                    </div>
                                 </div>
-                                <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Assigned To</span>
-                                    <div style={{ color: "#334155", fontWeight: "600" }}><i className="fa-solid fa-user text-emerald-500" style={{ marginRight: "6px" }}></i>{selectedRecord.assignee?.name || "Unassigned"}</div>
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Assigned To</span>
+                                    <div className="text-[14.5px] font-bold text-emerald-700 flex items-center gap-2">
+                                        <i className="fa-solid fa-user text-emerald-500"></i>{selectedRecord.assignee?.name || "Unassigned"}
+                                    </div>
                                 </div>
-                                <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Purchase Date</span>
-                                    <div style={{ fontSize: "1rem", fontWeight: "700", color: "#0f172a" }}><i className="fa-regular fa-calendar text-blue-500" style={{ marginRight: "6px" }}></i>{selectedRecord.purchase_date || '-'}</div>
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Purchase Date</span>
+                                    <div className="text-[14.5px] font-bold text-gray-800 flex items-center gap-2">
+                                        <i className="fa-regular fa-calendar text-blue-500"></i>{selectedRecord.purchase_date || '-'}
+                                    </div>
                                 </div>
-                                <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Purchase Price</span>
-                                    <div style={{ fontSize: "1rem", fontWeight: "700", color: "#0f172a" }}>{selectedRecord.purchase_price ? `৳ ${parseFloat(selectedRecord.purchase_price).toLocaleString('en-IN')}` : "N/A"}</div>
-                                </div>
-                                <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #f1f5f9', gridColumn: '1 / -1' }}>
-                                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: "700", color: "#94a3b8", display: "block", marginBottom: "4px" }}>Paid From Account</span>
-                                    <div style={{ color: "#334155", fontWeight: "600" }}>{selectedRecord.account?.name || "N/A"}</div>
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Purchase Price</span>
+                                    <div className="text-[15px] font-extrabold text-blue-700">{selectedRecord.purchase_price ? `৳ ${parseFloat(selectedRecord.purchase_price).toLocaleString('en-IN')}` : "N/A"}</div>
                                 </div>
                             </div>
 
-                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                <button type="button" onClick={() => setShowViewModal(false)} style={{ background: "#1e293b", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500" }}>Close</button>
+                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex justify-between items-center">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Paid From Account</span>
+                                <div className="text-[14px] font-bold text-gray-800">{selectedRecord.account?.name || "N/A"}</div>
                             </div>
+                        </div>
+                        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end shrink-0">
+                            <button type="button" onClick={() => setShowViewModal(false)} className="rounded-lg bg-gray-800 px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-700/50">
+                                Close
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -444,97 +486,149 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
 
             {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden", maxHeight: "90vh", overflowY: "auto" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
-                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                            <h3 className="text-[18px] font-semibold text-[#202223]">
                                 {editMode ? "📝 Edit Asset" : "✨ Add New Asset"}
                             </h3>
-                            <button type="button" onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}><i className="fa-solid fa-xmark"></i></button>
+                            <button type="button" onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
+                            </button>
                         </div>
-                        <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
+                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
+                            <div className="p-6 overflow-y-auto brass-scroll">
 
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Asset Name *</label>
-                                    <input type="text" value={data.name} onChange={e => setData('name', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", height: "38px" }} required />
-                                    {errors.name && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.name}</p>}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Asset Name *</label>
+                                        <input
+                                            type="text"
+                                            value={data.name}
+                                            onChange={e => setData('name', e.target.value)}
+                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                            required
+                                        />
+                                        {errors.name && <p className="text-red-500 text-[12px] mt-1">{errors.name}</p>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Asset Code *</label>
+                                        <input
+                                            type="text"
+                                            value={data.asset_code}
+                                            onChange={e => setData('asset_code', e.target.value)}
+                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                            required
+                                        />
+                                        {errors.asset_code && <p className="text-red-500 text-[12px] mt-1">{errors.asset_code}</p>}
+                                    </div>
                                 </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Asset Code *</label>
-                                    <input type="text" value={data.asset_code} onChange={e => setData('asset_code', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", height: "38px" }} required />
-                                    {errors.asset_code && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.asset_code}</p>}
-                                </div>
-                            </div>
 
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Serial Number</label>
-                                    <input type="text" value={data.serial_number} onChange={e => setData('serial_number', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", height: "38px" }} />
-                                    {errors.serial_number && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.serial_number}</p>}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Serial Number</label>
+                                        <input
+                                            type="text"
+                                            value={data.serial_number}
+                                            onChange={e => setData('serial_number', e.target.value)}
+                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                        />
+                                        {errors.serial_number && <p className="text-red-500 text-[12px] mt-1">{errors.serial_number}</p>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Condition *</label>
+                                        <select
+                                            value={data.condition}
+                                            onChange={e => setData('condition', e.target.value)}
+                                            className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                            required
+                                        >
+                                            <option value="new">New</option>
+                                            <option value="good">Good</option>
+                                            <option value="damaged">Damaged</option>
+                                            <option value="under_repair">Under Repair</option>
+                                        </select>
+                                        {errors.condition && <p className="text-red-500 text-[12px] mt-1">{errors.condition}</p>}
+                                    </div>
                                 </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Condition *</label>
-                                    <select value={data.condition} onChange={e => setData('condition', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", height: "38px", background: "#fff" }} required>
-                                        <option value="new">New</option>
-                                        <option value="good">Good</option>
-                                        <option value="damaged">Damaged</option>
-                                        <option value="under_repair">Under Repair</option>
-                                    </select>
-                                    {errors.condition && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.condition}</p>}
-                                </div>
-                            </div>
 
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Purchase Date</label>
-                                    <input type="date" value={data.purchase_date} onChange={e => setData('purchase_date', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", height: "38px" }} />
-                                    {errors.purchase_date && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.purchase_date}</p>}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Purchase Date</label>
+                                        <input
+                                            type="date"
+                                            value={data.purchase_date}
+                                            onChange={e => setData('purchase_date', e.target.value)}
+                                            className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                        />
+                                        {errors.purchase_date && <p className="text-red-500 text-[12px] mt-1">{errors.purchase_date}</p>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Purchase Price (TK)</label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={data.purchase_price}
+                                            onChange={e => setData('purchase_price', e.target.value)}
+                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[15px] font-bold outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                            placeholder="0.00"
+                                        />
+                                        {errors.purchase_price && <p className="text-red-500 text-[12px] mt-1">{errors.purchase_price}</p>}
+                                    </div>
                                 </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Purchase Price</label>
-                                    <input type="number" step="0.01" value={data.purchase_price} onChange={e => setData('purchase_price', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", height: "38px" }} />
-                                    {errors.purchase_price && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.purchase_price}</p>}
-                                </div>
-                            </div>
 
-                            <div style={{ marginBottom: "16px" }}>
-                                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Paid From Account</label>
-                                <Select
-                                    options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${a.current_balance})` }))}
-                                    value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${a.current_balance})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
-                                    onChange={(selected) => setData("account_id", selected ? selected.value : "")}
-                                    placeholder="-- Select Account --" isSearchable isClearable styles={selectStyles}
-                                />
-                                {errors.account_id && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.account_id}</p>}
-                            </div>
-
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Assigned To (User)</label>
+                                <div className="mb-5">
+                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Paid From Account</label>
                                     <Select
-                                        options={users?.map(u => ({ value: u.id, label: u.name })) || []}
-                                        value={users?.map(u => ({ value: u.id, label: u.name })).find(opt => opt.value === data.assigned_to) || null}
-                                        onChange={option => setData('assigned_to', option ? option.value : '')}
-                                        styles={selectStyles}
+                                        options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${Number(a.current_balance).toLocaleString('en-IN')})` }))}
+                                        value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
+                                        onChange={(selected) => setData("account_id", selected ? selected.value : "")}
+                                        placeholder="-- Select Account --"
+                                        isSearchable
                                         isClearable
-                                        placeholder="Select a user..."
+                                        styles={selectStyles}
+                                        menuPosition="fixed"
+                                        menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
                                     />
-                                    {errors.assigned_to && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.assigned_to}</p>}
+                                    {errors.account_id && <p className="text-red-500 text-[12px] mt-1">{errors.account_id}</p>}
                                 </div>
-                                <div>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Assigned Date</label>
-                                    <input type="date" value={data.assigned_date} onChange={e => setData('assigned_date', e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", height: "38px" }} />
-                                    {errors.assigned_date && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.assigned_date}</p>}
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-2">
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Assigned To (User)</label>
+                                        <Select
+                                            options={users?.map(u => ({ value: u.id, label: u.name })) || []}
+                                            value={users?.map(u => ({ value: u.id, label: u.name })).find(opt => opt.value === data.assigned_to) || null}
+                                            onChange={option => setData('assigned_to', option ? option.value : '')}
+                                            placeholder="-- Select User --"
+                                            isSearchable
+                                            isClearable
+                                            styles={selectStyles}
+                                            menuPosition="fixed"
+                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                        />
+                                        {errors.assigned_to && <p className="text-red-500 text-[12px] mt-1">{errors.assigned_to}</p>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Assigned Date</label>
+                                        <input
+                                            type="date"
+                                            value={data.assigned_date}
+                                            onChange={e => setData('assigned_date', e.target.value)}
+                                            className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                        />
+                                        {errors.assigned_date && <p className="text-red-500 text-[12px] mt-1">{errors.assigned_date}</p>}
+                                    </div>
                                 </div>
+
                             </div>
 
-                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", borderTop: "1px solid #e2e8f0", paddingTop: "20px" }}>
-                                <button type="button" onClick={() => setShowModal(false)} style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}>
+                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 shrink-0">
+                                <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "600", opacity: processing ? 0.7 : 1 }}>
-                                    {processing ? 'Saving...' : (editMode ? 'Update Asset' : 'Save Asset')}
+                                <button type="submit" disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70 flex items-center gap-2">
+                                    {processing ? "Saving..." : (editMode ? "Update Asset" : "Save Asset")}
                                 </button>
                             </div>
                         </form>

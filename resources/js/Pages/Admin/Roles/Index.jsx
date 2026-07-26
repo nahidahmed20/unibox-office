@@ -8,6 +8,16 @@ import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+const COMPANY = {
+    name: 'UNIBOX',
+    tagline: "Let's Create Together",
+    logo: `${window.location.origin}/images/logo.png`,
+    phone: '+8801627188836',
+    email: 'uniboxbd4u@gmail.com',
+    website: 'www.uniboxbd4u.com',
+    address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
+};
+
 export default function Index({ roles = { data: [], links: [] }, permissions = [] }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
@@ -16,11 +26,7 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
 
-    // Tracks whether the role currently open in the modal is the protected
-    // "Super Admin" role. This is set ONLY when the modal is opened (create/edit),
-    // NOT derived from the live `data.name` value — otherwise a user typing a new
-    // role name that happens to pass through "Super Admin" (e.g. "Super Admin Backup")
-    // would have the input disabled and the permissions section hidden mid-typing.
+    // Tracks whether the role currently open in the modal is the protected "Super Admin" role.
     const [isSuperAdminRole, setIsSuperAdminRole] = useState(false);
 
     // View Details Modal State
@@ -70,8 +76,6 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
         Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false });
     };
 
-    // Escapes a value for safe inclusion inside a double-quoted CSV field:
-    // wraps in quotes and doubles any internal quote characters.
     const csvEscape = (value) => {
         const str = String(value ?? '');
         return `"${str.replace(/"/g, '""')}"`;
@@ -139,16 +143,31 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
                 <head>
                     <title>System Roles Report</title>
                     <style>
-                        body { font-family: Arial, sans-serif; padding: 20px; color: #334155; }
-                        h2 { text-align: center; color: #1e293b; margin-bottom: 20px; }
-                        table { width: 100%; border-collapse: collapse; text-align: left; }
-                        th, td { padding: 12px; border: 1px solid #cbd5e1; font-size: 13px; }
-                        th { background-color: #f1f5f9; font-weight: 600; text-transform: uppercase; }
+                        * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px 40px; color: #1e293b; }
+                        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #147a5b; padding-bottom: 15px; margin-bottom: 20px; }
+                        .logo { height: 45px; width: auto; }
+                        .company-details { text-align: right; font-size: 11px; line-height: 1.5; color: #475569; }
+                        .company-details h2 { margin: 0 0 3px 0; font-size: 18px; color: #147a5b; text-transform: uppercase; letter-spacing: 1px; }
+                        h2.report-title { text-align: center; color: #0f172a; margin-bottom: 5px; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; }
+                        p.report-date { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 13px; }
+                        table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; }
+                        th, td { padding: 10px 12px; border: 1px solid #cbd5e1; font-size: 12.5px; }
+                        th { background-color: #f8fafc; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
                         th:last-child, td:last-child { display: none !important; }
                     </style>
                 </head>
                 <body>
-                    <h2>System Roles List</h2>
+                    <div class="header">
+                        <div><img src="${COMPANY.logo}" class="logo" alt="Logo" /></div>
+                        <div class="company-details">
+                            <h2>${COMPANY.name}</h2>
+                            ${COMPANY.address}<br/>
+                            Phone: ${COMPANY.phone} | Email: ${COMPANY.email}
+                        </div>
+                    </div>
+                    <h2 class="report-title">System Roles Directory</h2>
+                    <p class="report-date">Generated on: ${new Date().toLocaleString()}</p>
                     ${tableContent.outerHTML}
                 </body>
             </html>
@@ -180,8 +199,6 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
             guard_name: role?.guard_name || 'web',
             permissions: role?.permissions ? role.permissions.map(p => p.id) : []
         });
-        // Decide "is this the protected Super Admin role" ONCE, from the role
-        // being opened — not from the live input value the user types afterward.
         setIsSuperAdminRole(role?.name === 'Super Admin');
         setEditMode(true);
         setShowModal(true);
@@ -192,9 +209,6 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
         setShowViewModal(true);
     };
 
-    // Permission ids coming from the server and from the checkbox list can end up
-    // as different types (string vs number) depending on how the backend serializes
-    // them. Compare as strings so checked-state and toggling stay reliable either way.
     const isPermissionChecked = (permissionId) =>
         data.permissions.some(id => String(id) === String(permissionId));
 
@@ -249,125 +263,139 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
         <AdminLayout>
             <Head title="Roles Management" />
 
-            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc" }}>
+            <div className="flex flex-col gap-6">
 
                 {/* Header */}
-                <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '15px' }}>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 className="page-title" style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Roles & Permissions</h1>
-                        <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Manage system roles and assign capabilities.</p>
+                        <h1 className="text-[22px] font-bold text-[#202223]">Roles & Permissions</h1>
+                        <p className="text-[14px] text-gray-500 mt-1">Manage system roles and assign capabilities.</p>
                     </div>
                 </div>
 
-                <div className="card-container" style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
+                <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
 
                     {/* Card Header */}
-                    <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid #f1f5f9" }}>
-                        <div className="card-title" style={{ fontSize: "1.125rem", fontWeight: "600", color: "#334155" }}>
-                            <i className="fa-solid fa-user-shield" style={{ marginRight: "8px", color: "#3b82f6" }}></i> All System Roles
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
+                        <div className="text-[16px] font-semibold text-[#202223] flex items-center gap-2.5">
+                            <i className="fa-solid fa-user-shield text-[var(--accent)]"></i> All System Roles
                         </div>
                         {hasPermission('create_role') && (
-                        <button onClick={openCreateModal} className="add-btn" style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "6px", border: "none", fontWeight: "500", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13.5px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50">
                             <i className="fa-solid fa-plus"></i> Create Role
                         </button>
                         )}
                     </div>
 
                     {/* Toolbar */}
-                    <div className="table-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "16px 24px", background: "#f8fafc" }}>
-                        <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                            Show
-                            <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff" }}>
-                                <option value={10}>10 Entries</option>
-                                <option value={25}>25 Entries</option>
-                                <option value={50}>50 Entries</option>
-                                <option value={100}>100 Entries</option>
-                                <option value={500}>500 Entries</option>
-                                <option value={1000}>1000 Entries</option>
-                                <option value="all">All</option>
-                            </select>
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30 border-b border-gray-100">
+                        <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
+                            <div className="flex items-center gap-2">
+                                <span>Show</span>
+                                <select
+                                    value={perPage}
+                                    onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
+                                    className="w-[100px] appearance-none bg-none rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                >
+                                    <option value={10}>10 Entries</option>
+                                    <option value={25}>25 Entries</option>
+                                    <option value={50}>50 Entries</option>
+                                    <option value={100}>100 Entries</option>
+                                    <option value={500}>500 Entries</option>
+                                    <option value={1000}>1000 Entries</option>
+                                    <option value="all">All</option>
+                                </select>
+                            </div>
+
+                            <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
+
+                            <div className="flex items-center gap-1.5">
+                                <button type="button" onClick={handleCopy} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-copy text-blue-500"></i> Copy
+                                </button>
+                                <button type="button" onClick={handleExcel} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-file-excel text-emerald-500"></i> Excel
+                                </button>
+                                <button type="button" onClick={handleCSV} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-file-csv text-teal-500"></i> CSV
+                                </button>
+                                <button type="button" onClick={handlePDF} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-file-pdf text-rose-500"></i> PDF
+                                </button>
+                                <button type="button" onClick={handlePrint} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-print text-gray-500"></i> Print
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="export-buttons" style={{ display: "flex", gap: "8px" }}>
-                            <button type="button" onClick={handleCopy} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-copy text-blue-500"></i> Copy
-                            </button>
-                            <button type="button" onClick={handleExcel} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-file-excel text-emerald-500"></i> Excel
-                            </button>
-                            <button type="button" onClick={handleCSV} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-file-csv text-teal-500"></i> CSV
-                            </button>
-                            <button type="button" onClick={handlePDF} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-file-pdf text-rose-500"></i> PDF
-                            </button>
-                            <button type="button" onClick={handlePrint} style={{ background: "#fff", border: "1px solid #cbd5e1", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569" }}>
-                                <i className="fas fa-print text-slate-500"></i> Print
-                            </button>
-                        </div>
-
-                        <div className="search-box" style={{ position: "relative" }}>
-                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
-                            <input type="text" placeholder="Search roles..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "260px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
+                        <div className="relative w-full sm:w-[260px]">
+                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                            <input
+                                type="text"
+                                placeholder="Search roles..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                            />
                         </div>
                     </div>
 
                     {/* Table */}
-                    <div style={{ overflowX: 'auto' }}>
-                        <table id="printable-table" className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                            <thead>
-                                <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", width: "60px" }}>SL</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>ROLE TITLE</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>ASSIGNED PERMISSIONS</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>STATUS</th>
-                                    <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>ACTIONS</th>
+                    <div className="overflow-x-auto brass-scroll border-t border-[#e1e3e5]">
+                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                            <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
+                                <tr>
+                                    <th className="px-6 py-4 w-12">SL</th>
+                                    <th className="px-6 py-4">Role Title</th>
+                                    <th className="px-6 py-4 w-[40%]">Assigned Permissions</th>
+                                    <th className="px-6 py-4 text-center">Status</th>
+                                    <th className="px-6 py-4 text-center">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody style={{ color: "#334155", fontSize: "0.915rem" }}>
+                            <tbody className="text-[13.5px] text-[#202223]">
                                 {recordList.length > 0 ? (
                                     recordList.map((role, index) => (
-                                        <tr key={role.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                                            <td style={{ padding: "16px 24px", color: "#64748b", fontWeight: "500" }}>
+                                        <tr key={role.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                            <td className="px-6 py-4 font-medium text-gray-500">
                                                 {roles.from ? roles.from + index : index + 1}
                                             </td>
-                                            <td style={{ padding: "16px 24px", fontWeight: '700', color: '#0f172a' }}>{role.name}</td>
-                                            <td style={{ padding: "16px 24px" }}>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                            <td className="px-6 py-4 font-bold text-gray-900">{role.name}</td>
+                                            <td className="px-6 py-4 whitespace-normal">
+                                                <div className="flex flex-wrap gap-1.5">
                                                     {role.name === 'Super Admin' ? (
-                                                        <span style={{ padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '700', background: '#f3e8ff', color: '#7e22ce' }}>
-                                                            <i className="fa-solid fa-star me-1"></i> All Access (Root Bypass)
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-purple-50 text-[11px] font-bold text-purple-700 uppercase tracking-wider border border-purple-200">
+                                                            <i className="fa-solid fa-star mr-1.5 text-purple-500"></i> All Access (Root Bypass)
                                                         </span>
                                                     ) : (
-                                                        role?.permissions?.map(p => (
-                                                            <span key={p.id} style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}>
+                                                        role?.permissions?.length > 0 ? role.permissions.map(p => (
+                                                            <span key={p.id} className="inline-flex items-center px-2 py-0.5 rounded-md bg-gray-100 text-[10.5px] font-bold text-gray-600 border border-gray-200 uppercase tracking-wider">
                                                                 {p.name}
                                                             </span>
-                                                        ))
+                                                        )) : <span className="text-[12px] text-gray-400 italic">No permissions assigned</span>
                                                     )}
                                                 </div>
                                             </td>
-                                            <td style={{ padding: "16px 24px", textAlign: 'center' }}>
-                                                <span style={{ padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "700", textTransform: 'uppercase', background: '#dcfce7', color: '#15803d' }}>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-50 text-[10px] font-bold text-emerald-600 uppercase tracking-wider border border-emerald-200">
                                                     Active
                                                 </span>
                                             </td>
-                                            <td style={{ padding: "16px 24px", textAlign: "center" }}>
-                                                <div style={{ display: "flex", justifyContent: "center", gap: "6px" }}>
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="flex items-center justify-center gap-1.5">
                                                     {hasPermission('view_role') && (
-                                                    <button onClick={() => openViewModal(role)} style={{ background: "#f0fdf4", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#16a34a" }} title="View Details">
-                                                        <i className="fa-regular fa-eye"></i>
-                                                    </button>
+                                                        <button onClick={() => openViewModal(role)} className="flex h-7 w-7 items-center justify-center rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="View Details">
+                                                            <i className="fa-regular fa-eye text-[12px]"></i>
+                                                        </button>
                                                     )}
                                                     {hasPermission('edit_role') && (
-                                                    <button onClick={() => openEditModal(role)} style={{ background: "#f1f5f9", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#0f172a" }} title="Edit">
-                                                        <i className="fa-regular fa-pen-to-square"></i>
-                                                    </button>
+                                                        <button onClick={() => openEditModal(role)} className="flex h-7 w-7 items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors" title="Edit">
+                                                            <i className="fa-regular fa-pen-to-square text-[12px]"></i>
+                                                        </button>
                                                     )}
-                                                    {hasPermission('delete_role') && (
-                                                    <button onClick={() => handleDelete(role.id)} style={{ background: "#fee2e2", border: "none", padding: "6px 10px", borderRadius: "6px", cursor: "pointer", color: "#ef4444" }} title="Delete">
-                                                        <i className="fa-regular fa-trash-can"></i>
-                                                    </button>
+                                                    {hasPermission('delete_role') && role.name !== 'Super Admin' && (
+                                                        <button onClick={() => handleDelete(role.id)} className="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete">
+                                                            <i className="fa-regular fa-trash-can text-[12px]"></i>
+                                                        </button>
                                                     )}
                                                 </div>
                                             </td>
@@ -375,7 +403,12 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No roles found.</td>
+                                        <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <i className="fa-solid fa-user-shield text-4xl text-gray-300 mb-3"></i>
+                                                <p>No roles found.</p>
+                                            </div>
+                                        </td>
                                     </tr>
                                 )}
                             </tbody>
@@ -383,79 +416,73 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
                     </div>
 
                     {/* Pagination Links */}
-                    <div style={{ padding: "20px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <div style={{ color: "#64748b", fontSize: "0.875rem" }}>
+                    {roles.links && roles.links.length > 3 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#e1e3e5] bg-[#f6f6f7] px-6 py-4">
+                            <div className="text-[13px] text-gray-500">
                                 {roles.total > 0 && `Showing ${roles.from || 0} to ${roles.to || 0} of ${roles.total || 0} entries`}
                             </div>
-                            {roles.links && roles.links.length > 3 && (
-                                <div style={{ display: "flex", gap: "6px" }}>
-                                    {roles.links.map((link, index) => (
-                                        <Link
-                                            key={index}
-                                            href={link.url || "#"}
-                                            style={{
-                                                padding: "6px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.875rem",
-                                                color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"),
-                                                backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"),
-                                                pointerEvents: link.url ? "auto" : "none", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "32px"
-                                            }}
-                                            preserveState
-                                        >
-                                            {link.label.includes("Previous") ? <i className="fa-solid fa-chevron-left"></i> : link.label.includes("Next") ? <i className="fa-solid fa-chevron-right"></i> : link.label.replace("&laquo;", "").replace("&raquo;", "")}
-                                        </Link>
-                                    ))}
-                                </div>
-                            )}
+                            <div className="flex flex-wrap items-center gap-1">
+                                {roles.links.map((link, index) => (
+                                    <Link
+                                        key={index}
+                                        href={link.url || "#"}
+                                        className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] transition-colors
+                                            ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : link.url ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'border-gray-200 bg-gray-100 text-gray-400 pointer-events-none'}
+                                        `}
+                                        preserveState
+                                        dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }}
+                                    />
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
 
             {/* --- VIEW DETAILS MODAL --- */}
             {showViewModal && selectedRecord && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "min(1000px, 92vw)", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
-                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
-                                <i className="fa-solid fa-user-shield" style={{ marginRight: "8px", color: "#2563eb" }}></i> Role Details
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                            <h3 className="text-[18px] font-semibold text-[#202223] flex items-center gap-2">
+                                <i className="fa-solid fa-user-shield text-[var(--accent)]"></i> Role Details
                             </h3>
-                            <button type="button" onClick={() => setShowViewModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}><i className="fa-solid fa-xmark"></i></button>
+                            <button type="button" onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
+                            </button>
                         </div>
-                        <div style={{ padding: "24px" }}>
-                            <div style={{ textAlign: "center", marginBottom: "20px" }}>
-                                <div style={{ fontSize: "1.35rem", fontWeight: "700", color: "#0f172a" }}>
+                        <div className="p-6 overflow-y-auto brass-scroll">
+                            <div className="text-center mb-6">
+                                <div className="text-[24px] font-extrabold text-gray-900">
                                     {selectedRecord.name}
                                 </div>
-                                <span style={{
-                                    background: '#dcfce7',
-                                    color: '#15803d',
-                                    padding: '5px 14px', borderRadius: '50px', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', marginTop: "10px", display: "inline-block"
-                                }}>
-                                    Active
+                                <span className="inline-flex mt-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider">
+                                    Active Role
                                 </span>
                             </div>
 
-                            <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-                                <span style={{ fontSize: "0.85rem", fontWeight: "700", color: "#334155", display: "block", marginBottom: "12px" }}>Assigned Capabilities</span>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                            <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
+                                <span className="block text-[12px] font-bold uppercase tracking-wider text-gray-500 mb-3">Assigned Capabilities</span>
+                                <div className="flex flex-wrap gap-2">
                                     {selectedRecord.name === 'Super Admin' ? (
-                                        <span style={{ padding: '6px 12px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '700', background: '#f3e8ff', color: '#7e22ce' }}>
-                                            <i className="fa-solid fa-star me-1"></i> All Access Granted
+                                        <span className="inline-flex items-center px-3.5 py-2 rounded-md text-[13px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                            <i className="fa-solid fa-star mr-2 text-purple-500"></i> All Access Granted
                                         </span>
                                     ) : (
                                         selectedRecord?.permissions?.length > 0 ? selectedRecord.permissions.map(p => (
-                                            <span key={p.id} style={{ padding: '4px 10px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: '600', background: '#e2e8f0', color: '#334155' }}>
+                                            <span key={p.id} className="inline-flex items-center px-3 py-1.5 rounded-md text-[12px] font-semibold bg-white text-gray-700 border border-gray-200 shadow-sm">
                                                 {p.name}
                                             </span>
-                                        )) : <span style={{ fontSize: "0.85rem", color: "#94a3b8", fontStyle: "italic" }}>No permissions assigned.</span>
+                                        )) : <span className="text-[13px] text-gray-400 italic">No permissions assigned.</span>
                                     )}
                                 </div>
                             </div>
+                        </div>
 
-                            <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
-                                <button type="button" onClick={() => setShowViewModal(false)} style={{ background: "#1e293b", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "500" }}>Close</button>
-                            </div>
+                        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end shrink-0">
+                            <button type="button" onClick={() => setShowViewModal(false)} className="rounded-lg bg-gray-800 px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-700/50">
+                                Close Profile
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -463,57 +490,60 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
 
             {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.4)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-                    <div style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", padding: "18px 24px", background: "#f8fafc" }}>
-                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: "600", color: "#1e293b" }}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                            <h3 className="text-[18px] font-semibold text-[#202223]">
                                 {editMode ? '📝 Modify Role & Permissions' : '✨ Create New Role'}
                             </h3>
-                            <button type="button" onClick={() => setShowModal(false)} style={{ background: "transparent", border: "none", fontSize: "1.25rem", cursor: "pointer", color: "#94a3b8" }}><i className="fa-solid fa-xmark"></i></button>
+                            <button type="button" onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
+                            </button>
                         </div>
-                        <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
+                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
+                            <div className="p-6 overflow-y-auto brass-scroll">
 
-                            <div style={{ marginBottom: "16px" }}>
-                                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Role Identifier / Title *</label>
-                                <input
-                                    type="text"
-                                    disabled={isSuperAdminRole}
-                                    value={data.name}
-                                    onChange={e => setData('name', e.target.value)}
-                                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", height: "38px", background: isSuperAdminRole ? "#f1f5f9" : "#fff" }}
-                                    placeholder="e.g., Manager, Editor, HR"
-                                    required
-                                />
-                                {errors.name && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.name}</p>}
+                                <div className="mb-6">
+                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Role Identifier / Title *</label>
+                                    <input
+                                        type="text"
+                                        disabled={isSuperAdminRole}
+                                        value={data.name}
+                                        onChange={e => setData('name', e.target.value)}
+                                        className={`w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 ${isSuperAdminRole ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white'}`}
+                                        placeholder="e.g., Manager, Editor, HR"
+                                        required
+                                    />
+                                    {errors.name && <p className="text-red-500 text-[12px] mt-1">{errors.name}</p>}
+                                </div>
+
+                                {!isSuperAdminRole && (
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-2">Assign Allowed Permissions</label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl max-h-[350px] overflow-y-auto brass-scroll">
+                                            {(permissions || []).map(p => (
+                                                <label key={p.id} className="flex items-center gap-2.5 cursor-pointer bg-white px-3.5 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors shadow-sm">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isPermissionChecked(p.id)}
+                                                        onChange={() => handleCheckboxChange(p.id)}
+                                                        className="h-4 w-4 rounded border-gray-300 text-[var(--accent)] focus:ring-[var(--accent)]/50 cursor-pointer"
+                                                    />
+                                                    <span className="text-[13.5px] font-medium text-gray-800">{p.name}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                        {errors.permissions && <p className="text-red-500 text-[12px] mt-1">{errors.permissions}</p>}
+                                    </div>
+                                )}
+
                             </div>
 
-                            {!isSuperAdminRole && (
-                                <div style={{ marginTop: '20px' }}>
-                                    <label style={{ display: "block", fontSize: "0.85rem", fontWeight: "600", color: "#475569", marginBottom: "8px" }}>Assign Allowed Permissions</label>
-                                    <div style={{
-                                        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px', padding: '15px',
-                                        background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px',
-                                        maxHeight: '320px', overflowY: 'auto'
-                                    }}>
-                                        {(permissions || []).map(p => (
-                                            <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem', cursor: 'pointer', margin: 0, fontWeight: '500', color: '#334155' }}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isPermissionChecked(p.id)}
-                                                    onChange={() => handleCheckboxChange(p.id)}
-                                                    style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#2563eb' }}
-                                                />
-                                                {p.name}
-                                            </label>
-                                        ))}
-                                    </div>
-                                    {errors.permissions && <p style={{ color: "#ef4444", fontSize: "0.75rem", marginTop: "4px" }}>{errors.permissions}</p>}
-                                </div>
-                            )}
-
-                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "16px", marginTop: "24px" }}>
-                                <button type="button" onClick={() => setShowModal(false)} style={{ background: "#f1f5f9", color: "#334155", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "500" }}>Cancel</button>
-                                <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "500", display: "flex", alignItems: "center", gap: "6px" }}>
+                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 shrink-0">
+                                <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70">
                                     {processing ? 'Saving...' : 'Save Changes'}
                                 </button>
                             </div>

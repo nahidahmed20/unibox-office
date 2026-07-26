@@ -4,7 +4,7 @@ import { Head, router } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 
 export default function FinancialReports({ clientsReport = [], monthlyReport = [], summary = {}, filters = {} }) {
-    /* STREAMING_CHUNK: State Management */
+    /* State Management */
     const [activeTab, setActiveTab] = useState('client');
     const [searchClient, setSearchClient] = useState('');
     const [searchMonth, setSearchMonth] = useState('');
@@ -13,14 +13,14 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
     const [startDate, setStartDate] = useState(filters.start_date || '');
     const [endDate, setEndDate] = useState(filters.end_date || '');
     const [filterYear, setFilterYear] = useState(filters.year || '');
-    
+
     const isFirstRender = useRef(true);
 
     // Get unique years for the dropdown (from 2020 up to current year + 2)
     const currentYear = new Date().getFullYear();
     const years = Array.from(new Array(10), (val, index) => currentYear - 5 + index).sort((a, b) => b - a);
 
-    /* STREAMING_CHUNK: Filtering & Reload Logic */
+    /* Filtering & Reload Logic */
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -45,7 +45,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
         setFilterYear('');
     };
 
-    /* STREAMING_CHUNK: Export Helpers */
+    /* Export Helpers */
     const handlePrint = (elementId, title) => {
         const tableContent = document.getElementById(elementId);
         if (!tableContent) return;
@@ -56,18 +56,20 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                 <head>
                     <title>${title}</title>
                     <style>
-                        body { font-family: Arial, sans-serif; padding: 20px; color: #334155; }
-                        h2 { text-align: center; color: #1e293b; margin-bottom: 5px; }
-                        p { text-align: center; color: #64748b; font-size: 14px; margin-bottom: 20px; }
-                        table { width: 100%; border-collapse: collapse; text-align: left; }
-                        th, td { padding: 12px; border: 1px solid #cbd5e1; font-size: 13px; }
-                        th { background-color: #f1f5f9; font-weight: 600; text-transform: uppercase; }
+                        body { font-family: Arial, sans-serif; padding: 30px; color: #334155; }
+                        h2 { text-align: center; color: #0f172a; margin-bottom: 5px; text-transform: uppercase; }
+                        p { text-align: center; color: #64748b; font-size: 14px; margin-bottom: 25px; }
+                        table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; }
+                        th, td { padding: 12px 16px; border: 1px solid #cbd5e1; font-size: 13px; }
+                        th { background-color: #f8fafc; font-weight: 600; color: #475569; text-transform: uppercase; }
                         .no-print { display: none !important; }
+                        .month-header { background-color: #1e293b !important; color: #fff !important; }
+                        .summary-row { background-color: #f1f5f9 !important; font-weight: bold; }
                     </style>
                 </head>
                 <body>
                     <h2>${title}</h2>
-                    <p>Date Generated: ${new Date().toLocaleDateString()}</p>
+                    <p>Generated Report Date: ${new Date().toLocaleDateString()}</p>
                     ${tableContent.outerHTML}
                 </body>
             </html>
@@ -116,129 +118,194 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
     return (
         <AdminLayout>
             <Head title="Financial & Project Reports"/>
-            
-            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc", minHeight: "100vh" }}>
-                
-                {/* STREAMING_CHUNK: Header & Date Filters */}
-                <div className="page-header" style={{ marginBottom: '24px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: '15px' }}>
+
+            <div className="flex flex-col gap-6">
+
+                {/* Header & Date Filters */}
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                     <div>
-                        <h1 className="page-title" style={{ fontSize: "1.75rem", fontWeight: "700", color: "#1e293b", margin: 0 }}>Business Financial Reports</h1>
-                        <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>Analyze client profitability, monthly expenses, and net profit margins.</p>
+                        <h1 className="text-[22px] font-bold text-[#202223]">Business Financial Reports</h1>
+                        <p className="text-[14px] text-gray-500 mt-1">Analyze client profitability, monthly expenses, and net profit margins.</p>
                     </div>
 
-                    <div style={{ background: '#fff', padding: '12px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <label style={{ fontSize: '0.8rem', fontWeight: '600', color: '#475569' }}>Year:</label>
-                            <select value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setStartDate(''); setEndDate(''); }} style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem', background: '#f8fafc' }}>
+                    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#e1e3e5] bg-white p-3 shadow-sm">
+                        <div className="flex items-center gap-2">
+                            <label className="text-[13px] font-semibold text-gray-600">Year:</label>
+                            <select
+                                value={filterYear}
+                                onChange={(e) => { setFilterYear(e.target.value); setStartDate(''); setEndDate(''); }}
+                                className="appearance-none bg-none w-[100px] rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                            >
                                 <option value="">All Years</option>
                                 {years.map(y => <option key={y} value={y}>{y}</option>)}
                             </select>
                         </div>
-                        <div style={{ width: '1px', height: '24px', background: '#cbd5e1' }}></div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <label style={{ fontSize: '0.8rem', fontWeight: '600', color: '#475569' }}>Date Range:</label>
-                            <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setFilterYear(''); }} style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem' }} />
-                            <span style={{ color: '#94a3b8' }}>to</span>
-                            <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setFilterYear(''); }} style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.85rem' }} />
+
+                        <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
+
+                        <div className="flex items-center gap-2">
+                            <label className="text-[13px] font-semibold text-gray-600">Range:</label>
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => { setStartDate(e.target.value); setFilterYear(''); }}
+                                className="rounded-md border border-gray-300 bg-gray-50 px-2 py-1.5 text-[13px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                            />
+                            <span className="text-gray-400 text-[13px]">to</span>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => { setEndDate(e.target.value); setFilterYear(''); }}
+                                className="rounded-md border border-gray-300 bg-gray-50 px-2 py-1.5 text-[13px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                            />
                         </div>
+
                         {(startDate || endDate || filterYear) && (
-                            <button onClick={resetFilters} style={{ background: '#fee2e2', color: '#dc2626', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}>
-                                Clear Filters
+                            <button onClick={resetFilters} className="flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-[13px] font-medium text-red-600 transition-colors hover:bg-red-100">
+                                <i className="fa-solid fa-xmark"></i> Clear
                             </button>
                         )}
                     </div>
                 </div>
 
-                {/* STREAMING_CHUNK: Summary Cards */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '24px' }}>
-                    <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)', borderLeft: '4px solid #3b82f6' }}>
-                        <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Total Project Value (Receivable)</div>
-                        <div style={{ fontSize: '1.75rem', fontWeight: '700', color: '#0f172a', marginTop: '8px' }}>BDT {summary.total_receivable?.toLocaleString('en-IN')}</div>
-                    </div>
-                    
-                    <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)', borderLeft: '4px solid #ef4444' }}>
-                        <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Total Project Cost (Expenses)</div>
-                        <div style={{ fontSize: '1.75rem', fontWeight: '700', color: '#0f172a', marginTop: '8px' }}>BDT {summary.total_cost?.toLocaleString('en-IN')}</div>
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    {/* Card 1: Total Receivable */}
+                    <div className="flex items-center gap-4 rounded-xl border border-blue-200 bg-blue-50/50 p-6 shadow-sm transition-shadow hover:shadow-md">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                            <i className="fa-solid fa-money-bill-trend-up text-[22px]"></i>
+                        </div>
+                        <div>
+                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-blue-600">Total Project Value (Receivable)</p>
+                            <h3 className="text-[24px] font-extrabold text-blue-800 m-0">TK. {summary.total_receivable?.toLocaleString('en-IN')}</h3>
+                        </div>
                     </div>
 
-                    <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)', borderLeft: '4px solid #10b981' }}>
-                        <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>Estimated Net Profit</div>
-                        <div style={{ fontSize: '1.75rem', fontWeight: '700', color: summary.net_profit >= 0 ? '#15803d' : '#dc2626', marginTop: '8px' }}>
-                            BDT {summary.net_profit?.toLocaleString('en-IN')}
+                    {/* Card 2: Total Cost */}
+                    <div className="flex items-center gap-4 rounded-xl border border-rose-200 bg-rose-50/50 p-6 shadow-sm transition-shadow hover:shadow-md">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                            <i className="fa-solid fa-file-invoice-dollar text-[22px]"></i>
+                        </div>
+                        <div>
+                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-rose-600">Total Project Cost (Expenses)</p>
+                            <h3 className="text-[24px] font-extrabold text-rose-800 m-0">TK. {summary.total_cost?.toLocaleString('en-IN')}</h3>
+                        </div>
+                    </div>
+
+                    {/* Card 3: Net Profit */}
+                    <div className={`flex items-center gap-4 rounded-xl border p-6 shadow-sm transition-shadow hover:shadow-md ${summary.net_profit >= 0 ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'}`}>
+                        <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${summary.net_profit >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                            <i className="fa-solid fa-chart-line text-[22px]"></i>
+                        </div>
+                        <div>
+                            <p className={`mb-1 text-[11px] font-bold uppercase tracking-wider ${summary.net_profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>Estimated Net Profit</p>
+                            <h3 className={`text-[24px] font-extrabold m-0 ${summary.net_profit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                                {summary.net_profit > 0 ? '+' : ''}TK. {summary.net_profit?.toLocaleString('en-IN')}
+                            </h3>
                         </div>
                     </div>
                 </div>
 
-                {/* STREAMING_CHUNK: Tabs Navigation */}
-                <div className="card-container" style={{ background: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", border: "1px solid #e2e8f0" }}>
-                    <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
-                        <button 
+                {/* Tabs & Main Content */}
+                <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
+
+                    {/* Tabs Navigation */}
+                    <div className="flex border-b border-gray-200 bg-gray-50/50 px-2 pt-2 overflow-x-auto brass-scroll">
+                        <button
                             onClick={() => setActiveTab('client')}
-                            style={{ padding: '16px 24px', fontWeight: '600', fontSize: '0.95rem', border: 'none', background: activeTab === 'client' ? '#fff' : 'transparent', color: activeTab === 'client' ? '#2563eb' : '#64748b', borderBottom: activeTab === 'client' ? '2px solid #2563eb' : '2px solid transparent', cursor: 'pointer', transition: 'all 0.2s' }}
+                            className={`flex items-center gap-2 px-6 py-3.5 text-[14px] font-semibold transition-all rounded-t-lg
+                                ${activeTab === 'client'
+                                    ? 'border-b-2 border-[var(--accent)] bg-white text-[var(--accent)] shadow-[0_-2px_4px_rgba(0,0,0,0.02)]'
+                                    : 'border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                }
+                            `}
                         >
-                            <i className="fa-solid fa-users" style={{ marginRight: '8px' }}></i> Client-Wise Summary
+                            <i className="fa-solid fa-users"></i> Client-Wise Summary
                         </button>
-                        <button 
+                        <button
                             onClick={() => setActiveTab('monthly')}
-                            style={{ padding: '16px 24px', fontWeight: '600', fontSize: '0.95rem', border: 'none', background: activeTab === 'monthly' ? '#fff' : 'transparent', color: activeTab === 'monthly' ? '#2563eb' : '#64748b', borderBottom: activeTab === 'monthly' ? '2px solid #2563eb' : '2px solid transparent', cursor: 'pointer', transition: 'all 0.2s' }}
+                            className={`flex items-center gap-2 px-6 py-3.5 text-[14px] font-semibold transition-all rounded-t-lg
+                                ${activeTab === 'monthly'
+                                    ? 'border-b-2 border-[var(--accent)] bg-white text-[var(--accent)] shadow-[0_-2px_4px_rgba(0,0,0,0.02)]'
+                                    : 'border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                }
+                            `}
                         >
-                            <i className="fa-regular fa-calendar-days" style={{ marginRight: '8px' }}></i> Monthly Project Details
+                            <i className="fa-regular fa-calendar-days"></i> Monthly Project Details
                         </button>
                     </div>
 
-                    {/* STREAMING_CHUNK: Client-Wise Report Section */}
+                    {/* Client-Wise Report Section */}
                     {activeTab === 'client' && (
                         <div>
-                            <div style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', flexWrap: 'wrap', gap: '10px' }}>
-                                <div className="search-box" style={{ position: "relative" }}>
-                                    <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
-                                    <input type="text" placeholder="Search Client..." value={searchClient} onChange={(e) => setSearchClient(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "260px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
+                            {/* Toolbar */}
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-4 border-b border-gray-100 bg-gray-50/30">
+                                <div className="relative w-full md:w-[300px]">
+                                    <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                                    <input
+                                        type="text"
+                                        placeholder="Search Client..."
+                                        value={searchClient}
+                                        onChange={(e) => setSearchClient(e.target.value)}
+                                        className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                    />
                                 </div>
-                                <div style={{ display: 'flex', gap: '10px' }}>
-                                    <button onClick={exportClientCSV} style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#16a34a", fontWeight: '600' }}>
-                                        <i className="fas fa-file-excel"></i> Excel / CSV
+
+                                <div className="flex items-center gap-2">
+                                    <button onClick={exportClientCSV} className="flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[13px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100">
+                                        <i className="fas fa-file-csv"></i> Export CSV
                                     </button>
-                                    <button onClick={() => handlePrint('client-report-table', 'Client-Wise Profitability Report')} style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: '600' }}>
-                                        <i className="fas fa-print"></i> Print / PDF
+                                    <button onClick={() => handlePrint('client-report-table', 'Client-Wise Profitability Report')} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                        <i className="fas fa-print text-gray-500"></i> Print / PDF
                                     </button>
                                 </div>
                             </div>
 
-                            <div style={{ overflowX: 'auto' }}>
-                                <table id="client-report-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                                    <thead>
-                                        <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0", borderTop: "1px solid #e2e8f0" }}>
-                                            <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Client Name</th>
-                                            <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "center" }}>Total Projects</th>
-                                            <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>Project Value (Receivable)</th>
-                                            <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>Total Cost (Expenses)</th>
-                                            <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>Cost Paid</th>
-                                            <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>Cost Due</th>
-                                            <th style={{ padding: "14px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>Est. Profit</th>
+                            {/* Table */}
+                            <div className="overflow-x-auto brass-scroll">
+                                <table id="client-report-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1000px]">
+                                    <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
+                                        <tr>
+                                            <th className="px-6 py-4">Client Name</th>
+                                            <th className="px-6 py-4 text-center">Total Projects</th>
+                                            <th className="px-6 py-4 text-right">Project Value (Receivable)</th>
+                                            <th className="px-6 py-4 text-right">Total Cost (Expenses)</th>
+                                            <th className="px-6 py-4 text-right">Cost Paid</th>
+                                            <th className="px-6 py-4 text-right">Cost Due</th>
+                                            <th className="px-6 py-4 text-right">Est. Profit</th>
                                         </tr>
                                     </thead>
-                                    <tbody style={{ color: "#334155", fontSize: "0.915rem" }}>
+                                    <tbody className="text-[13.5px] text-[#202223]">
                                         {filteredClients.length > 0 ? (
                                             filteredClients.map((client, index) => {
                                                 const profit = client.total_budget - client.total_expense;
                                                 return (
-                                                    <tr key={index} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                                                        <td style={{ padding: "16px 24px", fontWeight: "600", color: "#0f172a" }}>{client.client_name}</td>
-                                                        <td style={{ padding: "16px 24px", textAlign: "center" }}>
-                                                            <span style={{ background: '#f1f5f9', padding: '4px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>{client.total_projects}</span>
+                                                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                                        <td className="px-6 py-4 font-bold text-gray-900">{client.client_name}</td>
+                                                        <td className="px-6 py-4 text-center">
+                                                            <span className="inline-flex items-center justify-center rounded-full bg-blue-100 text-blue-700 px-2.5 py-0.5 text-[11px] font-bold">
+                                                                {client.total_projects}
+                                                            </span>
                                                         </td>
-                                                        <td style={{ padding: "16px 24px", textAlign: "right", fontWeight: "600", color: "#3b82f6" }}>{client.total_budget.toLocaleString('en-IN')}</td>
-                                                        <td style={{ padding: "16px 24px", textAlign: "right", fontWeight: "600", color: "#ef4444" }}>{client.total_expense.toLocaleString('en-IN')}</td>
-                                                        <td style={{ padding: "16px 24px", textAlign: "right", color: "#16a34a" }}>{client.vendor_paid.toLocaleString('en-IN')}</td>
-                                                        <td style={{ padding: "16px 24px", textAlign: "right", color: "#dc2626" }}>{client.vendor_due.toLocaleString('en-IN')}</td>
-                                                        <td style={{ padding: "16px 24px", textAlign: "right", fontWeight: "700", color: profit >= 0 ? "#15803d" : "#dc2626" }}>
+                                                        <td className="px-6 py-4 text-right font-semibold text-blue-600">TK. {client.total_budget.toLocaleString('en-IN')}</td>
+                                                        <td className="px-6 py-4 text-right font-semibold text-rose-500">TK. {client.total_expense.toLocaleString('en-IN')}</td>
+                                                        <td className="px-6 py-4 text-right text-emerald-600">TK. {client.vendor_paid.toLocaleString('en-IN')}</td>
+                                                        <td className="px-6 py-4 text-right font-medium text-orange-500">TK. {client.vendor_due.toLocaleString('en-IN')}</td>
+                                                        <td className={`px-6 py-4 text-right font-extrabold ${profit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                                                             {profit > 0 ? '+' : ''}{profit.toLocaleString('en-IN')}
                                                         </td>
                                                     </tr>
                                                 );
                                             })
                                         ) : (
-                                            <tr><td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No clients found.</td></tr>
+                                            <tr>
+                                                <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                                                    <div className="flex flex-col items-center justify-center">
+                                                        <i className="fa-solid fa-users-slash text-4xl text-gray-300 mb-3"></i>
+                                                        <p>No clients found for this period.</p>
+                                                    </div>
+                                                </td>
+                                            </tr>
                                         )}
                                     </tbody>
                                 </table>
@@ -246,71 +313,102 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                         </div>
                     )}
 
-                    {/* STREAMING_CHUNK: Monthly Project Report Section */}
+                    {/* Monthly Project Report Section */}
                     {activeTab === 'monthly' && (
                         <div>
-                            <div style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', flexWrap: 'wrap', gap: '10px' }}>
-                                <div className="search-box" style={{ position: "relative" }}>
-                                    <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
-                                    <input type="text" placeholder="Search Month (e.g. July 2026)..." value={searchMonth} onChange={(e) => setSearchMonth(e.target.value)} style={{ padding: "8px 12px 8px 36px", width: "260px", borderRadius: "6px", border: "1px solid #cbd5e1", outline: "none", fontSize: "0.875rem" }} />
+                            {/* Toolbar */}
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-4 border-b border-gray-100 bg-gray-50/30">
+                                <div className="relative w-full md:w-[300px]">
+                                    <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                                    <input
+                                        type="text"
+                                        placeholder="Search Month (e.g. July 2026)..."
+                                        value={searchMonth}
+                                        onChange={(e) => setSearchMonth(e.target.value)}
+                                        className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                    />
                                 </div>
-                                <div style={{ display: 'flex', gap: '10px' }}>
-                                    <button onClick={exportMonthlyCSV} style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#16a34a", fontWeight: '600' }}>
-                                        <i className="fas fa-file-excel"></i> Excel / CSV
+
+                                <div className="flex items-center gap-2">
+                                    <button onClick={exportMonthlyCSV} className="flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[13px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100">
+                                        <i className="fas fa-file-csv"></i> Export CSV
                                     </button>
-                                    <button onClick={() => handlePrint('monthly-report-table', 'Monthly Projects Report')} style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px", color: "#475569", fontWeight: '600' }}>
-                                        <i className="fas fa-print"></i> Print / PDF
+                                    <button onClick={() => handlePrint('monthly-report-table', 'Monthly Projects Report')} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                        <i className="fas fa-print text-gray-500"></i> Print / PDF
                                     </button>
                                 </div>
                             </div>
 
-                            <div style={{ overflowX: 'auto' }}>
-                                <table id="monthly-report-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+                            {/* Table */}
+                            <div className="overflow-x-auto brass-scroll">
+                                <table id="monthly-report-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
                                     {filteredMonths.length > 0 ? (
                                         filteredMonths.map((data, index) => (
-                                            <React.Fragment key="{index}">
+                                            <React.Fragment key={index}>
                                                 <thead>
-                                                    <tr style={{ background: "#1e293b" }}>
-                                                        <th colSpan="5" style={{ padding: "12px 24px", fontSize: "0.9rem", fontWeight: "700", color: "#fff", textTransform: "uppercase" }}>
-                                                            <i className="fa-regular fa-calendar" style={{ marginRight: '8px' }}></i> {data.month}
+                                                    {/* Dark Premium Header for Month */}
+                                                    <tr className="bg-slate-800 text-white border-b-2 border-slate-900 month-header">
+                                                        <th colSpan="5" className="px-6 py-3 text-[12px] font-bold uppercase tracking-wider">
+                                                            <i className="fa-regular fa-calendar-days text-blue-400 mr-2"></i> {data.month}
                                                         </th>
                                                     </tr>
-                                                    <tr style={{ background: "#f1f5f9", borderBottom: "2px solid #e2e8f0" }}>
-                                                        <th style={{ padding: "10px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Project Name</th>
-                                                        <th style={{ padding: "10px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>Client</th>
-                                                        <th style={{ padding: "10px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>Budget</th>
-                                                        <th style={{ padding: "10px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>Cost (Expenses)</th>
-                                                        <th style={{ padding: "10px 24px", fontSize: "0.75rem", fontWeight: "700", color: "#475569", textTransform: "uppercase", textAlign: "right" }}>Est. Profit</th>
+                                                    {/* Sub Columns Header */}
+                                                    <tr className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
+                                                        <th className="px-6 py-3">Project Name</th>
+                                                        <th className="px-6 py-3">Client</th>
+                                                        <th className="px-6 py-3 text-right">Budget</th>
+                                                        <th className="px-6 py-3 text-right">Cost (Expenses)</th>
+                                                        <th className="px-6 py-3 text-right">Est. Profit</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody style={{ color: "#334155", fontSize: "0.9rem" }}>
+                                                <tbody className="text-[13.5px] text-[#202223]">
                                                     {data.projects.map((proj, pIdx) => (
-                                                        <tr key={pIdx} style={{ borderBottom: "1px solid #f8fafc" }}>
-                                                            <td style={{ padding: "12px 24px", fontWeight: "600", color: "#0f172a" }}>
+                                                        <tr key={pIdx} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                                            <td className="px-6 py-3.5 font-semibold text-gray-900">
                                                                 {proj.title}
-                                                                {proj.status === 'completed' && <span style={{ marginLeft: '8px', fontSize: '0.7rem', background: '#dcfce7', color: '#16a34a', padding: '2px 6px', borderRadius: '4px' }}>Completed</span>}
+                                                                {proj.status === 'completed' && (
+                                                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-100 text-[10px] font-bold text-emerald-700">
+                                                                        Completed
+                                                                    </span>
+                                                                )}
                                                             </td>
-                                                            <td style={{ padding: "12px 24px", color: "#475569" }}>{proj.client}</td>
-                                                            <td style={{ padding: "12px 24px", textAlign: "right", color: "#3b82f6" }}>{proj.budget.toLocaleString('en-IN')}</td>
-                                                            <td style={{ padding: "12px 24px", textAlign: "right", color: "#ef4444" }}>{proj.expense.toLocaleString('en-IN')}</td>
-                                                            <td style={{ padding: "12px 24px", textAlign: "right", fontWeight: "600", color: proj.profit >= 0 ? "#15803d" : "#dc2626" }}>
-                                                                {proj.profit.toLocaleString('en-IN')}
+                                                            <td className="px-6 py-3.5 text-gray-600">{proj.client}</td>
+                                                            <td className="px-6 py-3.5 text-right font-medium text-blue-600">TK. {proj.budget.toLocaleString('en-IN')}</td>
+                                                            <td className="px-6 py-3.5 text-right font-medium text-rose-500">TK. {proj.expense.toLocaleString('en-IN')}</td>
+                                                            <td className={`px-6 py-3.5 text-right font-bold ${proj.profit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                                                {proj.profit > 0 ? '+' : ''}{proj.profit.toLocaleString('en-IN')}
                                                             </td>
                                                         </tr>
                                                     ))}
-                                                    <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
-                                                        <td colSpan="2" style={{ padding: "12px 24px", textAlign: "right", fontWeight: "700", color: "#1e293b", textTransform: "uppercase", fontSize: "0.8rem" }}>Summary for {data.month}:</td>
-                                                        <td style={{ padding: "12px 24px", textAlign: "right", fontWeight: "700", color: "#1e293b" }}>{data.month_budget.toLocaleString('en-IN')}</td>
-                                                        <td style={{ padding: "12px 24px", textAlign: "right", fontWeight: "700", color: "#1e293b" }}>{data.month_expense.toLocaleString('en-IN')}</td>
-                                                        <td style={{ padding: "12px 24px", textAlign: "right", fontWeight: "700", color: data.month_profit >= 0 ? "#15803d" : "#dc2626", borderTop: "2px solid #1e293b" }}>
-                                                            {data.month_profit.toLocaleString('en-IN')}
+                                                    {/* Summary Row for the Month */}
+                                                    <tr className="bg-slate-50 border-t-2 border-b-4 border-gray-200 summary-row">
+                                                        <td colSpan="2" className="px-6 py-4 text-right font-bold text-gray-800 uppercase text-[11px] tracking-wider">
+                                                            Summary for {data.month}:
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right font-extrabold text-blue-700 text-[14.5px]">
+                                                            TK. {data.month_budget.toLocaleString('en-IN')}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right font-extrabold text-rose-600 text-[14.5px]">
+                                                            TK. {data.month_expense.toLocaleString('en-IN')}
+                                                        </td>
+                                                        <td className={`px-6 py-4 text-right font-extrabold text-[15px] ${data.month_profit >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                                                            {data.month_profit > 0 ? '+' : ''}{data.month_profit.toLocaleString('en-IN')}
                                                         </td>
                                                     </tr>
                                                 </tbody>
                                             </React.Fragment>
                                         ))
                                     ) : (
-                                        <tbody><tr><td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No monthly records found.</td></tr></tbody>
+                                        <tbody>
+                                            <tr>
+                                                <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
+                                                    <div className="flex flex-col items-center justify-center">
+                                                        <i className="fa-regular fa-calendar-xmark text-4xl text-gray-300 mb-3"></i>
+                                                        <p>No monthly records found.</p>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
                                     )}
                                 </table>
                             </div>

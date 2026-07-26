@@ -1,24 +1,26 @@
 import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
-import { Head, router, Link } from "@inertiajs/react";
+import { Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
 export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
+
     const [searchTerm, setSearchTerm] = useState(filters?.search || "");
     const [perPage, setPerPage] = useState(filters?.per_page || 10);
     const isFirstRender = useRef(true);
 
     const clients = clientDues?.data || [];
-    
-    // Calculates total due for the current page
-    // const pageTotalDue = clients.reduce((sum, client) => sum + parseFloat(client.total_due || 0), 0);
 
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
             return;
         }
-        
+
         const delayDebounceFn = setTimeout(() => {
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
@@ -39,24 +41,24 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
     ========================================= */
     const handleCopy = () => {
         if (!clients.length) return Swal.fire("Empty!", "No data to copy", "warning");
-        
+
         const header = "SL\tClient Name\tEmail\tPhone\tCompany\tAvail. Advance\tTotal Due\n";
         const text = clients
             .map((c, idx) => `${idx + 1}\t${c.name}\t${c.email}\t${c.phone || "N/A"}\t${c.company_name || "Individual"}\tTK. ${parseFloat(c.available_advance || 0).toFixed(2)}\tTK. ${parseFloat(c.total_due || 0).toFixed(2)}`)
             .join("\n");
-            
+
         navigator.clipboard.writeText(header + text);
         Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1200, showConfirmButton: false, toast: true, position: 'top-end' });
     };
 
     const handleExportCSV = () => {
         if (!clients.length) return Swal.fire("Empty!", "No data to export", "warning");
-        
+
         const headers = ["SL,Client Name,Email,Phone,Company,Available Advance,Total Due\n"];
-        const rows = clients.map((c, idx) => 
+        const rows = clients.map((c, idx) =>
             `"${idx + 1}","${c.name}","${c.email}","${c.phone || "N/A"}","${c.company_name || "Individual"}","${c.available_advance}","${c.total_due}"`
         );
-        
+
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -76,17 +78,17 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                     <title>Client Dues Report</title>
                     <style>
                         body { font-family: Arial, sans-serif; padding: 30px; color: #334155; }
-                        h2 { text-align: center; color: #0f172a; margin-bottom: 5px; }
+                        h2 { text-align: center; color: #0f172a; margin-bottom: 5px; text-transform: uppercase; }
                         p { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 14px; }
                         table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; }
                         th, td { padding: 12px 16px; border: 1px solid #cbd5e1; font-size: 13px; }
-                        th { background-color: #f1f5f9; font-weight: 600; color: #475569; text-transform: uppercase; }
-                        
+                        th { background-color: #f8fafc; font-weight: 600; color: #475569; text-transform: uppercase; }
+
                         /* Add a Serial Number column visually only for print */
                         table { counter-reset: rowNumber; }
                         tbody tr { counter-increment: rowNumber; }
                         tbody tr td:first-child::before { content: counter(rowNumber) ". "; font-weight: bold; margin-right: 5px; }
-                        
+
                         /* Ensure the Total Due column aligns to the right */
                         th:last-child, td:last-child { text-align: right !important; color: #dc2626; font-weight: bold; }
                         th:nth-last-child(2), td:nth-last-child(2) { text-align: right !important; color: #16a34a; }
@@ -103,107 +105,146 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
         printWindow.focus();
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
     };
-    /* ========================================= */
 
     return (
         <AdminLayout>
             <Head title="Client Dues Report" />
 
-            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc", minHeight: "100vh" }}>
-                <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-                    <h1 className="page-title" style={{ fontSize: "1.5rem", fontWeight: "700", color: "#0f172a" }}>Accounts Receivable</h1>
-                </div>
-                
-                {/* Summary Cards */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', marginBottom: '24px' }}>
-                    <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', border: '1px solid #e2e8f0' }}>
-                        <p style={{ fontSize: '0.875rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '600', marginBottom: '8px' }}>Clients on this Page</p>
-                        <h2 style={{ fontSize: '2rem', fontWeight: '700', color: '#0f172a', margin: '0' }}>{clientDues?.total || 0}</h2>
-                    </div>
-                    <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '12px', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', border: '1px solid #e2e8f0', borderLeft: '5px solid #ef4444' }}>
-                        <p style={{ fontSize: '0.875rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '600', marginBottom: '8px' }}>Page Total Receivable</p>
-                        <h2 style={{ fontSize: '2rem', fontWeight: '700', color: '#dc2626', margin: '0' }}>
-                            TK. {Number(grandTotalDue).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </h2>
+            <div className="flex flex-col gap-6">
+
+                {/* Page Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-[22px] font-bold text-[#202223]">Accounts Receivable</h1>
+                        <p className="text-[14px] text-gray-500 mt-1">Track and manage outstanding client dues and advances.</p>
                     </div>
                 </div>
 
-                <div className="card-container" style={{ background: "#fff", borderRadius: "12px", boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)", border: "1px solid #e2e8f0", overflow: "hidden" }}>
-                    <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 24px", borderBottom: "1px solid #f1f5f9" }}>
-                        <div className="card-title" style={{ fontSize: "1.1rem", fontWeight: "600", color: "#1e293b", display: "flex", alignItems: "center", gap: "10px" }}>
-                            <i className="fa-solid fa-file-invoice-dollar" style={{ color: "#3b82f6" }}></i> Client Dues List
+                {/* Summary Stat Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                            <i className="fa-solid fa-users text-[20px]"></i>
+                        </div>
+                        <div>
+                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-500">Clients on this Page</p>
+                            <h3 className="text-[22px] font-extrabold text-gray-900 m-0">{clientDues?.total || 0}</h3>
                         </div>
                     </div>
 
-                    {/* TOOLBAR */}
-                    <div className="table-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '16px' }}>
-                        <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                            Show
-                            <select
-                                value={perPage}
-                                onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
-                                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", outline: "none", cursor: "pointer" }}
-                            >
-                                <option value={10}>10 Entries</option>
-                                <option value={25}>25 Entries</option>
-                                <option value={50}>50 Entries</option>
-                                <option value={100}>100 Entries</option>
-                                <option value="all">All Entries</option>
-                            </select>
+                    <div className="flex items-center gap-4 rounded-xl border border-red-200 bg-red-50/50 p-5 shadow-sm transition-shadow hover:shadow-md">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                            <i className="fa-solid fa-file-invoice-dollar text-[18px]"></i>
+                        </div>
+                        <div>
+                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-red-500">Page Total Receivable</p>
+                            <h3 className="text-[22px] font-extrabold text-red-700 m-0">TK. {Number(grandTotalDue).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h3>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Main Card */}
+                <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
+
+                    {/* Card Header */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
+                        <div className="text-[16px] font-semibold text-[#202223] flex items-center gap-2.5">
+                            <i className="fa-solid fa-file-invoice-dollar text-[var(--accent)]"></i> Client Dues List
+                        </div>
+                    </div>
+
+                    {/* Toolbar */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30 border-b border-gray-100">
+
+                        <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
+                            {/* Show Entries */}
+                            <div className="flex items-center gap-2">
+                                <span>Show</span>
+                                <select
+                                    value={perPage}
+                                    onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
+                                    className="w-[100px] appearance-none bg-none rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                >
+                                    <option value={10}>10 Entries</option>
+                                    <option value={25}>25 Entries</option>
+                                    <option value={50}>50 Entries</option>
+                                    <option value={100}>100 Entries</option>
+                                    <option value="all">All Entries</option>
+                                </select>
+                            </div>
+
+                            <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
+
+                            {/* Export Buttons */}
+                            <div className="flex items-center gap-1.5">
+                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-copy text-blue-500"></i> Copy
+                                </button>
+                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-file-excel text-emerald-500"></i> CSV
+                                </button>
+                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-print text-gray-500"></i> Print
+                                </button>
+                            </div>
                         </div>
 
-                        {/* EXPORT BUTTONS */}
-                        <div className="export-buttons" style={{ display: 'flex', gap: '8px' }}>
-                            <button onClick={handleCopy} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}><i className="fas fa-copy"></i> Copy</button>
-                            <button onClick={handleExportCSV} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}><i className="fas fa-file-excel" style={{ color: "#16a34a"}}></i> Excel</button>
-                            <button onClick={handlePrint} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}><i className="fas fa-print" style={{ color: "#475569"}}></i> Print</button>
-                        </div>
-
-                        <div className="search-box" style={{ position: "relative" }}>
+                        {/* Search */}
+                        <div className="relative w-full sm:w-[260px]">
+                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
                             <input
                                 type="text"
                                 placeholder="Search clients..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                style={{ width: "240px", padding: "6px 12px", paddingLeft: "36px", fontSize: "0.875rem", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }}
+                                className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
                             />
-                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
                         </div>
                     </div>
 
-                    <div style={{ overflowX: "auto" }}>
-                        <table id="printable-client-dues-table" className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.875rem", minWidth: "800px" }}>
-                            <thead>
-                                <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
-                                    <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Client Name</th>
-                                    <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Contact Info</th>
-                                    <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Company</th>
-                                    <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem", textAlign: "right" }}>Available Advance</th>
-                                    <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem", textAlign: "right" }}>Total Due</th>
+                    {/* Data Table */}
+                    <div className="overflow-x-auto brass-scroll border-t border-[#e1e3e5]">
+                        <table id="printable-client-dues-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[800px]">
+                            <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
+                                <tr>
+                                    <th className="px-6 py-4">Client Name</th>
+                                    <th className="px-6 py-4">Contact Info</th>
+                                    <th className="px-6 py-4">Company</th>
+                                    <th className="px-6 py-4 text-right">Available Advance</th>
+                                    <th className="px-6 py-4 text-right">Total Due</th>
                                 </tr>
                             </thead>
-                            <tbody style={{ color: "#334155" }}>
+                            <tbody className="text-[13.5px] text-[#202223]">
                                 {clients.length === 0 ? (
                                     <tr>
-                                        <td colSpan="5" style={{ padding: "32px", textAlign: "center", color: "#64748b" }}>No due records found.</td>
+                                        <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <i className="fa-solid fa-check-double text-4xl text-gray-300 mb-3"></i>
+                                                <p>No due records found.</p>
+                                            </div>
+                                        </td>
                                     </tr>
                                 ) : (
                                     clients.map((client, idx) => (
-                                        <tr key={client.id} style={{ borderBottom: "1px solid #f1f5f9", background: idx % 2 === 0 ? "#fff" : "#fdfdfd" }}>
-                                            <td style={{ padding: "16px 24px", fontWeight: "600", color: "#0f172a" }}>{client.name}</td>
-                                            <td style={{ padding: "16px 24px" }}>
-                                                <div style={{ fontSize: "0.875rem", fontWeight: "500", color: "#3b82f6", marginBottom: "2px" }}>{client.email}</div>
-                                                <div style={{ fontSize: "0.75rem", color: "#64748b" }}><i className="fa-solid fa-phone" style={{marginRight: '4px'}}></i> {client.phone || "N/A"}</div>
+                                        <tr key={client.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                            <td className="px-6 py-4 font-bold text-gray-900">
+                                                {client.name}
                                             </td>
-                                            <td style={{ padding: "16px 24px" }}>
-                                                <span style={{ background: "#f1f5f9", padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "600", color: "#475569", border: "1px solid #e2e8f0" }}>
+                                            <td className="px-6 py-4">
+                                                <div className="font-medium text-blue-600 mb-0.5">{client.email}</div>
+                                                <div className="text-[12px] text-gray-500 flex items-center gap-1.5">
+                                                    <i className="fa-solid fa-phone"></i> {client.phone || "N/A"}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="inline-flex px-2.5 py-1 rounded-md bg-gray-100 text-[10.5px] font-bold uppercase tracking-wider text-gray-600 border border-gray-200">
                                                     {client.company_name || "Individual"}
                                                 </span>
                                             </td>
-                                            <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '600', color: '#16a34a' }}>
+                                            <td className="px-6 py-4 text-right font-bold text-emerald-600 text-[14.5px]">
                                                 TK. {parseFloat(client.available_advance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                             </td>
-                                            <td style={{ padding: "16px 24px", textAlign: 'right', fontWeight: '700', color: '#dc2626', fontSize: "0.95rem" }}>
+                                            <td className="px-6 py-4 text-right font-bold text-red-600 text-[14.5px]">
                                                 TK. {parseFloat(client.total_due || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                             </td>
                                         </tr>
@@ -213,31 +254,24 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                         </table>
                     </div>
 
+                    {/* Pagination */}
                     {clientDues?.links && clientDues.links.length > 3 && (
-                        <div style={{ padding: "20px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: "0 0 12px 12px" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <div style={{ color: "#64748b", fontSize: "0.875rem" }}>
-                                    {clientDues.total > 0 && `Showing ${clientDues.from || 0} to ${clientDues.to || 0} of ${clientDues.total || 0} entries`}
-                                </div>
-                                {clientDues.links && clientDues.links.length > 3 && (
-                                    <div style={{ display: "flex", gap: "6px" }}>
-                                        {clientDues.links.map((link, index) => (
-                                            <Link 
-                                                key={index} 
-                                                href={link.url || "#"} 
-                                                style={{ 
-                                                    padding: "6px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "0.875rem", 
-                                                    color: link.active ? "#fff" : (link.url ? "#334155" : "#94a3b8"), 
-                                                    backgroundColor: link.active ? "#2563eb" : (link.url ? "#fff" : "#f1f5f9"), 
-                                                    pointerEvents: link.url ? "auto" : "none", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "32px"
-                                                }} 
-                                                preserveState
-                                            >
-                                                {link.label.includes("Previous") ? <i className="fa-solid fa-chevron-left"></i> : link.label.includes("Next") ? <i className="fa-solid fa-chevron-right"></i> : link.label.replace("&laquo;", "").replace("&raquo;", "")}
-                                            </Link>
-                                        ))}
-                                    </div>
-                                )}
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#e1e3e5] bg-[#f6f6f7] px-6 py-4">
+                            <div className="text-[13px] text-gray-500">
+                                {clientDues.total > 0 && `Showing ${clientDues.from || 0} to ${clientDues.to || 0} of ${clientDues.total || 0} entries`}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1">
+                                {clientDues.links.map((link, index) => (
+                                    <Link
+                                        key={index}
+                                        href={link.url || "#"}
+                                        className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] transition-colors
+                                            ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : link.url ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'border-gray-200 bg-gray-100 text-gray-400 pointer-events-none'}
+                                        `}
+                                        preserveState
+                                        dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }}
+                                    />
+                                ))}
                             </div>
                         </div>
                     )}
