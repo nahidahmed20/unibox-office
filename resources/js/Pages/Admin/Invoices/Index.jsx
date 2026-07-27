@@ -212,15 +212,38 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!data.client_id) return Swal.fire("Required", "Please select a client.", "warning");
+
+        if (!data.client_id) {
+            return Swal.fire("Required", "Please select a client.", "warning");
+        }
+
+        const handleErrors = (errs) => {
+            console.error(errs);
+            const firstError = Object.values(errs)[0];
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: firstError || 'Please check the form for errors (marked in red).',
+                confirmButtonColor: '#ef4444'
+            });
+        };
 
         if (editMode) {
             put(route('admin.invoices.update', data.id), { 
-                onSuccess: () => { setShowModal(false); Swal.fire({ icon: 'success', title: 'Updated Successfully!', timer: 1500, showConfirmButton: false }); }
+                onSuccess: () => { 
+                    setShowModal(false); 
+                    Swal.fire({ icon: 'success', title: 'Updated Successfully!', timer: 1500, showConfirmButton: false }); 
+                },
+                onError: handleErrors // এরর ধরবে
             });
         } else {
             post(route('admin.invoices.store'), { 
-                onSuccess: () => { reset(); setShowModal(false); Swal.fire({ icon: 'success', title: 'Generated Successfully!', timer: 1500, showConfirmButton: false }); }
+                onSuccess: () => { 
+                    reset(); 
+                    setShowModal(false); 
+                    Swal.fire({ icon: 'success', title: 'Generated Successfully!', timer: 1500, showConfirmButton: false }); 
+                },
+                onError: handleErrors // এরর ধরবে
             });
         }
     };
@@ -661,50 +684,91 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                                 <div key={index} className={`grid ${lineItemGridCols} gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100 items-start`}>
                                                     
                                                     {/* Project Select */}
-                                                    <Select
-                                                        options={projectOptions}
-                                                        value={projectOptions.find(opt => opt.value === item.project_id) || null}
-                                                        onChange={(selected) => updateItem(index, "project_id", selected ? selected.value : "")}
-                                                        placeholder="Search Project..."
-                                                        isSearchable
-                                                        isClearable
-                                                        styles={selectStyles}
-                                                        menuPosition="fixed"
-                                                        menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
-                                                    />
+                                                    <div>
+                                                        <Select
+                                                            options={projectOptions}
+                                                            value={projectOptions.find(opt => opt.value === item.project_id) || null}
+                                                            onChange={(selected) => {
+                                                                const projectId = selected ? selected.value : null; 
+                                                                const selectedProject = projects.find(p => p.id === projectId);
+                                                                
+                                                                const rows = [...data.items];
+                                                                rows[index].project_id = projectId;
+                                                                
+                                                                if (selectedProject) {
+                                                                    const unit = selectedProject.unit_type ? `(${selectedProject.unit_type})` : '';
+                                                                    rows[index].description = `${selectedProject.title} ${unit}`.trim(); 
+                                                                    
+                                                                    const qty = Number(selectedProject.quantity) || 1;
+                                                                    const budget = Number(selectedProject.budget) || 0;
+                                                                    
+                                                                    rows[index].quantity = qty;
+                                                                    rows[index].unit_price = budget > 0 ? Number((budget / qty).toFixed(2)) : 0; 
+                                                                    rows[index].total = budget;
+                                                                } else {
+                                                                    rows[index].description = "";
+                                                                    rows[index].quantity = 1;
+                                                                    rows[index].unit_price = 0;
+                                                                    rows[index].total = 0;
+                                                                }
+
+                                                                setData("items", rows);
+                                                            }}
+                                                            placeholder="Search Project..."
+                                                            isSearchable
+                                                            isClearable
+                                                            styles={selectStyles}
+                                                            menuPosition="fixed"
+                                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                                        />
+                                                        {/* Array Error Handling for Project */}
+                                                        {errors[`items.${index}.project_id`] && <span className="mt-1 block text-[11px] text-red-500">{errors[`items.${index}.project_id`]}</span>}
+                                                    </div>
 
                                                     {/* Wide & Multi-line Description Field */}
-                                                    <textarea 
-                                                        placeholder="Detailed description..." 
-                                                        value={item.description} 
-                                                        onChange={(e) => updateItem(index, "description", e.target.value)} 
-                                                        className="w-full min-h-[42px] resize-y rounded-md border border-gray-300 px-3 py-2 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                                        rows="2"
-                                                        required 
-                                                    />
+                                                    <div>
+                                                        <textarea 
+                                                            placeholder="Detailed description..." 
+                                                            value={item.description} 
+                                                            onChange={(e) => updateItem(index, "description", e.target.value)} 
+                                                            className="w-full min-h-[42px] resize-y rounded-md border border-gray-300 px-3 py-2 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                                            rows="2"
+                                                        />
+                                                        {/* Array Error Handling for Description */}
+                                                        {errors[`items.${index}.description`] && <span className="mt-1 block text-[11px] text-red-500">{errors[`items.${index}.description`]}</span>}
+                                                    </div>
 
-                                                    {/* Fixed Height Inputs for proper alignment */}
-                                                    <input 
-                                                        type="number" 
-                                                        min="1" 
-                                                        value={item.quantity} 
-                                                        onChange={(e) => updateItem(index, "quantity", e.target.value)} 
-                                                        className="h-[42px] w-full rounded-md border border-gray-300 px-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                                        required 
-                                                    />
+                                                    {/* Fixed Height Inputs */}
+                                                    <div>
+                                                        <input 
+                                                            type="number" 
+                                                            min="1" 
+                                                            step="any"
+                                                            value={item.quantity} 
+                                                            onChange={(e) => updateItem(index, "quantity", e.target.value)} 
+                                                            className="h-[42px] w-full rounded-md border border-gray-300 px-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                                        />
+                                                        {/* Array Error Handling for Quantity */}
+                                                        {errors[`items.${index}.quantity`] && <span className="mt-1 block text-[11px] text-red-500">{errors[`items.${index}.quantity`]}</span>}
+                                                    </div>
 
-                                                    <input 
-                                                        type="number" 
-                                                        min="0" 
-                                                        step="0.01" 
-                                                        value={item.unit_price}  
-                                                        onChange={(e) => updateItem(index, "unit_price", e.target.value)} 
-                                                        className="h-[42px] w-full rounded-md border border-gray-300 px-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                                        required 
-                                                    />
+                                                    <div>
+                                                        <input 
+                                                            type="number" 
+                                                            step="any" 
+                                                            value={item.unit_price}  
+                                                            onChange={(e) => updateItem(index, "unit_price", e.target.value)} 
+                                                            className="h-[42px] w-full rounded-md border border-gray-300 px-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                                        />
+                                                        {/* Array Error Handling for Unit Price */}
+                                                        {errors[`items.${index}.unit_price`] && <span className="mt-1 block text-[11px] text-red-500">{errors[`items.${index}.unit_price`]}</span>}
+                                                    </div>
 
-                                                    <div className="flex h-[42px] items-center justify-end font-bold text-gray-800 text-[14.5px]">
-                                                        {(item.total || 0).toLocaleString('en-IN')}
+                                                    <div className="flex flex-col justify-center text-right">
+                                                        <div className="flex h-[42px] items-center justify-end font-bold text-gray-800 text-[14.5px]">
+                                                            {(Number(item.total) || 0).toLocaleString('en-IN')}
+                                                        </div>
+                                                        {errors[`items.${index}.total`] && <span className="mt-1 block text-[11px] text-red-500">{errors[`items.${index}.total`]}</span>}
                                                     </div>
 
                                                     <button 
@@ -748,7 +812,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                         <span className="font-semibold text-gray-600">Tax (%):</span> 
                                         <input 
                                             type="number" 
-                                            min="0" 
                                             value={data.tax} 
                                             onChange={(e) => setData("tax", e.target.value)} 
                                             className="w-[100px] rounded-md border border-gray-300 px-3 py-1.5 text-right outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 

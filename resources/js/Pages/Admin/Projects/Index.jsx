@@ -3,7 +3,7 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { useForm, Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
-export default function Index({ projects = { data: [], links: [] }, clients = [], is_super_admin = false }) {
+export default function Index({ projects = { data: [], links: [] }, clients = [], managers = [], is_super_admin = false }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
     const permissions = auth?.permissions || [];
@@ -32,6 +32,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
     const filterRef = useRef(null); 
     const isFirstRender = useRef(true);
     
+    // Updated useForm with new fields
     const {
         data,
         setData,
@@ -45,12 +46,19 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
     } = useForm({
         id: "",
         client_id: "",
+        project_manager_id: "",
         title: "",
         description: "",
+        quantity: "",
+        unit_type: "piece",
         start_date: "",
         deadline: "",
         budget: "",
         status: "planning",
+        priority: "medium",
+        progress: 0,
+        repo_link: "",
+        live_url: "",
     });
 
     useEffect(() => {
@@ -156,18 +164,23 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
     const openCreateModal = () => {
         clearErrors();
-
         setData({
             id: '',
             client_id: '',
+            project_manager_id: '',
             title: '',
             description: '',
+            quantity: '',
+            unit_type: 'piece',
             start_date: '',
             deadline: '',
             budget: '',
-            status: 'planning' 
+            status: 'planning',
+            priority: 'medium',
+            progress: 0,
+            repo_link: '',
+            live_url: ''
         });
-
         setEditMode(false);
         setClientSearch("");          
         setShowClientDropdown(false); 
@@ -178,13 +191,20 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
         clearErrors();
         setData({
             id: project.id,
-            client_id: project.client_id,
-            title: project.title,
-            description: project.description || "",
-            start_date: project.start_date || "",
-            deadline: project.deadline || "",
-            budget: project.budget || "",
-            status: project.status,
+            client_id: project.client_id || '',
+            project_manager_id: project.project_manager_id || '',
+            title: project.title || '',
+            description: project.description || '',
+            quantity: project.quantity || '',
+            unit_type: project.unit_type || 'piece',
+            start_date: project.start_date || '',
+            deadline: project.deadline || '',
+            budget: project.budget || '',
+            status: project.status || 'planning',
+            priority: project.priority || 'medium',
+            progress: project.progress || 0,
+            repo_link: project.repo_link || '',
+            live_url: project.live_url || ''
         });
         setClientSearch("");
         setShowClientDropdown(false);
@@ -226,7 +246,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
     const handleDelete = (id) => {
         Swal.fire({
             title: "Are you sure?",
-            text: "This project will be deleted permanently!",
+            text: "This project will be deleted!",
             icon: "warning",
             showCancelButton: true,
             confirmButtonColor: "#ef4444",
@@ -247,11 +267,21 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
     const getStatusStyles = (status) => {
         const styles = {
             planning: "bg-gray-100 text-gray-700 border-gray-200",
-            in_progress: "bg-amber-100 text-amber-700 border-amber-200",
+            in_progress: "bg-blue-100 text-blue-700 border-blue-200",
             completed: "bg-emerald-100 text-emerald-700 border-emerald-200",
             on_hold: "bg-red-100 text-red-700 border-red-200"
         };
         return styles[status] || styles.planning;
+    };
+
+    const getPriorityStyles = (priority) => {
+        const styles = {
+            low: "bg-gray-100 text-gray-600",
+            medium: "bg-sky-100 text-sky-700",
+            high: "bg-amber-100 text-amber-700",
+            urgent: "bg-rose-100 text-rose-700"
+        };
+        return styles[priority] || styles.medium;
     };
 
     const statusOptions = [
@@ -292,7 +322,6 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
                     {/* Toolbar */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30 border-b border-gray-100">
-                        
                         <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
                             {/* Show Entries */}
                             <div className="flex items-center gap-2">
@@ -306,8 +335,6 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                     <option value={25}>25 Entries</option>
                                     <option value={50}>50 Entries</option>
                                     <option value={100}>100 Entries</option>
-                                    <option value={500}>500 Entries</option>
-                                    <option value={1000}>1000 Entries</option>
                                     <option value="all">All</option>
                                 </select>
                             </div>
@@ -343,7 +370,6 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
                     {/* Filter Row */}
                     <div className="flex flex-wrap items-center gap-3 px-6 py-4 bg-gray-50/30" ref={filterRef}>
-                        
                         {/* Client Filter Dropdown */}
                         <div className="relative w-full sm:w-[240px]">
                             <div 
@@ -445,14 +471,14 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
                     {/* Data Table */}
                     <div className="overflow-x-auto brass-scroll border-t border-[#e1e3e5]">
-                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1000px]">
                             <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
                                 <tr>
                                     <th className="px-6 py-4 w-12">SL</th>
                                     <th className="px-6 py-4">Project Details</th>
                                     <th className="px-6 py-4">Client</th>
-                                    <th className="px-6 py-4">Budget</th>
-                                    <th className="px-6 py-4">Status</th>
+                                    <th className="px-6 py-4">Quantity / Budget</th>
+                                    <th className="px-6 py-4">Status & Progress</th>
                                     <th className="px-6 py-4">Deadline</th>
                                     <th className="px-6 py-4 text-right">Actions</th>
                                 </tr>
@@ -470,35 +496,52 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                                     {projects.from ? projects.from + index : index + 1}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div className="font-semibold text-gray-900">{project.title}</div>
-                                                    {project.description && (
-                                                        <span className="text-[12px] text-gray-500 mt-1 block max-w-[250px] truncate">
-                                                            {project.description}
-                                                        </span>
-                                                    )}
+                                                    <div className="font-semibold text-gray-900 flex items-center gap-2">
+                                                        {project.title}
+                                                        {project.priority && (
+                                                            <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wider ${getPriorityStyles(project.priority)}`}>
+                                                                {project.priority}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-[12px] text-gray-500 mt-1 flex items-center gap-1.5">
+                                                        <i className="fa-solid fa-user-tie"></i> {project.project_manager?.name || 'No Manager Assigned'}
+                                                    </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-gray-700 font-medium">
                                                     {project.client?.name || "N/A"}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    {project.budget ? (
-                                                        <span className="font-bold text-gray-900">TK. {Number(project.budget).toLocaleString('en-IN')}</span>
-                                                    ) : (
-                                                        <span className="text-gray-400 italic">Not Set</span>
+                                                    {project.quantity && (
+                                                        <div className="text-[13px] font-semibold text-gray-800">
+                                                            {Number(project.quantity).toLocaleString()} {project.unit_type}
+                                                        </div>
                                                     )}
+                                                    <div className="text-[12px] text-gray-500 mt-0.5">
+                                                        {project.budget ? `TK ${Number(project.budget).toLocaleString('en-IN')}` : 'No budget set'}
+                                                    </div>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <select 
                                                         value={project.status} 
                                                         onChange={(e) => handleQuickStatusChange(project.id, e.target.value)}
                                                         disabled={!canModify}
-                                                        className={`appearance-none bg-none border px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider outline-none transition-shadow focus:ring-2 focus:ring-offset-1 ${canModify ? 'cursor-pointer focus:ring-[var(--accent)]/50' : 'cursor-not-allowed opacity-80'} ${statusClass}`}
+                                                        className={`appearance-none bg-none border px-2.5 py-1 mb-2 rounded-md text-[10px] font-bold uppercase tracking-wider outline-none transition-shadow focus:ring-2 focus:ring-offset-1 ${canModify ? 'cursor-pointer focus:ring-[var(--accent)]/50' : 'cursor-not-allowed opacity-80'} ${statusClass}`}
                                                     >
                                                         <option value="planning">Planning</option>
                                                         <option value="in_progress">In Progress</option>
                                                         <option value="on_hold">On Hold</option>
                                                         <option value="completed">Completed</option>
                                                     </select>
+                                                    
+                                                    {/* Progress Bar */}
+                                                    <div className="w-full max-w-[140px] bg-gray-200 rounded-full h-1.5 mt-1">
+                                                        <div 
+                                                            className={`h-1.5 rounded-full ${project.progress === 100 ? 'bg-emerald-500' : 'bg-[var(--accent)]'}`} 
+                                                            style={{ width: `${project.progress || 0}%` }}
+                                                        ></div>
+                                                    </div>
+                                                    <span className="text-[10px] font-medium text-gray-500 mt-1 block">{project.progress || 0}% Done</span>
                                                 </td>
                                                 <td className="px-6 py-4 text-gray-500 font-medium">
                                                     {project.deadline || "-"}
@@ -575,11 +618,12 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
             {/* --- VIEW DETAILS MODAL --- */}
             {showViewModal && selectedProject && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                    <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                        
                         {/* Modal Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
                             <h3 className="text-[18px] font-semibold text-[#202223] flex items-center gap-2">
-                                <i className="fa-regular fa-file-lines text-[var(--accent)]"></i> Project Details
+                                <i className="fa-regular fa-folder-open text-[var(--accent)]"></i> Project Detailed View
                             </h3>
                             <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
                                 <i className="fa-solid fa-xmark text-lg"></i>
@@ -588,51 +632,107 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                         
                         {/* Modal Body */}
                         <div className="p-6 overflow-y-auto brass-scroll">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-                                <div className="sm:col-span-2">
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Project Title</span>
-                                    <div className="text-[20px] font-bold text-gray-900">{selectedProject.title}</div>
-                                </div>
-                                <div>
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Client Name</span>
-                                    <div className="font-semibold text-gray-800 flex items-center gap-2">
-                                        <i className="fa-solid fa-user text-blue-500"></i>
-                                        {selectedProject.client?.name || "N/A"}
-                                    </div>
-                                </div>
-                                <div>
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Budget Allocated</span>
-                                    <div className="font-semibold text-gray-800 flex items-center gap-2">
-                                        <i className="fa-solid fa-money-bill-wave text-emerald-500"></i>
-                                        {selectedProject.budget ? `TK. ${Number(selectedProject.budget).toLocaleString('en-IN')}` : "Not Set"}
-                                    </div>
-                                </div>
-                                <div>
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">Project Status</span>
-                                    <span className={`inline-block px-3 py-1 rounded-md border text-[11px] font-bold uppercase tracking-wider ${getStatusStyles(selectedProject.status)}`}>
-                                        {selectedProject.status ? selectedProject.status.replace("_", " ") : "PLANNING"}
+                            
+                            <div className="mb-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <h2 className="text-[22px] font-bold text-gray-900">{selectedProject.title}</h2>
+                                    <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getStatusStyles(selectedProject.status)}`}>
+                                        {selectedProject.status?.replace("_", " ")}
+                                    </span>
+                                    <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${getPriorityStyles(selectedProject.priority)}`}>
+                                        {selectedProject.priority}
                                     </span>
                                 </div>
-                                <div>
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Deadline</span>
-                                    <div className="font-medium text-gray-700 flex items-center gap-2">
-                                        <i className="fa-regular fa-calendar-days text-rose-500"></i>
-                                        {selectedProject.deadline || "No deadline"}
+                                <p className="text-[14px] text-gray-600 leading-relaxed">
+                                    {selectedProject.description || <span className="italic opacity-70">No project description provided.</span>}
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                                {/* Details Card 1 */}
+                                <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3 border-b pb-2">Parties Involved</span>
+                                    
+                                    <div className="mb-3">
+                                        <span className="block text-[12px] text-gray-500 mb-0.5">Client</span>
+                                        <div className="font-semibold text-gray-800 flex items-center gap-2 text-[14px]">
+                                            <i className="fa-solid fa-user text-blue-500"></i> {selectedProject.client?.name || "N/A"}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span className="block text-[12px] text-gray-500 mb-0.5">Project Manager</span>
+                                        <div className="font-semibold text-gray-800 flex items-center gap-2 text-[14px]">
+                                            <i className="fa-solid fa-user-tie text-[var(--accent)]"></i> {selectedProject.project_manager?.name || "Unassigned"}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Details Card 2 */}
+                                <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3 border-b pb-2">Scope & Financials</span>
+                                    
+                                    <div className="mb-3">
+                                        <span className="block text-[12px] text-gray-500 mb-0.5">Quantity / Order Size</span>
+                                        <div className="font-semibold text-gray-800 text-[14px]">
+                                            {selectedProject.quantity ? `${selectedProject.quantity} ${selectedProject.unit_type}` : "N/A"}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span className="block text-[12px] text-gray-500 mb-0.5">Budget Allocated</span>
+                                        <div className="font-semibold text-emerald-600 flex items-center gap-2 text-[14px]">
+                                            <i className="fa-solid fa-money-bill-wave"></i>
+                                            {selectedProject.budget ? `TK. ${Number(selectedProject.budget).toLocaleString('en-IN')}` : "Not Set"}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Details Card 3 */}
+                                <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3 border-b pb-2">Timeline & Tracking</span>
+                                    
+                                    <div className="mb-3">
+                                        <span className="block text-[12px] text-gray-500 mb-0.5">Start Date &rarr; Deadline</span>
+                                        <div className="font-semibold text-gray-800 text-[13px] flex items-center gap-2">
+                                            <i className="fa-regular fa-calendar-days text-rose-500"></i>
+                                            {selectedProject.start_date || "-"} &rarr; {selectedProject.deadline || "TBA"}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span className="block text-[12px] text-gray-500 mb-1">Completion Progress</span>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                                <div className={`h-2 rounded-full ${selectedProject.progress === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${selectedProject.progress || 0}%` }}></div>
+                                            </div>
+                                            <span className="text-[12px] font-bold text-gray-700">{selectedProject.progress || 0}%</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="border-t border-gray-100 pt-5">
-                                <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">Detailed Description</span>
-                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-gray-700 text-[14px] leading-relaxed min-h-[80px] whitespace-pre-line">
-                                    {selectedProject.description || <span className="italic text-gray-400">No descriptions provided for this project.</span>}
+                            {/* Links Section */}
+                            {(selectedProject.repo_link || selectedProject.live_url) && (
+                                <div className="border-t border-gray-100 pt-5">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3">Important Links</span>
+                                    <div className="flex flex-wrap gap-4">
+                                        {selectedProject.repo_link && (
+                                            <a href={selectedProject.repo_link} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg text-[13px] font-medium transition-colors">
+                                                <i className="fa-brands fa-github text-[16px]"></i> Repository / Drive
+                                            </a>
+                                        )}
+                                        {selectedProject.live_url && (
+                                            <a href={selectedProject.live_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-[13px] font-medium transition-colors border border-blue-200">
+                                                <i className="fa-solid fa-globe"></i> Live URL
+                                            </a>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
+
                         </div>
 
                         {/* Modal Footer */}
                         <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end shrink-0">
-                            <button onClick={() => setShowViewModal(false)} className="rounded-lg bg-gray-800 px-6 py-2 text-[14px] font-medium text-white transition-colors hover:bg-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-700/50">
+                            <button onClick={() => setShowViewModal(false)} className="rounded-lg bg-gray-800 px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-700/50">
                                 Close Details
                             </button>
                         </div>
@@ -643,11 +743,12 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
             {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                    <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[95vh] overflow-hidden">
+                        
                         {/* Modal Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
                             <h3 className="text-[18px] font-semibold text-[#202223]">
-                                {editMode ? "📝 Modify Project Records" : "✨ Create New Project"}
+                                {editMode ? "📝 Modify Project Details" : "✨ Create New Project"}
                             </h3>
                             <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
                                 <i className="fa-solid fa-xmark text-lg"></i>
@@ -672,7 +773,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                         {errors.title && <p className="text-red-500 text-[12px] mt-1">{errors.title}</p>}
                                     </div>
 
-                                    {/* --- Custom Searchable Client Dropdown --- */}
+                                    {/* --- Client Dropdown --- */}
                                     <div className="relative">
                                         <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Client *</label>
                                         <div 
@@ -736,15 +837,53 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                         {errors.client_id && <p className="text-red-500 text-[12px] mt-1">{errors.client_id}</p>}
                                     </div>
 
+                                    {/* --- Project Manager --- */}
                                     <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Budget</label>
-                                        <input 
-                                            type="number" 
-                                            value={data.budget} 
-                                            onChange={(e) => setData("budget", e.target.value)} 
-                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                            placeholder="Estimated budget"
-                                        />
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Project Manager</label>
+                                        <select 
+                                            value={data.project_manager_id} 
+                                            onChange={(e) => setData("project_manager_id", e.target.value)} 
+                                            className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                        >
+                                            <option value="">-- Assign a Manager --</option>
+                                            {managers.map(manager => (
+                                                <option key={manager.id} value={manager.id}>{manager.name}</option>
+                                            ))}
+                                        </select>
+                                        {errors.project_manager_id && <p className="text-red-500 text-[12px] mt-1">{errors.project_manager_id}</p>}
+                                    </div>
+
+                                    {/* --- Quantity & Unit Row --- */}
+                                    <div className="sm:col-span-2 grid grid-cols-2 gap-5 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Quantity / Amount</label>
+                                            <input 
+                                                type="number" 
+                                                step="any"
+                                                value={data.quantity} 
+                                                onChange={(e) => setData("quantity", e.target.value)} 
+                                                placeholder="e.g. 100 or 15.5"
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                            />
+                                            {errors.quantity && <p className="text-red-500 text-[12px] mt-1">{errors.quantity}</p>}
+                                        </div>
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Unit</label>
+                                            <select 
+                                                value={data.unit_type} 
+                                                onChange={(e) => setData("unit_type", e.target.value)} 
+                                                className="w-full appearance-none bg-white rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                            >
+                                                <option value="piece">Pieces (Pcs)</option>
+                                                <option value="kg">Kilogram (Kg)</option>
+                                                <option value="dozen">Dozen</option>
+                                                <option value="carton">Carton</option>
+                                                <option value="box">Box</option>
+                                                <option value="set">Set</option>
+                                                <option value="unit">Unit</option>
+                                            </select>
+                                            {errors.unit_type && <p className="text-red-500 text-[12px] mt-1">{errors.unit_type}</p>}
+                                        </div>
                                     </div>
 
                                     <div>
@@ -766,9 +905,35 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                             className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
                                             required 
                                         />
+                                        {errors.deadline && <p className="text-red-500 text-[12px] mt-1">{errors.deadline}</p>}
                                     </div>
 
-                                    <div className="sm:col-span-2">
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Total Budget</label>
+                                        <input 
+                                            type="number" 
+                                            value={data.budget} 
+                                            onChange={(e) => setData("budget", e.target.value)} 
+                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                            placeholder="Estimated budget amount"
+                                        />
+                                    </div>
+
+                                    {/* --- Progress --- */}
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">
+                                            Completion Progress: <span className="text-[var(--accent)] font-bold">{data.progress}%</span>
+                                        </label>
+                                        <input 
+                                            type="range" 
+                                            min="0" max="100" 
+                                            value={data.progress} 
+                                            onChange={(e) => setData("progress", Number(e.target.value))} 
+                                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-3"
+                                        />
+                                    </div>
+
+                                    <div>
                                         <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Project Status *</label>
                                         <select 
                                             value={data.status} 
@@ -783,13 +948,47 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                         </select>
                                     </div>
 
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Priority Level</label>
+                                        <select 
+                                            value={data.priority} 
+                                            onChange={(e) => setData("priority", e.target.value)} 
+                                            className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                        >
+                                            <option value="low">Low Priority</option>
+                                            <option value="medium">Medium Priority</option>
+                                            <option value="high">High Priority</option>
+                                            <option value="urgent">Urgent</option>
+                                        </select>
+                                    </div>
+
                                     <div className="sm:col-span-2">
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Description / Notes</label>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Important Links (Optional)</label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <input 
+                                                type="url" 
+                                                value={data.repo_link} 
+                                                onChange={(e) => setData("repo_link", e.target.value)} 
+                                                placeholder="Repository or Drive Link (e.g. https://github.com/...)"
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[13px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                            />
+                                            <input 
+                                                type="url" 
+                                                value={data.live_url} 
+                                                onChange={(e) => setData("live_url", e.target.value)} 
+                                                placeholder="Live URL (e.g. https://www.example.com)"
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[13px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Detailed Description / Notes</label>
                                         <textarea 
                                             value={data.description} 
                                             onChange={(e) => setData("description", e.target.value)} 
                                             rows="3" 
-                                            placeholder="Write project details or requirements..."
+                                            placeholder="Write project details, requirements, or client notes..."
                                             className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none resize-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
                                         ></textarea>
                                     </div>
@@ -802,7 +1001,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                     Dismiss
                                 </button>
                                 <button type="submit" disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70">
-                                    {processing ? "Saving..." : "Commit Project"}
+                                    {processing ? "Saving Records..." : "Commit Project"}
                                 </button>
                             </div>
                         </form>

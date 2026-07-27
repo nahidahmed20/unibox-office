@@ -736,7 +736,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                         <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Purpose</label>
                                         <CreatableSelect
                                             options={[
-                                                { value: 'Fuel Purchase', label: 'Fuel Purchase' },
+                                                { value: 'Office Work', label: 'Office Work' },
                                                 { value: 'Vehicle Maintenance', label: 'Vehicle Maintenance' },
                                                 { value: 'Staff Advance', label: 'Staff Advance' },
                                                 { value: 'Travel Expense', label: 'Travel Expense' },

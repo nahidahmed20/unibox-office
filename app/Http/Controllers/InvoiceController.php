@@ -48,7 +48,7 @@ class InvoiceController extends Controller
                 return $client;
             });
 
-        $projects = Project::select('id', 'title', 'client_id')->latest()->get();
+        $projects = Project::select('id', 'title', 'client_id', 'budget', 'quantity', 'unit_type', 'description')->latest()->get();
         $nextInvoiceNumber = $this->generateNextInvoiceNumber();
 
         return Inertia::render('Admin/Invoices/Index', [
@@ -68,7 +68,7 @@ class InvoiceController extends Controller
             'invoice_date'       => 'required|date',
             'due_date'           => 'required|date',
             'sub_total'          => 'required|numeric|min:0',
-            'tax'                => 'nullable|numeric|min:0',
+            'tax'                => 'nullable|numeric', 
             'discount'           => 'nullable|numeric|min:0',
             'grand_total'        => 'required|numeric|min:0',
             'status'             => 'required|in:unpaid,partially_paid,paid,overdue',
@@ -159,7 +159,7 @@ class InvoiceController extends Controller
             'invoice_date'       => 'required|date',
             'due_date'           => 'required|date',
             'sub_total'          => 'required|numeric|min:0',
-            'tax'                => 'nullable|numeric|min:0',
+            'tax'                => 'nullable|numeric',
             'discount'           => 'nullable|numeric|min:0',
             'grand_total'        => 'required|numeric|min:0',
             'use_advance_amount' => 'nullable|numeric|min:0', 
