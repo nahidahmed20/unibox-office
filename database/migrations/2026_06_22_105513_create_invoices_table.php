@@ -18,7 +18,7 @@ return new class extends Migration
             $table->date('invoice_date');
             $table->date('due_date');
             $table->decimal('sub_total', 12, 2);
-            $table->decimal('tax', 5, 2)->default(0);
+            $table->decimal('tax', 5, 2)->default(0)->nullable();
             $table->decimal('discount', 12, 2)->default(0);
             $table->decimal('grand_total', 12, 2);
             $table->decimal('advance_used', 15, 2)->default(0);
