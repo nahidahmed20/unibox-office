@@ -18,6 +18,7 @@ return new class extends Migration
             $table->foreignId('account_id')->nullable()->constrained();
             $table->unsignedBigInteger('advance_user_id')->nullable();
             $table->decimal('pay_amount', 15, 2);
+            $table->decimal('adjustment_amount', 15, 2)->default(0)->comment('ছাড় বা এডজাস্টমেন্ট');
             $table->decimal('wallet_credit_amount', 15, 2)->default(0);
             $table->date('date');
             $table->enum('status', ['completed', 'voided'])->default('completed');

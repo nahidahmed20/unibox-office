@@ -80,12 +80,22 @@ class VendorController extends Controller
             'payment_source'        => 'required|in:account,advance',
             'account_id'            => 'required_if:payment_source,account',
             'advance_user_id'       => 'required_if:payment_source,advance',
-            'pay_amount'            => 'required|numeric|min:1',
+            'pay_amount'            => 'required|numeric|min:0',
+            'adjustment_amount'     => 'nullable|numeric|min:0', 
             'date'                  => 'required|date',
         ]);
 
         try {
             DB::beginTransaction();
+
+            $payAmount = $request->pay_amount ?: 0;
+            $adjustmentAmount = $request->adjustment_amount ?: 0;
+            
+            $totalClearing = $payAmount + $adjustmentAmount; 
+
+            if ($totalClearing <= 0) {
+                throw new \Exception('Pay Amount অথবা Adjustment Amount দিতে হবে।');
+            }
 
             $bills = ProjectExpense::where('vendor_id', $vendor->id)
                         ->whereIn('id', $request->project_expense_ids)
@@ -98,15 +108,21 @@ class VendorController extends Controller
                 throw new \Exception('সিলেক্ট করা বিলগুলোর কোনো বকেয়া পাওয়া যায়নি।');
             }
 
-            $remainingPay = $request->pay_amount;
+            $totalDueSelected = $bills->sum('due_amount');
+            
+            if ($totalClearing > $totalDueSelected && $adjustmentAmount > 0) {
+                throw new \Exception('Adjustment সহ মোট পরিমাণ বিলের বকেয়ার চেয়ে বেশি হতে পারবে না।');
+            }
+
+            $remainingClearing = $totalClearing;
             $appliedDetails = []; 
 
             foreach ($bills as $bill) {
-                if ($remainingPay <= 0) break;
-                $paidNow = min($remainingPay, $bill->due_amount);
+                if ($remainingClearing <= 0) break;
+                $clearedNow = min($remainingClearing, $bill->due_amount);
 
-                $bill->paid_amount += $paidNow;
-                $bill->due_amount  -= $paidNow;
+                $bill->paid_amount += $clearedNow;
+                $bill->due_amount  -= $clearedNow;
                 $bill->payment_status = $bill->due_amount <= 0 ? 'paid' : 'partial';
 
                 if ($request->payment_source === 'account') {
@@ -117,41 +133,43 @@ class VendorController extends Controller
                 }
 
                 $bill->save();
-                $appliedDetails[$bill->id] = $paidNow;
-                $remainingPay -= $paidNow;
+                $appliedDetails[$bill->id] = $clearedNow;
+                $remainingClearing -= $clearedNow;
             }
 
-            $walletCredit = $remainingPay; 
+            $walletCredit = max(0, $payAmount - $totalDueSelected); 
 
-            if ($request->payment_source === 'account') {
-                $account = Account::findOrFail($request->account_id);
-                if ($account->current_balance < $request->pay_amount) {
-                    throw new \Exception('অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
-                }
-            } else {
-                $userId = $request->advance_user_id;
-                $advanceBalance = AdvanceBalance::where('user_id', $userId)->firstOrFail();
-                $advanceBalance->increment('total_used', $request->pay_amount);
-
-                $settleRemaining = $request->pay_amount;
-                $unsettledAdvances = Advance::where('user_id', $userId)
-                            ->where('status', 'unsettled')
-                            ->orderBy('date', 'asc')->get();
-
-                foreach ($unsettledAdvances as $adv) {
-                    if ($settleRemaining <= 0) break;
-                    $available = $adv->amount - ($adv->settled_amount + $adv->returned_amount);
-                    if ($available <= 0) continue;
-
-                    if ($settleRemaining >= $available) {
-                        $adv->settled_amount += $available;
-                        $adv->status = 'settled';
-                        $settleRemaining -= $available;
-                    } else {
-                        $adv->settled_amount += $settleRemaining;
-                        $settleRemaining = 0;
+            if ($payAmount > 0) {
+                if ($request->payment_source === 'account') {
+                    $account = Account::findOrFail($request->account_id);
+                    if ($account->current_balance < $payAmount) {
+                        throw new \Exception('অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
                     }
-                    $adv->save();
+                } else {
+                    $userId = $request->advance_user_id;
+                    $advanceBalance = AdvanceBalance::where('user_id', $userId)->firstOrFail();
+                    $advanceBalance->increment('total_used', $payAmount);
+
+                    $settleRemaining = $payAmount;
+                    $unsettledAdvances = Advance::where('user_id', $userId)
+                                ->where('status', 'unsettled')
+                                ->orderBy('date', 'asc')->get();
+
+                    foreach ($unsettledAdvances as $adv) {
+                        if ($settleRemaining <= 0) break;
+                        $available = $adv->amount - ($adv->settled_amount + $adv->returned_amount);
+                        if ($available <= 0) continue;
+
+                        if ($settleRemaining >= $available) {
+                            $adv->settled_amount += $available;
+                            $adv->status = 'settled';
+                            $settleRemaining -= $available;
+                        } else {
+                            $adv->settled_amount += $settleRemaining;
+                            $settleRemaining = 0;
+                        }
+                        $adv->save();
+                    }
                 }
             }
 
@@ -170,7 +188,8 @@ class VendorController extends Controller
                 'payment_source'       => $request->payment_source,
                 'account_id'           => $request->payment_source === 'account' ? $request->account_id : null,
                 'advance_user_id'      => $request->payment_source === 'advance' ? $request->advance_user_id : null,
-                'pay_amount'           => $request->pay_amount,
+                'pay_amount'           => $payAmount,
+                'adjustment_amount'    => $adjustmentAmount, 
                 'wallet_credit_amount' => $walletCredit,
                 'date'                 => $request->date,
                 'status'               => 'completed',
@@ -184,9 +203,9 @@ class VendorController extends Controller
                 ]);
             }
 
-            if ($request->payment_source === 'account') {
+            if ($request->payment_source === 'account' && $payAmount > 0) {
                 $account->debit(
-                    $request->pay_amount,
+                    $payAmount,
                     $payment,                            
                     'VP-' . $payment->id,                
                     'Bill payment - ' . $vendor->name,  
@@ -195,7 +214,7 @@ class VendorController extends Controller
             }
 
             DB::commit();
-            return redirect()->back()->with('success', 'সিলেক্ট করা বিলগুলো সফলভাবে পে করা হয়েছে।');
+            return redirect()->back()->with('success', 'পেমেন্ট ও এডজাস্টমেন্ট সফল হয়েছে।');
 
         } catch (\Exception $e) {
             DB::rollBack();

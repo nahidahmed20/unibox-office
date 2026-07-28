@@ -142,6 +142,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         payment_source: 'account',
         account_id: '',
         advance_user_id: '',
+        adjustment_amount: '',
         pay_amount: '',
         date: new Date().toISOString().split('T')[0]
     });
@@ -331,7 +332,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         }
     };
 
-    // যতগুলো বিল সিলেক্ট হবে, তাদের মোট বকেয়া অটোমেটিক Pay Amount ফিল্ডে বসবে
     useEffect(() => {
         if (showPayModal) {
             payForm.setData("pay_amount", selectedTotalDue > 0 ? selectedTotalDue : '');
@@ -999,19 +999,32 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                 </div>
 
                                 {/* Amount & Date fields */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-2">
                                     <div>
                                         <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Pay Amount (TK) *</label>
                                         <input 
-                                            type="number" step="0.01" min="1" 
+                                            type="number" step="0.01" min="0" 
                                             value={payForm.data.pay_amount} 
                                             onChange={e => payForm.setData("pay_amount", e.target.value)} 
                                             placeholder="e.g. 10000"
-                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[15px] font-bold text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                            required 
+                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] font-bold text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                            required={!payForm.data.adjustment_amount} // যদি adjustment না থাকে, তবে pay amount রিকোয়ার্ড
                                         />
                                         {payForm.errors.pay_amount && <span className="mt-1 block text-[12px] text-red-500">{payForm.errors.pay_amount}</span>}
                                     </div>
+                                    
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Discount/Adjust (TK)</label>
+                                        <input 
+                                            type="number" step="0.01" min="0" 
+                                            value={payForm.data.adjustment_amount} 
+                                            onChange={e => payForm.setData("adjustment_amount", e.target.value)} 
+                                            placeholder="e.g. 1500"
+                                            className="w-full rounded-lg border border-emerald-300 px-3.5 py-2.5 text-[14px] font-bold text-emerald-700 bg-emerald-50 outline-none transition-shadow focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50" 
+                                        />
+                                        {payForm.errors.adjustment_amount && <span className="mt-1 block text-[12px] text-red-500">{payForm.errors.adjustment_amount}</span>}
+                                    </div>
+
                                     <div>
                                         <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Payment Date *</label>
                                         <input 
@@ -1022,6 +1035,13 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                             required 
                                         />
                                     </div>
+                                </div>
+
+                                <div className="mb-5 p-3 rounded-lg border border-blue-200 bg-blue-50 flex justify-between items-center text-[14px]">
+                                    <span className="font-semibold text-blue-800">Total Cleared Amount (Pay + Adjust):</span>
+                                    <span className="font-bold text-blue-900 text-[16px]">
+                                        TK. {(Number(payForm.data.pay_amount || 0) + Number(payForm.data.adjustment_amount || 0)).toLocaleString('en-IN')}
+                                    </span>
                                 </div>
 
                                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-[13px] text-amber-800 flex items-start gap-2">

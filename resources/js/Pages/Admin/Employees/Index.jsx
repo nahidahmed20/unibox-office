@@ -1,187 +1,21 @@
 import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
-import { useForm, Head, router, usePage } from "@inertiajs/react";
+import { useForm, Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
+import Select from "react-select";
 
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
-// Reusable searchable dropdown (replaces plain <select> for long option lists)
-function SearchableSelect({
-    options = [],
-    value,
-    onChange,
-    placeholder = "Select",
-    disabled = false,
-    labelKey = "name",
-    valueKey = "id",
-    required = false,
-}) {
-    const [isOpen, setIsOpen] = useState(false);
-    const [search, setSearch] = useState("");
-    const wrapperRef = useRef(null);
-
-    const selectedOption = options.find(
-        (opt) => String(opt[valueKey]) === String(value)
-    );
-
-    useEffect(() => {
-        function handleClickOutside(e) {
-            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-                setIsOpen(false);
-                setSearch("");
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    const filteredOptions = options.filter((opt) =>
-        String(opt[labelKey] || "")
-            .toLowerCase()
-            .includes(search.toLowerCase())
-    );
-
-    return (
-        <div ref={wrapperRef} style={{ position: "relative" }}>
-            <div
-                onClick={() => !disabled && setIsOpen((o) => !o)}
-                style={{
-                    width: "100%",
-                    padding: "8px 12px",
-                    border: isOpen ? "1px solid #2563eb" : "1px solid #cbd5e1",
-                    borderRadius: "6px",
-                    background: disabled ? "#f1f5f9" : "#fff",
-                    cursor: disabled ? "not-allowed" : "pointer",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    color: selectedOption ? "#0f172a" : "#94a3b8",
-                    fontSize: "0.9rem",
-                    boxSizing: "border-box",
-                }}
-            >
-                <span
-                    style={{
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                    }}
-                >
-                    {selectedOption ? selectedOption[labelKey] : placeholder}
-                </span>
-                <i
-                    className={`fa-solid fa-chevron-${isOpen ? "up" : "down"}`}
-                    style={{ fontSize: "0.7rem", color: "#94a3b8", marginLeft: "8px" }}
-                ></i>
-            </div>
-
-            {isOpen && !disabled && (
-                <div
-                    style={{
-                        position: "absolute",
-                        top: "calc(100% + 4px)",
-                        left: 0,
-                        right: 0,
-                        background: "#fff",
-                        border: "1px solid #cbd5e1",
-                        borderRadius: "8px",
-                        boxShadow: "0 10px 15px -3px rgba(0,0,0,0.15)",
-                        zIndex: 100,
-                        maxHeight: "230px",
-                        display: "flex",
-                        flexDirection: "column",
-                    }}
-                >
-                    <div style={{ padding: "8px", borderBottom: "1px solid #f1f5f9" }}>
-                        <input
-                            autoFocus
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Type to search..."
-                            style={{
-                                width: "100%",
-                                padding: "6px 10px",
-                                border: "1px solid #e2e8f0",
-                                borderRadius: "6px",
-                                outline: "none",
-                                fontSize: "0.85rem",
-                                boxSizing: "border-box",
-                            }}
-                        />
-                    </div>
-                    <div style={{ overflowY: "auto" }}>
-                        {filteredOptions.length === 0 ? (
-                            <div
-                                style={{
-                                    padding: "10px 14px",
-                                    color: "#94a3b8",
-                                    fontSize: "0.85rem",
-                                }}
-                            >
-                                No results found
-                            </div>
-                        ) : (
-                            filteredOptions.map((opt) => {
-                                const isSelected =
-                                    String(opt[valueKey]) === String(value);
-                                return (
-                                    <div
-                                        key={opt[valueKey]}
-                                        onClick={() => {
-                                            onChange(String(opt[valueKey]));
-                                            setIsOpen(false);
-                                            setSearch("");
-                                        }}
-                                        style={{
-                                            padding: "8px 14px",
-                                            fontSize: "0.875rem",
-                                            cursor: "pointer",
-                                            background: isSelected ? "#eff6ff" : "#fff",
-                                            color: isSelected ? "#2563eb" : "#334155",
-                                            fontWeight: isSelected ? "600" : "400",
-                                        }}
-                                        onMouseEnter={(e) =>
-                                            (e.currentTarget.style.background = isSelected
-                                                ? "#eff6ff"
-                                                : "#f8fafc")
-                                        }
-                                        onMouseLeave={(e) =>
-                                            (e.currentTarget.style.background = isSelected
-                                                ? "#eff6ff"
-                                                : "#fff")
-                                        }
-                                    >
-                                        {opt[labelKey]}
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Hidden input keeps native HTML5 "required" validation working */}
-            {required && (
-                <input
-                    tabIndex={-1}
-                    autoComplete="off"
-                    value={value || ""}
-                    required
-                    onChange={() => {}}
-                    style={{
-                        position: "absolute",
-                        opacity: 0,
-                        height: 0,
-                        width: "100%",
-                        pointerEvents: "none",
-                    }}
-                />
-            )}
-        </div>
-    );
-}
+const COMPANY = {
+    name: 'UNIBOX',
+    tagline: "Let's Create Together",
+    logo: `${window.location.origin}/images/logo.png`,
+    phone: '+8801627188836',
+    email: 'uniboxbd4u@gmail.com',
+    website: 'www.uniboxbd4u.com',
+    address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
+};
 
 const EMPTY_FORM = {
     id: "",
@@ -201,18 +35,13 @@ const EMPTY_FORM = {
     present_address: "",
 };
 
-// Formats salary safely — never renders "NaN" when the value is missing/invalid.
+// Formats salary safely
 const formatSalary = (value) => {
     const num = parseFloat(value);
-    return Number.isFinite(num) ? num.toFixed(2) : "0.00";
+    return Number.isFinite(num) ? num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00";
 };
 
-export default function Index({
-    employees = {},
-    users = [],
-    departments = [],
-    designations = [],
-}) {
+export default function Index({ employees = {}, users = [], departments = [], designations = [] }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
     const permissions = auth?.permissions || [];
@@ -223,36 +52,22 @@ export default function Index({
 
     // Modals State
     const [showFormModal, setShowFormModal] = useState(false);
-    const [showViewModal, setShowViewModal] = useState(false); // For View (Show) Modal
-    const [viewData, setViewData] = useState(null); // To store data for viewing
-
+    const [showViewModal, setShowViewModal] = useState(false);
+    const [viewData, setViewData] = useState(null);
     const [editMode, setEditMode] = useState(false);
+
     const [searchTerm, setSearchTerm] = useState(() => {
         return new URLSearchParams(window.location.search).get("search") || "";
     });
-
     const [perPage, setPerPage] = useState(() => {
         return Number(new URLSearchParams(window.location.search).get("per_page")) || 10;
     });
 
     const isFirstRender = useRef(true);
 
-    const {
-        data,
-        setData,
-        post,
-        put,
-        delete: destroy,
-        reset,
-        processing,
-        errors,
-        clearErrors,
-    } = useForm({ ...EMPTY_FORM });
+    const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({ ...EMPTY_FORM });
 
-    // Debounced search only — per-page changes are handled immediately in
-    // handlePerPageChange, so they must NOT also be a dependency here.
-    // Otherwise every per-page change fires both an immediate request AND
-    // a second (redundant) debounced request 500ms later.
+    // --- Live Search & Pagination ---
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -269,61 +84,19 @@ export default function Index({
             });
         }, 500);
         return () => clearTimeout(delay);
-    }, [searchTerm]);
+    }, [searchTerm, perPage]);
 
-    const handlePerPageChange = (e) => {
-        const rawValue = e.target.value;
-        const value = rawValue === "all" ? "all" : Number(rawValue);
-        setPerPage(value);
-        router.get(
-            route("admin.employees.index"),
-            { search: searchTerm, per_page: value, page: 1 },
-            { preserveState: true, replace: true }
-        );
-    };
-
+    // --- Export Tools ---
     const handleCopy = () => {
         if (!employeeList.length) return Swal.fire("Empty!", "No data to copy", "warning");
-
         const header = "EMP ID\tName\tDepartment\tDesignation\tJoin Date\tBasic Salary\n";
         const text = employeeList
-            .map(
-                (emp) =>
-                    `${emp.employee_id_code}\t${emp.user?.name || "N/A"}\t${emp.department?.name || "N/A"}\t${emp.designation?.name || "N/A"}\t${emp.joining_date}\tTK. ${formatSalary(emp.basic_salary)}`
-            )
+            .map((emp) => `${emp.employee_id_code}\t${emp.user?.name || "N/A"}\t${emp.department?.name || "N/A"}\t${emp.designation?.name || "N/A"}\t${emp.joining_date}\tTK. ${formatSalary(emp.basic_salary)}`)
             .join("\n");
-
         navigator.clipboard.writeText(header + text);
-        Swal.fire({
-            icon: "success",
-            title: "Copied to Clipboard!",
-            timer: 1200,
-            showConfirmButton: false,
-            toast: true,
-            position: 'top-end'
-        });
+        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1200, showConfirmButton: false, toast: true, position: 'top-end' });
     };
 
-    const handleExcel = () => {
-        if (!employeeList.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const ws = XLSX.utils.json_to_sheet(
-            employeeList.map((emp) => ({
-                "EMP ID": emp.employee_id_code,
-                "Name": emp.user?.name || "N/A",
-                "Department": emp.department?.name || "N/A",
-                "Designation": emp.designation?.name || "N/A",
-                "Join Date": emp.joining_date,
-                "Basic Salary": formatSalary(emp.basic_salary),
-            }))
-        );
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Employees");
-        const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-        const file = new Blob([excelBuffer], { type: "application/octet-stream" });
-        saveAs(file, `Employees_List_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    };
-
-    // Escapes a value for safe inclusion inside a double-quoted CSV field.
     const csvEscape = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
 
     const handleCSVExport = () => {
@@ -349,11 +122,76 @@ export default function Index({
         URL.revokeObjectURL(url);
     };
 
-    const handlePrint = () => {
-        window.print();
+    const handleExcel = () => {
+        if (!employeeList.length) return Swal.fire("Empty!", "No data to export", "warning");
+        const ws = XLSX.utils.json_to_sheet(
+            employeeList.map((emp) => ({
+                "EMP ID": emp.employee_id_code,
+                "Name": emp.user?.name || "N/A",
+                "Department": emp.department?.name || "N/A",
+                "Designation": emp.designation?.name || "N/A",
+                "Join Date": emp.joining_date,
+                "Basic Salary": formatSalary(emp.basic_salary),
+            }))
+        );
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Employees");
+        const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        const file = new Blob([excelBuffer], { type: "application/octet-stream" });
+        saveAs(file, `Employees_List_${new Date().toISOString().slice(0, 10)}.xlsx`);
     };
 
-    // Open Form Modal for Create
+    const handlePrint = () => {
+        const tableContent = document.getElementById("printable-table");
+        if (!tableContent) return;
+
+        const printWindow = window.open('', '_blank', `width=${window.screen.width},height=${window.screen.height},top=0,left=0`);
+
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Employees Report</title>
+                    <style>
+                        * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px 40px; color: #1e293b; }
+                        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #147a5b; padding-bottom: 15px; margin-bottom: 20px; }
+                        .logo { height: 45px; width: auto; }
+                        .company-details { text-align: right; font-size: 11px; line-height: 1.5; color: #475569; }
+                        .company-details h2 { margin: 0 0 3px 0; font-size: 18px; color: #147a5b; text-transform: uppercase; letter-spacing: 1px; }
+                        h2.report-title { text-align: center; color: #0f172a; margin-bottom: 5px; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; }
+                        p.report-date { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 13px; }
+                        table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; }
+                        th, td { padding: 10px 12px; border: 1px solid #cbd5e1; font-size: 12.5px; }
+                        th { background-color: #f8fafc; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
+                        /* Hide Actions Column */
+                        th:last-child, td:last-child { display: none !important; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div><img src="${COMPANY.logo}" class="logo" alt="Logo" /></div>
+                        <div class="company-details">
+                            <h2>${COMPANY.name}</h2>
+                            ${COMPANY.address}<br/>
+                            Phone: ${COMPANY.phone} | Email: ${COMPANY.email}
+                        </div>
+                    </div>
+                    <h2 class="report-title">Employee Directory</h2>
+                    <p class="report-date">Generated on: ${new Date().toLocaleString()}</p>
+                    ${tableContent.outerHTML}
+                </body>
+            </html>
+        `);
+
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 250);
+    };
+
+    // --- Modals ---
     const openCreateModal = () => {
         clearErrors();
         setData({ ...EMPTY_FORM });
@@ -361,12 +199,8 @@ export default function Index({
         setShowFormModal(true);
     };
 
-    // Open Form Modal for Edit
     const openEditModal = (emp) => {
         clearErrors();
-        // Explicitly map only the fields the form actually uses — spreading the
-        // whole `emp` record would drag along nested relations (user, department,
-        // designation objects), timestamps, etc. into the form payload.
         setData({
             id: emp.id ?? "",
             user_id: emp.user_id ?? emp.user?.id ?? "",
@@ -388,7 +222,6 @@ export default function Index({
         setShowFormModal(true);
     };
 
-    // Open View Modal for Show
     const openViewModal = (emp) => {
         setViewData(emp);
         setShowViewModal(true);
@@ -400,12 +233,7 @@ export default function Index({
             put(route("admin.employees.update", data.id), {
                 onSuccess: () => {
                     setShowFormModal(false);
-                    Swal.fire({
-                        icon: "success",
-                        title: "Updated!",
-                        text: "Employee updated successfully.",
-                        confirmButtonColor: "#3b82f6"
-                    });
+                    Swal.fire({ icon: "success", title: "Updated!", text: "Employee updated successfully.", timer: 1500, showConfirmButton: false });
                 },
             });
         } else {
@@ -413,12 +241,7 @@ export default function Index({
                 onSuccess: () => {
                     reset();
                     setShowFormModal(false);
-                    Swal.fire({
-                        icon: "success",
-                        title: "Created!",
-                        text: "Employee added successfully.",
-                        confirmButtonColor: "#3b82f6"
-                    });
+                    Swal.fire({ icon: "success", title: "Created!", text: "Employee added successfully.", timer: 1500, showConfirmButton: false });
                 },
             });
         }
@@ -438,127 +261,174 @@ export default function Index({
                 destroy(route("admin.employees.destroy", id), {
                     preserveScroll: true,
                     onSuccess: () => {
-                        Swal.fire("Deleted!", "Employee deleted successfully.", "success");
+                        Swal.fire({ icon: "success", title: "Deleted!", text: "Employee deleted successfully.", timer: 1500, showConfirmButton: false });
                     },
                 });
             }
         });
     };
 
+    // React-Select Styles
+    const selectStyles = {
+        control: (provided, state) => ({
+            ...provided,
+            minHeight: "42px",
+            borderRadius: "0.5rem",
+            border: state.isFocused ? "1px solid var(--accent)" : "1px solid #d1d5db",
+            boxShadow: state.isFocused ? "0 0 0 1px rgba(200, 155, 60, 0.5)" : "none",
+            "&:hover": { borderColor: "#9ca3af" },
+            fontSize: "13.5px",
+            background: editMode && state.isDisabled ? "#f1f5f9" : "#fff",
+        }),
+        option: (provided, state) => ({
+            ...provided, fontSize: "13.5px",
+            backgroundColor: state.isSelected ? "var(--accent)" : state.isFocused ? "var(--accent-bg)" : "#fff",
+            color: state.isSelected ? "#fff" : "#111827", cursor: "pointer",
+        }),
+        menuPortal: base => ({ ...base, zIndex: 9999 })
+    };
+
     return (
         <AdminLayout>
             <Head title="Employee Profiles" />
 
-            <div className="slider-page-wrapper" style={{ padding: "24px", background: "#f8fafc", minHeight: "100vh" }}>
-                <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-                    <h1 className="page-title" style={{ fontSize: "1.5rem", fontWeight: "700", color: "#0f172a" }}>Employees</h1>
+            <div className="flex flex-col gap-6">
+
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-[22px] font-bold text-[#202223]">Employees</h1>
+                        <p className="text-[14px] text-gray-500 mt-1">Manage staff details, departments, and payroll info.</p>
+                    </div>
                 </div>
 
-                <div className="card-container" style={{ background: "#fff", borderRadius: "12px", boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)", border: "1px solid #e2e8f0", overflow: "hidden" }}>
-                    <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 24px", borderBottom: "1px solid #f1f5f9" }}>
-                        <div className="card-title" style={{ fontSize: "1.1rem", fontWeight: "600", color: "#1e293b", display: "flex", alignItems: "center", gap: "10px" }}>
-                            <i className="fa-solid fa-users" style={{ color: "#3b82f6" }}></i> Staff Directory
+                <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
+
+                    {/* Card Header & Actions */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
+                        <div className="text-[16px] font-semibold text-[#202223] flex items-center gap-2.5">
+                            <i className="fa-solid fa-users text-[var(--accent)]"></i> Staff Directory
                         </div>
                         {hasPermission('create_employee') && (
-                        <button onClick={openCreateModal} style={{ background: "#2563eb", color: "#fff", padding: "10px 18px", borderRadius: "8px", fontWeight: "600", border: "none", cursor: "pointer", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13.5px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50">
                             <i className="fa-solid fa-plus"></i> Add Employee
                         </button>
                         )}
                     </div>
 
-                    {/* TOOLBAR */}
-                    <div className="table-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap', gap: '16px' }}>
+                    {/* Toolbar */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30 border-b border-gray-100">
+                        <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
 
-                        <div className="show-entries" style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", fontSize: "0.875rem" }}>
-                            Show
-                            <select value={perPage} onChange={handlePerPageChange} style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "#fff", outline: "none", cursor: "pointer" }}>
-                                <option value={10}>10 Entries</option>
-                                <option value={25}>25 Entries</option>
-                                <option value={50}>50 Entries</option>
-                                <option value={100}>100 Entries</option>
-                                <option value={500}>500 Entries</option>
-                                <option value={1000}>1000 Entries</option>
-                                <option value="all">All</option>
-                            </select>
+                            {/* Show Entries */}
+                            <div className="flex items-center gap-2">
+                                <span>Show</span>
+                                <select
+                                    value={perPage}
+                                    onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
+                                    className="w-[100px] appearance-none bg-none rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                >
+                                    <option value={10}>10 Entries</option>
+                                    <option value={25}>25 Entries</option>
+                                    <option value={50}>50 Entries</option>
+                                    <option value={100}>100 Entries</option>
+                                    <option value={500}>500 Entries</option>
+                                    <option value={1000}>1000 Entries</option>
+                                    <option value="all">All</option>
+                                </select>
+                            </div>
+
+                            <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
+
+                            {/* Export Buttons */}
+                            <div className="flex items-center gap-1.5">
+                                <button type="button" onClick={handleCopy} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-copy text-blue-500"></i> Copy
+                                </button>
+                                <button type="button" onClick={handleExcel} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-file-excel text-emerald-500"></i> Excel
+                                </button>
+                                <button type="button" onClick={handleCSVExport} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-file-csv text-teal-500"></i> CSV
+                                </button>
+                                <button type="button" onClick={handlePrint} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
+                                    <i className="fas fa-print text-gray-500"></i> Print
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="export-buttons" style={{ display: 'flex', gap: '8px' }}>
-                            <button onClick={handleCopy} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}>
-                                <i className="fas fa-copy"></i> Copy
-                            </button>
-                            <button onClick={handleExcel} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}>
-                                <i className="fas fa-file-excel" style={{ color: "#16a34a" }}></i> Excel
-                            </button>
-                            <button onClick={handleCSVExport} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}>
-                                <i className="fas fa-file-csv" style={{ color: "#2563eb" }}></i> CSV
-                            </button>
-                            <button onClick={handlePrint} type="button" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.875rem", fontWeight: "500", color: "#475569", background: "#fff", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}>
-                                <i className="fas fa-print" style={{ color: "#475569" }}></i> Print
-                            </button>
-                        </div>
-
-                        <div className="search-box" style={{ position: "relative" }}>
+                        {/* Search */}
+                        <div className="relative w-full sm:w-[260px]">
+                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
                             <input
                                 type="text"
                                 placeholder="Search employees..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                style={{ width: "240px", padding: "6px 12px", paddingLeft: "36px", fontSize: "0.875rem", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }}
+                                className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
                             />
-                            <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}></i>
                         </div>
                     </div>
 
-                    <div style={{ overflowX: "auto" }}>
-                        <table className="data-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.875rem" }}>
-                            <thead>
-                                <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
-                                    <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>EMP ID</th>
-                                    <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Name</th>
-                                    <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Department</th>
-                                    <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Designation</th>
-                                    <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem" }}>Basic Salary</th>
-                                    <th style={{ padding: "14px 24px", fontWeight: "600", color: "#475569", textTransform: "uppercase", fontSize: "0.75rem", textAlign: "right" }}>Action</th>
+                    {/* Table */}
+                    <div className="overflow-x-auto brass-scroll border-t border-[#e1e3e5]">
+                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                            <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
+                                <tr>
+                                    <th className="px-6 py-4">EMP ID</th>
+                                    <th className="px-6 py-4">Name</th>
+                                    <th className="px-6 py-4">Department</th>
+                                    <th className="px-6 py-4">Designation</th>
+                                    <th className="px-6 py-4 text-right">Basic Salary</th>
+                                    <th className="px-6 py-4 text-center">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody style={{ color: "#334155" }}>
+                            <tbody className="text-[13.5px] text-[#202223]">
                                 {employeeList.length === 0 ? (
                                     <tr>
-                                        <td colSpan="6" style={{ padding: "32px", textAlign: "center", color: "#64748b" }}>
-                                            No employees found.
+                                        <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <i className="fa-solid fa-user-xmark text-4xl text-gray-300 mb-3"></i>
+                                                <p>No employees found.</p>
+                                            </div>
                                         </td>
                                     </tr>
                                 ) : (
                                     employeeList.map((emp, idx) => (
-                                        <tr key={emp.id} style={{ borderBottom: "1px solid #f1f5f9", background: idx % 2 === 0 ? "#fff" : "#fdfdfd" }}>
-                                            <td style={{ padding: "16px 24px", fontWeight: "600", color: "#2563eb" }}>{emp.employee_id_code}</td>
-                                            <td style={{ padding: "16px 24px", fontWeight: "600" }}>{emp.user?.name}</td>
-                                            <td style={{ padding: "16px 24px" }}>
-                                                <span style={{ background: "#f1f5f9", padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "600", color: "#475569", border: "1px solid #e2e8f0" }}>
+                                        <tr key={emp.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                            <td className="px-6 py-4 font-bold text-[var(--accent)]">
+                                                {emp.employee_id_code}
+                                            </td>
+                                            <td className="px-6 py-4 font-bold text-gray-900">
+                                                {emp.user?.name || "N/A"}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="inline-flex px-2.5 py-1 rounded-md bg-gray-100 text-[10.5px] font-bold uppercase tracking-wider text-gray-600 border border-gray-200">
                                                     {emp.department?.name || "-"}
                                                 </span>
                                             </td>
-                                            <td style={{ padding: "16px 24px" }}>{emp.designation?.name || "-"}</td>
-                                            <td style={{ padding: "16px 24px", color: "#16a34a", fontWeight: "700" }}>TK. {formatSalary(emp.basic_salary)}</td>
-                                            <td style={{ padding: "16px 24px", textAlign: "right" }}>
-                                                <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
-                                                    {/* Show Button */}
+                                            <td className="px-6 py-4 font-medium text-gray-600">
+                                                {emp.designation?.name || "-"}
+                                            </td>
+                                            <td className="px-6 py-4 text-right font-extrabold text-emerald-600 text-[14.5px]">
+                                                TK. {formatSalary(emp.basic_salary)}
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="flex items-center justify-center gap-1.5">
                                                     {hasPermission('view_employee') && (
-                                                    <button onClick={() => openViewModal(emp)} style={{ border: "none", background: "#f0fdf4", color: "#16a34a", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }} title="View Details">
-                                                        <i className="fa-regular fa-eye"></i>
-                                                    </button>
+                                                        <button onClick={() => openViewModal(emp)} className="flex h-7 w-7 items-center justify-center rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="View Details">
+                                                            <i className="fa-regular fa-eye text-[12px]"></i>
+                                                        </button>
                                                     )}
-                                                    {/* Edit Button */}
                                                     {hasPermission('edit_employee') && (
-                                                    <button onClick={() => openEditModal(emp)} style={{ border: "none", background: "#fff7ed", color: "#ea580c", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }} title="Edit Profile">
-                                                        <i className="fa-regular fa-pen-to-square"></i>
-                                                    </button>
+                                                        <button onClick={() => openEditModal(emp)} className="flex h-7 w-7 items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors" title="Edit Profile">
+                                                            <i className="fa-regular fa-pen-to-square text-[12px]"></i>
+                                                        </button>
                                                     )}
-                                                    {/* Delete Button */}
                                                     {hasPermission('delete_employee') && (
-                                                    <button onClick={() => handleDelete(emp.id)} style={{ border: "none", background: "#fef2f2", color: "#dc2626", width: "32px", height: "32px", borderRadius: "6px", cursor: "pointer" }} title="Delete Employee">
-                                                        <i className="fa-regular fa-trash-can"></i>
-                                                    </button>
+                                                        <button onClick={() => handleDelete(emp.id)} className="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete Employee">
+                                                            <i className="fa-regular fa-trash-can text-[12px]"></i>
+                                                        </button>
                                                     )}
                                                 </div>
                                             </td>
@@ -569,24 +439,31 @@ export default function Index({
                         </table>
                     </div>
 
-                    {/* PAGINATION */}
+                    {/* Pagination */}
                     {paginationLinks.length > 3 && (
-                        <div className="pagination-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc' }}>
-                            <div style={{ fontSize: '0.875rem', color: '#64748b', fontWeight: '500' }}>
-                                Showing <span style={{ color: '#0f172a', fontWeight: '600' }}>{employees.from || 0}</span> to <span style={{ color: '#0f172a', fontWeight: '600' }}>{employees.to || 0}</span> of <span style={{ color: '#0f172a', fontWeight: '600' }}>{employees.total || 0}</span> entries
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#e1e3e5] bg-[#f6f6f7] px-6 py-4">
+                            <div className="text-[13px] text-gray-500">
+                                {employees.total > 0 && `Showing ${employees.from || 0} to ${employees.to || 0} of ${employees.total || 0} entries`}
                             </div>
-                            <div style={{ display: 'flex', gap: '6px' }}>
+                            <div className="flex flex-wrap items-center gap-1">
                                 {paginationLinks.map((link, index) => (
-                                    <button
-                                        key={index} disabled={!link.url}
-                                        onClick={() => link.url && router.get(link.url, { search: searchTerm, per_page: perPage }, { preserveState: true, replace: true })}
-                                        style={{
-                                            padding: '6px 12px', fontSize: '0.875rem', border: link.active ? '1px solid #2563eb' : '1px solid #cbd5e1', borderRadius: '6px',
-                                            background: link.active ? '#2563eb' : '#fff', color: link.active ? '#fff' : '#475569', cursor: link.url ? 'pointer' : 'not-allowed',
-                                            opacity: link.url ? 1 : 0.6, fontWeight: link.active ? '600' : '500'
-                                        }}
-                                        dangerouslySetInnerHTML={{ __html: link.label }}
-                                    />
+                                    link.url === null ? (
+                                        <span
+                                            key={index}
+                                            className="flex min-w-[32px] items-center justify-center rounded-md border border-gray-200 bg-gray-100 px-2.5 py-1.5 text-[13px] text-gray-400 cursor-not-allowed"
+                                            dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }}
+                                        />
+                                    ) : (
+                                        <Link
+                                            key={index}
+                                            href={link.url}
+                                            preserveState
+                                            className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] transition-colors
+                                                ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}
+                                            `}
+                                            dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }}
+                                        />
+                                    )
                                 ))}
                             </div>
                         </div>
@@ -594,194 +471,377 @@ export default function Index({
                 </div>
             </div>
 
-            {/* CREATE / EDIT MODAL */}
-            {showFormModal && (
-                <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.5)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
-                    <div className="modal-content" style={{ background: "#fff", width: "100%", maxWidth: "800px", maxHeight: "90vh", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)", overflowY: "auto" }}>
-                        <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', padding: '18px 24px' }}>
-                            <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '700', color: '#0f172a' }}>
-                                {editMode ? "✏️ Edit Employee Profile" : "👤 Add New Employee"}
-                            </h3>
-                            <button
-                                type="button" onClick={() => setShowFormModal(false)}
-                                style={{ background: 'transparent', border: 'none', fontSize: '1.25rem', cursor: 'pointer', color: '#94a3b8' }}
-                            >
-                                &times;
+            {/* --- VIEW DETAILS MODAL --- */}
+            {showViewModal && viewData && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-white text-[18px] font-bold">
+                                    {viewData.user?.name ? viewData.user.name.charAt(0).toUpperCase() : "E"}
+                                </div>
+                                <div>
+                                    <h3 className="text-[16px] font-bold text-[#202223] leading-tight">{viewData.user?.name || "N/A"}</h3>
+                                    <span className="text-[12px] font-medium text-gray-500">ID: {viewData.employee_id_code}</span>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} style={{ padding: "24px" }}>
-                            <div style={{ marginBottom: "16px", fontSize: "0.875rem", fontWeight: "600", color: "#64748b", textTransform: "uppercase", borderBottom: "1px solid #f1f5f9", paddingBottom: "4px" }}>Official Details</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Link User Account *</label>
-                                    <SearchableSelect
-                                        options={users}
-                                        value={data.user_id}
-                                        onChange={(val) => setData("user_id", val)}
-                                        placeholder="Select User"
-                                        disabled={editMode}
-                                        required
-                                    />
+                        {/* Modal Body */}
+                        <div className="p-6 overflow-y-auto brass-scroll flex flex-col gap-6">
+
+                            {/* Official Details */}
+                            <div className="grid grid-cols-2 gap-4 bg-blue-50/50 p-5 rounded-xl border border-blue-100">
+                                <div>
+                                    <span className="block text-[10.5px] font-bold uppercase tracking-wider text-blue-500 mb-1">Department</span>
+                                    <div className="text-[14.5px] font-bold text-gray-900">{viewData.department?.name || "-"}</div>
                                 </div>
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Employee ID Code *</label>
-                                    <input type="text" value={data.employee_id_code} onChange={(e) => setData("employee_id_code", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} required />
+                                <div>
+                                    <span className="block text-[10.5px] font-bold uppercase tracking-wider text-blue-500 mb-1">Designation</span>
+                                    <div className="text-[14.5px] font-bold text-gray-900">{viewData.designation?.name || "-"}</div>
                                 </div>
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Department</label>
-                                    <SearchableSelect
-                                        options={departments}
-                                        value={data.department_id}
-                                        onChange={(val) => setData("department_id", val)}
-                                        placeholder="Select"
-                                    />
+                                <div>
+                                    <span className="block text-[10.5px] font-bold uppercase tracking-wider text-blue-500 mb-1">Join Date</span>
+                                    <div className="text-[14.5px] font-semibold text-gray-700"><i className="fa-regular fa-calendar mr-1.5 text-gray-400"></i>{viewData.joining_date || "-"}</div>
                                 </div>
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Designation</label>
-                                    <SearchableSelect
-                                        options={designations}
-                                        value={data.designation_id}
-                                        onChange={(val) => setData("designation_id", val)}
-                                        placeholder="Select"
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Joining Date *</label>
-                                    <input type="date" value={data.joining_date} onChange={(e) => setData("joining_date", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} required />
-                                </div>
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Basic Salary *</label>
-                                    <input type="number" step="0.01" value={data.basic_salary} onChange={(e) => setData("basic_salary", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} required />
+                                <div>
+                                    <span className="block text-[10.5px] font-bold uppercase tracking-wider text-blue-500 mb-1">Basic Salary</span>
+                                    <div className="text-[16px] font-extrabold text-emerald-600">TK. {formatSalary(viewData.basic_salary)}</div>
                                 </div>
                             </div>
 
-                            <div style={{ marginTop: "24px", marginBottom: "16px", fontSize: "0.875rem", fontWeight: "600", color: "#64748b", textTransform: "uppercase", borderBottom: "1px solid #f1f5f9", paddingBottom: "4px" }}>Personal Details</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Gender</label>
-                                    <select value={data.gender} onChange={(e) => setData("gender", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }}>
-                                        <option value="male">Male</option>
-                                        <option value="female">Female</option>
-                                        <option value="other">Other</option>
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Blood Group</label>
-                                    <input type="text" value={data.blood_group} onChange={(e) => setData("blood_group", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} placeholder="e.g., O+" />
-                                </div>
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>NID Number</label>
-                                    <input type="text" value={data.nid_number} onChange={(e) => setData("nid_number", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} />
-                                </div>
-                            </div>
-
-                            <div style={{ marginTop: "24px", marginBottom: "16px", fontSize: "0.875rem", fontWeight: "600", color: "#64748b", textTransform: "uppercase", borderBottom: "1px solid #f1f5f9", paddingBottom: "4px" }}>Bank & Emergency Contact</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Bank Name</label>
-                                    <input type="text" value={data.bank_name} onChange={(e) => setData("bank_name", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} />
-                                </div>
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Bank Account No.</label>
-                                    <input type="text" value={data.bank_account_no} onChange={(e) => setData("bank_account_no", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} />
-                                </div>
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Emergency Contact Name</label>
-                                    <input type="text" value={data.emergency_contact_name} onChange={(e) => setData("emergency_contact_name", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} />
-                                </div>
-                                <div className="form-group">
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Emergency Contact Phone</label>
-                                    <input type="text" value={data.emergency_contact_phone} onChange={(e) => setData("emergency_contact_phone", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box" }} />
-                                </div>
-                                <div className="form-group" style={{ gridColumn: "1 / -1" }}>
-                                    <label style={{ display: "block", fontSize: "0.815rem", fontWeight: "600", color: "#475569", marginBottom: "6px" }}>Present Address</label>
-                                    <textarea rows={2} value={data.present_address} onChange={(e) => setData("present_address", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }} />
+                            {/* Personal Details */}
+                            <div>
+                                <h4 className="text-[13px] font-bold uppercase tracking-wider text-gray-800 mb-3 flex items-center gap-2">
+                                    <i className="fa-regular fa-id-card text-[var(--accent)]"></i> Personal Details
+                                </h4>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                    <div className="bg-gray-50 p-3.5 rounded-lg border border-gray-200">
+                                        <span className="block text-[10.5px] font-bold uppercase tracking-wider text-gray-500 mb-1">Gender</span>
+                                        <div className="text-[13.5px] font-semibold text-gray-800 capitalize">{viewData.gender || "-"}</div>
+                                    </div>
+                                    <div className="bg-rose-50 p-3.5 rounded-lg border border-rose-100">
+                                        <span className="block text-[10.5px] font-bold uppercase tracking-wider text-rose-500 mb-1">Blood Group</span>
+                                        <div className="text-[14px] font-bold text-rose-700">{viewData.blood_group || "-"}</div>
+                                    </div>
+                                    <div className="bg-gray-50 p-3.5 rounded-lg border border-gray-200">
+                                        <span className="block text-[10.5px] font-bold uppercase tracking-wider text-gray-500 mb-1">NID Number</span>
+                                        <div className="text-[13.5px] font-semibold text-gray-800">{viewData.nid_number || "-"}</div>
+                                    </div>
                                 </div>
                             </div>
 
-                            {errors && Object.keys(errors).length > 0 && (
-                                <div style={{ marginTop: "16px", padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px" }}>
-                                    {Object.values(errors).map((msg, i) => (
-                                        <p key={i} style={{ color: "#dc2626", fontSize: "0.8rem", margin: "2px 0" }}>{msg}</p>
-                                    ))}
+                            {/* Bank & Contact Details */}
+                            <div>
+                                <h4 className="text-[13px] font-bold uppercase tracking-wider text-gray-800 mb-3 flex items-center gap-2">
+                                    <i className="fa-solid fa-building-columns text-[var(--accent)]"></i> Bank & Emergency Contact
+                                </h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="bg-gray-50 p-3.5 rounded-lg border border-gray-200">
+                                        <span className="block text-[10.5px] font-bold uppercase tracking-wider text-gray-500 mb-1">Bank Name</span>
+                                        <div className="text-[13.5px] font-semibold text-gray-800">{viewData.bank_name || "-"}</div>
+                                    </div>
+                                    <div className="bg-gray-50 p-3.5 rounded-lg border border-gray-200">
+                                        <span className="block text-[10.5px] font-bold uppercase tracking-wider text-gray-500 mb-1">Account No.</span>
+                                        <div className="text-[13.5px] font-semibold text-gray-800">{viewData.bank_account_no || "-"}</div>
+                                    </div>
+                                    <div className="bg-gray-50 p-3.5 rounded-lg border border-gray-200">
+                                        <span className="block text-[10.5px] font-bold uppercase tracking-wider text-gray-500 mb-1">Emergency Contact</span>
+                                        <div className="text-[13.5px] font-semibold text-gray-800">{viewData.emergency_contact_name || "-"}</div>
+                                    </div>
+                                    <div className="bg-gray-50 p-3.5 rounded-lg border border-gray-200">
+                                        <span className="block text-[10.5px] font-bold uppercase tracking-wider text-gray-500 mb-1">Emergency Phone</span>
+                                        <div className="text-[13.5px] font-semibold text-gray-800">{viewData.emergency_contact_phone || "-"}</div>
+                                    </div>
+                                    <div className="sm:col-span-2 bg-gray-50 p-3.5 rounded-lg border border-gray-200">
+                                        <span className="block text-[10.5px] font-bold uppercase tracking-wider text-gray-500 mb-1">Present Address</span>
+                                        <div className="text-[13.5px] font-medium text-gray-700 leading-relaxed whitespace-pre-line">{viewData.present_address || "-"}</div>
+                                    </div>
                                 </div>
-                            )}
-
-                            <div className="modal-footer" style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                                <button type="button" onClick={() => setShowFormModal(false)} style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "8px 16px", borderRadius: "6px", fontWeight: "600", cursor: "pointer" }}>Cancel</button>
-                                <button type="submit" disabled={processing} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 20px", borderRadius: "6px", fontWeight: "600", cursor: "pointer", opacity: processing ? 0.7 : 1 }}>
-                                    {processing ? "Saving..." : "Save Profile"}
-                                </button>
                             </div>
-                        </form>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end shrink-0">
+                            <button onClick={() => setShowViewModal(false)} className="rounded-lg bg-gray-800 px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-700/50">
+                                Close Profile
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
 
-            {/* SHOW / VIEW MODAL */}
-            {showViewModal && viewData && (
-                <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.5)",  display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60 }}>
-                    <div className="modal-content" style={{ background: "#fff", width: "100%", maxWidth: "600px", borderRadius: "12px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)", overflow: "hidden" }}>
-                        <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: "#f8fafc", borderBottom: '1px solid #e2e8f0', padding: '16px 24px' }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                                <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "#2563eb", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", fontWeight: "bold" }}>
-                                    {viewData.user?.name ? viewData.user.name.charAt(0) : "E"}
-                                </div>
-                                <div>
-                                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: '#0f172a' }}>{viewData.user?.name || "N/A"}</h3>
-                                    <span style={{ fontSize: "0.8rem", color: "#64748b" }}>ID: {viewData.employee_id_code}</span>
-                                </div>
-                            </div>
-                            <button onClick={() => setShowViewModal(false)} style={{ background: 'transparent', border: 'none', fontSize: '1.25rem', cursor: 'pointer', color: '#94a3b8' }}>&times;</button>
-                        </div>
+            {/* --- CREATE / EDIT FORM MODAL --- */}
+            {showFormModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[95vh] overflow-hidden">
 
-                        <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "16px", fontSize: "0.9rem" }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", background: "#f8fafc", padding: "16px", borderRadius: "8px", border: "1px solid #f1f5f9" }}>
-                                <div>
-                                    <span style={{ display: "block", color: "#64748b", fontSize: "0.8rem", fontWeight: "600", textTransform: "uppercase" }}>Department</span>
-                                    <strong style={{ color: "#334155" }}>{viewData.department?.name || "-"}</strong>
-                                </div>
-                                <div>
-                                    <span style={{ display: "block", color: "#64748b", fontSize: "0.8rem", fontWeight: "600", textTransform: "uppercase" }}>Designation</span>
-                                    <strong style={{ color: "#334155" }}>{viewData.designation?.name || "-"}</strong>
-                                </div>
-                                <div>
-                                    <span style={{ display: "block", color: "#64748b", fontSize: "0.8rem", fontWeight: "600", textTransform: "uppercase" }}>Join Date</span>
-                                    <strong style={{ color: "#334155" }}>{viewData.joining_date || "-"}</strong>
-                                </div>
-                                <div>
-                                    <span style={{ display: "block", color: "#64748b", fontSize: "0.8rem", fontWeight: "600", textTransform: "uppercase" }}>Basic Salary</span>
-                                    <strong style={{ color: "#16a34a", fontSize: "1rem" }}>TK. {formatSalary(viewData.basic_salary)}</strong>
-                                </div>
-                            </div>
-
-                            <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
-                                <h4 style={{ fontSize: "0.9rem", color: "#475569", marginBottom: "12px", fontWeight: "600" }}>Personal Details</h4>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                                    <p style={{ margin: 0 }}><span style={{ color: "#64748b" }}>Gender:</span> <strong style={{ textTransform: "capitalize", color: "#334155" }}>{viewData.gender || "-"}</strong></p>
-                                    <p style={{ margin: 0 }}><span style={{ color: "#64748b" }}>Blood Group:</span> <strong style={{ color: "#dc2626" }}>{viewData.blood_group || "-"}</strong></p>
-                                    <p style={{ margin: 0 }}><span style={{ color: "#64748b" }}>NID:</span> <strong style={{ color: "#334155" }}>{viewData.nid_number || "-"}</strong></p>
-                                </div>
-                            </div>
-
-                            <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
-                                <h4 style={{ fontSize: "0.9rem", color: "#475569", marginBottom: "12px", fontWeight: "600" }}>Bank & Emergency Contact</h4>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                                    <p style={{ margin: 0 }}><span style={{ color: "#64748b" }}>Bank:</span> <strong style={{ color: "#334155" }}>{viewData.bank_name || "-"}</strong></p>
-                                    <p style={{ margin: 0 }}><span style={{ color: "#64748b" }}>Account No.:</span> <strong style={{ color: "#334155" }}>{viewData.bank_account_no || "-"}</strong></p>
-                                    <p style={{ margin: 0 }}><span style={{ color: "#64748b" }}>Emergency Contact:</span> <strong style={{ color: "#334155" }}>{viewData.emergency_contact_name || "-"}</strong></p>
-                                    <p style={{ margin: 0 }}><span style={{ color: "#64748b" }}>Emergency Phone:</span> <strong style={{ color: "#334155" }}>{viewData.emergency_contact_phone || "-"}</strong></p>
-                                    <p style={{ margin: 0, gridColumn: "1 / -1" }}><span style={{ color: "#64748b" }}>Address:</span> <strong style={{ color: "#334155" }}>{viewData.present_address || "-"}</strong></p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div style={{ padding: "16px 24px", background: "#f8fafc", borderTop: "1px solid #e2e8f0", textAlign: "right" }}>
-                            <button onClick={() => setShowViewModal(false)} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "8px 24px", borderRadius: "6px", fontWeight: "600", cursor: "pointer" }}>
-                                Close
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                            <h3 className="text-[18px] font-semibold text-[#202223]">
+                                {editMode ? "📝 Edit Employee Profile" : "✨ Add New Employee"}
+                            </h3>
+                            <button onClick={() => setShowFormModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
+
+                        {/* Modal Body & Form */}
+                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
+                            <div className="p-6 overflow-y-auto brass-scroll">
+
+                                {/* Section: Official Details */}
+                                <div className="mb-6">
+                                    <h4 className="text-[12px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-200 pb-2 mb-4">Official Details</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Link User Account *</label>
+                                            <Select
+                                                options={users.map((u) => ({ value: u.id, label: u.name }))}
+                                                value={users.map((u) => ({ value: u.id, label: u.name })).find((opt) => Number(opt.value) === Number(data.user_id)) || null}
+                                                onChange={(selected) => setData("user_id", selected ? selected.value : "")}
+                                                placeholder="-- Choose User --"
+                                                isSearchable
+                                                isClearable
+                                                isDisabled={editMode}
+                                                styles={{
+                                                    control: (provided, state) => ({
+                                                        ...provided, minHeight: "42px", borderRadius: "0.5rem",
+                                                        border: state.isFocused ? "1px solid var(--accent)" : "1px solid #d1d5db",
+                                                        boxShadow: state.isFocused ? "0 0 0 1px rgba(200, 155, 60, 0.5)" : "none",
+                                                        "&:hover": { borderColor: "#9ca3af" },
+                                                        fontSize: "14px",
+                                                        background: editMode && state.isDisabled ? "#f1f5f9" : "#fff",
+                                                    }),
+                                                    option: (provided, state) => ({
+                                                        ...provided, fontSize: "14px",
+                                                        backgroundColor: state.isSelected ? "var(--accent)" : state.isFocused ? "var(--accent-bg)" : "#fff",
+                                                        color: state.isSelected ? "#fff" : "#111827", cursor: "pointer",
+                                                    }),
+                                                    menuPortal: base => ({ ...base, zIndex: 9999 })
+                                                }}
+                                                menuPosition="fixed"
+                                                menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                            />
+                                            {errors.user_id && <p className="text-red-500 text-[12px] mt-1">{errors.user_id}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Employee ID Code *</label>
+                                            <input
+                                                type="text"
+                                                value={data.employee_id_code}
+                                                onChange={(e) => setData("employee_id_code", e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                                placeholder="e.g. EMP-001"
+                                                required
+                                            />
+                                            {errors.employee_id_code && <p className="text-red-500 text-[12px] mt-1">{errors.employee_id_code}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Department</label>
+                                            <Select
+                                                options={departments.map((d) => ({ value: d.id, label: d.name }))}
+                                                value={departments.map((d) => ({ value: d.id, label: d.name })).find((opt) => Number(opt.value) === Number(data.department_id)) || null}
+                                                onChange={(selected) => setData("department_id", selected ? selected.value : "")}
+                                                placeholder="-- Choose Department --"
+                                                isSearchable
+                                                isClearable
+                                                styles={{
+                                                    control: (provided, state) => ({
+                                                        ...provided, minHeight: "42px", borderRadius: "0.5rem",
+                                                        border: state.isFocused ? "1px solid var(--accent)" : "1px solid #d1d5db",
+                                                        boxShadow: state.isFocused ? "0 0 0 1px rgba(200, 155, 60, 0.5)" : "none",
+                                                        "&:hover": { borderColor: "#9ca3af" }, fontSize: "14px", background: "#fff",
+                                                    }),
+                                                    option: (provided, state) => ({
+                                                        ...provided, fontSize: "14px", backgroundColor: state.isSelected ? "var(--accent)" : state.isFocused ? "var(--accent-bg)" : "#fff", color: state.isSelected ? "#fff" : "#111827", cursor: "pointer",
+                                                    }),
+                                                    menuPortal: base => ({ ...base, zIndex: 9999 })
+                                                }}
+                                                menuPosition="fixed"
+                                                menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                            />
+                                            {errors.department_id && <p className="text-red-500 text-[12px] mt-1">{errors.department_id}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Designation</label>
+                                            <Select
+                                                options={designations.map((d) => ({ value: d.id, label: d.name }))}
+                                                value={designations.map((d) => ({ value: d.id, label: d.name })).find((opt) => Number(opt.value) === Number(data.designation_id)) || null}
+                                                onChange={(selected) => setData("designation_id", selected ? selected.value : "")}
+                                                placeholder="-- Choose Designation --"
+                                                isSearchable
+                                                isClearable
+                                                styles={{
+                                                    control: (provided, state) => ({
+                                                        ...provided, minHeight: "42px", borderRadius: "0.5rem",
+                                                        border: state.isFocused ? "1px solid var(--accent)" : "1px solid #d1d5db",
+                                                        boxShadow: state.isFocused ? "0 0 0 1px rgba(200, 155, 60, 0.5)" : "none",
+                                                        "&:hover": { borderColor: "#9ca3af" }, fontSize: "14px", background: "#fff",
+                                                    }),
+                                                    option: (provided, state) => ({
+                                                        ...provided, fontSize: "14px", backgroundColor: state.isSelected ? "var(--accent)" : state.isFocused ? "var(--accent-bg)" : "#fff", color: state.isSelected ? "#fff" : "#111827", cursor: "pointer",
+                                                    }),
+                                                    menuPortal: base => ({ ...base, zIndex: 9999 })
+                                                }}
+                                                menuPosition="fixed"
+                                                menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                            />
+                                            {errors.designation_id && <p className="text-red-500 text-[12px] mt-1">{errors.designation_id}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Joining Date *</label>
+                                            <input
+                                                type="date"
+                                                value={data.joining_date}
+                                                onChange={(e) => setData("joining_date", e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                                required
+                                            />
+                                            {errors.joining_date && <p className="text-red-500 text-[12px] mt-1">{errors.joining_date}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Basic Salary (TK) *</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={data.basic_salary}
+                                                onChange={(e) => setData("basic_salary", e.target.value)}
+                                                className="w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-[15px] font-bold text-emerald-800 outline-none transition-shadow focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50"
+                                                placeholder="0.00"
+                                                required
+                                            />
+                                            {errors.basic_salary && <p className="text-red-500 text-[12px] mt-1">{errors.basic_salary}</p>}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Section: Personal Details */}
+                                <div className="mb-6">
+                                    <h4 className="text-[12px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-200 pb-2 mb-4">Personal Details</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Gender</label>
+                                            <select
+                                                value={data.gender}
+                                                onChange={(e) => setData("gender", e.target.value)}
+                                                className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                            >
+                                                <option value="male">Male</option>
+                                                <option value="female">Female</option>
+                                                <option value="other">Other</option>
+                                            </select>
+                                            {errors.gender && <p className="text-red-500 text-[12px] mt-1">{errors.gender}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Blood Group</label>
+                                            <input
+                                                type="text"
+                                                value={data.blood_group}
+                                                onChange={(e) => setData("blood_group", e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                                placeholder="e.g., O+"
+                                            />
+                                            {errors.blood_group && <p className="text-red-500 text-[12px] mt-1">{errors.blood_group}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">NID Number</label>
+                                            <input
+                                                type="text"
+                                                value={data.nid_number}
+                                                onChange={(e) => setData("nid_number", e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                                placeholder="National ID"
+                                            />
+                                            {errors.nid_number && <p className="text-red-500 text-[12px] mt-1">{errors.nid_number}</p>}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Section: Bank & Contact Details */}
+                                <div className="mb-2">
+                                    <h4 className="text-[12px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-200 pb-2 mb-4">Bank & Emergency Contact</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Bank Name</label>
+                                            <input
+                                                type="text"
+                                                value={data.bank_name}
+                                                onChange={(e) => setData("bank_name", e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                            />
+                                            {errors.bank_name && <p className="text-red-500 text-[12px] mt-1">{errors.bank_name}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Bank Account No.</label>
+                                            <input
+                                                type="text"
+                                                value={data.bank_account_no}
+                                                onChange={(e) => setData("bank_account_no", e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                            />
+                                            {errors.bank_account_no && <p className="text-red-500 text-[12px] mt-1">{errors.bank_account_no}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Emergency Contact Name</label>
+                                            <input
+                                                type="text"
+                                                value={data.emergency_contact_name}
+                                                onChange={(e) => setData("emergency_contact_name", e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                            />
+                                            {errors.emergency_contact_name && <p className="text-red-500 text-[12px] mt-1">{errors.emergency_contact_name}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Emergency Contact Phone</label>
+                                            <input
+                                                type="text"
+                                                value={data.emergency_contact_phone}
+                                                onChange={(e) => setData("emergency_contact_phone", e.target.value)}
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                            />
+                                            {errors.emergency_contact_phone && <p className="text-red-500 text-[12px] mt-1">{errors.emergency_contact_phone}</p>}
+                                        </div>
+
+                                        <div className="sm:col-span-2">
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Present Address</label>
+                                            <textarea
+                                                value={data.present_address}
+                                                onChange={(e) => setData("present_address", e.target.value)}
+                                                rows={2}
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none resize-y min-h-[60px] transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                            />
+                                            {errors.present_address && <p className="text-red-500 text-[12px] mt-1">{errors.present_address}</p>}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 shrink-0">
+                                <button type="button" onClick={() => setShowFormModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70">
+                                    {processing ? "Saving..." : "Save Profile"}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
