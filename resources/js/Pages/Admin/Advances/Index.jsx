@@ -138,6 +138,13 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
         setExpandedRows((prev) => ({ ...prev, [userId]: !prev[userId] }));
     };
 
+    const formatTime = (dateTimeStr) => {
+        if (!dateTimeStr) return '';
+        const d = new Date(dateTimeStr);
+        if (isNaN(d.getTime())) return '';
+        return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    };
+
     // --- Export Utilities ---
     const handleCopy = () => {
         if (!advanceList.length) return Swal.fire("Empty!", "No data to copy", "warning");
@@ -453,7 +460,18 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                         )}
                                                     </td>
                                                     <td className="px-6 py-4 text-gray-500 font-medium">
-                                                        {hasMultiple ? `${group.records.length} entries` : single.date}
+                                                        {hasMultiple ? (
+                                                            `${group.records.length} entries`
+                                                        ) : (
+                                                            <>
+                                                                <div>{single.date}</div>
+                                                                {single.created_at && (
+                                                                    <div className="text-[11px] text-gray-400 mt-0.5 font-normal">
+                                                                        {formatTime(single.created_at)}
+                                                                    </div>
+                                                                )}
+                                                            </>
+                                                        )}
                                                     </td>
                                                     <td className="px-6 py-4 font-semibold text-teal-700">
                                                         {hasMultiple ? 'Multiple' : (single.account?.name || 'N/A')}
@@ -548,7 +566,12 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                                                 <tr key={adv.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                                                                                     <td className="px-4 py-3 border-r border-gray-100"></td>
                                                                                     <td className="px-4 py-3 font-medium text-gray-500">
-                                                                                        <i className="fa-regular fa-calendar mr-1.5"></i>{adv.date}
+                                                                                        <div><i className="fa-regular fa-calendar mr-1.5"></i>{adv.date}</div>
+                                                                                        {adv.created_at && (
+                                                                                            <div className="text-[11px] text-gray-400 mt-0.5 pl-4">
+                                                                                                {formatTime(adv.created_at)}
+                                                                                            </div>
+                                                                                        )}
                                                                                     </td>
                                                                                     <td className="px-4 py-3 font-semibold text-teal-700">
                                                                                         {adv.account?.name || 'N/A'}

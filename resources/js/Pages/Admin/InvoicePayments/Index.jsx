@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { useForm, Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
@@ -144,6 +144,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
     const [showDetailsModal, setShowDetailsModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [selectedPayment, setSelectedPayment] = useState(null);
+    const [editingPayment, setEditingPayment] = useState(null); // 👈 NEW: holds the full payment (with invoice) being edited
 
     const [clientId, setClientId] = useState(filters.client_id || "");
     const [accountFilter, setAccountFilter] = useState(filters.account_id || "");
@@ -180,6 +181,29 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
         note: "",
         _method: "post",
     });
+
+    // 👇 NEW: makes sure the invoice tied to the payment being edited is always
+    // present in the dropdown options, even if it's already "paid" and therefore
+    // excluded from the `invoices` prop sent by the backend.
+    const invoiceOptions = useMemo(() => {
+        if (
+            editMode &&
+            editingPayment?.invoice &&
+            !invoices.some((inv) => String(inv.id) === String(editingPayment.invoice_id))
+        ) {
+            return [
+                {
+                    id: editingPayment.invoice_id,
+                    invoice_number: editingPayment.invoice.invoice_number,
+                    client: editingPayment.invoice.client,
+                    grand_total: editingPayment.invoice.grand_total,
+                    due_amount: editingPayment.invoice.grand_total,
+                },
+                ...invoices,
+            ];
+        }
+        return invoices;
+    }, [invoices, editMode, editingPayment]);
 
    const applyFilters = (overrides = {}) => {
         router.get(
@@ -406,6 +430,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
 
     const openCreateModal = () => {
         clearErrors();
+        setEditingPayment(null); // 👈 NEW: clear any previously-edited payment reference
 
         setData({
             id: '',
@@ -440,6 +465,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
 
     const openEditModal = (payment) => {
         clearErrors();
+        setEditingPayment(payment); // 👈 NEW: remember the full payment (with its invoice) being edited
         setData({
             id: payment.id, 
             invoice_id: payment.invoice_id, 
@@ -736,7 +762,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                 <div>
                                     <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Select Invoice *</label>
                                     <SearchableSelect
-                                        options={invoices}
+                                        options={invoiceOptions}
                                         value={data.invoice_id}
                                         onChange={handleInvoiceSelect}
                                         placeholder="-- Search & Select Invoice --"
@@ -762,7 +788,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                             </div>
 
                             {data.invoice_id && (() => {
-                                const selectedInvoice = invoices.find((i) => String(i.id) === String(data.invoice_id));
+                                const selectedInvoice = invoiceOptions.find((i) => String(i.id) === String(data.invoice_id));
                                 if (!selectedInvoice) return null;
                                 const due = parseFloat(selectedInvoice.due_amount ?? selectedInvoice.grand_total);
                                 return (
