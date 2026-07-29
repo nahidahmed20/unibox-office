@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('invoice_id');
             $table->unsignedBigInteger('project_id');
-            $table->string('description');
+            $table->longText('description');
             $table->integer('quantity');
             $table->decimal('unit_price', 12, 2);
             $table->decimal('total', 12, 2);

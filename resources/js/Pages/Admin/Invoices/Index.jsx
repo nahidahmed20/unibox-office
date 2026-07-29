@@ -3,6 +3,8 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react'; 
 import Swal from 'sweetalert2'; 
 import Select from 'react-select'; 
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 export default function Index({ invoices = { data: [], links: [] }, clients = [], projects = [], nextInvoiceNumber }) {
     const { auth } = usePage().props;
@@ -56,7 +58,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         }),
         valueContainer: (provided) => ({ ...provided, padding: "2px 10px" }),
         placeholder: (provided) => ({ ...provided, color: "#9ca3af", fontSize: "13.5px" }),
-        singleValue: (provided) => ({ ...provided, color: "#111827", fontSize: "13.5px" }),
+        singleValue: (provided) => ({ ...provided, color: "#111827", fontSize: "13.5px", fontWeight: "500" }),
         option: (provided, state) => ({
             ...provided, fontSize: "13.5px",
             backgroundColor: state.isSelected ? "var(--accent)" : state.isFocused ? "var(--accent-bg)" : "#fff",
@@ -65,9 +67,19 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         menuPortal: base => ({ ...base, zIndex: 9999 })
     };
 
+    // React Quill Toolbar Config
+    const quillModules = {
+        toolbar: [
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            [{ 'color': [] }, { 'background': [] }],
+            ['clean']
+        ],
+    };
+
     const clientOptions = clients.map(c => ({
         value: c.id,
-        label: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}`,
+        label: c.company_name ? `${c.company_name} (Attn: ${c.name})` : c.name,
         advance: Number(c.available_advance || 0)
     }));
 
@@ -146,7 +158,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
     const openCreateModal = () => {
         clearErrors();
-
         setData({
             id: '',
             client_id: '',
@@ -162,7 +173,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
             notes: '',
             items: [{ project_id: "", description: "", quantity: 1, unit_price: 0, total: 0 }]
         });
-
         setAvailableAdvance(0);
         setEditMode(false);
         setShowModal(true);
@@ -212,18 +222,16 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
     const handleSubmit = (e) => {
         e.preventDefault();
-
         if (!data.client_id) {
             return Swal.fire("Required", "Please select a client.", "warning");
         }
 
         const handleErrors = (errs) => {
-            console.error(errs);
             const firstError = Object.values(errs)[0];
             Swal.fire({
                 icon: 'error',
                 title: 'Validation Error',
-                text: firstError || 'Please check the form for errors (marked in red).',
+                text: firstError || 'Please check the form for errors.',
                 confirmButtonColor: '#ef4444'
             });
         };
@@ -234,7 +242,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                     setShowModal(false); 
                     Swal.fire({ icon: 'success', title: 'Updated Successfully!', timer: 1500, showConfirmButton: false }); 
                 },
-                onError: handleErrors // এরর ধরবে
+                onError: handleErrors
             });
         } else {
             post(route('admin.invoices.store'), { 
@@ -243,7 +251,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                     setShowModal(false); 
                     Swal.fire({ icon: 'success', title: 'Generated Successfully!', timer: 1500, showConfirmButton: false }); 
                 },
-                onError: handleErrors // এরর ধরবে
+                onError: handleErrors
             });
         }
     };
@@ -277,13 +285,22 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
     const invList = invoices.data || [];
 
-    // Reusable Grid Template for Line Items to ensure consistency between Header and Rows
-    const lineItemGridCols = "grid-cols-[minmax(160px,1.5fr)_minmax(350px,3.5fr)_80px_minmax(120px,1fr)_minmax(120px,1fr)_40px]";
-
     return (
         <AdminLayout>
             <Head title="Invoices & Billing" />
             
+            <style dangerouslySetInnerHTML={{__html: `
+                .ql-editor { min-height: 120px; font-size: 14px; background: #fff; }
+                .ql-toolbar { background: #f8fafc; border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem; }
+                .ql-container { border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem; }
+                
+                /* Render HTML nicely in View Modal */
+                .html-content-view ul { list-style-type: disc; padding-left: 20px; margin-bottom: 10px; }
+                .html-content-view ol { list-style-type: decimal; padding-left: 20px; margin-bottom: 10px; }
+                .html-content-view p { margin-bottom: 8px; }
+                .html-content-view p:last-child { margin-bottom: 0; }
+            `}} />
+
             <div className="flex flex-col gap-6">
                 {/* Page Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -296,19 +313,17 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                 {/* Main Card */}
                 <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
                     
-                    {/* Card Header & Actions */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
                         <div className="text-[16px] font-semibold text-[#202223] flex items-center gap-2.5">
                             <i className="fa-solid fa-file-invoice-dollar text-[var(--accent)]"></i> All Invoices
                         </div>
                         {hasPermission('create_invoice') && (
-                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13.5px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50">
+                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13.5px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 shadow-sm">
                                 <i className="fa-solid fa-plus"></i> Generate Invoice
                             </button>
                         )}
                     </div>
 
-                    {/* Toolbar */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30">
                         <div className="flex items-center gap-3 text-[13.5px] text-gray-600">
                             <div className="flex items-center gap-2.5">
@@ -322,8 +337,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                     <option value={25}>25 Entries</option>
                                     <option value={50}>50 Entries</option>
                                     <option value={100}>100 Entries</option>
-                                    <option value={500}>500 Entries</option>
-                                    <option value={1000}>1000 Entries</option>
                                     <option value="all">All</option>
                                 </select>
                             </div>
@@ -341,14 +354,13 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                         </div>
                     </div>
 
-                    {/* Data Table */}
                     <div className="overflow-x-auto brass-scroll border-t border-[#e1e3e5]">
                         <table className="w-full text-left border-collapse whitespace-nowrap">
                             <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
                                 <tr>
                                     <th className="px-6 py-4 w-12">SL</th>
                                     <th className="px-6 py-4">INV #</th>
-                                    <th className="px-6 py-4">Client</th>
+                                    <th className="px-6 py-4">Bill To (Client / Company)</th>
                                     <th className="px-6 py-4">Date</th>
                                     <th className="px-6 py-4 text-right">Amount</th>
                                     <th className="px-6 py-4 text-center">Status</th>
@@ -363,8 +375,17 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                             <td className="px-6 py-4 font-medium text-gray-500">
                                                 {invoices.from ? invoices.from + index : index + 1}
                                             </td>
-                                            <td className="px-6 py-4 font-bold text-blue-600">{inv.invoice_number}</td>
-                                            <td className="px-6 py-4 font-semibold text-gray-900">{inv.client?.name || 'N/A'}</td>
+                                            <td className="px-6 py-4 font-bold text-[var(--accent)]">{inv.invoice_number}</td>
+                                            <td className="px-6 py-4">
+                                                {inv.client?.company_name ? (
+                                                    <div>
+                                                        <span className="font-bold text-gray-900">{inv.client.company_name}</span>
+                                                        <span className="block text-xs text-gray-500">Attn: {inv.client.name}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="font-semibold text-gray-900">{inv.client?.name || 'N/A'}</span>
+                                                )}
+                                            </td>
                                             <td className="px-6 py-4 text-gray-500">{inv.invoice_date}</td>
                                             <td className="px-6 py-4 text-right font-bold text-gray-900">
                                                 TK. {parseFloat(inv.grand_total).toLocaleString('en-IN')}
@@ -386,12 +407,11 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                                         className="flex h-7 w-7 items-center justify-center rounded bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors" 
                                                         title="Print" 
                                                         target="_blank"
-                                                        rel="noopener noreferrer"
                                                     >
                                                         <i className="fa-solid fa-print text-[12px]"></i>
                                                     </a>
                                                     {hasPermission('edit_invoice') && (
-                                                        <button onClick={() => openEditModal(inv)} className="flex h-7 w-7 items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors" title="Edit">
+                                                        <button onClick={() => openEditModal(inv)} className="flex h-7 w-7 items-center justify-center rounded bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors" title="Edit">
                                                             <i className="fa-regular fa-pen-to-square text-[12px]"></i>
                                                         </button>
                                                     )}
@@ -446,109 +466,96 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
             {/* --- VIEW MODAL --- */}
             {showViewModal && selectedInvoice && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
-                        {/* Header */}
+                    <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
                         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
                             <h3 className="text-[18px] font-semibold text-[#202223] flex items-center gap-2">
-                                <i className="fa-solid fa-file-invoice text-[var(--accent)]"></i> Invoice Details
+                                <i className="fa-solid fa-file-invoice text-[var(--accent)]"></i> Invoice Overview
                             </h3>
                             <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
                                 <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
                         
-                        {/* Body */}
-                        <div className="p-6 overflow-y-auto brass-scroll">
-                            
-                            {/* Giant Total */}
-                            <div className="text-center mb-6">
-                                <div className="text-[32px] font-extrabold text-gray-900">
-                                    TK. {parseFloat(selectedInvoice.grand_total).toLocaleString('en-IN')}
+                        <div className="p-6 overflow-y-auto brass-scroll bg-[#fafafa]">
+                            <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
+                                <div className="text-center mb-6">
+                                    <div className="text-[36px] font-black text-gray-900">
+                                        TK. {parseFloat(selectedInvoice.grand_total).toLocaleString('en-IN')}
+                                    </div>
+                                    <span className={`inline-flex items-center justify-center rounded-full px-4 py-1 text-[12px] font-bold uppercase tracking-wider mt-2 ${getStatusStyle(selectedInvoice.status).bg} ${getStatusStyle(selectedInvoice.status).text}`}>
+                                        {getStatusStyle(selectedInvoice.status).label}
+                                    </span>
                                 </div>
-                                <span className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider mt-2 ${getStatusStyle(selectedInvoice.status).bg} ${getStatusStyle(selectedInvoice.status).text}`}>
-                                    {getStatusStyle(selectedInvoice.status).label}
-                                </span>
-                            </div>
 
-                            {/* Info Grid */}
-                            <div className="grid grid-cols-2 gap-5 mb-6 bg-gray-50 p-5 rounded-xl border border-gray-100">
-                                <div>
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Invoice Number</span>
-                                    <div className="text-[16px] font-bold text-blue-600">{selectedInvoice.invoice_number}</div>
-                                </div>
-                                <div>
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Client</span>
-                                    <div className="font-semibold text-gray-800 flex items-center gap-2">
-                                        <i className="fa-regular fa-user text-gray-400"></i> {selectedInvoice.client?.name || "N/A"}
+                                <div className="grid grid-cols-2 gap-5 mb-8 bg-blue-50/50 p-5 rounded-xl border border-blue-100/50">
+                                    <div>
+                                        <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Invoice Details</span>
+                                        <div className="text-[16px] font-bold text-[var(--accent)]"># {selectedInvoice.invoice_number}</div>
+                                        <div className="text-[13px] text-gray-600 mt-1">Issue: {selectedInvoice.invoice_date}</div>
+                                        <div className="text-[13px] text-red-500 font-medium">Due: {selectedInvoice.due_date}</div>
                                     </div>
-                                </div>
-                                <div>
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Issue Date</span>
-                                    <div className="font-medium text-gray-600 flex items-center gap-2">
-                                        <i className="fa-regular fa-calendar text-gray-400"></i> {selectedInvoice.invoice_date}
-                                    </div>
-                                </div>
-                                <div>
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Due Date</span>
-                                    <div className="font-medium text-gray-600 flex items-center gap-2">
-                                        <i className="fa-regular fa-calendar-check text-rose-400"></i> {selectedInvoice.due_date}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Items List */}
-                            <div className="border-t border-gray-100 pt-5 mb-6">
-                                <h4 className="text-[15px] font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                                    <i className="fa-solid fa-list-check text-gray-400"></i> Items Overview
-                                </h4>
-                                <div className="flex flex-col gap-3">
-                                    {selectedInvoice.items?.map((item, idx) => (
-                                        <div key={idx} className="flex justify-between items-start pb-3 border-b border-dashed border-gray-200 last:border-0 last:pb-0">
-                                            <div>
-                                                <strong className="text-[14px] text-gray-800 font-semibold">{item.description}</strong>
-                                                {item.project && (
-                                                    <span className="block text-[12px] text-gray-500 mt-1">
-                                                        <i className="fa-solid fa-briefcase mr-1"></i> {item.project.title}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-[13px] text-gray-500 mb-0.5">{item.quantity} x TK {item.unit_price}</div>
-                                                <strong className="text-[14px] text-gray-900 font-bold">TK {item.total}</strong>
-                                            </div>
+                                    <div className="text-right">
+                                        <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Billed To</span>
+                                        <div className="font-bold text-gray-800 text-[15px]">
+                                            {selectedInvoice.client?.company_name || selectedInvoice.client?.name || "N/A"}
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Summary Totals */}
-                            <div className="flex justify-end pt-5 border-t border-gray-100">
-                                <div className="w-full sm:w-[300px] flex flex-col gap-2.5 text-[14px] text-gray-600">
-                                    <div className="flex justify-between"><span>Sub Total:</span> <span className="font-medium text-gray-900">TK {selectedInvoice.sub_total}</span></div>
-                                    <div className="flex justify-between"><span>Tax:</span> <span className="font-medium text-gray-900">{selectedInvoice.tax}%</span></div>
-                                    <div className="flex justify-between"><span>Discount:</span> <span className="font-medium text-red-500">- TK {selectedInvoice.discount}</span></div>
-                                    
-                                    <div className="flex justify-between border-t-2 border-gray-200 pt-3 mt-1 text-[16px] font-bold text-[var(--accent)]">
-                                        <span>Grand Total:</span> <span>TK {selectedInvoice.grand_total}</span>
+                                        {selectedInvoice.client?.company_name && (
+                                            <div className="text-[13px] text-gray-500 mt-0.5">Attn: {selectedInvoice.client?.name}</div>
+                                        )}
                                     </div>
-                                    
-                                    {(Number(selectedInvoice.advance_used) > 0) && (
-                                        <>
-                                            <div className="flex justify-between text-[14px] font-semibold text-emerald-600 mt-2">
-                                                <span>Advance Applied:</span> <span>- TK {Number(selectedInvoice.advance_used)}</span>
+                                </div>
+
+                                <div className="mb-6">
+                                    <h4 className="text-[15px] font-bold text-gray-800 border-b border-gray-200 pb-2 mb-4">Line Items</h4>
+                                    <div className="flex flex-col gap-4">
+                                        {selectedInvoice.items?.map((item, idx) => (
+                                            <div key={idx} className="flex justify-between items-start pb-4 border-b border-dashed border-gray-200 last:border-0 last:pb-0">
+                                                <div className="flex-1 pr-6">
+                                                    {/* Render HTML content safely */}
+                                                    <div className="html-content-view text-[14px] text-gray-800" dangerouslySetInnerHTML={{ __html: item.description }}></div>
+                                                    
+                                                    {item.project && (
+                                                        <span className="inline-block bg-gray-100 rounded px-2 py-1 text-[11px] text-gray-600 mt-2 font-medium">
+                                                            <i className="fa-solid fa-briefcase mr-1"></i> {item.project.title}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="text-right whitespace-nowrap">
+                                                    <div className="text-[13px] text-gray-500 mb-1">{item.quantity} x TK {item.unit_price}</div>
+                                                    <strong className="text-[15px] text-gray-900 font-black">TK {item.total}</strong>
+                                                </div>
                                             </div>
-                                            <div className="flex justify-between border-t border-dashed border-gray-300 pt-3 mt-1 text-[16px] font-extrabold text-red-600">
-                                                <span>Payable Due:</span> <span>TK {Number(selectedInvoice.grand_total) - Number(selectedInvoice.advance_used)}</span>
-                                            </div>
-                                        </>
-                                    )}
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end pt-5 border-t-2 border-gray-100">
+                                    <div className="w-full sm:w-[320px] flex flex-col gap-3 text-[14px] text-gray-600">
+                                        <div className="flex justify-between"><span>Sub Total:</span> <span className="font-semibold text-gray-900">TK {selectedInvoice.sub_total}</span></div>
+                                        <div className="flex justify-between"><span>Tax:</span> <span className="font-semibold text-gray-900">{selectedInvoice.tax}%</span></div>
+                                        <div className="flex justify-between"><span>Discount:</span> <span className="font-semibold text-red-500">- TK {selectedInvoice.discount}</span></div>
+                                        
+                                        <div className="flex justify-between border-t-2 border-gray-800 pt-3 mt-1 text-[18px] font-black text-gray-900">
+                                            <span>Grand Total:</span> <span>TK {selectedInvoice.grand_total}</span>
+                                        </div>
+                                        
+                                        {(Number(selectedInvoice.advance_used) > 0) && (
+                                            <>
+                                                <div className="flex justify-between text-[14px] font-bold text-emerald-600 mt-2 bg-emerald-50 px-3 py-2 rounded-lg">
+                                                    <span>Advance Applied:</span> <span>- TK {Number(selectedInvoice.advance_used)}</span>
+                                                </div>
+                                                <div className="flex justify-between border-t border-dashed border-gray-300 pt-3 mt-1 text-[18px] font-black text-rose-600">
+                                                    <span>Payable Due:</span> <span>TK {Number(selectedInvoice.grand_total) - Number(selectedInvoice.advance_used)}</span>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Footer */}
                         <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end">
-                            <button onClick={() => setShowViewModal(false)} className="rounded-lg bg-gray-800 px-6 py-2 text-[14px] font-medium text-white transition-colors hover:bg-gray-900">
+                            <button onClick={() => setShowViewModal(false)} className="rounded-lg bg-gray-800 px-8 py-2.5 text-[14px] font-bold text-white transition-all hover:bg-gray-900 shadow-md">
                                 Close
                             </button>
                         </div>
@@ -556,318 +563,305 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                 </div>
             )}
 
-            {/* --- CREATE / EDIT FORM MODAL --- */}
+            {/* --- CREATE / EDIT FORM MODAL (Wider & Premium) --- */}
             {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-5xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[95vh] overflow-hidden">
-                        {/* Header */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
-                            <h3 className="text-[18px] font-semibold text-[#202223]">
-                                {editMode ? "📝 Edit Invoice" : "✨ Generate New Invoice"}
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4">
+                    {/* Width increased to max-w-[1200px] */}
+                    <div className="w-full max-w-[1200px] bg-[#f8fafc] rounded-2xl shadow-2xl flex flex-col max-h-[96vh] overflow-hidden border border-gray-200">
+                        {/* Premium Header */}
+                        <div className="flex items-center justify-between px-6 py-5 bg-white border-b border-gray-200 shrink-0 shadow-sm z-10">
+                            <h3 className="text-[20px] font-extrabold text-gray-800 flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] flex items-center justify-center">
+                                    <i className={`fa-solid ${editMode ? 'fa-pen-to-square' : 'fa-file-circle-plus'} text-lg`}></i>
+                                </div>
+                                {editMode ? "Update Invoice Details" : "Generate New Invoice"}
                             </h3>
-                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                            <button type="button" onClick={() => setShowModal(false)} className="h-8 w-8 rounded-full bg-gray-100 text-gray-500 hover:bg-rose-100 hover:text-rose-600 flex items-center justify-center transition-colors">
                                 <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="overflow-y-auto brass-scroll flex-1 p-6">
+                        <form onSubmit={handleSubmit} className="overflow-y-auto brass-scroll flex-1 p-6 lg:p-8">
                             
-                            {/* Row 1: Client & Invoice Number */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                                <div>
-                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Select Client *</label>
-                                    <Select
-                                        options={clientOptions}
-                                        value={clientOptions.find(opt => opt.value === data.client_id) || null}
-                                        onChange={(selected) => {
-                                            const clientId = selected ? selected.value : "";
-                                            let advance = selected ? Number(selected.advance) : 0;
-                                            
-                                            let prevUsedAdvance = 0;
-                                            if (editMode && editingInvoice && clientId === editingInvoice.client_id) {
-                                                prevUsedAdvance = Number(editingInvoice.advance_used || 0);
-                                                advance += prevUsedAdvance;
-                                            }
+                            {/* General Information Box */}
+                            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6">
+                                <h4 className="text-[15px] font-bold text-gray-800 mb-5 border-b pb-2">General Information</h4>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                                    <div className="lg:col-span-2">
+                                        <label className="block text-[13px] font-bold text-gray-700 mb-1.5">Bill To (Client / Company) *</label>
+                                        <Select
+                                            options={clientOptions}
+                                            value={clientOptions.find(opt => opt.value === data.client_id) || null}
+                                            onChange={(selected) => {
+                                                const clientId = selected ? selected.value : "";
+                                                let advance = selected ? Number(selected.advance) : 0;
+                                                let prevUsedAdvance = 0;
+                                                if (editMode && editingInvoice && clientId === editingInvoice.client_id) {
+                                                    prevUsedAdvance = Number(editingInvoice.advance_used || 0);
+                                                    advance += prevUsedAdvance;
+                                                }
+                                                setAvailableAdvance(advance);
+                                                setData(prev => ({
+                                                    ...prev,
+                                                    client_id: clientId,
+                                                    use_advance_amount: prevUsedAdvance,
+                                                    items: [{ project_id: "", description: "", quantity: 1, unit_price: 0, total: 0 }]
+                                                }));
+                                            }}
+                                            placeholder="Search & Select Client..."
+                                            isSearchable
+                                            isClearable
+                                            styles={selectStyles}
+                                            menuPosition="fixed"
+                                        />
+                                        {errors.client_id && <span className="mt-1 block text-[12px] text-red-500">{errors.client_id}</span>}
+                                        
+                                        {availableAdvance > 0 && (
+                                            <div className="mt-2 inline-flex items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[12px] text-emerald-700 font-medium">
+                                                <i className="fa-solid fa-wallet mr-2"></i> Client Advance Balance: 
+                                                <strong className="ml-1 text-[13px]">TK. {availableAdvance.toLocaleString('en-IN')}</strong>
+                                            </div>
+                                        )}
+                                    </div>
 
-                                            setAvailableAdvance(advance);
-                                            
-                                            setData(prev => ({
-                                                ...prev,
-                                                client_id: clientId,
-                                                use_advance_amount: prevUsedAdvance,
-                                                items: [{ project_id: "", description: "", quantity: 1, unit_price: 0, total: 0 }]
-                                            }));
-                                        }}
-                                        placeholder="Search & Select Client..."
-                                        isSearchable
-                                        isClearable
-                                        styles={selectStyles}
-                                        menuPosition="fixed"
-                                        menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
-                                    />
-                                    {errors.client_id && <span className="mt-1 block text-[12px] text-red-500">{errors.client_id}</span>}
-                                    
-                                    {availableAdvance > 0 && (
-                                        <div className="mt-2 inline-flex items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[12px] text-emerald-700">
-                                            <i className="fa-solid fa-wallet mr-2"></i> Available Advance: 
-                                            <strong className="ml-1">TK. {availableAdvance.toLocaleString('en-IN')}</strong>
-                                        </div>
-                                    )}
-                                </div>
+                                    <div>
+                                        <label className="block text-[13px] font-bold text-gray-700 mb-1.5">Invoice Number *</label>
+                                        <input 
+                                            type="text" 
+                                            value={data.invoice_number} 
+                                            onChange={(e) => setData("invoice_number", e.target.value)} 
+                                            readOnly={!editMode} 
+                                            className={`w-full h-[42px] rounded-lg border border-gray-300 px-3.5 text-[14px] font-bold outline-none transition-shadow ${!editMode ? 'bg-gray-100 text-gray-500' : 'bg-white text-gray-900 focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50'}`} 
+                                        />
+                                        {errors.invoice_number && <span className="mt-1 block text-[12px] text-red-500">{errors.invoice_number}</span>}
+                                    </div>
 
-                                <div>
-                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Invoice Number *</label>
-                                    <input 
-                                        type="text" 
-                                        value={data.invoice_number} 
-                                        onChange={(e) => setData("invoice_number", e.target.value)} 
-                                        readOnly={!editMode} 
-                                        className={`w-full h-[42px] rounded-lg border border-gray-300 px-3.5 text-[14px] font-bold outline-none transition-shadow ${!editMode ? 'bg-gray-50 text-gray-500' : 'bg-white text-gray-900 focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50'}`} 
-                                    />
-                                    {errors.invoice_number && <span className="mt-1 block text-[12px] text-red-500">{errors.invoice_number}</span>}
+                                    <div>
+                                        <label className="block text-[13px] font-bold text-gray-700 mb-1.5">Status *</label>
+                                        <Select
+                                            options={statusOptions}
+                                            value={statusOptions.find(opt => opt.value === data.status) || null}
+                                            onChange={(selected) => setData("status", selected ? selected.value : "")}
+                                            isSearchable={false}
+                                            styles={selectStyles}
+                                            menuPosition="fixed"
+                                        />
+                                        {errors.status && <span className="mt-1 block text-[12px] text-red-500">{errors.status}</span>}
+                                    </div>
+
+                                    <div className="lg:col-span-2">
+                                        <label className="block text-[13px] font-bold text-gray-700 mb-1.5">Invoice Date *</label>
+                                        <input type="date" value={data.invoice_date} onChange={(e) => setData("invoice_date", e.target.value)} className="w-full h-[42px] rounded-lg border border-gray-300 bg-white px-3.5 text-[14px] text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" required />
+                                        {errors.invoice_date && <span className="mt-1 block text-[12px] text-red-500">{errors.invoice_date}</span>}
+                                    </div>
+                                    <div className="lg:col-span-2">
+                                        <label className="block text-[13px] font-bold text-gray-700 mb-1.5">Due Date *</label>
+                                        <input type="date" value={data.due_date} onChange={(e) => setData("due_date", e.target.value)} className="w-full h-[42px] rounded-lg border border-gray-300 bg-white px-3.5 text-[14px] text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" required />
+                                        {errors.due_date && <span className="mt-1 block text-[12px] text-red-500">{errors.due_date}</span>}
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Row 2: Dates & Status */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
-                                <div>
-                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Invoice Date *</label>
-                                    <input type="date" value={data.invoice_date} onChange={(e) => setData("invoice_date", e.target.value)} className="w-full h-[42px] rounded-lg border border-gray-300 bg-white px-3.5 text-[14px] text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" required />
-                                    {errors.invoice_date && <span className="mt-1 block text-[12px] text-red-500">{errors.invoice_date}</span>}
-                                </div>
-                                <div>
-                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Due Date *</label>
-                                    <input type="date" value={data.due_date} onChange={(e) => setData("due_date", e.target.value)} className="w-full h-[42px] rounded-lg border border-gray-300 bg-white px-3.5 text-[14px] text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" required />
-                                    {errors.due_date && <span className="mt-1 block text-[12px] text-red-500">{errors.due_date}</span>}
-                                </div>
-                                <div>
-                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Status *</label>
-                                    <Select
-                                        options={statusOptions}
-                                        value={statusOptions.find(opt => opt.value === data.status) || null}
-                                        onChange={(selected) => setData("status", selected ? selected.value : "")}
-                                        isSearchable={true}
-                                        styles={selectStyles}
-                                        menuPosition="fixed"
-                                        menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
-                                    />
-                                    {errors.status && <span className="mt-1 block text-[12px] text-red-500">{errors.status}</span>}
-                                </div>
-                            </div>
-
-                            {/* Line Items Section */}
-                            <div className="border-t border-gray-100 pt-6 mb-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h4 className="text-[16px] font-semibold text-gray-800 flex items-center gap-2">
-                                        <i className="fa-solid fa-list-check text-gray-400"></i> Line Items
-                                    </h4>
-                                    <button type="button" onClick={addItem} className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[13px] font-semibold text-emerald-600 transition-colors hover:bg-emerald-100">
+                            {/* Item Details Box (Redesigned for Rich Text) */}
+                            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6">
+                                <div className="flex items-center justify-between mb-5 border-b pb-2">
+                                    <h4 className="text-[15px] font-bold text-gray-800">Line Items / Services</h4>
+                                    <button type="button" onClick={addItem} className="flex items-center gap-2 rounded-lg bg-[#0F172A] px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-gray-800 shadow-md">
                                         <i className="fa-solid fa-plus"></i> Add Item
                                     </button>
                                 </div>
 
-                                <div className="overflow-x-auto brass-scroll pb-2">
-                                    <div className="min-w-[900px]">
-                                        {/* Headers */}
-                                        <div className={`grid ${lineItemGridCols} gap-3 px-3 mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-500`}>
-                                            <div>Project</div>
-                                            <div>Description</div>
-                                            <div>Qty</div>
-                                            <div>Unit Price</div>
-                                            <div className="text-right">Total</div>
-                                            <div></div>
-                                        </div>
+                                <div className="flex flex-col gap-5">
+                                    {data.items.map((item, index) => (
+                                        <div key={index} className="relative bg-gray-50/50 p-5 rounded-xl border border-gray-200 shadow-sm group">
+                                            {/* Delete Button */}
+                                            <button 
+                                                type="button" 
+                                                onClick={() => removeItem(index)} 
+                                                disabled={data.items.length === 1} 
+                                                className={`absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-lg transition-all ${data.items.length === 1 ? 'text-gray-300 cursor-not-allowed bg-transparent' : 'text-red-500 bg-red-50 hover:bg-red-500 hover:text-white shadow-sm'}`}
+                                                title="Remove Item"
+                                            >
+                                                <i className="fa-solid fa-trash-can"></i>
+                                            </button>
 
-                                        {/* Items */}
-                                        <div className="flex flex-col gap-3">
-                                            {data.items.map((item, index) => (
-                                                <div key={index} className={`grid ${lineItemGridCols} gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100 items-start`}>
-                                                    
-                                                    {/* Project Select */}
-                                                    <div>
-                                                        <Select
-                                                            options={projectOptions}
-                                                            value={projectOptions.find(opt => opt.value === item.project_id) || null}
-                                                            onChange={(selected) => {
-                                                                const projectId = selected ? selected.value : null; 
-                                                                const selectedProject = projects.find(p => p.id === projectId);
+                                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pr-10">
+                                                {/* Left Side: Select Project */}
+                                                <div className="lg:col-span-3">
+                                                    <label className="block text-[12px] font-bold uppercase tracking-wider text-gray-500 mb-2">Select Project</label>
+                                                    <Select
+                                                        options={projectOptions}
+                                                        value={projectOptions.find(opt => opt.value === item.project_id) || null}
+                                                        onChange={(selected) => {
+                                                            const projectId = selected ? selected.value : null; 
+                                                            const selectedProject = projects.find(p => p.id === projectId);
+                                                            
+                                                            const rows = [...data.items];
+                                                            rows[index].project_id = projectId;
+                                                            
+                                                            if (selectedProject) {
+                                                                const unit = selectedProject.unit_type ? `(${selectedProject.unit_type})` : '';
                                                                 
-                                                                const rows = [...data.items];
-                                                                rows[index].project_id = projectId;
+                                                                // ✅ এখানে প্রজেক্টের টাইটেল এবং ডেসক্রিপশন একসাথে যুক্ত করা হয়েছে
+                                                                const projTitle = `<strong>${selectedProject.title}</strong> ${unit}`.trim();
+                                                                const projDesc = selectedProject.description ? `<br/>${selectedProject.description}` : '';
                                                                 
-                                                                if (selectedProject) {
-                                                                    const unit = selectedProject.unit_type ? `(${selectedProject.unit_type})` : '';
-                                                                    rows[index].description = `${selectedProject.title} ${unit}`.trim(); 
-                                                                    
-                                                                    const qty = Number(selectedProject.quantity) || 1;
-                                                                    const budget = Number(selectedProject.budget) || 0;
-                                                                    
-                                                                    rows[index].quantity = qty;
-                                                                    rows[index].unit_price = budget > 0 ? Number((budget / qty).toFixed(2)) : 0; 
-                                                                    rows[index].total = budget;
-                                                                } else {
-                                                                    rows[index].description = "";
-                                                                    rows[index].quantity = 1;
-                                                                    rows[index].unit_price = 0;
-                                                                    rows[index].total = 0;
-                                                                }
+                                                                rows[index].description = `${projTitle}${projDesc}`; 
+                                                                
+                                                                const qty = Number(selectedProject.quantity) || 1;
+                                                                const budget = Number(selectedProject.budget) || 0;
+                                                                
+                                                                rows[index].quantity = qty;
+                                                                rows[index].unit_price = budget > 0 ? Number((budget / qty).toFixed(2)) : 0; 
+                                                                rows[index].total = budget;
+                                                            } else {
+                                                                rows[index].description = "";
+                                                                rows[index].quantity = 1;
+                                                                rows[index].unit_price = 0;
+                                                                rows[index].total = 0;
+                                                            }
+                                                            setData("items", rows);
+                                                        }}
+                                                        placeholder="Optional..."
+                                                        isSearchable
+                                                        isClearable
+                                                        styles={selectStyles}
+                                                        menuPosition="fixed"
+                                                    />
+                                                    {errors[`items.${index}.project_id`] && <span className="mt-1 block text-[11px] text-red-500">{errors[`items.${index}.project_id`]}</span>}
+                                                </div>
 
-                                                                setData("items", rows);
-                                                            }}
-                                                            placeholder="Search Project..."
-                                                            isSearchable
-                                                            isClearable
-                                                            styles={selectStyles}
-                                                            menuPosition="fixed"
-                                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                                {/* Right Side: Rich Text Description */}
+                                                <div className="lg:col-span-9">
+                                                    <label className="block text-[12px] font-bold uppercase tracking-wider text-gray-500 mb-2">Item Description *</label>
+                                                    <div className="rounded-lg border border-gray-300 overflow-hidden">
+                                                        <ReactQuill 
+                                                            theme="snow"
+                                                            value={item.description}
+                                                            onChange={(val) => updateItem(index, "description", val)}
+                                                            modules={quillModules}
+                                                            placeholder="Describe the service or product..."
                                                         />
-                                                        {/* Array Error Handling for Project */}
-                                                        {errors[`items.${index}.project_id`] && <span className="mt-1 block text-[11px] text-red-500">{errors[`items.${index}.project_id`]}</span>}
                                                     </div>
+                                                    {errors[`items.${index}.description`] && <span className="mt-1 block text-[11px] text-red-500">{errors[`items.${index}.description`]}</span>}
+                                                </div>
 
-                                                    {/* Wide & Multi-line Description Field */}
+                                                {/* Bottom Row inside the Item: Qty & Price */}
+                                                <div className="lg:col-span-12 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-dashed border-gray-200 pt-4 mt-2">
                                                     <div>
-                                                        <textarea 
-                                                            placeholder="Detailed description..." 
-                                                            value={item.description} 
-                                                            onChange={(e) => updateItem(index, "description", e.target.value)} 
-                                                            className="w-full min-h-[42px] resize-y rounded-md border border-gray-300 px-3 py-2 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                                            rows="2"
-                                                        />
-                                                        {/* Array Error Handling for Description */}
-                                                        {errors[`items.${index}.description`] && <span className="mt-1 block text-[11px] text-red-500">{errors[`items.${index}.description`]}</span>}
-                                                    </div>
-
-                                                    {/* Fixed Height Inputs */}
-                                                    <div>
+                                                        <label className="block text-[12px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">Quantity</label>
                                                         <input 
-                                                            type="number" 
-                                                            min="1" 
-                                                            step="any"
+                                                            type="number" min="1" step="any"
                                                             value={item.quantity} 
                                                             onChange={(e) => updateItem(index, "quantity", e.target.value)} 
-                                                            className="h-[42px] w-full rounded-md border border-gray-300 px-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                                            className="h-[42px] w-full rounded-lg border border-gray-300 px-3 text-[14px] font-medium outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 bg-white" 
                                                         />
-                                                        {/* Array Error Handling for Quantity */}
-                                                        {errors[`items.${index}.quantity`] && <span className="mt-1 block text-[11px] text-red-500">{errors[`items.${index}.quantity`]}</span>}
                                                     </div>
-
                                                     <div>
+                                                        <label className="block text-[12px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">Unit Price (TK)</label>
                                                         <input 
-                                                            type="number" 
-                                                            step="any" 
+                                                            type="number" step="any" 
                                                             value={item.unit_price}  
                                                             onChange={(e) => updateItem(index, "unit_price", e.target.value)} 
-                                                            className="h-[42px] w-full rounded-md border border-gray-300 px-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                                            className="h-[42px] w-full rounded-lg border border-gray-300 px-3 text-[14px] font-medium outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 bg-white" 
                                                         />
-                                                        {/* Array Error Handling for Unit Price */}
-                                                        {errors[`items.${index}.unit_price`] && <span className="mt-1 block text-[11px] text-red-500">{errors[`items.${index}.unit_price`]}</span>}
                                                     </div>
-
-                                                    <div className="flex flex-col justify-center text-right">
-                                                        <div className="flex h-[42px] items-center justify-end font-bold text-gray-800 text-[14.5px]">
-                                                            {(Number(item.total) || 0).toLocaleString('en-IN')}
+                                                    <div className="flex flex-col justify-center bg-white rounded-lg border border-gray-200 px-4">
+                                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400">Total Price</label>
+                                                        <div className="text-[18px] font-black text-[var(--accent)] mt-0.5">
+                                                            TK. {(Number(item.total) || 0).toLocaleString('en-IN')}
                                                         </div>
-                                                        {errors[`items.${index}.total`] && <span className="mt-1 block text-[11px] text-red-500">{errors[`items.${index}.total`]}</span>}
                                                     </div>
-
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => removeItem(index)} 
-                                                        disabled={data.items.length === 1} 
-                                                        className={`mt-1 flex h-8 w-8 items-center justify-center rounded-md transition-colors ${data.items.length === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-red-500 hover:bg-red-100 hover:text-red-700'}`}
-                                                        title="Remove"
-                                                    >
-                                                        <i className="fa-solid fa-trash-can"></i>
-                                                    </button>
                                                 </div>
-                                            ))}
+                                            </div>
                                         </div>
-                                    </div>
+                                    ))}
                                 </div>
-                                {errors.items && <span className="mt-2 block text-[12px] text-red-500">{errors.items}</span>}
+                                {errors.items && <span className="mt-2 block text-[13px] font-bold text-red-500">{errors.items}</span>}
                             </div>
 
-                            {/* Bottom Section: Notes & Calculations */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 border-t border-gray-100 pt-6">
-                                
-                                {/* Notes / Descriptions Box */}
-                                <div className="flex flex-col h-full">
-                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Notes / Terms & Conditions</label>
-                                    <textarea 
-                                        value={data.notes} 
-                                        onChange={(e) => setData("notes", e.target.value)} 
-                                        placeholder="Write detailed notes, payment terms, or conditions here..." 
-                                        className="w-full flex-1 min-h-[180px] rounded-xl border border-gray-300 p-4 text-[13.5px] text-gray-700 outline-none resize-y transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
-                                    ></textarea>
+                            {/* Summary & Notes Section */}
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                                {/* Notes */}
+                                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col">
+                                    <h4 className="text-[15px] font-bold text-gray-800 mb-4 border-b pb-2">Terms & Conditions</h4>
+                                    <div className="flex-1 rounded-lg border border-gray-300 overflow-hidden bg-white">
+                                        <ReactQuill 
+                                            theme="snow"
+                                            value={data.notes}
+                                            onChange={(val) => setData("notes", val)}
+                                            modules={quillModules}
+                                            placeholder="Bank details, payment terms, etc."
+                                        />
+                                    </div>
                                 </div>
 
-                                {/* Calculation / Totals Box */}
-                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 flex flex-col justify-center">
-                                    <div className="flex items-center justify-between mb-3 text-[14px]">
-                                        <span className="font-semibold text-gray-600">Sub Total:</span> 
-                                        <strong className="text-[16px] text-gray-800">TK. {(data.sub_total || 0).toLocaleString('en-IN')}</strong>
-                                    </div>
-                                    <div className="flex items-center justify-between mb-3 text-[14px]">
-                                        <span className="font-semibold text-gray-600">Tax (%):</span> 
-                                        <input 
-                                            type="number" 
-                                            value={data.tax} 
-                                            onChange={(e) => setData("tax", e.target.value)} 
-                                            className="w-[100px] rounded-md border border-gray-300 px-3 py-1.5 text-right outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                        />
-                                    </div>
-                                    <div className="flex items-center justify-between mb-4 text-[14px]">
-                                        <span className="font-semibold text-gray-600">Discount (TK):</span> 
-                                        <input 
-                                            type="number" 
-                                            min="0" 
-                                            value={data.discount} 
-                                            onChange={(e) => setData("discount", e.target.value)} 
-                                            className="w-[100px] rounded-md border border-gray-300 px-3 py-1.5 text-right outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                        />
-                                    </div>
-                                    <div className="flex items-center justify-between border-t-2 border-dashed border-gray-200 pt-4 text-[18px] font-extrabold text-gray-900">
-                                        <span>Grand Total:</span> 
-                                        <span className="text-[var(--accent)]">TK. {(data.grand_total || 0).toLocaleString('en-IN')}</span>
-                                    </div>
-
-                                    {/* Advance Application Box */}
-                                    {availableAdvance > 0 && (
-                                        <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                                            <span className="block text-[13px] font-bold text-emerald-800 mb-3">
-                                                <i className="fa-solid fa-wallet mr-1.5"></i> Advance Available: TK. {availableAdvance.toLocaleString('en-IN')}
-                                            </span>
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[13px] font-semibold text-emerald-700">Apply to Invoice:</span>
-                                                <input 
-                                                    type="number" 
-                                                    min="0" 
-                                                    max={Math.min(availableAdvance, data.grand_total)}
-                                                    value={data.use_advance_amount} 
-                                                    onChange={handleAdvanceChange} 
-                                                    className="w-[110px] rounded-md border border-emerald-400 bg-white px-3 py-1.5 text-right text-[14px] font-bold text-emerald-700 outline-none transition-shadow focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/50" 
-                                                />
-                                            </div>
-                                            {data.use_advance_amount > 0 && (
-                                                <div className="mt-3 flex items-center justify-between border-t border-emerald-200/60 pt-3 text-[16px] font-extrabold text-red-600">
-                                                    <span>Payable Due:</span>
-                                                    <span>TK. {(data.grand_total - data.use_advance_amount).toLocaleString('en-IN')}</span>
-                                                </div>
-                                            )}
+                                {/* Calculations */}
+                                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                                    <h4 className="text-[15px] font-bold text-gray-800 mb-4 border-b pb-2">Payment Calculation</h4>
+                                    
+                                    <div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <span className="font-bold text-gray-600">Sub Total:</span> 
+                                            <strong className="text-[16px] text-gray-800">TK. {(data.sub_total || 0).toLocaleString('en-IN')}</strong>
                                         </div>
-                                    )}
+                                        <div className="flex items-center justify-between mb-4">
+                                            <span className="font-bold text-gray-600">Tax / VAT (%):</span> 
+                                            <input 
+                                                type="number" 
+                                                value={data.tax} 
+                                                onChange={(e) => setData("tax", e.target.value)} 
+                                                className="w-[120px] rounded-lg border border-gray-300 px-3 py-2 text-right font-bold outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] bg-white" 
+                                            />
+                                        </div>
+                                        <div className="flex items-center justify-between mb-5">
+                                            <span className="font-bold text-gray-600">Discount (TK):</span> 
+                                            <input 
+                                                type="number" 
+                                                min="0" 
+                                                value={data.discount} 
+                                                onChange={(e) => setData("discount", e.target.value)} 
+                                                className="w-[120px] rounded-lg border border-gray-300 px-3 py-2 text-right font-bold outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 bg-white" 
+                                            />
+                                        </div>
+                                        <div className="flex items-center justify-between border-t-2 border-dashed border-gray-300 pt-5 text-[20px] font-black text-gray-900">
+                                            <span>Grand Total:</span> 
+                                            <span className="text-[var(--accent)]">TK. {(data.grand_total || 0).toLocaleString('en-IN')}</span>
+                                        </div>
+
+                                        {availableAdvance > 0 && (
+                                            <div className="mt-6 border-t-2 border-emerald-200 pt-5">
+                                                <div className="flex justify-between items-center bg-emerald-50 p-3 rounded-lg border border-emerald-200 mb-3">
+                                                    <span className="text-[13px] font-bold text-emerald-800"><i className="fa-solid fa-wallet mr-1"></i> Apply Advance:</span>
+                                                    <input 
+                                                        type="number" min="0" 
+                                                        max={Math.min(availableAdvance, data.grand_total)}
+                                                        value={data.use_advance_amount} 
+                                                        onChange={handleAdvanceChange} 
+                                                        className="w-[120px] rounded-md border-2 border-emerald-400 bg-white px-3 py-1.5 text-right text-[14px] font-bold text-emerald-700 outline-none focus:border-emerald-600" 
+                                                    />
+                                                </div>
+                                                {data.use_advance_amount > 0 && (
+                                                    <div className="flex items-center justify-between text-[18px] font-black text-rose-600 px-2">
+                                                        <span>Net Payable:</span>
+                                                        <span>TK. {(data.grand_total - data.use_advance_amount).toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </form>
 
-                        {/* Footer */}
-                        <div className="flex items-center justify-end gap-3 border-t border-gray-100 bg-gray-50/50 px-6 py-4 shrink-0">
-                            <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
-                                Dismiss
+                        {/* Premium Footer */}
+                        <div className="flex items-center justify-end gap-4 bg-white border-t border-gray-200 px-6 py-5 shrink-0 shadow-sm z-10">
+                            <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-3 text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
+                                Cancel
                             </button>
-                            <button type="submit" onClick={handleSubmit} disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70">
-                                {processing ? "Processing..." : (editMode ? "Update Invoice" : "Generate Invoice")}
+                            <button type="submit" onClick={handleSubmit} disabled={processing} className="rounded-xl bg-[var(--accent)] px-8 py-3 text-[14px] font-bold text-white transition-colors hover:bg-[#b08630] shadow-md disabled:opacity-70">
+                                {processing ? <><i className="fa-solid fa-spinner fa-spin mr-2"></i> Processing...</> : (editMode ? "Update Invoice" : "Generate Invoice")}
                             </button>
                         </div>
                     </div>

@@ -62,7 +62,7 @@ export default function Print({ invoice }) {
             transform: translate(-50%, -50%) rotate(-45deg);
             font-size: 180px;
             font-weight: 900;
-            color: rgba(20, 122, 91, 0.05); /* Light green transparent text */
+            color: rgba(20, 122, 91, 0.05);
             z-index: 0;
             pointer-events: none;
             text-transform: uppercase;
@@ -70,14 +70,21 @@ export default function Print({ invoice }) {
         }
 
         .vertical-text {
-            position: absolute; top: 115mm; left: 13mm;
+            position: absolute; 
+            top: 115mm; 
+            left: 0mm; 
             transform: rotate(-90deg); transform-origin: top left;
             color: #2cb34a; font-size: 42px; font-weight: bold;
             text-transform: uppercase; letter-spacing: 5px;
             z-index: 1;
         }
         
-        .invoice-content { padding-left: 50px; position: relative; z-index: 1; }
+        .invoice-content { 
+            padding-left: 25px; 
+            padding-top: 20px;
+            position: relative; 
+            z-index: 1; 
+        }
         .logo { font-size: 36px; font-weight: bold; color: #147a5b; letter-spacing: 2px; margin-bottom: 30px; text-transform: uppercase; }
         
         .info-section { display: flex; justify-content: space-between; margin-bottom: 30px; line-height: 1.6; }
@@ -91,7 +98,14 @@ export default function Print({ invoice }) {
         .align-top { vertical-align: top; }
         .align-middle { vertical-align: middle; }
         .font-bold { font-weight: bold; }
-        .item-description { white-space: pre-wrap; font-size: 13px; margin-top: 4px; color: #333; }
+        .home{font-size:16px}
+
+        /* Rich Text overrides for Print */
+        .html-text-box { font-size: 14px; line-height: 1.5; color: #111; }
+        .html-text-box p { margin: 0 0 5px 0; }
+        .html-text-box ul { margin: 5px 0 5px 20px; list-style-type: disc; }
+        .html-text-box ol { margin: 5px 0 5px 20px; list-style-type: decimal; }
+        
         .bank-info { line-height: 1.6; font-size: 13px; margin-bottom: 60px; }
         
         .signature-section { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 100px; padding: 0 10px; }
@@ -110,8 +124,8 @@ export default function Print({ invoice }) {
             @page { size: A4 portrait; margin: 0; }
             .invoice-container { margin: 0; border: none; box-shadow: none; }
             
-            /* Keeps the space occupied but makes the image completely invisible on paper */
             img.invoice-logo { visibility: hidden !important; } 
+            .footer { display: none !important; } 
         }
     `;
 
@@ -130,16 +144,23 @@ export default function Print({ invoice }) {
                     <img src="/images/logo.png" alt="UNIBOX Logo" className="invoice-logo" />
                 </div>
 
-                {/* To & Date Section */}
+                {/* To & Date Section (Displays Company and Client properly) */}
                 <div className="info-section">
                     <div>
-                        <p style={{ marginBottom: "5px" }}><strong>To:</strong></p>
-                        {invoice.client?.name && <p className="font-bold">{invoice.client.name}</p>}
-                        {invoice.client?.company_name && <p>{invoice.client.company_name}</p>}
+                        <p style={{ marginBottom: "5px", marginTop: '10px' }}><strong>To:</strong></p>
+                        {invoice.client?.company_name ? (
+                            <>
+                                <p className="font-bold" style={{ fontSize: "16px" }}>{invoice.client.company_name}</p>
+                                <p className='home'>{invoice.client.address}</p>
+                            </>
+                        ) : (
+                            <p className="font-bold" style={{ fontSize: "16px" }}>{invoice.client?.name}</p>
+                        )}
                     </div>
                     <div style={{ textAlign: "right" }}>
-                        <p><strong>Invoice No:</strong> {invoice.invoice_number}</p>
-                        <p><strong>Date:</strong> {invoice.invoice_date}</p>
+                        <p><strong>Invoice No:</strong> <span style={{ color: "#147a5b", fontWeight: "bold" }}>{invoice.invoice_number}</span></p>
+                        <p><strong>Issue Date:</strong> {invoice.invoice_date}</p>
+                        <p><strong>Due Date:</strong> {invoice.due_date}</p>
                     </div>
                 </div>
 
@@ -158,16 +179,18 @@ export default function Print({ invoice }) {
                             invoice.items.map((item, index) => (
                                 <tr key={index}>
                                     <td className="align-top">
-                                        <strong>{index + 1}. {item.description}</strong>
-                                        {item.project && (
-                                            <div style={{ fontSize: "12px", color: "#555", marginTop: "4px" }}>
-                                                Project: {item.project.title}
+                                        {/* HTML safe render for Description */}
+                                        <div className="html-text-box" dangerouslySetInnerHTML={{ __html: item.description }}></div>
+                                        
+                                        {/* {item.project && (
+                                            <div style={{ fontSize: "12px", color: "#555", marginTop: "8px", fontStyle: "italic" }}>
+                                                Ref. Project: {item.project.title}
                                             </div>
-                                        )}
+                                        )} */}
                                     </td>
-                                    <td className="text-center align-middle">{item.quantity}</td>
+                                    <td className="text-center align-middle font-bold">{item.quantity}</td>
                                     <td className="text-center align-middle">{item.unit_price}</td>
-                                    <td className="text-center align-middle">{item.total}/-</td>
+                                    <td className="text-center align-middle font-bold">{item.total}/-</td>
                                 </tr>
                             ))
                         ) : (
@@ -183,12 +206,13 @@ export default function Print({ invoice }) {
                             <>
                                 <tr>
                                     <td rowSpan={rowSpanCount} className="align-top">
-                                        <strong>In words:</strong> {grandTotalWords}
+                                        <strong>Amount In words:</strong> {grandTotalWords}
                                         
-                                        {invoice.notes && (
-                                            <div style={{ marginTop: '20px' }}>
-                                                <strong>Notes / Terms:</strong><br/>
-                                                <div className="item-description">{invoice.notes}</div>
+                                        {invoice.notes && invoice.notes !== '<p><br></p>' && (
+                                            <div style={{ marginTop: '25px' }}>
+                                                <strong>Notes / Terms & Conditions:</strong><br/>
+                                                {/* HTML safe render for Notes */}
+                                                <div className="html-text-box" style={{ marginTop: "5px", borderTop: "1px dashed #ccc", paddingTop: "5px" }} dangerouslySetInnerHTML={{ __html: invoice.notes }}></div>
                                             </div>
                                         )}
                                     </td>
@@ -223,8 +247,8 @@ export default function Print({ invoice }) {
                                             <td className="text-center">- {advanceAmount.toFixed(2)}/-</td>
                                         </tr>
                                         <tr>
-                                            <td colSpan="2" className="text-right font-bold" style={{ paddingRight: '15px' }}>Payable Due</td>
-                                            <td className="text-center font-bold">{payableAmount.toFixed(2)}/-</td>
+                                            <td colSpan="2" className="text-right font-bold" style={{ paddingRight: '15px', color: "#d93025" }}>Payable Due</td>
+                                            <td className="text-center font-bold" style={{ color: "#d93025" }}>{payableAmount.toFixed(2)}/-</td>
                                         </tr>
                                     </>
                                 )}
