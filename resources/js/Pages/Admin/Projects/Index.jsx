@@ -32,7 +32,6 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
     const filterRef = useRef(null); 
     const isFirstRender = useRef(true);
     
-    // Updated useForm with new fields
     const {
         data,
         setData,
@@ -189,6 +188,13 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
     const openEditModal = (project) => {
         clearErrors();
+        
+        // Helper function to safely format dates for <input type="date">
+        const formatDate = (dateString) => {
+            if (!dateString) return "";
+            return String(dateString).split('T')[0].split(' ')[0];
+        };
+
         setData({
             id: project.id,
             client_id: project.client_id || '',
@@ -197,8 +203,8 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
             description: project.description || '',
             quantity: project.quantity || '',
             unit_type: project.unit_type || 'piece',
-            start_date: project.start_date || '',
-            deadline: project.deadline || '',
+            start_date: formatDate(project.start_date),
+            deadline: formatDate(project.deadline),
             budget: project.budget || '',
             status: project.status || 'planning',
             priority: project.priority || 'medium',
@@ -405,13 +411,16 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                         >
                                             All Clients
                                         </div>
-                                        {clients.filter(c => c.name.toLowerCase().includes(clientFilterSearch.toLowerCase())).map(c => (
+                                        {clients.filter(c => 
+                                            c.name.toLowerCase().includes(clientFilterSearch.toLowerCase()) || 
+                                            (c.company_name && c.company_name.toLowerCase().includes(clientFilterSearch.toLowerCase()))
+                                        ).map(c => (
                                             <div 
                                                 key={c.id} 
                                                 onClick={() => { setFilterClient(c.id); setShowClientFilterDropdown(false); setClientFilterSearch(""); }}
-                                                className={`cursor-pointer px-3 py-2 text-[13px] hover:bg-gray-50 ${filterClient == c.id ? 'bg-[var(--accent-bg)] font-semibold' : ''}`}
+                                                className={`cursor-pointer px-3 py-2 text-[13px] hover:bg-gray-50 ${filterClient == c.id ? 'bg-[var(--accent-bg)] font-semibold text-gray-900' : 'text-gray-700'}`}
                                             >
-                                                {c.name}
+                                                {c.name} {c.company_name ? <span className="text-[11px] text-gray-400 ml-1">({c.company_name})</span> : ''}
                                             </div>
                                         ))}
                                     </div>
@@ -508,8 +517,15 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                                         <i className="fa-solid fa-user-tie"></i> {project.project_manager?.name || 'No Manager Assigned'}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 text-gray-700 font-medium">
-                                                    {project.client?.name || "N/A"}
+                                                <td className="px-6 py-4">
+                                                    <div className="font-semibold text-gray-800">
+                                                        {project.client?.name || "N/A"}
+                                                    </div>
+                                                    {project.client?.company_name && (
+                                                        <div className="text-[12px] text-gray-500 mt-0.5 flex items-center gap-1">
+                                                            <i className="fa-regular fa-building"></i> {project.client.company_name}
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     {project.quantity && (
@@ -518,7 +534,13 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                                         </div>
                                                     )}
                                                     <div className="text-[12px] text-gray-500 mt-0.5">
-                                                        {project.budget ? `TK ${Number(project.budget).toLocaleString('en-IN')}` : 'No budget set'}
+                                                        {project.budget ? `Total: TK ${Number(project.budget).toLocaleString('en-IN')}` : 'No budget set'}
+                                                        
+                                                        {project.budget && project.quantity > 0 && (
+                                                            <span className="block mt-1 text-[11px] text-emerald-600 font-medium bg-emerald-50 w-fit px-1.5 py-0.5 rounded">
+                                                                Rate: TK {(project.budget / project.quantity).toFixed(2)} / {project.unit_type}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
@@ -618,7 +640,8 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
             {/* --- VIEW DETAILS MODAL --- */}
             {showViewModal && selectedProject && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                    {/* Added lg:max-w-4xl xl:max-w-5xl to make modal wider on large screens */}
+                    <div className="w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
                         
                         {/* Modal Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
@@ -655,8 +678,15 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                     
                                     <div className="mb-3">
                                         <span className="block text-[12px] text-gray-500 mb-0.5">Client</span>
-                                        <div className="font-semibold text-gray-800 flex items-center gap-2 text-[14px]">
-                                            <i className="fa-solid fa-user text-blue-500"></i> {selectedProject.client?.name || "N/A"}
+                                        <div className="flex flex-col gap-1">
+                                            <div className="font-semibold text-gray-800 flex items-center gap-2 text-[14px]">
+                                                <i className="fa-solid fa-user text-blue-500"></i> {selectedProject.client?.name || "N/A"}
+                                            </div>
+                                            {selectedProject.client?.company_name && (
+                                                <div className="text-[12px] text-gray-500 ml-5 flex items-center gap-1.5">
+                                                    <i className="fa-regular fa-building"></i> {selectedProject.client.company_name}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     <div>
@@ -667,7 +697,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                     </div>
                                 </div>
 
-                                {/* Details Card 2 */}
+                               
                                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
                                     <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3 border-b pb-2">Scope & Financials</span>
                                     
@@ -677,11 +707,20 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                             {selectedProject.quantity ? `${selectedProject.quantity} ${selectedProject.unit_type}` : "N/A"}
                                         </div>
                                     </div>
-                                    <div>
-                                        <span className="block text-[12px] text-gray-500 mb-0.5">Budget Allocated</span>
+                                    <div className="mb-3">
+                                        <span className="block text-[12px] text-gray-500 mb-0.5">Total Budget Allocated</span>
                                         <div className="font-semibold text-emerald-600 flex items-center gap-2 text-[14px]">
                                             <i className="fa-solid fa-money-bill-wave"></i>
                                             {selectedProject.budget ? `TK. ${Number(selectedProject.budget).toLocaleString('en-IN')}` : "Not Set"}
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="pt-3 border-t border-gray-200 border-dashed">
+                                        <span className="block text-[12px] text-gray-500 mb-0.5">Per Unit Rate (Price Rate)</span>
+                                        <div className="font-bold text-gray-800 text-[14px]">
+                                            {selectedProject.budget && selectedProject.quantity > 0 
+                                                ? `TK. ${(selectedProject.budget / selectedProject.quantity).toFixed(2)} / ${selectedProject.unit_type}` 
+                                                : "N/A"}
                                         </div>
                                     </div>
                                 </div>
@@ -743,7 +782,8 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
             {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[95vh] overflow-hidden">
+                    {/* Added lg:max-w-4xl xl:max-w-5xl to make modal wider on large screens */}
+                    <div className="w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[95vh] overflow-hidden">
                         
                         {/* Modal Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
@@ -780,13 +820,23 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                             onClick={(e) => { e.stopPropagation(); setShowClientDropdown(!showClientDropdown); }}
                                             className={`flex w-full cursor-pointer items-center justify-between rounded-lg border px-3.5 py-2.5 text-[14px] outline-none transition-shadow hover:bg-gray-50 focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 ${data.client_id ? 'border-gray-300 bg-white text-gray-900' : 'border-gray-300 bg-white text-gray-500'}`}
                                         >
-                                            <span className="truncate">
+                                            <span className="truncate block">
                                                 {data.client_id 
                                                     ? (() => {
-                                                        const c = clients.find(cl => cl.id == data.client_id);
-                                                        return c ? `${c.name} ${c.company_name ? `(${c.company_name})` : ''}` : "-- Choose Client --";
+                                                        const selectedClient = clients.find(cl => String(cl.id) === String(data.client_id));
+                                                        if (selectedClient) {
+                                                            return (
+                                                                <span className="flex items-center gap-1.5">
+                                                                    <span className="font-medium text-gray-900">{selectedClient.name}</span>
+                                                                    {selectedClient.company_name && (
+                                                                        <span className="text-gray-500 text-[12px]">({selectedClient.company_name})</span>
+                                                                    )}
+                                                                </span>
+                                                                );
+                                                        }
+                                                        return <span className="text-gray-400">-- Choose Client --</span>;
                                                     })()
-                                                    : "-- Search & Select Client --"
+                                                    : <span className="text-gray-400">-- Search & Select Client --</span>
                                                 }
                                             </span>
                                             <i className={`fa-solid fa-chevron-${showClientDropdown ? 'up' : 'down'} text-[10px] text-gray-400 shrink-0 ml-2`}></i>
@@ -841,7 +891,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                     <div>
                                         <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Project Manager</label>
                                         <select 
-                                            value={data.project_manager_id} 
+                                            value={data.project_manager_id || ""} 
                                             onChange={(e) => setData("project_manager_id", e.target.value)} 
                                             className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
                                         >

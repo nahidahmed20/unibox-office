@@ -19,7 +19,7 @@ export default function Login({ status, canResetPassword }) {
 
     return (
         <div className="flex min-h-screen font-['Inter',sans-serif] bg-white">
-            <Head title="Log in — Unibox">
+            <Head title="Log in">
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
                 <link

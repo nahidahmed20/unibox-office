@@ -20,7 +20,8 @@ class ProjectController extends Controller
                 $q->where('title', 'like', "%{$searchTerm}%")
                   ->orWhere('status', 'like', "%{$searchTerm}%")
                   ->orWhereHas('client', function($cq) use ($searchTerm) {
-                      $cq->where('name', 'like', "%{$searchTerm}%");
+                      $cq->where('name', 'like', "%{$searchTerm}%")
+                         ->orWhere('company_name', 'like', "%{$searchTerm}%"); 
                   });
             });
         }
@@ -40,7 +41,7 @@ class ProjectController extends Controller
             $perPage = min((int) $request->get('per_page', 10), 100000); 
         }
 
-        $projects = $query->latest()->paginate($perPage)->withQueryString(); 
+        $projects = $query->latest('id')->paginate($perPage)->withQueryString(); 
 
         $clients = Client::select('id', 'name', 'company_name')->latest()->get();
         $managers = User::select('id', 'name')->latest()->get(); 

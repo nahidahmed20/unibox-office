@@ -343,7 +343,9 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const totalDue = totals ? totals.due_amount : expList.reduce((sum, item) => sum + parseFloat(item.due_amount || 0), 0);
 
     const filteredProject = projectFilter ? projects.find(p => p.id == projectFilter) : null;
-    const filteredProjectTitle = filteredProject ? `${filteredProject.title} (${filteredProject.client?.name || 'No Client'})` : null;
+    const filteredProjectTitle = filteredProject 
+    ? `${filteredProject.title} (${filteredProject.client?.name || 'No Client'}${filteredProject.client?.company_name ? ` - ${filteredProject.client.company_name}` : ''})` 
+    : null;
 
     return (
         <AdminLayout>
@@ -489,7 +491,11 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                             >
                                                 All Projects (Total)
                                             </div>
-                                            {projects.filter(p => p.title?.toLowerCase().includes(projectFilterSearch.toLowerCase()) || p.client?.name?.toLowerCase().includes(projectFilterSearch.toLowerCase())).map(p => (
+                                            {projects.filter(p => 
+                                                p.title?.toLowerCase().includes(projectFilterSearch.toLowerCase()) || 
+                                                p.client?.name?.toLowerCase().includes(projectFilterSearch.toLowerCase()) ||
+                                                p.client?.company_name?.toLowerCase().includes(projectFilterSearch.toLowerCase())
+                                            ).map(p => (
                                                 <div 
                                                     key={p.id} 
                                                     onClick={() => { setProjectFilter(p.id); setShowProjectFilterDropdown(false); setProjectFilterSearch(""); }}
@@ -497,7 +503,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                 >
                                                     <div className="font-semibold text-gray-800">{p.title}</div>
                                                     <div className="text-[11px] text-gray-500 mt-0.5">
-                                                        <i className="fa-solid fa-user mr-1"></i> {p.client?.name || 'No Client'}
+                                                        <i className="fa-solid fa-user mr-1"></i> {p.client?.name || 'No Client'} {p.client?.company_name ? <span className="ml-1 text-gray-400">({p.client.company_name})</span> : ''}
                                                         {p.status === 'completed' && <span className="ml-1 text-red-600">(Completed)</span>}
                                                     </div>
                                                 </div>
@@ -774,7 +780,11 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                 {data.project_id 
                                                     ? (() => {
                                                         const p = projects.find(x => x.id == data.project_id);
-                                                        return p ? `${p.title} (${p.client?.name || 'No Client'})` : "Choose Project";
+                                                        return p ? (
+                                                            <>
+                                                                {p.title} <span className="text-[12px] text-gray-500 font-normal ml-1">({p.client?.name || 'No Client'}{p.client?.company_name ? ` - ${p.client.company_name}` : ''})</span>
+                                                            </>
+                                                        ) : "Choose Project";
                                                     })()
                                                     : "Choose Project"
                                                 }
@@ -784,18 +794,28 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                         {showProjectDropdown && (
                                             <div onClick={(e) => e.stopPropagation()} className="absolute top-full left-0 mt-1 flex max-h-[200px] w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg z-50">
                                                 <div className="border-b border-gray-100 bg-gray-50 p-2 shrink-0">
-                                                    <input type="text" placeholder="Search project or client..." value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-[13px] outline-none focus:border-[var(--accent)]" autoFocus />
+                                                    <input type="text" placeholder="Search project or client/company..." value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-[13px] outline-none focus:border-[var(--accent)]" autoFocus />
                                                 </div>
                                                 <div className="overflow-y-auto py-1">
-                                                    {projects.filter(p => (p.title?.toLowerCase().includes(projectSearch.toLowerCase()) || p.client?.name?.toLowerCase().includes(projectSearch.toLowerCase())) && (editMode || p.status !== 'completed')).length > 0 ? (
-                                                        projects.filter(p => (p.title?.toLowerCase().includes(projectSearch.toLowerCase()) || p.client?.name?.toLowerCase().includes(projectSearch.toLowerCase())) && (editMode || p.status !== 'completed')).map(p => (
+                                                    {projects.filter(p => (
+                                                        p.title?.toLowerCase().includes(projectSearch.toLowerCase()) || 
+                                                        p.client?.name?.toLowerCase().includes(projectSearch.toLowerCase()) ||
+                                                        p.client?.company_name?.toLowerCase().includes(projectSearch.toLowerCase())
+                                                    ) && (editMode || p.status !== 'completed')).length > 0 ? (
+                                                        projects.filter(p => (
+                                                            p.title?.toLowerCase().includes(projectSearch.toLowerCase()) || 
+                                                            p.client?.name?.toLowerCase().includes(projectSearch.toLowerCase()) ||
+                                                            p.client?.company_name?.toLowerCase().includes(projectSearch.toLowerCase())
+                                                        ) && (editMode || p.status !== 'completed')).map(p => (
                                                             <div 
                                                                 key={p.id} 
                                                                 onClick={() => { setData("project_id", p.id); setShowProjectDropdown(false); setProjectSearch(""); }} 
                                                                 className={`cursor-pointer px-3.5 py-2 text-[13.5px] hover:bg-gray-50 ${data.project_id == p.id ? 'bg-[var(--accent-bg)]' : ''}`}
                                                             >
                                                                 <div className="font-semibold text-gray-800">{p.title}</div>
-                                                                <div className="text-[11px] text-gray-500 mt-0.5"><i className="fa-solid fa-user mr-1"></i> {p.client?.name || 'No Client'}</div>
+                                                                <div className="text-[11px] text-gray-500 mt-0.5">
+                                                                    <i className="fa-solid fa-user mr-1"></i> {p.client?.name || 'No Client'} {p.client?.company_name ? <span className="ml-1 text-gray-400">({p.client.company_name})</span> : ''}
+                                                                </div>
                                                             </div>
                                                         ))
                                                     ) : (<div className="p-3 text-center text-[13px] text-gray-400">No active project found.</div>)}
