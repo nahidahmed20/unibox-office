@@ -67,7 +67,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         menuPortal: base => ({ ...base, zIndex: 9999 })
     };
 
-    // React Quill Toolbar Config
     const quillModules = {
         toolbar: [
             ['bold', 'italic', 'underline', 'strike'],
@@ -77,11 +76,36 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         ],
     };
 
+    // Updated Client Options to support searching by both Name and Company Name
     const clientOptions = clients.map(c => ({
         value: c.id,
-        label: c.company_name ? `${c.company_name} (Attn: ${c.name})` : c.name,
+        label: `${c.name} ${c.company_name || ''}`, // Hidden search string
+        clientName: c.name,
+        companyName: c.company_name,
         advance: Number(c.available_advance || 0)
     }));
+
+    // Custom formatting for the Client Dropdown UI
+    const formatClientLabel = (option, { context }) => {
+        if (context === 'menu') {
+            return (
+                <div className="flex flex-col py-0.5">
+                    <span className="font-bold text-gray-900">{option.clientName}</span>
+                    {option.companyName && (
+                        <span className="text-[11px] text-gray-500 mt-0.5">
+                            <i className="fa-regular fa-building mr-1 text-[var(--accent)]"></i> {option.companyName}
+                        </span>
+                    )}
+                </div>
+            );
+        }
+        return (
+            <div className="flex items-center gap-1.5">
+                <span className="font-bold text-gray-900">{option.clientName}</span>
+                {option.companyName && <span className="text-[12px] text-gray-500 font-normal">({option.companyName})</span>}
+            </div>
+        );
+    };
 
     const statusOptions = [
         { value: "unpaid", label: "Unpaid" },
@@ -302,7 +326,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
             `}} />
 
             <div className="flex flex-col gap-6">
-                {/* Page Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-[22px] font-bold text-[#202223]">Billing & Invoices</h1>
@@ -310,7 +333,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                     </div>
                 </div>
 
-                {/* Main Card */}
                 <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
                     
                     <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
@@ -342,11 +364,11 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                             </div>
                         </div>
 
-                        <div className="relative w-full sm:w-[260px]">
+                        <div className="relative w-full sm:w-[280px]">
                             <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
                             <input 
                                 type="text" 
-                                placeholder="Search INV # or Client..." 
+                                placeholder="Search INV # or Client/Company..." 
                                 value={searchTerm} 
                                 onChange={(e) => setSearchTerm(e.target.value)} 
                                 className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
@@ -438,7 +460,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                         </table>
                     </div>
 
-                    {/* Pagination */}
                     {invoices.links && invoices.links.length > 3 && (
                         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#e1e3e5] bg-[#f6f6f7] px-6 py-4">
                             <div className="text-[13px] text-gray-500">
@@ -511,7 +532,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                         {selectedInvoice.items?.map((item, idx) => (
                                             <div key={idx} className="flex justify-between items-start pb-4 border-b border-dashed border-gray-200 last:border-0 last:pb-0">
                                                 <div className="flex-1 pr-6">
-                                                    {/* Render HTML content safely */}
                                                     <div className="html-content-view text-[14px] text-gray-800" dangerouslySetInnerHTML={{ __html: item.description }}></div>
                                                     
                                                     {item.project && (
@@ -563,12 +583,10 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                 </div>
             )}
 
-            {/* --- CREATE / EDIT FORM MODAL (Wider & Premium) --- */}
+            {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4">
-                    {/* Width increased to max-w-[1200px] */}
                     <div className="w-full max-w-[1200px] bg-[#f8fafc] rounded-2xl shadow-2xl flex flex-col max-h-[96vh] overflow-hidden border border-gray-200">
-                        {/* Premium Header */}
                         <div className="flex items-center justify-between px-6 py-5 bg-white border-b border-gray-200 shrink-0 shadow-sm z-10">
                             <h3 className="text-[20px] font-extrabold text-gray-800 flex items-center gap-3">
                                 <div className="h-10 w-10 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] flex items-center justify-center">
@@ -583,7 +601,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
                         <form onSubmit={handleSubmit} className="overflow-y-auto brass-scroll flex-1 p-6 lg:p-8">
                             
-                            {/* General Information Box */}
                             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6">
                                 <h4 className="text-[15px] font-bold text-gray-800 mb-5 border-b pb-2">General Information</h4>
                                 
@@ -593,6 +610,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                         <Select
                                             options={clientOptions}
                                             value={clientOptions.find(opt => opt.value === data.client_id) || null}
+                                            formatOptionLabel={formatClientLabel} // <-- Added custom label formatter
                                             onChange={(selected) => {
                                                 const clientId = selected ? selected.value : "";
                                                 let advance = selected ? Number(selected.advance) : 0;
@@ -609,7 +627,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                                     items: [{ project_id: "", description: "", quantity: 1, unit_price: 0, total: 0 }]
                                                 }));
                                             }}
-                                            placeholder="Search & Select Client..."
+                                            placeholder="Search by Client or Company Name..."
                                             isSearchable
                                             isClearable
                                             styles={selectStyles}
@@ -663,7 +681,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 </div>
                             </div>
 
-                            {/* Item Details Box (Redesigned for Rich Text) */}
                             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6">
                                 <div className="flex items-center justify-between mb-5 border-b pb-2">
                                     <h4 className="text-[15px] font-bold text-gray-800">Line Items / Services</h4>
@@ -675,7 +692,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 <div className="flex flex-col gap-5">
                                     {data.items.map((item, index) => (
                                         <div key={index} className="relative bg-gray-50/50 p-5 rounded-xl border border-gray-200 shadow-sm group">
-                                            {/* Delete Button */}
                                             <button 
                                                 type="button" 
                                                 onClick={() => removeItem(index)} 
@@ -687,7 +703,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                             </button>
 
                                             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pr-10">
-                                                {/* Left Side: Select Project */}
                                                 <div className="lg:col-span-3">
                                                     <label className="block text-[12px] font-bold uppercase tracking-wider text-gray-500 mb-2">Select Project</label>
                                                     <Select
@@ -702,8 +717,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                                             
                                                             if (selectedProject) {
                                                                 const unit = selectedProject.unit_type ? `(${selectedProject.unit_type})` : '';
-                                                                
-                                                                // ✅ এখানে প্রজেক্টের টাইটেল এবং ডেসক্রিপশন একসাথে যুক্ত করা হয়েছে
                                                                 const projTitle = `<strong>${selectedProject.title}</strong> ${unit}`.trim();
                                                                 const projDesc = selectedProject.description ? `<br/>${selectedProject.description}` : '';
                                                                 
@@ -732,7 +745,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                                     {errors[`items.${index}.project_id`] && <span className="mt-1 block text-[11px] text-red-500">{errors[`items.${index}.project_id`]}</span>}
                                                 </div>
 
-                                                {/* Right Side: Rich Text Description */}
                                                 <div className="lg:col-span-9">
                                                     <label className="block text-[12px] font-bold uppercase tracking-wider text-gray-500 mb-2">Item Description *</label>
                                                     <div className="rounded-lg border border-gray-300 overflow-hidden">
@@ -747,7 +759,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                                     {errors[`items.${index}.description`] && <span className="mt-1 block text-[11px] text-red-500">{errors[`items.${index}.description`]}</span>}
                                                 </div>
 
-                                                {/* Bottom Row inside the Item: Qty & Price */}
                                                 <div className="lg:col-span-12 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-dashed border-gray-200 pt-4 mt-2">
                                                     <div>
                                                         <label className="block text-[12px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">Quantity</label>
@@ -781,9 +792,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 {errors.items && <span className="mt-2 block text-[13px] font-bold text-red-500">{errors.items}</span>}
                             </div>
 
-                            {/* Summary & Notes Section */}
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                                {/* Notes */}
                                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col">
                                     <h4 className="text-[15px] font-bold text-gray-800 mb-4 border-b pb-2">Terms & Conditions</h4>
                                     <div className="flex-1 rounded-lg border border-gray-300 overflow-hidden bg-white">
@@ -797,7 +806,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                     </div>
                                 </div>
 
-                                {/* Calculations */}
                                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                                     <h4 className="text-[15px] font-bold text-gray-800 mb-4 border-b pb-2">Payment Calculation</h4>
                                     
@@ -855,7 +863,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                             </div>
                         </form>
 
-                        {/* Premium Footer */}
                         <div className="flex items-center justify-end gap-4 bg-white border-t border-gray-200 px-6 py-5 shrink-0 shadow-sm z-10">
                             <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-3 text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
                                 Cancel

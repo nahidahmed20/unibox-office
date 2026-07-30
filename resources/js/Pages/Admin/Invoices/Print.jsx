@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Head } from '@inertiajs/react';
 
 // Number to Words Converter (Bangladeshi/Indian Format)
 const numberToWords = (num) => {
-    if (!num || isNaN(num) || num == 0) return 'Zero taka only.';
+    if (!num || isNaN(num) || num === 0) return 'Zero taka only.';
     
     const a = ['', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine ', 'ten ', 'eleven ', 'twelve ', 'thirteen ', 'fourteen ', 'fifteen ', 'sixteen ', 'seventeen ', 'eighteen ', 'nineteen '];
     const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
@@ -19,7 +19,7 @@ const numberToWords = (num) => {
     str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + 'lakh ' : '';
     str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + 'thousand ' : '';
     str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'hundred ' : '';
-    str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
+    str += (n[5] != 0) ? ((str !== '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
     
     return str.trim().charAt(0).toUpperCase() + str.trim().slice(1) + ' taka only.';
 };
@@ -31,19 +31,45 @@ export default function Print({ invoice }) {
         return () => clearTimeout(timer);
     }, []);
 
-    if (!invoice) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading Invoice...</div>;
+    // Optimizing calculations using useMemo
+    const { 
+        hasTax, 
+        hasDiscount, 
+        hasAdvance, 
+        advanceAmount, 
+        payableAmount, 
+        grandTotalWords, 
+        rowSpanCount 
+    } = useMemo(() => {
+        if (!invoice) return {};
 
-    // Calculations based on actual data
-    const hasTax = invoice.tax && parseFloat(invoice.tax) > 0;
-    const hasDiscount = invoice.discount && parseFloat(invoice.discount) > 0;
-    const advanceAmount = Number(invoice.advance_used) || 0; 
-    const hasAdvance = advanceAmount > 0;
-    
-    const rowSpanCount = 2 + (hasTax ? 1 : 0) + (hasDiscount ? 1 : 0) + (hasAdvance ? 2 : 0);
+        const tax = parseFloat(invoice.tax) || 0;
+        const discount = parseFloat(invoice.discount) || 0;
+        const advance = Number(invoice.advance_used) || 0;
+        const grandTotal = Number(invoice.grand_total) || 0;
 
-    // Calculate dynamic words based on grand total (or payable due if advance is used)
-    const payableAmount = hasAdvance ? (Number(invoice.grand_total) - advanceAmount) : Number(invoice.grand_total);
-    const grandTotalWords = numberToWords(payableAmount);
+        const hasTax = tax > 0;
+        const hasDiscount = discount > 0;
+        const hasAdvance = advance > 0;
+        
+        const payable = hasAdvance ? (grandTotal - advance) : grandTotal;
+        const words = numberToWords(payable);
+        const rows = 2 + (hasTax ? 1 : 0) + (hasDiscount ? 1 : 0) + (hasAdvance ? 2 : 0);
+
+        return { 
+            hasTax, 
+            hasDiscount, 
+            hasAdvance, 
+            advanceAmount: advance, 
+            payableAmount: payable, 
+            grandTotalWords: words, 
+            rowSpanCount: rows 
+        };
+    }, [invoice]);
+
+    if (!invoice) {
+        return <div style={{ padding: '20px', textAlign: 'center', fontSize: '18px' }}>Loading Invoice...</div>;
+    }
 
     const customCss = `
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -56,36 +82,24 @@ export default function Print({ invoice }) {
 
         /* Jol Chap (Watermark) */
         .watermark {
-            position: absolute;
-            top: 50%;
-            left: 50%;
+            position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%) rotate(-45deg);
-            font-size: 180px;
-            font-weight: 900;
+            font-size: 180px; font-weight: 900;
             color: rgba(20, 122, 91, 0.05);
-            z-index: 0;
-            pointer-events: none;
-            text-transform: uppercase;
-            white-space: nowrap;
+            z-index: 0; pointer-events: none;
+            text-transform: uppercase; white-space: nowrap;
         }
 
         .vertical-text {
-            position: absolute; 
-            top: 115mm; 
-            left: 0mm; 
+            position: absolute; top: 115mm; left: 0mm; 
             transform: rotate(-90deg); transform-origin: top left;
             color: #2cb34a; font-size: 42px; font-weight: bold;
-            text-transform: uppercase; letter-spacing: 5px;
-            z-index: 1;
+            text-transform: uppercase; letter-spacing: 5px; z-index: 1;
         }
         
-        .invoice-content { 
-            padding-left: 25px; 
-            padding-top: 20px;
-            position: relative; 
-            z-index: 1; 
-        }
-        .logo { font-size: 36px; font-weight: bold; color: #147a5b; letter-spacing: 2px; margin-bottom: 30px; text-transform: uppercase; }
+        .invoice-content { padding-left: 25px; padding-top: 20px; position: relative; z-index: 1; }
+        .logo-container { margin-bottom: 30px; }
+        img.invoice-logo { height: 55px; padding-bottom: 5px; }
         
         .info-section { display: flex; justify-content: space-between; margin-bottom: 30px; line-height: 1.6; }
         
@@ -98,13 +112,12 @@ export default function Print({ invoice }) {
         .align-top { vertical-align: top; }
         .align-middle { vertical-align: middle; }
         .font-bold { font-weight: bold; }
-        .home{font-size:16px}
+        .home { font-size: 16px; margin-top: 5px; }
 
         /* Rich Text overrides for Print */
         .html-text-box { font-size: 14px; line-height: 1.5; color: #111; }
         .html-text-box p { margin: 0 0 5px 0; }
-        .html-text-box ul { margin: 5px 0 5px 20px; list-style-type: disc; }
-        .html-text-box ol { margin: 5px 0 5px 20px; list-style-type: decimal; }
+        .html-text-box ul, .html-text-box ol { margin: 5px 0 5px 20px; }
         
         .bank-info { line-height: 1.6; font-size: 13px; margin-bottom: 60px; }
         
@@ -117,13 +130,10 @@ export default function Print({ invoice }) {
         .footer-divider { border: 0; border-top: 1px solid rgba(44, 179, 74, 0.5); margin-bottom: 8px; }
         .footer-text { font-size: 12px; line-height: 1.5; }
         
-        img.invoice-logo { height: 55px; padding-bottom: 5px; }
-        
         @media print {
             body { margin: 0; }
             @page { size: A4 portrait; margin: 0; }
             .invoice-container { margin: 0; border: none; box-shadow: none; }
-            
             img.invoice-logo { visibility: hidden !important; } 
             .footer { display: none !important; } 
         }
@@ -134,9 +144,7 @@ export default function Print({ invoice }) {
             <Head title={`Invoice - ${invoice.invoice_number}`} />
             <style>{customCss}</style>
 
-            {/* Jol chap / Watermark */}
             <div className="watermark">UNIBOX</div>
-
             <div className="vertical-text">Invoice</div>
 
             <div className="invoice-content">
@@ -144,20 +152,26 @@ export default function Print({ invoice }) {
                     <img src="/images/logo.png" alt="UNIBOX Logo" className="invoice-logo" />
                 </div>
 
-                {/* To & Date Section (Displays Company and Client properly) */}
+                {/* To & Date Section */}
                 <div className="info-section">
                     <div>
-                        <p style={{ marginBottom: "5px", marginTop: '10px' }}><strong>To:</strong></p>
+                        <p style={{ marginBottom: "5px" }}><strong>To:</strong></p>
+                        
+                        {/* Fixed Logic: Checks if company_name exists */}
                         {invoice.client?.company_name ? (
-                            <>
-                                <p className="font-bold" style={{ fontSize: "16px" }}>{invoice.client.company_name}</p>
-                                <p className='home'>{invoice.client.address}</p>
-                            </>
+                            <p className="font-bold" style={{ fontSize: "16px", color: "#147a5b" }}>
+                                {invoice.client.company_name}
+                            </p>
                         ) : (
-                            <p className="font-bold" style={{ fontSize: "16px" }}>{invoice.client?.name}</p>
+                            <p className="font-bold" style={{ fontSize: "16px", color: "#147a5b" }}>
+                                {invoice.client?.name || 'Unknown Client'}
+                            </p>
                         )}
+                        
+                        <p className="home">{invoice.client?.address}</p>
                     </div>
-                    <div style={{ textAlign: "right" }}>
+                    
+                    <div className="text-right">
                         <p><strong>Invoice No:</strong> <span style={{ color: "#147a5b", fontWeight: "bold" }}>{invoice.invoice_number}</span></p>
                         <p><strong>Issue Date:</strong> {invoice.invoice_date}</p>
                         <p><strong>Due Date:</strong> {invoice.due_date}</p>
@@ -179,14 +193,7 @@ export default function Print({ invoice }) {
                             invoice.items.map((item, index) => (
                                 <tr key={index}>
                                     <td className="align-top">
-                                        {/* HTML safe render for Description */}
                                         <div className="html-text-box" dangerouslySetInnerHTML={{ __html: item.description }}></div>
-                                        
-                                        {/* {item.project && (
-                                            <div style={{ fontSize: "12px", color: "#555", marginTop: "8px", fontStyle: "italic" }}>
-                                                Ref. Project: {item.project.title}
-                                            </div>
-                                        )} */}
                                     </td>
                                     <td className="text-center align-middle font-bold">{item.quantity}</td>
                                     <td className="text-center align-middle">{item.unit_price}</td>
@@ -211,7 +218,6 @@ export default function Print({ invoice }) {
                                         {invoice.notes && invoice.notes !== '<p><br></p>' && (
                                             <div style={{ marginTop: '25px' }}>
                                                 <strong>Notes / Terms & Conditions:</strong><br/>
-                                                {/* HTML safe render for Notes */}
                                                 <div className="html-text-box" style={{ marginTop: "5px", borderTop: "1px dashed #ccc", paddingTop: "5px" }} dangerouslySetInnerHTML={{ __html: invoice.notes }}></div>
                                             </div>
                                         )}
