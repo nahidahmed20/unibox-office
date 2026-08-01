@@ -189,7 +189,6 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
     const openEditModal = (project) => {
         clearErrors();
         
-        // Helper function to safely format dates for <input type="date">
         const formatDate = (dateString) => {
             if (!dateString) return "";
             return String(dateString).split('T')[0].split(' ')[0];
@@ -640,7 +639,6 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
             {/* --- VIEW DETAILS MODAL --- */}
             {showViewModal && selectedProject && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
-                    {/* Added lg:max-w-4xl xl:max-w-5xl to make modal wider on large screens */}
                     <div className="w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
                         
                         {/* Modal Header */}
@@ -697,7 +695,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                     </div>
                                 </div>
 
-                               
+                                {/* Details Card 2 */}
                                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
                                     <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3 border-b pb-2">Scope & Financials</span>
                                     
@@ -779,132 +777,149 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                 </div>
             )}
 
-            {/* --- CREATE / EDIT FORM MODAL --- */}
+            {/* --- CREATE / EDIT FORM MODAL (IMPROVED UI) --- */}
             {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
-                    {/* Added lg:max-w-4xl xl:max-w-5xl to make modal wider on large screens */}
-                    <div className="w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[95vh] overflow-hidden">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6">
+                    <div className="w-full max-w-4xl bg-[#f8fafc] rounded-2xl shadow-2xl flex flex-col max-h-full overflow-hidden">
                         
                         {/* Modal Header */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
-                            <h3 className="text-[18px] font-semibold text-[#202223]">
-                                {editMode ? "📝 Modify Project Details" : "✨ Create New Project"}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white shrink-0">
+                            <h3 className="text-[18px] font-bold text-gray-900 flex items-center gap-2">
+                                {editMode ? (
+                                    <><i className="fa-regular fa-pen-to-square text-[var(--accent)]"></i> Modify Project</>
+                                ) : (
+                                    <><i className="fa-solid fa-rocket text-[var(--accent)]"></i> Create New Project</>
+                                )}
                             </h3>
-                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 h-8 w-8 rounded-full flex items-center justify-center transition-colors">
                                 <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
                         
                         {/* Modal Body & Form */}
-                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
-                            <div className="p-6 overflow-y-auto brass-scroll" onClick={() => showClientDropdown && setShowClientDropdown(false)}>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                    
-                                    <div className="sm:col-span-2">
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Project Title *</label>
-                                        <input 
-                                            type="text" 
-                                            value={data.title} 
-                                            onChange={(e) => setData("title", e.target.value)} 
-                                            placeholder="Enter descriptive project title" 
-                                            required 
-                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                        />
-                                        {errors.title && <p className="text-red-500 text-[12px] mt-1">{errors.title}</p>}
-                                    </div>
-
-                                    {/* --- Client Dropdown --- */}
-                                    <div className="relative">
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Client *</label>
-                                        <div 
-                                            onClick={(e) => { e.stopPropagation(); setShowClientDropdown(!showClientDropdown); }}
-                                            className={`flex w-full cursor-pointer items-center justify-between rounded-lg border px-3.5 py-2.5 text-[14px] outline-none transition-shadow hover:bg-gray-50 focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 ${data.client_id ? 'border-gray-300 bg-white text-gray-900' : 'border-gray-300 bg-white text-gray-500'}`}
-                                        >
-                                            <span className="truncate block">
-                                                {data.client_id 
-                                                    ? (() => {
-                                                        const selectedClient = clients.find(cl => String(cl.id) === String(data.client_id));
-                                                        if (selectedClient) {
-                                                            return (
-                                                                <span className="flex items-center gap-1.5">
-                                                                    <span className="font-medium text-gray-900">{selectedClient.name}</span>
-                                                                    {selectedClient.company_name && (
-                                                                        <span className="text-gray-500 text-[12px]">({selectedClient.company_name})</span>
-                                                                    )}
-                                                                </span>
-                                                                );
-                                                        }
-                                                        return <span className="text-gray-400">-- Choose Client --</span>;
-                                                    })()
-                                                    : <span className="text-gray-400">-- Search & Select Client --</span>
-                                                }
-                                            </span>
-                                            <i className={`fa-solid fa-chevron-${showClientDropdown ? 'up' : 'down'} text-[10px] text-gray-400 shrink-0 ml-2`}></i>
+                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden h-full">
+                            <div className="p-6 overflow-y-auto brass-scroll space-y-6" onClick={() => showClientDropdown && setShowClientDropdown(false)}>
+                                
+                                {/* Section 1: General Information */}
+                                <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                                    <h4 className="text-[14px] font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-100 pb-2">
+                                        <i className="fa-regular fa-address-card text-gray-400"></i> General Information
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div className="md:col-span-2">
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Project Title <span className="text-red-500">*</span></label>
+                                            <input 
+                                                type="text" 
+                                                value={data.title} 
+                                                onChange={(e) => setData("title", e.target.value)} 
+                                                placeholder="Enter descriptive project title" 
+                                                required 
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                            />
+                                            {errors.title && <p className="text-red-500 text-[12px] mt-1">{errors.title}</p>}
                                         </div>
 
-                                        {showClientDropdown && (
+                                        {/* Client Custom Dropdown */}
+                                        <div className="relative">
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Client <span className="text-red-500">*</span></label>
                                             <div 
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="absolute top-full left-0 mt-1 flex max-h-[250px] w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl z-50"
+                                                onClick={(e) => { e.stopPropagation(); setShowClientDropdown(!showClientDropdown); }}
+                                                className={`flex w-full cursor-pointer items-center justify-between rounded-lg border px-3.5 py-2.5 text-[14px] outline-none transition-shadow hover:bg-gray-50 focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 ${data.client_id ? 'border-gray-300 bg-white text-gray-900' : 'border-gray-300 bg-white text-gray-500'}`}
                                             >
-                                                <div className="border-b border-gray-100 bg-gray-50 p-2 shrink-0">
-                                                    <input 
-                                                        type="text" 
-                                                        placeholder="Type client name..." 
-                                                        value={clientSearch}
-                                                        onChange={(e) => setClientSearch(e.target.value)}
-                                                        className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-[13px] outline-none focus:border-[var(--accent)]"
-                                                        autoFocus
-                                                    />
-                                                </div>
-                                                <div className="overflow-y-auto py-1">
-                                                    {clients.filter(c => 
-                                                        c.name.toLowerCase().includes(clientSearch.toLowerCase()) || 
-                                                        (c.company_name && c.company_name.toLowerCase().includes(clientSearch.toLowerCase()))
-                                                    ).length > 0 ? (
-                                                        clients.filter(c => 
+                                                <span className="truncate block">
+                                                    {data.client_id 
+                                                        ? (() => {
+                                                            const selectedClient = clients.find(cl => String(cl.id) === String(data.client_id));
+                                                            if (selectedClient) {
+                                                                return (
+                                                                    <span className="flex items-center gap-1.5">
+                                                                        <span className="font-medium text-gray-900">{selectedClient.name}</span>
+                                                                        {selectedClient.company_name && (
+                                                                            <span className="text-gray-400 text-[12px]">({selectedClient.company_name})</span>
+                                                                        )}
+                                                                    </span>
+                                                                );
+                                                            }
+                                                            return <span className="text-gray-400">-- Choose Client --</span>;
+                                                        })()
+                                                        : <span className="text-gray-400">Search & Select Client</span>
+                                                    }
+                                                </span>
+                                                <i className={`fa-solid fa-chevron-${showClientDropdown ? 'up' : 'down'} text-[10px] text-gray-400 shrink-0 ml-2`}></i>
+                                            </div>
+
+                                            {showClientDropdown && (
+                                                <div 
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="absolute top-full left-0 mt-1 flex max-h-[250px] w-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl z-50"
+                                                >
+                                                    <div className="border-b border-gray-100 bg-gray-50 p-2 shrink-0">
+                                                        <input 
+                                                            type="text" 
+                                                            placeholder="Type client name..." 
+                                                            value={clientSearch}
+                                                            onChange={(e) => setClientSearch(e.target.value)}
+                                                            className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-[13px] outline-none focus:border-[var(--accent)]"
+                                                            autoFocus
+                                                        />
+                                                    </div>
+                                                    <div className="overflow-y-auto py-1">
+                                                        {clients.filter(c => 
                                                             c.name.toLowerCase().includes(clientSearch.toLowerCase()) || 
                                                             (c.company_name && c.company_name.toLowerCase().includes(clientSearch.toLowerCase()))
-                                                        ).map(c => (
-                                                            <div 
-                                                                key={c.id} 
-                                                                onClick={() => {
-                                                                    setData("client_id", c.id);
-                                                                    setShowClientDropdown(false);
-                                                                    setClientSearch("");
-                                                                }}
-                                                                className={`cursor-pointer px-3.5 py-2 text-[13.5px] hover:bg-gray-50 ${data.client_id == c.id ? 'bg-[var(--accent-bg)] font-semibold text-gray-900' : 'text-gray-700'}`}
-                                                            >
-                                                                {c.name} {c.company_name ? <span className="text-[12px] text-gray-400 ml-1">({c.company_name})</span> : ''}
-                                                            </div>
-                                                        ))
-                                                    ) : (
-                                                        <div className="p-3 text-center text-[13px] text-gray-400">No client found.</div>
-                                                    )}
+                                                        ).length > 0 ? (
+                                                            clients.filter(c => 
+                                                                c.name.toLowerCase().includes(clientSearch.toLowerCase()) || 
+                                                                (c.company_name && c.company_name.toLowerCase().includes(clientSearch.toLowerCase()))
+                                                            ).map(c => (
+                                                                <div 
+                                                                    key={c.id} 
+                                                                    onClick={() => {
+                                                                        setData("client_id", c.id);
+                                                                        setShowClientDropdown(false);
+                                                                        setClientSearch("");
+                                                                    }}
+                                                                    className={`cursor-pointer px-3.5 py-2 text-[13.5px] hover:bg-gray-50 ${data.client_id == c.id ? 'bg-[var(--accent-bg)] font-semibold text-gray-900' : 'text-gray-700'}`}
+                                                                >
+                                                                    {c.name} {c.company_name ? <span className="text-[12px] text-gray-400 ml-1">({c.company_name})</span> : ''}
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <div className="p-3 text-center text-[13px] text-gray-400">No client found.</div>
+                                                        )}
+                                                    </div>
                                                 </div>
+                                            )}
+                                            {errors.client_id && <p className="text-red-500 text-[12px] mt-1">{errors.client_id}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Project Manager</label>
+                                            <div className="relative">
+                                                <select 
+                                                    value={data.project_manager_id || ""} 
+                                                    onChange={(e) => setData("project_manager_id", e.target.value)} 
+                                                    className="w-full appearance-none bg-white rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                                >
+                                                    <option value="">-- Assign a Manager --</option>
+                                                    {managers.map(manager => (
+                                                        <option key={manager.id} value={manager.id}>{manager.name}</option>
+                                                    ))}
+                                                </select>
+                                                <i className="fa-solid fa-chevron-down text-[10px] text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
                                             </div>
-                                        )}
-                                        {errors.client_id && <p className="text-red-500 text-[12px] mt-1">{errors.client_id}</p>}
+                                            {errors.project_manager_id && <p className="text-red-500 text-[12px] mt-1">{errors.project_manager_id}</p>}
+                                        </div>
                                     </div>
+                                </div>
 
-                                    {/* --- Project Manager --- */}
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Project Manager</label>
-                                        <select 
-                                            value={data.project_manager_id || ""} 
-                                            onChange={(e) => setData("project_manager_id", e.target.value)} 
-                                            className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
-                                        >
-                                            <option value="">-- Assign a Manager --</option>
-                                            {managers.map(manager => (
-                                                <option key={manager.id} value={manager.id}>{manager.name}</option>
-                                            ))}
-                                        </select>
-                                        {errors.project_manager_id && <p className="text-red-500 text-[12px] mt-1">{errors.project_manager_id}</p>}
-                                    </div>
-
-                                    {/* --- Quantity & Unit Row --- */}
-                                    <div className="sm:col-span-2 grid grid-cols-2 gap-5 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                                {/* Section 2: Planning & Financials */}
+                                <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                                    <h4 className="text-[14px] font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-100 pb-2">
+                                        <i className="fa-solid fa-chart-pie text-gray-400"></i> Planning & Financials
+                                    </h4>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
                                         <div>
                                             <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Quantity / Amount</label>
                                             <input 
@@ -912,127 +927,157 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                                 step="any"
                                                 value={data.quantity} 
                                                 onChange={(e) => setData("quantity", e.target.value)} 
-                                                placeholder="e.g. 100 or 15.5"
+                                                placeholder="e.g. 100"
                                                 className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
                                             />
                                             {errors.quantity && <p className="text-red-500 text-[12px] mt-1">{errors.quantity}</p>}
                                         </div>
                                         <div>
-                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Unit</label>
-                                            <select 
-                                                value={data.unit_type} 
-                                                onChange={(e) => setData("unit_type", e.target.value)} 
-                                                className="w-full appearance-none bg-white rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
-                                            >
-                                                <option value="piece">Pieces (Pcs)</option>
-                                                <option value="kg">Kilogram (Kg)</option>
-                                                <option value="dozen">Dozen</option>
-                                                <option value="carton">Carton</option>
-                                                <option value="box">Box</option>
-                                                <option value="set">Set</option>
-                                                <option value="unit">Unit</option>
-                                            </select>
-                                            {errors.unit_type && <p className="text-red-500 text-[12px] mt-1">{errors.unit_type}</p>}
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Measuring Unit</label>
+                                            <div className="relative">
+                                                <select 
+                                                    value={data.unit_type} 
+                                                    onChange={(e) => setData("unit_type", e.target.value)} 
+                                                    className="w-full appearance-none bg-white rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                                >
+                                                    <option value="piece">Pieces (Pcs)</option>
+                                                    <option value="kg">Kilogram (Kg)</option>
+                                                    <option value="dozen">Dozen</option>
+                                                    <option value="carton">Carton</option>
+                                                    <option value="box">Box</option>
+                                                    <option value="set">Set</option>
+                                                    <option value="unit">Unit</option>
+                                                </select>
+                                                <i className="fa-solid fa-chevron-down text-[10px] text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Total Budget (TK)</label>
+                                            <input 
+                                                type="number" 
+                                                value={data.budget} 
+                                                onChange={(e) => setData("budget", e.target.value)} 
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                                placeholder="e.g. 50000"
+                                            />
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Start Date</label>
-                                        <input 
-                                            type="date" 
-                                            value={data.start_date} 
-                                            onChange={(e) => setData("start_date", e.target.value)} 
-                                            className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                        />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Start Date</label>
+                                            <input 
+                                                type="date" 
+                                                value={data.start_date} 
+                                                onChange={(e) => setData("start_date", e.target.value)} 
+                                                className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-text" 
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Deadline Date <span className="text-red-500">*</span></label>
+                                            <input 
+                                                type="date" 
+                                                value={data.deadline} 
+                                                onChange={(e) => setData("deadline", e.target.value)} 
+                                                className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-text" 
+                                                required 
+                                            />
+                                            {errors.deadline && <p className="text-red-500 text-[12px] mt-1">{errors.deadline}</p>}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Section 3: Status & Additional Tracking */}
+                                <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                                    <h4 className="text-[14px] font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-100 pb-2">
+                                        <i className="fa-solid fa-bars-progress text-gray-400"></i> Status & Tracking
+                                    </h4>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Current Status <span className="text-red-500">*</span></label>
+                                            <div className="relative">
+                                                <select 
+                                                    value={data.status} 
+                                                    onChange={(e) => setData("status", e.target.value)} 
+                                                    className="w-full appearance-none bg-white rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer" 
+                                                    required
+                                                >
+                                                    <option value="planning">Planning</option>
+                                                    <option value="in_progress">In Progress</option>
+                                                    <option value="on_hold">On Hold</option>
+                                                    <option value="completed">Completed</option>
+                                                </select>
+                                                <i className="fa-solid fa-chevron-down text-[10px] text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Priority Level</label>
+                                            <div className="relative">
+                                                <select 
+                                                    value={data.priority} 
+                                                    onChange={(e) => setData("priority", e.target.value)} 
+                                                    className="w-full appearance-none bg-white rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                                >
+                                                    <option value="low">Low Priority</option>
+                                                    <option value="medium">Medium Priority</option>
+                                                    <option value="high">High Priority</option>
+                                                    <option value="urgent">Urgent</option>
+                                                </select>
+                                                <i className="fa-solid fa-chevron-down text-[10px] text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                            </div>
+                                        </div>
+
+                                        {/* --- UPDATED PROGRESS INPUT (No more slider) --- */}
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Completion Progress</label>
+                                            <div className="relative flex items-center">
+                                                <input 
+                                                    type="number" 
+                                                    min="0"
+                                                    max="100"
+                                                    value={data.progress} 
+                                                    onChange={(e) => setData("progress", Math.min(100, Math.max(0, Number(e.target.value))))} 
+                                                    className="w-full rounded-lg border border-gray-300 pl-3.5 pr-8 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                                    placeholder="0"
+                                                />
+                                                <span className="absolute right-3 text-gray-400 font-bold">%</span>
+                                            </div>
+                                            {/* Visual Progress feedback */}
+                                            <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2 overflow-hidden border border-gray-200">
+                                                <div 
+                                                    className={`h-full rounded-full transition-all duration-300 ${data.progress === 100 ? 'bg-emerald-500' : 'bg-[var(--accent)]'}`} 
+                                                    style={{ width: `${data.progress || 0}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Deadline *</label>
-                                        <input 
-                                            type="date" 
-                                            value={data.deadline} 
-                                            onChange={(e) => setData("deadline", e.target.value)} 
-                                            className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                            required 
-                                        />
-                                        {errors.deadline && <p className="text-red-500 text-[12px] mt-1">{errors.deadline}</p>}
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Total Budget</label>
-                                        <input 
-                                            type="number" 
-                                            value={data.budget} 
-                                            onChange={(e) => setData("budget", e.target.value)} 
-                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                            placeholder="Estimated budget amount"
-                                        />
-                                    </div>
-
-                                    {/* --- Progress --- */}
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">
-                                            Completion Progress: <span className="text-[var(--accent)] font-bold">{data.progress}%</span>
-                                        </label>
-                                        <input 
-                                            type="range" 
-                                            min="0" max="100" 
-                                            value={data.progress} 
-                                            onChange={(e) => setData("progress", Number(e.target.value))} 
-                                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-3"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Project Status *</label>
-                                        <select 
-                                            value={data.status} 
-                                            onChange={(e) => setData("status", e.target.value)} 
-                                            className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                            required
-                                        >
-                                            <option value="planning">Planning</option>
-                                            <option value="in_progress">In Progress</option>
-                                            <option value="on_hold">On Hold</option>
-                                            <option value="completed">Completed</option>
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Priority Level</label>
-                                        <select 
-                                            value={data.priority} 
-                                            onChange={(e) => setData("priority", e.target.value)} 
-                                            className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
-                                        >
-                                            <option value="low">Low Priority</option>
-                                            <option value="medium">Medium Priority</option>
-                                            <option value="high">High Priority</option>
-                                            <option value="urgent">Urgent</option>
-                                        </select>
-                                    </div>
-
-                                    <div className="sm:col-span-2">
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Important Links (Optional)</label>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Repository / Drive Link</label>
                                             <input 
                                                 type="url" 
                                                 value={data.repo_link} 
                                                 onChange={(e) => setData("repo_link", e.target.value)} 
-                                                placeholder="Repository or Drive Link (e.g. https://github.com/...)"
-                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[13px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                                placeholder="https://github.com/..."
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
                                             />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Live URL</label>
                                             <input 
                                                 type="url" 
                                                 value={data.live_url} 
                                                 onChange={(e) => setData("live_url", e.target.value)} 
-                                                placeholder="Live URL (e.g. https://www.example.com)"
-                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[13px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                                placeholder="https://www.example.com"
+                                                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
                                             />
                                         </div>
                                     </div>
 
-                                    <div className="sm:col-span-2">
+                                    <div>
                                         <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Detailed Description / Notes</label>
                                         <textarea 
                                             value={data.description} 
@@ -1046,12 +1091,12 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                             </div>
 
                             {/* Modal Footer */}
-                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 shrink-0">
+                            <div className="px-6 py-4 border-t border-gray-200 bg-white flex justify-end gap-3 shrink-0">
                                 <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
-                                    Dismiss
+                                    Cancel
                                 </button>
-                                <button type="submit" disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70">
-                                    {processing ? "Saving Records..." : "Commit Project"}
+                                <button type="submit" disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70 flex items-center gap-2">
+                                    {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Saving...</> : <><i className="fa-solid fa-check"></i> {editMode ? "Update Project" : "Create Project"}</>}
                                 </button>
                             </div>
                         </form>

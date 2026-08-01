@@ -16,9 +16,9 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
 
     const isFirstRender = useRef(true);
 
-    // Get unique years for the dropdown (from 2020 up to current year + 2)
+    // Get unique years for the dropdown (from 5 years back to 4 years ahead)
     const currentYear = new Date().getFullYear();
-    const years = Array.from(new Array(10), (val, index) => currentYear - 5 + index).sort((a, b) => b - a);
+    const years = Array.from({ length: 10 }, (_, index) => currentYear - 5 + index).sort((a, b) => b - a);
 
     /* Filtering & Reload Logic */
     useEffect(() => {
@@ -33,7 +33,11 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
             if (endDate) params.end_date = endDate;
             if (filterYear) params.year = filterYear;
 
-            router.get(route('admin.reports.financial'), params, { preserveState: true, replace: true });
+            router.get(route('admin.reports.financial'), params, { 
+                preserveState: true, 
+                replace: true,
+                preserveScroll: true
+            });
         }, 500);
 
         return () => clearTimeout(delayDebounceFn);
@@ -52,6 +56,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
 
         const printWindow = window.open('', '_blank', `width=${window.screen.width},height=${window.screen.height}`);
         printWindow.document.write(`
+            <!DOCTYPE html>
             <html>
                 <head>
                     <title>${title}</title>
@@ -65,6 +70,8 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                         .no-print { display: none !important; }
                         .month-header { background-color: #1e293b !important; color: #fff !important; }
                         .summary-row { background-color: #f1f5f9 !important; font-weight: bold; }
+                        .text-right { text-align: right; }
+                        .text-center { text-align: center; }
                     </style>
                 </head>
                 <body>
@@ -85,35 +92,45 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
         const link = document.createElement("a");
         link.href = url;
         link.setAttribute("download", fileName);
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
     };
 
     const exportClientCSV = () => {
         if (!filteredClients.length) return Swal.fire("Empty!", "No data to export", "warning");
-        let headers = "Client Name,Total Projects,Project Value (Receivable),Total Cost (Expenses),Cost Paid,Cost Due,Est. Profit\n";
+        
+        let headers = "Client Name,Total Projects,Project Budget,Total Cost (Expenses),Invoices Generated,Total Billed,Total Received,Net Due\n";
         let rows = filteredClients.map(c => {
-            const profit = c.total_budget - c.total_expense;
-            return `"${c.client_name}","${c.total_projects}","${c.total_budget}","${c.total_expense}","${c.vendor_paid}","${c.vendor_due}","${profit}"`;
+            return `"${c.client_name}","${c.total_projects}","${c.total_budget}","${c.total_expense}","${c.total_invoices}","${c.total_billed}","${c.total_paid}","${c.total_due}"`;
         }).join("\n");
+        
         downloadCSV(headers + rows, `Client_Financial_Report_${new Date().toISOString().slice(0, 10)}.csv`);
     };
 
     const exportMonthlyCSV = () => {
         if (!filteredMonths.length) return Swal.fire("Empty!", "No data to export", "warning");
+        
         let headers = "Month,Project Name,Client,Budget,Cost (Expenses),Est. Profit,Status\n";
         let rows = [];
         filteredMonths.forEach(m => {
             m.projects.forEach(p => {
                 rows.push(`"${m.month}","${p.title}","${p.client}","${p.budget}","${p.expense}","${p.profit}","${p.status}"`);
             });
-            // Month Summary Row
             rows.push(`"Summary for ${m.month}",,, "${m.month_budget}","${m.month_expense}","${m.month_profit}",""`);
         });
+        
         downloadCSV(headers + rows.join("\n"), `Monthly_Projects_Report_${new Date().toISOString().slice(0, 10)}.csv`);
     };
 
-    const filteredClients = clientsReport.filter(c => c.client_name.toLowerCase().includes(searchClient.toLowerCase()));
-    const filteredMonths = monthlyReport.filter(m => m.month.toLowerCase().includes(searchMonth.toLowerCase()));
+    /* Computed Data */
+    const filteredClients = clientsReport.filter(c => 
+        (c.client_name || '').toLowerCase().includes(searchClient.toLowerCase())
+    );
+    
+    const filteredMonths = monthlyReport.filter(m => 
+        (m.month || '').toLowerCase().includes(searchMonth.toLowerCase())
+    );
 
     return (
         <AdminLayout>
@@ -125,7 +142,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                 <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-[22px] font-bold text-[#202223]">Business Financial Reports</h1>
-                        <p className="text-[14px] text-gray-500 mt-1">Analyze client profitability, monthly expenses, and net profit margins.</p>
+                        <p className="text-[14px] text-gray-500 mt-1">Analyze client profitability, monthly expenses, invoices and payments.</p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#e1e3e5] bg-white p-3 shadow-sm">
@@ -134,7 +151,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                             <select
                                 value={filterYear}
                                 onChange={(e) => { setFilterYear(e.target.value); setStartDate(''); setEndDate(''); }}
-                                className="appearance-none bg-none w-[100px] rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                className="appearance-none w-[100px] rounded-md border border-gray-300 bg-gray-50 px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
                             >
                                 <option value="">All Years</option>
                                 {years.map(y => <option key={y} value={y}>{y}</option>)}
@@ -169,40 +186,52 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
                     {/* Card 1: Total Receivable */}
-                    <div className="flex items-center gap-4 rounded-xl border border-blue-200 bg-blue-50/50 p-6 shadow-sm transition-shadow hover:shadow-md">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                            <i className="fa-solid fa-money-bill-trend-up text-[22px]"></i>
+                    <div className="flex flex-col gap-2 rounded-xl border border-blue-200 bg-blue-50/50 p-5 shadow-sm">
+                        <div className="flex items-center gap-3 text-blue-600">
+                            <i className="fa-solid fa-money-bill-trend-up text-xl"></i>
+                            <p className="text-[11px] font-bold uppercase tracking-wider">Project Value</p>
                         </div>
-                        <div>
-                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-blue-600">Total Project Value (Receivable)</p>
-                            <h3 className="text-[24px] font-extrabold text-blue-800 m-0">TK. {summary.total_receivable?.toLocaleString('en-IN')}</h3>
-                        </div>
+                        <h3 className="text-[22px] font-extrabold text-blue-800 m-0">TK. {(summary.total_receivable || 0).toLocaleString('en-IN')}</h3>
                     </div>
 
                     {/* Card 2: Total Cost */}
-                    <div className="flex items-center gap-4 rounded-xl border border-rose-200 bg-rose-50/50 p-6 shadow-sm transition-shadow hover:shadow-md">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
-                            <i className="fa-solid fa-file-invoice-dollar text-[22px]"></i>
+                    <div className="flex flex-col gap-2 rounded-xl border border-rose-200 bg-rose-50/50 p-5 shadow-sm">
+                        <div className="flex items-center gap-3 text-rose-600">
+                            <i className="fa-solid fa-file-invoice-dollar text-xl"></i>
+                            <p className="text-[11px] font-bold uppercase tracking-wider">Project Cost</p>
                         </div>
-                        <div>
-                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-rose-600">Total Project Cost (Expenses)</p>
-                            <h3 className="text-[24px] font-extrabold text-rose-800 m-0">TK. {summary.total_cost?.toLocaleString('en-IN')}</h3>
-                        </div>
+                        <h3 className="text-[22px] font-extrabold text-rose-800 m-0">TK. {(summary.total_cost || 0).toLocaleString('en-IN')}</h3>
                     </div>
 
                     {/* Card 3: Net Profit */}
-                    <div className={`flex items-center gap-4 rounded-xl border p-6 shadow-sm transition-shadow hover:shadow-md ${summary.net_profit >= 0 ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'}`}>
-                        <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${summary.net_profit >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
-                            <i className="fa-solid fa-chart-line text-[22px]"></i>
+                    <div className={`flex flex-col gap-2 rounded-xl border p-5 shadow-sm ${summary.net_profit >= 0 ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'}`}>
+                        <div className={`flex items-center gap-3 ${summary.net_profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            <i className="fa-solid fa-chart-line text-xl"></i>
+                            <p className="text-[11px] font-bold uppercase tracking-wider">Est. Net Profit</p>
                         </div>
-                        <div>
-                            <p className={`mb-1 text-[11px] font-bold uppercase tracking-wider ${summary.net_profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>Estimated Net Profit</p>
-                            <h3 className={`text-[24px] font-extrabold m-0 ${summary.net_profit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                                {summary.net_profit > 0 ? '+' : ''}TK. {summary.net_profit?.toLocaleString('en-IN')}
-                            </h3>
+                        <h3 className={`text-[22px] font-extrabold m-0 ${summary.net_profit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                            {summary.net_profit > 0 ? '+' : ''}TK. {(summary.net_profit || 0).toLocaleString('en-IN')}
+                        </h3>
+                    </div>
+
+                    {/* Card 4: Total Invoiced (Billed) */}
+                    <div className="flex flex-col gap-2 rounded-xl border border-purple-200 bg-purple-50/50 p-5 shadow-sm">
+                        <div className="flex items-center gap-3 text-purple-600">
+                            <i className="fa-solid fa-file-invoice text-xl"></i>
+                            <p className="text-[11px] font-bold uppercase tracking-wider">Total Invoiced</p>
                         </div>
+                        <h3 className="text-[22px] font-extrabold text-purple-800 m-0">TK. {(summary.total_invoiced || 0).toLocaleString('en-IN')}</h3>
+                    </div>
+
+                    {/* Card 5: Total Received (Paid) */}
+                    <div className="flex flex-col gap-2 rounded-xl border border-teal-200 bg-teal-50/50 p-5 shadow-sm">
+                        <div className="flex items-center gap-3 text-teal-600">
+                            <i className="fa-solid fa-hand-holding-dollar text-xl"></i>
+                            <p className="text-[11px] font-bold uppercase tracking-wider">Total Received</p>
+                        </div>
+                        <h3 className="text-[22px] font-extrabold text-teal-800 m-0">TK. {(summary.total_received || 0).toLocaleString('en-IN')}</h3>
                     </div>
                 </div>
 
@@ -263,24 +292,25 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
 
                             {/* Table */}
                             <div className="overflow-x-auto brass-scroll">
-                                <table id="client-report-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1000px]">
+                                <table id="client-report-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1200px]">
                                     <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
                                         <tr>
                                             <th className="px-6 py-4">Client Name</th>
-                                            <th className="px-6 py-4 text-center">Total Projects</th>
-                                            <th className="px-6 py-4 text-right">Project Value (Receivable)</th>
-                                            <th className="px-6 py-4 text-right">Total Cost (Expenses)</th>
-                                            <th className="px-6 py-4 text-right">Cost Paid</th>
-                                            <th className="px-6 py-4 text-right">Cost Due</th>
-                                            <th className="px-6 py-4 text-right">Est. Profit</th>
+                                            <th className="px-6 py-4 text-center">Projects</th>
+                                            <th className="px-6 py-4 text-right">Project Budget</th>
+                                            <th className="px-6 py-4 text-right">Project Cost</th>
+                                            {/* Invoice Specific Columns Added Here */}
+                                            <th className="px-6 py-4 text-center border-l border-gray-200">Invoices</th>
+                                            <th className="px-6 py-4 text-right">Total Billed</th>
+                                            <th className="px-6 py-4 text-right">Received (Paid)</th>
+                                            <th className="px-6 py-4 text-right">Net Due</th>
                                         </tr>
                                     </thead>
                                     <tbody className="text-[13.5px] text-[#202223]">
                                         {filteredClients.length > 0 ? (
-                                            filteredClients.map((client, index) => {
-                                                const profit = client.total_budget - client.total_expense;
+                                            filteredClients.map((client) => {
                                                 return (
-                                                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                                    <tr key={client.client_name} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
                                                         <td className="px-6 py-4 font-bold text-gray-900">{client.client_name}</td>
                                                         <td className="px-6 py-4 text-center">
                                                             <span className="inline-flex items-center justify-center rounded-full bg-blue-100 text-blue-700 px-2.5 py-0.5 text-[11px] font-bold">
@@ -289,17 +319,24 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                                                         </td>
                                                         <td className="px-6 py-4 text-right font-semibold text-blue-600">TK. {client.total_budget.toLocaleString('en-IN')}</td>
                                                         <td className="px-6 py-4 text-right font-semibold text-rose-500">TK. {client.total_expense.toLocaleString('en-IN')}</td>
-                                                        <td className="px-6 py-4 text-right text-emerald-600">TK. {client.vendor_paid.toLocaleString('en-IN')}</td>
-                                                        <td className="px-6 py-4 text-right font-medium text-orange-500">TK. {client.vendor_due.toLocaleString('en-IN')}</td>
-                                                        <td className={`px-6 py-4 text-right font-extrabold ${profit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                                                            {profit > 0 ? '+' : ''}{profit.toLocaleString('en-IN')}
+                                                        
+                                                        {/* New Invoice Data Cells */}
+                                                        <td className="px-6 py-4 text-center border-l border-gray-100">
+                                                            <span className="inline-flex items-center justify-center rounded-md bg-purple-100 text-purple-700 px-2.5 py-0.5 text-[11px] font-bold">
+                                                                {client.total_invoices}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right font-semibold text-purple-700">TK. {client.total_billed.toLocaleString('en-IN')}</td>
+                                                        <td className="px-6 py-4 text-right font-semibold text-teal-600">TK. {client.total_paid.toLocaleString('en-IN')}</td>
+                                                        <td className={`px-6 py-4 text-right font-extrabold ${client.total_due > 0 ? "text-red-600" : "text-gray-500"}`}>
+                                                            TK. {client.total_due.toLocaleString('en-IN')}
                                                         </td>
                                                     </tr>
                                                 );
                                             })
                                         ) : (
                                             <tr>
-                                                <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                                                <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
                                                     <div className="flex flex-col items-center justify-center">
                                                         <i className="fa-solid fa-users-slash text-4xl text-gray-300 mb-3"></i>
                                                         <p>No clients found for this period.</p>
@@ -343,8 +380,8 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                             <div className="overflow-x-auto brass-scroll">
                                 <table id="monthly-report-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
                                     {filteredMonths.length > 0 ? (
-                                        filteredMonths.map((data, index) => (
-                                            <React.Fragment key={index}>
+                                        filteredMonths.map((data) => (
+                                            <React.Fragment key={data.month}>
                                                 <thead>
                                                     {/* Dark Premium Header for Month */}
                                                     <tr className="bg-slate-800 text-white border-b-2 border-slate-900 month-header">

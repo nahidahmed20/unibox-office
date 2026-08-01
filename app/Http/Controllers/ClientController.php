@@ -5,48 +5,68 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 
 class ClientController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index(Request $request)
     {
-        $query = Client::query();
+        $query = Client::query()
+            ->select('clients.*')
+            ->addSelect([
+                'total_invoiced' => DB::table('invoices')
+                    ->whereColumn('client_id', 'clients.id')
+                    ->whereNull('deleted_at') 
+                    ->selectRaw('COALESCE(SUM(grand_total), 0)'),
+                    
+                'total_paid' => DB::table('invoice_payments')
+                    ->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')
+                    ->whereColumn('invoices.client_id', 'clients.id')
+                    ->whereNull('invoices.deleted_at')
+                    ->selectRaw('COALESCE(SUM(invoice_payments.amount), 0)'),
+                    
+                'advance_balance' => DB::table('client_advances')
+                    ->whereColumn('client_id', 'clients.id')
+                    ->selectRaw('COALESCE(SUM(amount), 0)')
+            ]);
 
-        if ($request->has('search')) {
-            $query->where('name', 'like', "%{$request->search}%")
-                ->orWhere('company_name', 'like', "%{$request->search}%")
-                ->orWhere('email', 'like', "%{$request->search}%")
-                ->orWhere('phone', 'like', "%{$request->search}%");
+        if ($request->filled('search')) {
+            $query->where(function($q) use ($request) {
+                $q->where('name', 'like', "%{$request->search}%")
+                    ->orWhere('company_name', 'like', "%{$request->search}%")
+                    ->orWhere('email', 'like', "%{$request->search}%")
+                    ->orWhere('phone', 'like', "%{$request->search}%");
+            });
         }
 
         if ($request->input('per_page') === 'all') {
             $totalCount = $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = min((int) $request->input('per_page', 10), 100000); // sanity cap
+            $perPage = min((int) $request->input('per_page', 10), 100000); 
         }
 
-        $clients = $query->latest()->paginate($perPage)->withQueryString(); 
+        $clients = $query->latest('clients.created_at')->paginate($perPage)->withQueryString(); 
+
+        $clients->getCollection()->transform(function ($client) {
+            $invoiced = (float) $client->total_invoiced;
+            $paid = (float) $client->total_paid;
+            
+            $client->total_invoiced = $invoiced;
+            $client->total_paid = $paid;
+            $client->advance_balance = (float) $client->advance_balance;
+            
+            // Calculate Due
+            $client->net_due = max(0, $invoiced - $paid);
+            
+            return $client;
+        });
 
         return Inertia::render('Admin/Clients/Index', [
             'clients' => $clients
         ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        // Modal use korchi, tai ei method dorkar nei
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -60,12 +80,9 @@ class ClientController extends Controller
 
         Client::create($validated);
 
-        return redirect()->back(); // Inertia auto response handle korbe
+        return redirect()->back();
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(Client $client)
     {
         $client->append(['financial_summary', 'project_stats']);
@@ -79,17 +96,6 @@ class ClientController extends Controller
         ]);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        // Modal use korchi, tai ei method dorkar nei
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, string $id)
     {
         $client = Client::findOrFail($id);
@@ -108,9 +114,6 @@ class ClientController extends Controller
         return redirect()->back();
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(string $id)
     {
         $client = Client::findOrFail($id);

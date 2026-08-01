@@ -14,22 +14,28 @@ class ReportController extends Controller
 {
     public function financialSummary(Request $request)
     {
+        // ১. Query-তে deleted_at null চেক করা হয়েছে
         $query = DB::table('projects')
             ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
-            ->leftJoin('project_expenses', 'projects.id', '=', 'project_expenses.project_id');
+            ->leftJoin('project_expenses', 'projects.id', '=', 'project_expenses.project_id')
+            ->whereNull('projects.deleted_at') 
+            ->whereNull('clients.deleted_at'); 
 
+        // ২. Date Filter Logic: Start/End Date থাকলে Year ফিল্টার ইগনোর হবে
         if ($request->filled('start_date')) {
             $query->whereDate('projects.start_date', '>=', $request->start_date);
         }
         if ($request->filled('end_date')) {
             $query->whereDate('projects.start_date', '<=', $request->end_date);
         }
-        if ($request->filled('year')) {
+        if ($request->filled('year') && !$request->filled('start_date') && !$request->filled('end_date')) {
             $query->whereYear('projects.start_date', $request->year);
         }
 
+        // client_id টাও Select করা হয়েছে ইনভয়েস ট্র‍্যাক করার জন্য
         $projectsData = $query->select(
                 'projects.id',
+                'projects.client_id', 
                 'projects.title',
                 'projects.budget',
                 'projects.start_date',
@@ -39,7 +45,7 @@ class ReportController extends Controller
                 DB::raw('COALESCE(SUM(project_expenses.paid_amount), 0) as vendor_paid'),
                 DB::raw('COALESCE(SUM(project_expenses.due_amount), 0) as vendor_due')
             )
-            ->groupBy('projects.id', 'projects.title', 'projects.budget', 'projects.start_date', 'projects.status', 'clients.name')
+            ->groupBy('projects.id', 'projects.client_id', 'projects.title', 'projects.budget', 'projects.start_date', 'projects.status', 'clients.name')
             ->orderBy('projects.start_date', 'desc')
             ->get();
 
@@ -51,12 +57,18 @@ class ReportController extends Controller
             $cName = $p->client_name ?? 'Unknown Client';
             if (!isset($clientsMap[$cName])) {
                 $clientsMap[$cName] = [
+                    'client_id' => $p->client_id, // Store Client ID
                     'client_name' => $cName,
                     'total_projects' => 0,
                     'total_budget' => 0,
                     'total_expense' => 0,
                     'vendor_paid' => 0,
                     'vendor_due' => 0,
+                    // ৩. Invoice এর ফিল্ডগুলো অ্যাড করা হলো
+                    'total_invoices' => 0,
+                    'total_billed' => 0,
+                    'total_paid' => 0,
+                    'total_due' => 0,
                 ];
             }
             $clientsMap[$cName]['total_projects'] += 1;
@@ -68,8 +80,56 @@ class ReportController extends Controller
             $overallTotalBudget += (float)$p->budget;
             $overallTotalExpense += (float)$p->total_expense;
         }
+
+        // Client ID গুলো বের করে Invoice এবং Payment এর ডাটা আনা হচ্ছে
+        $clientIds = array_filter(array_column($clientsMap, 'client_id'));
+
+        if (!empty($clientIds)) {
+            // Invoice এর ডাটা
+            $invoiceStats = DB::table('invoices')
+                ->whereIn('client_id', $clientIds)
+                ->whereNull('deleted_at')
+                ->select(
+                    'client_id',
+                    DB::raw('COUNT(id) as total_invoices'),
+                    DB::raw('SUM(grand_total) as total_billed')
+                )
+                ->groupBy('client_id')
+                ->get()
+                ->keyBy('client_id');
+
+            // Payment এর ডাটা
+            $paymentStats = DB::table('invoice_payments')
+                ->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')
+                ->whereIn('invoices.client_id', $clientIds)
+                ->whereNull('invoices.deleted_at')
+                ->select(
+                    'invoices.client_id',
+                    DB::raw('SUM(invoice_payments.amount) as total_paid')
+                )
+                ->groupBy('invoices.client_id')
+                ->get()
+                ->keyBy('client_id');
+
+            // Map-এ ডাটা পুশ করা হচ্ছে
+            foreach ($clientsMap as $cName => &$data) {
+                $cId = $data['client_id'];
+                if ($cId) {
+                    $inv = $invoiceStats->get($cId) ?? null;
+                    $pay = $paymentStats->get($cId) ?? null;
+
+                    $data['total_invoices'] = $inv ? (int)$inv->total_invoices : 0;
+                    $data['total_billed']   = $inv ? (float)$inv->total_billed : 0;
+                    $data['total_paid']     = $pay ? (float)$pay->total_paid : 0;
+                    $data['total_due']      = $data['total_billed'] - $data['total_paid'];
+                }
+            }
+            unset($data); // break reference
+        }
+
         $clientsData = array_values($clientsMap);
 
+        // Monthly Data (আগের মতোই থাকবে)
         $monthlyData = [];
         foreach ($projectsData as $p) {
             $month = $p->start_date ? date('F Y', strtotime($p->start_date)) : 'No Date Provided';
@@ -102,10 +162,16 @@ class ReportController extends Controller
             return strcmp($b['sort_key'], $a['sort_key']);
         });
 
+        // Summary তে মোট ইনভয়েস এবং রিসিভড এমাউন্ট যুক্ত করা হলো
+        $overallTotalBilled = array_sum(array_column($clientsMap, 'total_billed'));
+        $overallTotalPaid = array_sum(array_column($clientsMap, 'total_paid'));
+
         $summary = [
             'total_receivable' => $overallTotalBudget,
             'total_cost' => $overallTotalExpense,
-            'net_profit' => $overallTotalBudget - $overallTotalExpense
+            'net_profit' => $overallTotalBudget - $overallTotalExpense,
+            'total_invoiced' => $overallTotalBilled,
+            'total_received' => $overallTotalPaid,
         ];
 
         return Inertia::render('Admin/Reports/FinancialReports', [
