@@ -17,11 +17,10 @@ class AccountController extends Controller
 
         if ($request->filled('search')) {
             $search = $request->search;
-
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                ->orWhere('account_number', 'like', "%{$search}%")
-                ->orWhere('type', 'like', "%{$search}%");
+                  ->orWhere('account_number', 'like', "%{$search}%")
+                  ->orWhere('type', 'like', "%{$search}%");
             });
         }
 
@@ -37,17 +36,40 @@ class AccountController extends Controller
                 ['path' => $request->url(), 'query' => $request->query()]
             );
         } else {
-            $perPage = min((int) $perPageInput, 100000); // sanity cap
-            $accounts = $query->latest()->paginate($perPage);
+            $perPage = min((int) $perPageInput, 100000); 
+            $accounts = $query->latest()->paginate($perPage)->withQueryString();
         }
 
         $totalBalance = Account::sum('current_balance');
 
+        $totalAssets = DB::table('assets')->sum('purchase_price');
+
+        $employeeAdvance = DB::table('advances')
+            ->selectRaw('COALESCE(SUM(amount - settled_amount - returned_amount), 0) as balance')
+            ->value('balance');
+
+        $clientAdvance = DB::table('client_advances')
+            ->selectRaw('COALESCE(SUM(amount - used_amount), 0) as balance')
+            ->value('balance');
+            
+
+        $vendorAdvance = DB::table('vendor_ledgers')
+            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN amount WHEN type = 'credit' THEN -amount ELSE 0 END), 0) as balance")
+            ->value('balance');
+
         return Inertia::render('Admin/Accounts/Index', [
             'accounts' => $accounts,
-            'totalBalance' => $totalBalance,
+            'summary' => [
+                'total_balance'    => (float) $totalBalance,
+                'total_assets'     => (float) $totalAssets,
+                'employee_advance' => (float) $employeeAdvance,
+                'client_advance'   => (float) $clientAdvance,
+                'vendor_advance'   => (float) $vendorAdvance,
+            ],
+            'filters' => $request->only(['search', 'per_page'])
         ]);
     }
+
 
     public function store(Request $request)
     {

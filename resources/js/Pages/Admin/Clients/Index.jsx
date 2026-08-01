@@ -221,7 +221,7 @@ export default function Index({ clients = { data: [], links: [] } }) {
                                 <select 
                                     value={perPage} 
                                     onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
-                                    className="w-[110px] appearance-none bg-none rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                    className="w-[100px] appearance-none bg-none rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
                                 >
                                     <option value={10}>10 Entries</option>
                                     <option value={25}>25 Entries</option>
