@@ -25,8 +25,8 @@ class AdvanceController extends Controller
             });
         }
 
+        // সরাসরি advances টেবিল থেকে নিখুঁত ক্যালকুলেশন (যাতে Account ও Advance পেজের হিসাব মিলে যায়)
         $totalUnsettled = (clone $query)
-            ->where('status', 'unsettled')
             ->get(['amount', 'settled_amount', 'returned_amount'])
             ->sum(function ($adv) {
                 $remaining = (float) $adv->amount - (float) ($adv->settled_amount ?? 0) - (float) ($adv->returned_amount ?? 0);

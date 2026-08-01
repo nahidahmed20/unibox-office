@@ -9,51 +9,12 @@ import CreatableSelect from 'react-select/creatable';
 const COMPANY = {
     name: 'UNIBOX',
     tagline: "Let's Create Together",
-    logo: `${window.location.origin}/images/logo.png`,
+    logo: typeof window !== 'undefined' ? `${window.location.origin}/images/logo.png` : '',
     phone: '+8801627188836',
     email: 'uniboxbd4u@gmail.com',
     website: 'www.uniboxbd4u.com',
     address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
 };
-
-function numberToWords(amount) {
-    const num = Math.round(Number(amount) || 0);
-    if (num === 0) return 'Zero Taka Only';
-
-    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
-        'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-
-    const twoDigits = (n) => {
-        if (n < 20) return ones[n];
-        const t = Math.floor(n / 10);
-        const o = n % 10;
-        return tens[t] + (o ? ' ' + ones[o] : '');
-    };
-
-    const threeDigits = (n) => {
-        const h = Math.floor(n / 100);
-        const rest = n % 100;
-        let str = '';
-        if (h) str += ones[h] + ' Hundred';
-        if (rest) str += (str ? ' ' : '') + twoDigits(rest);
-        return str;
-    };
-
-    let n = num;
-    const crore = Math.floor(n / 10000000); n %= 10000000;
-    const lakh = Math.floor(n / 100000); n %= 100000;
-    const thousand = Math.floor(n / 1000); n %= 1000;
-    const hundred = n;
-
-    const parts = [];
-    if (crore) parts.push(threeDigits(crore) + ' Crore');
-    if (lakh) parts.push(threeDigits(lakh) + ' Lakh');
-    if (thousand) parts.push(threeDigits(thousand) + ' Thousand');
-    if (hundred) parts.push(threeDigits(hundred));
-
-    return parts.join(' ') + ' Taka Only';
-}
 
 export default function Index({ advances = [], filters = {}, accounts = [], employees = [], totalUnsettled = 0 }) {
     const [showModal, setShowModal] = useState(false);
@@ -101,7 +62,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
             router.get(
                 route('admin.advances.index'), 
                 { search: searchTerm, per_page: perPage }, 
-                { preserveState: true, replace: true }
+                { preserveState: true, replace: true, preserveScroll: true }
             );
         }, 400);
         return () => clearTimeout(delayDebounceFn);
@@ -133,6 +94,26 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
             total_due: group.total_given - group.total_expensed - group.total_returned,
         }));
     }, [advanceList]);
+
+    // Calculate Grand Totals for Summary Cards
+    const grandTotals = useMemo(() => {
+        let given = 0;
+        let expensed = 0;
+        let returned = 0;
+
+        groupedAdvances.forEach(g => {
+            given += g.total_given;
+            expensed += g.total_expensed;
+            returned += g.total_returned;
+        });
+
+        return {
+            given,
+            expensed,
+            returned,
+            due: given - expensed - returned
+        };
+    }, [groupedAdvances]);
 
     const toggleExpand = (userId) => {
         setExpandedRows((prev) => ({ ...prev, [userId]: !prev[userId] }));
@@ -211,7 +192,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
             id: '',
             account_id: '',
             user_id: '',
-            amount: 0,
+            amount: '',
             settled_amount: 0,
             returned_amount: 0,
             date: new Date().toISOString().slice(0, 10),
@@ -346,12 +327,52 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         <h1 className="text-[22px] font-bold text-[#202223]">Advance Payments</h1>
                         <p className="text-[14px] text-gray-500 mt-1">Manage and track advance payments given to employees.</p>
                     </div>
+                </div>
 
-                    {/* Total Unsettled Badge */}
-                    <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-2.5 text-red-700 shadow-sm">
-                        <i className="fa-solid fa-triangle-exclamation text-red-600"></i>
-                        <span className="text-[14px] font-bold uppercase tracking-wider text-red-800">Total Unsettled Due:</span>
-                        <span className="text-[18px] font-bold">BDT {Number(totalUnsettled).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                {/* --- 4 PREMIUM SUMMARY CARDS --- */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    {/* Total Given */}
+                    <div className="bg-white p-5 rounded-xl border border-blue-200 shadow-sm flex flex-col gap-3 relative overflow-hidden group">
+                        <div className="absolute right-0 top-0 w-16 h-16 bg-blue-50 rounded-bl-full flex items-start justify-end p-3 transition-transform group-hover:scale-110">
+                            <i className="fa-solid fa-money-bill-transfer text-blue-300 text-xl"></i>
+                        </div>
+                        <span className="block text-[11px] uppercase font-bold text-blue-600 tracking-wider">Total Given</span>
+                        <div className="text-[22px] font-extrabold text-blue-900 z-10">
+                            TK. {Number(grandTotals.given).toLocaleString('en-IN')}
+                        </div>
+                    </div>
+
+                    {/* Total Expensed */}
+                    <div className="bg-white p-5 rounded-xl border border-emerald-200 shadow-sm flex flex-col gap-3 relative overflow-hidden group">
+                        <div className="absolute right-0 top-0 w-16 h-16 bg-emerald-50 rounded-bl-full flex items-start justify-end p-3 transition-transform group-hover:scale-110">
+                            <i className="fa-solid fa-file-invoice-dollar text-emerald-300 text-xl"></i>
+                        </div>
+                        <span className="block text-[11px] uppercase font-bold text-emerald-600 tracking-wider">Total Expensed</span>
+                        <div className="text-[22px] font-extrabold text-emerald-900 z-10">
+                            TK. {Number(grandTotals.expensed).toLocaleString('en-IN')}
+                        </div>
+                    </div>
+
+                    {/* Total Returned */}
+                    <div className="bg-white p-5 rounded-xl border border-purple-200 shadow-sm flex flex-col gap-3 relative overflow-hidden group">
+                        <div className="absolute right-0 top-0 w-16 h-16 bg-purple-50 rounded-bl-full flex items-start justify-end p-3 transition-transform group-hover:scale-110">
+                            <i className="fa-solid fa-hand-holding-dollar text-purple-300 text-xl"></i>
+                        </div>
+                        <span className="block text-[11px] uppercase font-bold text-purple-600 tracking-wider">Total Returned</span>
+                        <div className="text-[22px] font-extrabold text-purple-900 z-10">
+                            TK. {Number(grandTotals.returned).toLocaleString('en-IN')}
+                        </div>
+                    </div>
+
+                    {/* System Unsettled Due */}
+                    <div className="bg-white p-5 rounded-xl border border-red-200 shadow-sm flex flex-col gap-3 relative overflow-hidden group">
+                        <div className="absolute right-0 top-0 w-16 h-16 bg-red-50 rounded-bl-full flex items-start justify-end p-3 transition-transform group-hover:scale-110">
+                            <i className="fa-solid fa-triangle-exclamation text-red-300 text-xl"></i>
+                        </div>
+                        <span className="block text-[11px] uppercase font-bold text-red-600 tracking-wider">Total Due Amount</span>
+                        <div className="text-[22px] font-extrabold text-red-900 z-10">
+                            TK. {Number(totalUnsettled).toLocaleString('en-IN')}
+                        </div>
                     </div>
                 </div>
 
@@ -361,7 +382,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                     {/* Card Header & Actions */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
                         <div className="text-[16px] font-semibold text-[#202223] flex items-center gap-2.5">
-                            <i className="fa-solid fa-hand-holding-dollar text-[var(--accent)]"></i> Employee Advances
+                            <i className="fa-solid fa-list-check text-[var(--accent)]"></i> Advance History Directory
                         </div>
                         {hasPermission('create_advance') && (
                             <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13.5px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50">
@@ -429,7 +450,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                     <th className="px-6 py-4 w-12 expand-btn-col"></th>
                                     <th className="px-6 py-4">Date</th>
                                     <th className="px-6 py-4">Account</th>
-                                    <th className="px-6 py-4">Given To</th>
+                                    <th className="px-6 py-4">Given To (Employee)</th>
                                     <th className="px-6 py-4 text-right">Given</th>
                                     <th className="px-6 py-4 text-right">Expensed</th>
                                     <th className="px-6 py-4 text-right">Returned</th>
@@ -461,7 +482,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                     </td>
                                                     <td className="px-6 py-4 text-gray-500 font-medium">
                                                         {hasMultiple ? (
-                                                            `${group.records.length} entries`
+                                                            <span className="bg-gray-100 px-2.5 py-1 rounded text-gray-600 text-[12px] font-bold">{group.records.length} entries</span>
                                                         ) : (
                                                             <>
                                                                 <div>{single.date}</div>
@@ -474,19 +495,13 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                         )}
                                                     </td>
                                                     <td className="px-6 py-4 font-semibold text-teal-700">
-                                                        {hasMultiple ? 'Multiple' : (single.account?.name || 'N/A')}
+                                                        {hasMultiple ? <span className="text-gray-400 italic">Multiple Accounts</span> : (single.account?.name || 'N/A')}
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         <Link href={route('admin.advances.employeeLedger', group.user_id)} className="font-bold text-gray-900 hover:text-blue-600 transition-colors">
                                                             {group.user?.name}
                                                         </Link>
-                                                        {hasMultiple ? (
-                                                            <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-600">
-                                                                {group.records.length}
-                                                            </span>
-                                                        ) : (
-                                                            single.purpose && <div className="text-[12px] text-gray-500 mt-1">{single.purpose}</div>
-                                                        )}
+                                                        {!hasMultiple && single.purpose && <div className="text-[12px] text-gray-500 mt-1">{single.purpose}</div>}
                                                     </td>
                                                     <td className="px-6 py-4 text-right font-bold text-gray-900">
                                                         {group.total_given.toLocaleString('en-IN')}
@@ -515,18 +530,23 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                             </button>
                                                         ) : (
                                                             <div className="flex items-center justify-center gap-1.5">
+                                                                {hasPermission('view_client_advance') && (
+                                                                    <button onClick={() => openViewModal(single)} className="flex h-7 w-7 items-center justify-center rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="View">
+                                                                        <i className="fa-regular fa-eye text-[12px]"></i>
+                                                                    </button>
+                                                                )}
                                                                 {hasPermission('return_advance') && single.status !== 'settled' && group.total_due > 0 && (
                                                                     <button onClick={() => openReturnModal(single)} className="flex h-7 w-7 items-center justify-center rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors" title="Refund Cash">
                                                                         <i className="fa-solid fa-money-bill-transfer text-[12px]"></i>
                                                                     </button>
                                                                 )}
                                                                 {hasPermission('edit_advance') && (
-                                                                    <button onClick={() => openEditModal(single)} className="flex h-7 w-7 items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors" title="Edit Record">
+                                                                    <button onClick={() => openEditModal(single)} className="flex h-7 w-7 items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors" title="Edit">
                                                                         <i className="fa-regular fa-pen-to-square text-[12px]"></i>
                                                                     </button>
                                                                 )}
                                                                 {hasPermission('delete_advance') && (
-                                                                    <button onClick={() => handleDelete(single.id)} className="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete Record">
+                                                                    <button onClick={() => handleDelete(single.id)} className="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete">
                                                                         <i className="fa-regular fa-trash-can text-[12px]"></i>
                                                                     </button>
                                                                 )}
@@ -657,7 +677,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                     link.url === null ? (
                                         <span key={i} className="flex min-w-[32px] items-center justify-center rounded-md border border-gray-200 bg-gray-100 px-2.5 py-1.5 text-[13px] text-gray-400 cursor-not-allowed" dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }} />
                                     ) : (
-                                        <Link key={i} href={link.url} preserveState className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] transition-colors ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`} dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }} />
+                                        <Link key={i} href={link.url} preserveState className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] transition-colors ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`} dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }} />
                                     )
                                 ))}
                             </div>
@@ -668,150 +688,166 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
             {/* --- MAIN CREATE / EDIT FORM MODAL SECTION --- */}
             {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6">
+                    <div className="w-full max-w-3xl bg-[#f8fafc] rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden">
                         
                         {/* Modal Header */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
-                            <h3 className="text-[18px] font-semibold text-[#202223]">
-                                {editMode ? '📝 Edit Advance Info' : '✨ Log Advance Payment'}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white shrink-0">
+                            <h3 className="text-[18px] font-bold text-gray-900 flex items-center gap-2">
+                                {editMode ? (
+                                    <><i className="fa-regular fa-pen-to-square text-[var(--accent)]"></i> Modify Advance Info</>
+                                ) : (
+                                    <><i className="fa-solid fa-hand-holding-dollar text-[var(--accent)]"></i> Log New Advance Payment</>
+                                )}
                             </h3>
-                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 h-8 w-8 rounded-full flex items-center justify-center transition-colors">
                                 <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
                         
                         {/* Modal Form */}
-                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
-                            <div className="p-6 overflow-y-auto brass-scroll">
+                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden h-full">
+                            <div className="p-6 overflow-y-auto brass-scroll space-y-6">
                                 {errors.error && (
-                                    <div className="mb-5 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-[13.5px] font-medium text-red-700">
+                                    <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-[13.5px] font-medium text-red-700 shadow-sm">
                                         <i className="fa-solid fa-circle-exclamation mt-0.5"></i>
                                         {errors.error}
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Select Account *</label>
-                                        <Select
-                                            options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${Number(a.current_balance).toLocaleString('en-IN')})` }))}
-                                            value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
-                                            onChange={(selected) => setData("account_id", selected ? selected.value : "")}
-                                            placeholder="-- Choose Account --"
-                                            isDisabled={editMode}
-                                            isSearchable
-                                            isClearable
-                                            styles={selectStyles}
-                                            menuPosition="fixed"
-                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
-                                        />
-                                        {errors.account_id && <p className="text-red-500 text-[12px] mt-1">{errors.account_id}</p>}
+                                <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                                    <h4 className="text-[14px] font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-100 pb-2">
+                                        <i className="fa-solid fa-building-columns text-gray-400"></i> Payment Details
+                                    </h4>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Select Account <span className="text-red-500">*</span></label>
+                                            <Select
+                                                options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${Number(a.current_balance).toLocaleString('en-IN')})` }))}
+                                                value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
+                                                onChange={(selected) => setData("account_id", selected ? selected.value : "")}
+                                                placeholder="-- Choose Account --"
+                                                isDisabled={editMode}
+                                                isSearchable
+                                                isClearable
+                                                styles={selectStyles}
+                                                menuPosition="fixed"
+                                            />
+                                            {errors.account_id && <p className="text-red-500 text-[12px] mt-1">{errors.account_id}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Employee <span className="text-red-500">*</span></label>
+                                            <Select
+                                                options={employees.map((e) => ({ value: e.id, label: e.name }))}
+                                                value={employees.map((e) => ({ value: e.id, label: e.name })).find((opt) => Number(opt.value) === Number(data.user_id)) || null}
+                                                onChange={(selected) => setData("user_id", selected ? selected.value : "")}
+                                                placeholder="-- Select Employee --"
+                                                isSearchable
+                                                isClearable
+                                                styles={selectStyles}
+                                                menuPosition="fixed"
+                                            />
+                                            {errors.user_id && <p className="text-red-500 text-[12px] mt-1">{errors.user_id}</p>}
+                                        </div>
                                     </div>
 
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Employee *</label>
-                                        <Select
-                                            options={employees.map((e) => ({ value: e.id, label: e.name }))}
-                                            value={employees.map((e) => ({ value: e.id, label: e.name })).find((opt) => Number(opt.value) === Number(data.user_id)) || null}
-                                            onChange={(selected) => setData("user_id", selected ? selected.value : "")}
-                                            placeholder="-- Select Employee --"
-                                            isSearchable
-                                            isClearable
-                                            styles={selectStyles}
-                                            menuPosition="fixed"
-                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
-                                        />
-                                        {errors.user_id && <p className="text-red-500 text-[12px] mt-1">{errors.user_id}</p>}
-                                    </div>
-                                </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-emerald-700 mb-1.5">Amount (BDT) <span className="text-red-500">*</span></label>
+                                            <input 
+                                                type="number" 
+                                                step="0.01"
+                                                value={data.amount} 
+                                                onChange={e => setData('amount', e.target.value)} 
+                                                className="w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-[15px] font-bold text-emerald-800 outline-none transition-shadow focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50" 
+                                                placeholder="0.00" 
+                                                required 
+                                            />
+                                            {errors.amount && <p className="text-red-500 text-[12px] mt-1">{errors.amount}</p>}
+                                        </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-emerald-700 mb-1.5">Amount (BDT) *</label>
-                                        <input 
-                                            type="number" 
-                                            step="0.01"
-                                            value={data.amount} 
-                                            onChange={e => setData('amount', e.target.value)} 
-                                            className="w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-[15px] font-bold text-emerald-800 outline-none transition-shadow focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50" 
-                                            placeholder="0.00" 
-                                            required 
-                                        />
-                                        {errors.amount && <p className="text-red-500 text-[12px] mt-1">{errors.amount}</p>}
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Date *</label>
-                                        <input 
-                                            type="date" 
-                                            value={data.date} 
-                                            onChange={e => setData('date', e.target.value)} 
-                                            className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                            required 
-                                        />
-                                        {errors.date && <p className="text-red-500 text-[12px] mt-1">{errors.date}</p>}
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Purpose</label>
-                                        <CreatableSelect
-                                            options={[
-                                                { value: 'Office Work', label: 'Office Work' },
-                                                { value: 'Vehicle Maintenance', label: 'Vehicle Maintenance' },
-                                                { value: 'Staff Advance', label: 'Staff Advance' },
-                                                { value: 'Travel Expense', label: 'Travel Expense' },
-                                                { value: 'Utility Bill', label: 'Utility Bill' },
-                                                { value: 'Other', label: 'Other' },
-                                            ]}
-                                            value={data.purpose ? { value: data.purpose, label: data.purpose } : null}
-                                            onChange={(selected) => setData('purpose', selected ? selected.value : '')}
-                                            onCreateOption={(inputValue) => setData('purpose', inputValue)}
-                                            placeholder="-- Select or type Purpose --"
-                                            isClearable
-                                            styles={selectStyles}
-                                            menuPosition="fixed"
-                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
-                                        />
-                                        {errors.purpose && <p className="text-red-500 text-[12px] mt-1">{errors.purpose}</p>}
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Status</label>
-                                        <select 
-                                            value={data.status} 
-                                            onChange={e => setData('status', e.target.value)} 
-                                            className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
-                                        >
-                                            <option value="unsettled">Unsettled (Not adjusted)</option>
-                                            <option value="settled">Settled (Bill Submitted)</option>
-                                        </select>
-                                        {errors.status && <p className="text-red-500 text-[12px] mt-1">{errors.status}</p>}
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Date <span className="text-red-500">*</span></label>
+                                            <input 
+                                                type="date" 
+                                                value={data.date} 
+                                                onChange={e => setData('date', e.target.value)} 
+                                                className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                                required 
+                                            />
+                                            {errors.date && <p className="text-red-500 text-[12px] mt-1">{errors.date}</p>}
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="border-t border-gray-100 pt-5">
-                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Notes</label>
-                                    <textarea 
-                                        value={data.notes} 
-                                        onChange={e => setData('notes', e.target.value)} 
-                                        rows="2"
-                                        className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] text-gray-900 outline-none resize-y min-h-[80px] transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                        placeholder="Optional additional details..." 
-                                    ></textarea>
-                                    {errors.notes && <p className="text-red-500 text-[12px] mt-1">{errors.notes}</p>}
+                                <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                                    <h4 className="text-[14px] font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-100 pb-2">
+                                        <i className="fa-solid fa-list-check text-gray-400"></i> Purpose & Status
+                                    </h4>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Purpose</label>
+                                            <CreatableSelect
+                                                options={[
+                                                    { value: 'Office Work', label: 'Office Work' },
+                                                    { value: 'Vehicle Maintenance', label: 'Vehicle Maintenance' },
+                                                    { value: 'Staff Advance', label: 'Staff Advance' },
+                                                    { value: 'Travel Expense', label: 'Travel Expense' },
+                                                    { value: 'Utility Bill', label: 'Utility Bill' },
+                                                    { value: 'Other', label: 'Other' },
+                                                ]}
+                                                value={data.purpose ? { value: data.purpose, label: data.purpose } : null}
+                                                onChange={(selected) => setData('purpose', selected ? selected.value : '')}
+                                                onCreateOption={(inputValue) => setData('purpose', inputValue)}
+                                                placeholder="-- Select or type Purpose --"
+                                                isClearable
+                                                styles={selectStyles}
+                                                menuPosition="fixed"
+                                            />
+                                            {errors.purpose && <p className="text-red-500 text-[12px] mt-1">{errors.purpose}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Status</label>
+                                            <div className="relative">
+                                                <select 
+                                                    value={data.status} 
+                                                    onChange={e => setData('status', e.target.value)} 
+                                                    className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                                >
+                                                    <option value="unsettled">Unsettled (Not adjusted)</option>
+                                                    <option value="settled">Settled (Bill Submitted)</option>
+                                                </select>
+                                                <i className="fa-solid fa-chevron-down text-[10px] text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                            </div>
+                                            {errors.status && <p className="text-red-500 text-[12px] mt-1">{errors.status}</p>}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Notes / Description</label>
+                                        <textarea 
+                                            value={data.notes} 
+                                            onChange={e => setData('notes', e.target.value)} 
+                                            rows="3"
+                                            className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] text-gray-900 outline-none resize-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
+                                            placeholder="Optional additional details..." 
+                                        ></textarea>
+                                        {errors.notes && <p className="text-red-500 text-[12px] mt-1">{errors.notes}</p>}
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Modal Footer Control */}
-                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 shrink-0">
+                            <div className="px-6 py-4 border-t border-gray-200 bg-white flex justify-end gap-3 shrink-0">
                                 <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70">
-                                    {processing ? 'Saving...' : (editMode ? "Update Advance" : "Save Advance")}
+                                <button type="submit" disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70 flex items-center gap-2">
+                                    {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Saving...</> : <><i className="fa-solid fa-check"></i> {editMode ? "Update Advance" : "Save Advance"}</>}
                                 </button>
                             </div>
                         </form>
@@ -821,57 +857,71 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
             {/* --- VIEW MODAL --- */}
             {showViewModal && selectedAdvance && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
-                            <h3 className="text-[18px] font-semibold text-[#202223] flex items-center gap-2">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-2xl bg-[#f8fafc] rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white shrink-0">
+                            <h3 className="text-[18px] font-bold text-gray-900 flex items-center gap-2">
                                 <i className="fa-solid fa-receipt text-[var(--accent)]"></i> Transaction Details
                             </h3>
-                            <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                            <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 h-8 w-8 rounded-full flex items-center justify-center transition-colors">
                                 <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
-                        <div className="p-6 overflow-y-auto brass-scroll">
-                            <div className="text-center mb-6">
-                                <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Employee</span>
-                                <div className="text-[20px] font-extrabold text-gray-900">{selectedAdvance.user?.name || "N/A"}</div>
+
+                        <div className="p-6 overflow-y-auto brass-scroll space-y-6">
+                            
+                            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+                                <div className="h-14 w-14 rounded-full bg-[var(--accent)]/10 flex items-center justify-center text-[var(--accent)] text-2xl font-bold border border-[var(--accent)]/20 uppercase">
+                                    {selectedAdvance.user?.name ? selectedAdvance.user.name.charAt(0) : 'U'}
+                                </div>
+                                <div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Employee</span>
+                                    <h2 className="text-[20px] font-bold text-gray-900 m-0">{selectedAdvance.user?.name || "N/A"}</h2>
+                                </div>
                             </div>
                             
-                            <div className="grid grid-cols-2 gap-5 mb-5 bg-gray-50 p-5 rounded-xl border border-gray-100">
-                                <div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm text-center">
                                     <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Amount Given</span>
                                     <div className="text-[18px] font-bold text-gray-900">TK. {Number(selectedAdvance.amount).toLocaleString('en-IN')}</div>
                                 </div>
-                                <div>
+                                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm text-center">
                                     <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Adjusted / Expensed</span>
                                     <div className="text-[18px] font-bold text-emerald-600">TK. {Number(selectedAdvance.settled_amount).toLocaleString('en-IN')}</div>
                                 </div>
-                                <div>
+                                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm text-center">
                                     <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Returned Cash</span>
                                     <div className="text-[18px] font-bold text-blue-600">TK. {Number(selectedAdvance.returned_amount).toLocaleString('en-IN')}</div>
                                 </div>
-                                <div>
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Currently Due</span>
-                                    <div className="text-[18px] font-bold text-red-600">TK. {Number(selectedAdvance.amount - selectedAdvance.settled_amount - selectedAdvance.returned_amount).toLocaleString('en-IN')}</div>
-                                </div>
-                                <div className="sm:col-span-2 border-t border-gray-200 pt-4 mt-1">
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Given Date</span>
-                                    <div className="font-semibold text-gray-800 flex items-center gap-2">
-                                        <i className="fa-regular fa-calendar-days text-gray-400"></i> {selectedAdvance.date}
-                                    </div>
+                                <div className={`${(selectedAdvance.amount - selectedAdvance.settled_amount - selectedAdvance.returned_amount) > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'} p-4 rounded-xl border shadow-sm text-center`}>
+                                    <span className={`block text-[11px] font-bold uppercase tracking-wider ${(selectedAdvance.amount - selectedAdvance.settled_amount - selectedAdvance.returned_amount) > 0 ? 'text-red-600' : 'text-gray-500'} mb-1`}>Currently Due</span>
+                                    <div className={`text-[18px] font-bold ${(selectedAdvance.amount - selectedAdvance.settled_amount - selectedAdvance.returned_amount) > 0 ? 'text-red-700' : 'text-gray-700'}`}>TK. {Number(selectedAdvance.amount - selectedAdvance.settled_amount - selectedAdvance.returned_amount).toLocaleString('en-IN')}</div>
                                 </div>
                             </div>
                             
-                            <div className="border-t border-gray-100 pt-5">
-                                <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Note</span>
-                                <div className="text-[14px] text-gray-700 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                    {selectedAdvance.note || <span className="italic text-gray-400">No additional note.</span>}
+                            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                                <h4 className="text-[13px] font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-100 pb-2">
+                                    <i className="fa-solid fa-circle-info text-gray-400"></i> Additional Details
+                                </h4>
+                                <div className="flex flex-col gap-4">
+                                    <div>
+                                        <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Given Date</span>
+                                        <div className="font-medium text-gray-800 flex items-center gap-2">
+                                            <i className="fa-regular fa-calendar-days text-gray-400"></i> {selectedAdvance.date}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Note</span>
+                                        <div className="text-[14px] text-gray-700 bg-gray-50 p-3.5 rounded-lg border border-gray-100 leading-relaxed">
+                                            {selectedAdvance.notes || <span className="italic text-gray-400">No additional note provided.</span>}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end shrink-0">
-                            <button onClick={() => setShowViewModal(false)} className="rounded-lg bg-gray-800 px-6 py-2 text-[14px] font-medium text-white transition-colors hover:bg-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-700/50">
-                                Close
+                        <div className="px-6 py-4 border-t border-gray-200 bg-white flex justify-end shrink-0">
+                            <button onClick={() => setShowViewModal(false)} className="rounded-lg bg-gray-800 px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-700/50">
+                                Close Window
                             </button>
                         </div>
                     </div>
@@ -880,19 +930,19 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
             {/* --- CASH RETURN MODAL --- */}
             {showReturnModal && selectedAdvance && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-md bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
                         
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-emerald-100 bg-emerald-50/50 shrink-0">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-emerald-200 bg-emerald-50 shrink-0">
                             <div>
-                                <h3 className="m-0 text-[18px] font-semibold text-emerald-700 flex items-center gap-2">
+                                <h3 className="m-0 text-[17px] font-bold text-emerald-700 flex items-center gap-2">
                                     <i className="fa-solid fa-money-bill-transfer"></i> Refund Leftover Cash
                                 </h3>
-                                <p className="m-0 mt-1 text-[13px] text-emerald-600">
+                                <p className="m-0 mt-1 text-[12.5px] text-emerald-600 font-medium">
                                     Return cash from <b>{selectedAdvance.user?.name || 'N/A'}</b> to Account.
                                 </p>
                             </div>
-                            <button onClick={() => setShowReturnModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                            <button onClick={() => setShowReturnModal(false)} className="text-emerald-500 hover:text-emerald-700 transition-colors h-8 w-8 rounded-full hover:bg-white flex items-center justify-center">
                                 <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
@@ -900,37 +950,40 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         <form onSubmit={handleReturnSubmit} className="flex flex-col overflow-hidden">
                             <div className="p-6 overflow-y-auto brass-scroll">
                                 {returnErrors.error && (
-                                    <div className="mb-5 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-[13.5px] font-medium text-red-700">
+                                    <div className="mb-5 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-[13.5px] font-medium text-red-700 shadow-sm">
                                         <i className="fa-solid fa-circle-exclamation mt-0.5"></i>
                                         {returnErrors.error}
                                     </div>
                                 )}
 
                                 <div>
-                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Refund Amount (BDT) *</label>
+                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Refund Amount (BDT) <span className="text-red-500">*</span></label>
                                     <input 
                                         type="number" 
                                         step="0.01"
                                         value={returnData.return_amount} 
                                         onChange={e => setReturnData('return_amount', e.target.value)} 
-                                        className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[15px] font-bold text-gray-900 outline-none transition-shadow focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50" 
-                                        placeholder="Enter returned cash amount" 
+                                        className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[16px] font-bold text-gray-900 outline-none transition-shadow focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 shadow-sm" 
+                                        placeholder="0.00" 
                                         required
                                     />
-                                    {returnErrors.return_amount && <p className="text-red-500 text-[12px] mt-1">{returnErrors.return_amount}</p>}
-                                    <div className="mt-2 text-[12px] text-gray-500 flex items-start gap-1.5">
-                                        <i className="fa-solid fa-circle-info mt-0.5 text-blue-500"></i>
-                                        This money will be added back to <b>{selectedAdvance.account?.name}</b>.
+                                    {returnErrors.return_amount && <p className="text-red-500 text-[12px] mt-1 font-bold">{returnErrors.return_amount}</p>}
+                                    
+                                    <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3.5 text-[13px] text-blue-800 flex items-start gap-2 shadow-sm font-medium">
+                                        <i className="fa-solid fa-circle-info mt-0.5 text-blue-600 shrink-0"></i>
+                                        <p className="m-0 leading-relaxed">
+                                            This refunded amount will be directly deposited back to the <b>{selectedAdvance.account?.name}</b> account.
+                                        </p>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 shrink-0">
-                                <button type="button" onClick={() => setShowReturnModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
+                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0">
+                                <button type="button" onClick={() => setShowReturnModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={returnProcessing} className="rounded-lg bg-emerald-600 px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 disabled:opacity-70">
-                                    {returnProcessing ? 'Processing...' : 'Confirm Refund'}
+                                <button type="submit" disabled={returnProcessing} className="rounded-lg bg-emerald-600 px-6 py-2.5 text-[14px] font-bold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 disabled:opacity-70 flex items-center gap-2 shadow-sm">
+                                    {returnProcessing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-check"></i> Confirm Refund</>}
                                 </button>
                             </div>
                         </form>
