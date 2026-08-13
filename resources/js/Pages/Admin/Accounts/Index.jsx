@@ -3,7 +3,6 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react'; 
 import Swal from 'sweetalert2'; 
 
-// ব্যাকএন্ড থেকে summary প্রপসটি রিসিভ করা হচ্ছে
 export default function Index({ accounts = { data: [], links: [] }, summary = {}, filters = {} }) {
     
     const { auth } = usePage().props;

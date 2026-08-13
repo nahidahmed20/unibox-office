@@ -17,46 +17,77 @@ class InvoiceController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Invoice::with(['client', 'items.project']);
+        $query = Invoice::with(['client', 'items.project'])->withSum('payments', 'amount');
 
+        // Keyword Search
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('invoice_number', 'like', "%{$searchTerm}%")
                 ->orWhereHas('client', function ($cq) use ($searchTerm) {
-                    $cq->where('name', 'like', "%{$searchTerm}%");
+                    $cq->where('name', 'like', "%{$searchTerm}%")
+                      ->orWhere('company_name', 'like', "%{$searchTerm}%");
                 });
             });
         }
 
-        if ($request->input('per_page') === 'all') {
-            $totalCount = $query->count();
-            $perPage = $totalCount > 0 ? $totalCount : 1;
-        } else {
-            $perPage = min((int) $request->input('per_page', 10), 100000); 
+        // Filters
+        if ($request->filled('client_id')) {
+            $query->where('client_id', $request->client_id);
+        }
+        if ($request->filled('year')) {
+            $query->whereYear('invoice_date', $request->year);
+        }
+        if ($request->filled('date_from')) {
+            $query->whereDate('invoice_date', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('invoice_date', '<=', $request->date_to);
         }
 
-        $invoices = $query->latest()->paginate($perPage)->withQueryString();
+        $perPage = $request->input('per_page') === 'all' ? ($query->count() > 0 ? $query->count() : 1) : min((int) $request->input('per_page', 10), 100000);
+   
+        $invoices = $query->orderByDesc('invoice_date')->orderByDesc('id')->paginate($perPage)->withQueryString();
 
+        $clients = Client::select('id', 'name', 'company_name')->orderBy('name')->get();
+        $years = Invoice::selectRaw('DISTINCT YEAR(invoice_date) as year')->orderByDesc('year')->pluck('year');
+
+        return Inertia::render('Admin/Invoices/Index', [
+            'invoices' => $invoices,
+            'clients'  => $clients,
+            'years'    => $years,
+            'filters'  => [
+                'search'    => $request->search,
+                'per_page'  => $request->input('per_page', 10),
+                'client_id' => $request->client_id,
+                'year'      => $request->year,
+                'date_from' => $request->date_from,
+                'date_to'   => $request->date_to,
+            ],
+        ]);
+    }
+
+    public function create()
+    {
         $clients = Client::select('id', 'name', 'company_name')
             ->withSum('clientAdvances as total_advance', 'amount')
             ->withSum('clientAdvances as total_used', 'used_amount')
-            ->latest()
             ->get()
             ->map(function ($client) {
                 $client->available_advance = ($client->total_advance ?? 0) - ($client->total_used ?? 0);
                 return $client;
             });
 
-        $projects = Project::select('id', 'title', 'client_id', 'budget', 'quantity', 'unit_type', 'description')->latest()->get();
-        $nextInvoiceNumber = $this->generateNextInvoiceNumber();
+        $invoicedProjectIds = DB::table('invoice_items')->whereNotNull('project_id')->pluck('project_id')->toArray();
+        
+        $projects = Project::select('id', 'title', 'client_id', 'budget', 'quantity', 'unit_type', 'description', 'created_at')
+                    ->whereNotIn('id', $invoicedProjectIds)
+                    ->latest()->get();
 
-        return Inertia::render('Admin/Invoices/Index', [
-            'invoices' => $invoices,
+        return Inertia::render('Admin/Invoices/Create', [
             'clients' => $clients,
             'projects' => $projects,
-            'nextInvoiceNumber' => $nextInvoiceNumber,
-            'filters' => $request->only('search', 'per_page'),
+            'nextInvoiceNumber' => $this->generateNextInvoiceNumber(),
         ]);
     }
 
@@ -76,7 +107,8 @@ class InvoiceController extends Controller
             'use_advance_amount' => 'nullable|numeric|min:0',
             'items'              => 'required|array|min:1',
             'items.*.project_id' => 'nullable|exists:projects,id',
-            'items.*.description'=> 'required|string',
+            'items.*.item_name'  => 'required|string', 
+            'items.*.description'=> 'nullable|string',
             'items.*.quantity'   => 'required|numeric|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.total'      => 'required|numeric|min:0',
@@ -84,7 +116,6 @@ class InvoiceController extends Controller
 
         DB::transaction(function () use ($validated) {
             $invoiceData = collect($validated)->except(['items', 'use_advance_amount'])->toArray();
-            
             $invoiceData['advance_used'] = $validated['use_advance_amount'] ?? 0;
             
             $invoice = Invoice::create($invoiceData);
@@ -92,7 +123,6 @@ class InvoiceController extends Controller
 
             if (!empty($validated['use_advance_amount']) && $validated['use_advance_amount'] > 0) {
                 $deductAmount = $validated['use_advance_amount'];
-                
                 $advances = ClientAdvance::where('client_id', $validated['client_id'])
                     ->where('is_settled', false)
                     ->orderBy('date', 'asc')
@@ -100,7 +130,6 @@ class InvoiceController extends Controller
 
                 foreach ($advances as $advance) {
                     if ($deductAmount <= 0) break;
-
                     $availableInThisRow = $advance->amount - $advance->used_amount;
 
                     if ($availableInThisRow >= $deductAmount) {
@@ -146,7 +175,28 @@ class InvoiceController extends Controller
             }
         });
 
-        return redirect()->back()->with('success', 'Invoice generated successfully.');
+        return redirect()->route('admin.invoices.index')->with('success', 'Invoice generated successfully.');
+    }
+
+    public function edit(string $id)
+    {
+        $invoice = Invoice::with(['items.project', 'client'])->withSum('payments', 'amount')->findOrFail($id);
+        
+        $clients = Client::select('id', 'name', 'company_name')->withSum('clientAdvances as total_advance', 'amount')->withSum('clientAdvances as total_used', 'used_amount')->get()->map(function ($client) {
+            $client->available_advance = ($client->total_advance ?? 0) - ($client->total_used ?? 0);
+            return $client;
+        });
+
+        $invoicedProjectIds = DB::table('invoice_items')->whereNotNull('project_id')->where('invoice_id', '!=', $id)->pluck('project_id')->toArray();
+        $projects = Project::select('id', 'title', 'client_id', 'budget', 'quantity', 'unit_type', 'description', 'created_at')
+                    ->whereNotIn('id', $invoicedProjectIds)
+                    ->latest()->get();
+
+        return Inertia::render('Admin/Invoices/Edit', [
+            'invoice' => $invoice,
+            'clients' => $clients,
+            'projects' => $projects,
+        ]);
     }
 
     public function update(Request $request, string $id)
@@ -166,15 +216,19 @@ class InvoiceController extends Controller
             'status'             => 'required|in:unpaid,partially_paid,paid,overdue',
             'notes'              => 'nullable|string',
             'items'              => 'required|array|min:1',
+            'items.*.project_id' => 'nullable|exists:projects,id',
+            'items.*.item_name'  => 'required|string',
+            'items.*.description'=> 'nullable|string',
+            'items.*.quantity'   => 'required|numeric|min:1',
+            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.total'      => 'required|numeric|min:0',
         ]);
 
         DB::transaction(function () use ($invoice, $validated) {
             $this->rollbackAdvancePayment($invoice);
 
             $invoiceData = collect($validated)->except(['items', 'use_advance_amount'])->toArray();
-            
             $invoiceData['advance_used'] = $validated['use_advance_amount'] ?? 0;
-            
             $invoice->update($invoiceData);
             
             $invoice->items()->delete();
@@ -182,20 +236,14 @@ class InvoiceController extends Controller
 
             if (!empty($validated['use_advance_amount']) && $validated['use_advance_amount'] > 0) {
                 $deductAmount = $validated['use_advance_amount'];
-                
-                $advances = ClientAdvance::where('client_id', $validated['client_id'])
-                    ->where('is_settled', false)
-                    ->orderBy('id', 'asc') // FIFO method
-                    ->get();
+                $advances = ClientAdvance::where('client_id', $validated['client_id'])->where('is_settled', false)->orderBy('id', 'asc')->get();
 
                 foreach ($advances as $advance) {
                     if ($deductAmount <= 0) break;
-                    
                     $availableInThisRow = $advance->amount - $advance->used_amount;
                     
                     if ($availableInThisRow > 0) {
                         $take = min($availableInThisRow, $deductAmount);
-                        
                         $advance->increment('used_amount', $take);
                         $advance->update(['is_settled' => ($advance->used_amount >= $advance->amount)]);
 
@@ -219,9 +267,8 @@ class InvoiceController extends Controller
             }
         });
 
-        return redirect()->back()->with('success', 'Invoice updated successfully.');
+        return redirect()->route('admin.invoices.index')->with('success', 'Invoice updated successfully.');
     }
-
 
     public function destroy(string $id)
     {
@@ -229,53 +276,34 @@ class InvoiceController extends Controller
         
         DB::transaction(function () use ($invoice) {
             $this->rollbackAdvancePayment($invoice);
-
             $invoice->payments()->delete();
             $invoice->items()->delete(); 
-            
             $invoice->delete();
         });
         
         return redirect()->back()->with('success', 'Invoice deleted successfully.');
     }
 
-
     private function rollbackAdvancePayment($invoice)
     {
-        $advancePayments = InvoicePayment::where('invoice_id', $invoice->id)
-            ->where('method', 'Client Advance') 
-            ->get();
+        $advancePayments = InvoicePayment::where('invoice_id', $invoice->id)->where('method', 'Client Advance')->get();
             
         if ($advancePayments->count() > 0) {
             $refundAmount = $advancePayments->sum('amount');
-            
-            $advances = ClientAdvance::where('client_id', $invoice->client_id)
-                ->where('used_amount', '>', 0)
-                ->orderBy('id', 'desc') 
-                ->get();
+            $advances = ClientAdvance::where('client_id', $invoice->client_id)->where('used_amount', '>', 0)->orderBy('id', 'desc')->get();
             
             foreach ($advances as $advance) {
                 if ($refundAmount <= 0) break;
-                
                 if ($advance->used_amount >= $refundAmount) {
                     $newUsed = $advance->used_amount - $refundAmount;
-                    $advance->update([
-                        'used_amount' => $newUsed,
-                        'is_settled'  => false 
-                    ]);
+                    $advance->update(['used_amount' => $newUsed, 'is_settled'  => false ]);
                     $refundAmount = 0;
                 } else {
                     $refundAmount -= $advance->used_amount;
-                    $advance->update([
-                        'used_amount' => 0,
-                        'is_settled'  => false
-                    ]);
+                    $advance->update(['used_amount' => 0, 'is_settled'  => false]);
                 }
             }
-            
-            InvoicePayment::where('invoice_id', $invoice->id)
-                ->where('method', 'Client Advance')
-                ->delete();
+            InvoicePayment::where('invoice_id', $invoice->id)->where('method', 'Client Advance')->delete();
         }
     }
 
@@ -294,103 +322,7 @@ class InvoiceController extends Controller
     public function print($id)
     {
         $invoice = Invoice::with(['client', 'items.project'])->findOrFail($id);
-        
-        return inertia('Admin/Invoices/Print', [
-            'invoice' => $invoice
-        ]);
-    }
-
-    public function clientDuesReport(Request $request)
-    {
-        $query = Client::select('id', 'name', 'company_name', 'phone', 'email')
-            ->withSum('invoices as total_invoiced', 'grand_total')
-            ->withSum('clientAdvances as total_advance', 'amount')
-            ->withSum('clientAdvances as total_used', 'used_amount')
-            ->addSelect([
-                'total_paid' => InvoicePayment::selectRaw('COALESCE(SUM(amount), 0)')
-                    ->join('invoices', 'invoices.id', '=', 'invoice_payments.invoice_id')
-                    ->whereColumn('invoices.client_id', 'clients.id')
-            ]);
-
-        // Search Filter
-        if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('name', 'like', "%{$searchTerm}%")
-                ->orWhere('company_name', 'like', "%{$searchTerm}%")
-                ->orWhere('phone', 'like', "%{$searchTerm}%")
-                ->orWhere('email', 'like', "%{$searchTerm}%");
-            });
-        }
-
-        $grandTotalDue = (clone $query)
-            ->get(['total_invoiced', 'total_paid']) 
-            ->sum(function ($client) {
-                $invoiced = $client->total_invoiced ?? 0;
-                $paid = $client->total_paid ?? 0;
-                return max($invoiced - $paid, 0);
-            });
-
-        $perPage = $request->input('per_page', 10);
-
-        if ($perPage === 'all') {
-            $perPage = 999999; 
-        }
-
-        $clientDues = $query->latest()
-            ->paginate($perPage)
-            ->through(function ($client) {
-                $invoiced = $client->total_invoiced ?? 0;
-                $paid = $client->total_paid ?? 0;
-
-                $client->total_due = max($invoiced - $paid, 0);
-                $client->available_advance = ($client->total_advance ?? 0) - ($client->total_used ?? 0);
-                
-                return $client;
-            })
-            ->withQueryString();
-
-        return Inertia::render('Admin/Reports/ClientDues', [
-            'clientDues' => $clientDues,
-            'filters' => $request->only('search', 'per_page'),
-            'grandTotalDue' => $grandTotalDue,   
-        ]);
-    }
-
-    public function vendorDuesReport(Request $request)
-    {
-        $perPage = $request->input('per_page', 10);
-        $search = $request->input('search');
-
-        $query = Vendor::select('id', 'name as vendor_name', 'company_name', 'phone', 'wallet_balance')
-            ->withSum('projectExpenses as total_due', 'due_amount')
-            ->where(function ($q) {
-                $q->whereHas('projectExpenses', function ($subQ) {
-                    $subQ->where('due_amount', '>', 0);
-                })->orWhere('wallet_balance', '>', 0);
-            });
-
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('company_name', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
-            });
-        }
-
-        $grandTotalDue = ProjectExpense::whereIn('vendor_id', $query->pluck('id'))
-                                    ->sum('due_amount');
-                                    
-        $grandTotalAdvance = clone $query;
-        $totalAdvanceAmount = $grandTotalAdvance->sum('wallet_balance');
-
-        $vendorDues = $query->latest('id')->paginate($perPage)->withQueryString();
-
-        return Inertia::render('Admin/Reports/VendorDues', [
-            'vendorDues' => $vendorDues,
-            'grandTotal' => $grandTotalDue, 
-            'grandTotalAdvance' => $totalAdvanceAmount 
-        ]);
+        return inertia('Admin/Invoices/Print', ['invoice' => $invoice]);
     }
 
     

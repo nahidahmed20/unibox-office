@@ -167,6 +167,7 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
     };
 
+    // --- Updated Compact Print Receipt ---
     const handlePrintReceipt = (advance) => {
         const client = clients.find(c => c.id == advance.client_id);
         const receiptNo = String(advance.id).padStart(3, '0');
@@ -224,49 +225,51 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
                     <title>Money Receipt - #${receiptNo}</title>
                     <style>
                         * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fff; }
+                        body { margin: 0; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fff; display: flex; justify-content: center; }
                         
-                        @page { size: A4 portrait; margin: 10mm; }
+                        @page { size: auto; margin: 10mm; }
                         
                         .page-container {
-                            width: 190mm;
-                            height: 277mm; 
+                            width: 100%;
+                            max-width: 160mm; /* Compact width for realistic receipt size */
                             display: flex;
                             flex-direction: column;
+                            margin: 0 auto;
                         }
                         
                         .receipt {
-                            height: 48%; 
+                            min-height: 110mm; 
                             border: 2px solid #147a5b;
-                            border-radius: 12px;
-                            padding: 25px 35px;
+                            border-radius: 8px;
+                            padding: 20px 25px;
                             position: relative;
                             overflow: hidden;
                             display: flex;
                             flex-direction: column;
+                            background: white;
                         }
 
-                        .watermark { position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); font-size: 75px; font-weight: 900; color: rgba(20, 122, 91, 0.04); z-index: 0; pointer-events: none; text-transform: uppercase; white-space: nowrap; letter-spacing: 12px; }
+                        .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); font-size: 50px; font-weight: 900; color: rgba(20, 122, 91, 0.04); z-index: 0; pointer-events: none; text-transform: uppercase; white-space: nowrap; letter-spacing: 8px; }
                         
-                        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 15px; position: relative; z-index: 1; }
-                        .logo { height: 45px; width: auto; }
-                        .company-details { text-align: right; font-size: 11px; line-height: 1.5; color: #475569; }
-                        .company-details h2 { margin: 0 0 3px 0; font-size: 18px; color: #147a5b; text-transform: uppercase; letter-spacing: 1px; }
+                        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px; position: relative; z-index: 1; }
+                        .logo { height: 35px; width: auto; }
+                        .company-details { text-align: right; font-size: 10px; line-height: 1.4; color: #475569; }
+                        .company-details h2 { margin: 0 0 2px 0; font-size: 15px; color: #147a5b; text-transform: uppercase; letter-spacing: 0.5px; }
                         
-                        .title-container { text-align: center; margin-bottom: 15px; position: relative; z-index: 1; }
-                        .title { display: inline-block; font-size: 18px; font-weight: bold; letter-spacing: 3px; text-transform: uppercase; color: #147a5b; background: #f0fdf4; padding: 6px 20px; border: 1px solid #147a5b; border-radius: 4px; }
-                        .copy-badge { position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 10px; font-weight: bold; color: #64748b; border: 1px solid #cbd5e1; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; background: #f8fafc; }
+                        .title-container { text-align: center; margin-bottom: 12px; position: relative; z-index: 1; }
+                        .title { display: inline-block; font-size: 14px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; color: #147a5b; background: #f0fdf4; padding: 5px 15px; border: 1px solid #147a5b; border-radius: 4px; }
+                        .copy-badge { position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 9px; font-weight: bold; color: #64748b; border: 1px solid #cbd5e1; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; background: #f8fafc; }
 
                         .content { flex-grow: 1; position: relative; z-index: 1; }
-                        .details-table { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.8; color: #1e293b; }
+                        .details-table { width: 100%; border-collapse: collapse; font-size: 12.5px; line-height: 1.6; color: #1e293b; }
                         .details-table td { padding: 6px 0; border-bottom: 1px dotted #cbd5e1; }
                         .details-table strong { color: #475569; font-weight: 600; margin-right: 8px; }
                         .words { font-weight: 700; font-style: italic; color: #0f172a; text-transform: capitalize; }
                         
-                        .footer-section { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; padding-top: 15px; position: relative; z-index: 1; }
-                        .amount-box { border: 2px solid #147a5b; border-radius: 6px; padding: 10px 25px; font-weight: 800; font-size: 18px; color: #147a5b; background: #f0fdf4; box-shadow: 2px 2px 0px rgba(20, 122, 91, 0.2); }
-                        .signature { text-align: center; font-size: 12px; color: #475569; width: 180px; }
-                        .sign-line { border-top: 1px solid #0f172a; padding-top: 6px; font-weight: 600; }
+                        .footer-section { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 20px; padding-top: 10px; position: relative; z-index: 1; }
+                        .amount-box { border: 2px solid #147a5b; border-radius: 4px; padding: 8px 20px; font-weight: 800; font-size: 15px; color: #147a5b; background: #f0fdf4; box-shadow: 2px 2px 0px rgba(20, 122, 91, 0.15); }
+                        .signature { text-align: center; font-size: 11px; color: #475569; width: 140px; }
+                        .sign-line { border-top: 1px solid #0f172a; padding-top: 4px; font-weight: 600; }
                     </style>
                 </head>
                 <body>
@@ -803,8 +806,8 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
                                         <label className="block text-[13px] font-semibold text-emerald-700 mb-1.5">Amount Received (TK.) *</label>
                                         <input 
                                             type="number" 
-                                            step="0.01" 
-                                            min="1"
+                                            step="any" 
+                                            min="0"
                                             value={data.amount} 
                                             onChange={(e) => setData('amount', e.target.value)}
                                             placeholder="0.00"

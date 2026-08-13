@@ -625,8 +625,10 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
 
             {/* --- VIEW DETAILS MODAL --- */}
             {showViewModal && selectedVendor && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6">
-                    <div className="w-full max-w-3xl bg-[#f8fafc] rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-8">
+                    {/* এখানে max-w-3xl পরিবর্তন করে max-w-5xl বা max-w-6xl দেওয়া হয়েছে */}
+                    <div className="w-full max-w-6xl bg-[#f8fafc] rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden">
+                        
                         {/* Modal Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white shrink-0">
                             <h3 className="text-[18px] font-bold text-gray-900 flex items-center gap-2">
@@ -643,7 +645,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                             {/* Profile Header */}
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                                 <div className="flex items-center gap-4">
-                                    <div className="h-14 w-14 rounded-full bg-[var(--accent)]/10 flex items-center justify-center text-[var(--accent)] text-2xl font-bold border border-[var(--accent)]/20 uppercase">
+                                    <div className="h-14 w-14 rounded-full bg-[var(--accent)]/10 flex items-center justify-center text-[var(--accent)] text-2xl font-bold border border-[var(--accent)]/20 uppercase shrink-0">
                                         {selectedVendor.name.charAt(0)}
                                     </div>
                                     <div>
@@ -657,7 +659,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                 </div>
                                 <div className="flex gap-2">
                                     {selectedVendor.phone && (
-                                        <a href={`tel:${selectedVendor.phone}`} className="h-9 w-9 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 border border-emerald-100 transition-colors" title="Call Vendor">
+                                        <a href={`tel:${selectedVendor.phone}`} className="h-10 w-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 border border-emerald-100 transition-colors" title="Call Vendor">
                                             <i className="fa-solid fa-phone"></i>
                                         </a>
                                     )}
@@ -665,7 +667,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                             </div>
 
                             {/* Financial Overview & Contact Info */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 {/* Financial Overview */}
                                 <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                                     <h4 className="text-[13px] font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-100 pb-2">
@@ -673,14 +675,14 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                     </h4>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className={`${selectedVendor.total_due > 0 ? 'bg-rose-50 border-rose-200' : 'bg-gray-50 border-gray-200'} border p-4 rounded-xl text-center shadow-sm`}>
-                                            <span className={`block text-[10px] uppercase font-bold ${selectedVendor.total_due > 0 ? 'text-rose-600' : 'text-gray-500'} mb-1`}>Total Due Amount</span>
-                                            <span className={`block text-[16px] font-extrabold ${selectedVendor.total_due > 0 ? 'text-rose-800' : 'text-gray-700'}`}>
+                                            <span className={`block text-[10.5px] uppercase font-bold tracking-wider ${selectedVendor.total_due > 0 ? 'text-rose-600' : 'text-gray-500'} mb-1.5`}>Total Due Amount</span>
+                                            <span className={`block text-[20px] font-black ${selectedVendor.total_due > 0 ? 'text-rose-800' : 'text-gray-700'}`}>
                                                 TK. {Number(selectedVendor.total_due || 0).toLocaleString('en-IN')}
                                             </span>
                                         </div>
                                         <div className="bg-purple-50 border border-purple-200 p-4 rounded-xl text-center shadow-sm">
-                                            <span className="block text-[10px] uppercase font-bold text-purple-600 mb-1">Wallet Balance</span>
-                                            <span className="block text-[16px] font-extrabold text-purple-800">
+                                            <span className="block text-[10.5px] uppercase font-bold tracking-wider text-purple-600 mb-1.5">Wallet Balance</span>
+                                            <span className="block text-[20px] font-black text-purple-800">
                                                 TK. {Number(selectedVendor.wallet_balance || 0).toLocaleString('en-IN')}
                                             </span>
                                         </div>
@@ -695,11 +697,11 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                     <div className="flex flex-col gap-4">
                                         <div>
                                             <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Phone Number</span>
-                                            <div className="font-medium text-gray-800">{selectedVendor.phone || "N/A"}</div>
+                                            <div className="font-medium text-gray-800 text-[15px]">{selectedVendor.phone || "N/A"}</div>
                                         </div>
                                         <div>
                                             <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Physical Address</span>
-                                            <div className="text-gray-700 text-[13.5px] leading-relaxed bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                            <div className="text-gray-700 text-[14px] leading-relaxed bg-gray-50 p-3 rounded-lg border border-gray-100 min-h-[50px]">
                                                 {selectedVendor.address || <span className="italic text-gray-400">No address provided.</span>}
                                             </div>
                                         </div>
@@ -715,48 +717,57 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
 
                                 {(!paymentsData.data || paymentsData.data.length === 0) ? (
                                     <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-[13.5px] text-gray-500">
-                                        <i className="fa-solid fa-receipt text-2xl text-gray-300 mb-2 block"></i>
+                                        <i className="fa-solid fa-receipt text-3xl text-gray-300 mb-3 block"></i>
                                         No payment records found.
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="rounded-lg border border-gray-200 bg-white max-h-[300px] overflow-y-auto brass-scroll divide-y divide-gray-100">
+                                        {/* History Table - Grid View for larger screens */}
+                                        <div className="rounded-lg border border-gray-200 bg-white max-h-[400px] overflow-y-auto brass-scroll divide-y divide-gray-100">
                                             {paymentsData.data.map((payment) => (
                                                 <div 
                                                     key={payment.id} 
                                                     className={`p-4 transition-colors ${payment.status === 'voided' ? 'bg-red-50/50 opacity-80' : 'hover:bg-gray-50/50'}`}
                                                 >
                                                     <div className="flex justify-between items-start gap-4">
-                                                        <div className="flex-1">
-                                                            <div className="font-bold text-gray-900 text-[14.5px] flex items-center gap-2">
-                                                                <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[11px]">PAID</span>
-                                                                TK. {Number(payment.pay_amount).toLocaleString('en-IN')}
-                                                                {payment.status === 'voided' && (
-                                                                    <span className="rounded bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600 uppercase">Voided</span>
+                                                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                            {/* Amount & Date */}
+                                                            <div>
+                                                                <div className="font-bold text-gray-900 text-[16px] flex items-center gap-2 mb-1.5">
+                                                                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[11px]">PAID</span>
+                                                                    TK. {Number(payment.pay_amount).toLocaleString('en-IN')}
+                                                                    {payment.status === 'voided' && (
+                                                                        <span className="rounded bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600 uppercase">Voided</span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="text-[12px] font-semibold text-gray-500 flex items-center gap-2">
+                                                                    <i className="fa-regular fa-calendar text-gray-400"></i> {payment.date} 
+                                                                    <span className="text-gray-300">|</span> 
+                                                                    <i className="fa-solid fa-building-columns text-gray-400"></i> {payment.payment_source === 'account' ? (payment.account?.name || 'Account') : 'Employee Advance'}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Bills Details */}
+                                                            <div className="lg:col-span-2">
+                                                                {payment.details && payment.details.length > 0 && (
+                                                                    <div className="text-[12.5px] text-gray-600 bg-gray-50 p-2.5 rounded-md border border-gray-100">
+                                                                        <strong><i className="fa-solid fa-list-check text-gray-400 mr-1.5"></i> Bills Settled:</strong> {payment.details.map(d => d.expense?.title).filter(Boolean).join(', ')}
+                                                                    </div>
+                                                                )}
+                                                                {payment.wallet_credit_amount > 0 && (
+                                                                    <div className="text-[12.5px] font-semibold text-purple-600 mt-2 flex items-center gap-1.5 bg-purple-50 p-2 w-fit rounded border border-purple-100">
+                                                                        <i className="fa-solid fa-arrow-turn-down"></i> Sent to Wallet: TK. {Number(payment.wallet_credit_amount).toLocaleString('en-IN')}
+                                                                    </div>
+                                                                )}
+                                                                {payment.status === 'voided' && payment.void_reason && (
+                                                                    <div className="text-[12.5px] italic text-red-600 mt-2 bg-red-50 p-2.5 rounded border border-red-100">
+                                                                        <strong><i className="fa-solid fa-circle-info mr-1.5"></i> Void Reason:</strong> {payment.void_reason}
+                                                                    </div>
                                                                 )}
                                                             </div>
-                                                            <div className="text-[12px] font-semibold text-gray-500 mt-1.5 flex items-center gap-2">
-                                                                <i className="fa-regular fa-calendar text-gray-400"></i> {payment.date} 
-                                                                <span className="text-gray-300">|</span> 
-                                                                <i className="fa-solid fa-building-columns text-gray-400"></i> {payment.payment_source === 'account' ? (payment.account?.name || 'Account') : 'Employee Advance'}
-                                                            </div>
-                                                            {payment.details && payment.details.length > 0 && (
-                                                                <div className="text-[12px] text-gray-600 mt-2 bg-gray-50 p-2 rounded-md border border-gray-100">
-                                                                    <strong><i className="fa-solid fa-list-check text-gray-400 mr-1"></i> Bills Settled:</strong> {payment.details.map(d => d.expense?.title).filter(Boolean).join(', ')}
-                                                                </div>
-                                                            )}
-                                                            {payment.wallet_credit_amount > 0 && (
-                                                                <div className="text-[12px] font-semibold text-purple-600 mt-2 flex items-center gap-1.5 bg-purple-50 p-1.5 w-fit rounded border border-purple-100">
-                                                                    <i className="fa-solid fa-arrow-turn-down"></i> Sent to Wallet: TK. {Number(payment.wallet_credit_amount).toLocaleString('en-IN')}
-                                                                </div>
-                                                            )}
-                                                            {payment.status === 'voided' && payment.void_reason && (
-                                                                <div className="text-[12px] italic text-red-600 mt-2 bg-red-50 p-2 rounded border border-red-100">
-                                                                    <strong><i className="fa-solid fa-circle-info mr-1"></i> Void Reason:</strong> {payment.void_reason}
-                                                                </div>
-                                                            )}
                                                         </div>
 
+                                                        {/* Void Action */}
                                                         {payment.status !== 'voided' && hasPermission('void_vendor_payment') && (
                                                             <button
                                                                 type="button"
@@ -772,9 +783,10 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                             ))}
                                         </div>
 
+                                        {/* Pagination for history */}
                                         {paymentsData.last_page > 1 && (
                                             <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-2">
-                                                <span className="text-[12.5px] font-medium text-gray-500">
+                                                <span className="text-[13px] font-medium text-gray-500">
                                                     Page {paymentsData.current_page} of {paymentsData.last_page}
                                                 </span>
                                                 <div className="flex gap-2">
@@ -804,7 +816,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
 
                         {/* Modal Footer */}
                         <div className="px-6 py-4 border-t border-gray-200 bg-white flex justify-end shrink-0">
-                            <button onClick={() => setShowViewModal(false)} className="rounded-lg bg-gray-800 px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-700/50">
+                            <button onClick={() => setShowViewModal(false)} className="rounded-lg bg-gray-800 px-8 py-2.5 text-[14px] font-bold text-white transition-colors hover:bg-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-700/50 shadow-md">
                                 Close Profile
                             </button>
                         </div>

@@ -40,6 +40,7 @@ class SalaryController extends Controller
         $users = User::select('id', 'name')->orderBy('name')->get();
         $accounts = Account::where('is_active', true)->get();
 
+        // dd($salaries);
         return Inertia::render('Admin/Salaries/Index', [
             'salaries' => $salaries,
             'users'    => $users,

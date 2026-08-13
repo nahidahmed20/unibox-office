@@ -70,8 +70,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('client-advances', ClientAdvanceController::class)->names('admin.client-advances');
 
     // 2. Finance & Accounts
-    Route::get('client-dues', [InvoiceController::class, 'clientDuesReport'])->name('admin.client-dues');
-    Route::get('vendor-dues', [InvoiceController::class, 'vendorDuesReport'])->name('admin.vendor-dues');
+    Route::get('client-dues', [ReportController::class, 'clientDuesReport'])->name('admin.client-dues');
+    Route::get('vendor-dues', [ReportController::class, 'vendorDuesReport'])->name('admin.vendor-dues');
 
     Route::resource('invoices', InvoiceController::class)->names('admin.invoices');
     Route::resource('invoice-payments', InvoicePaymentController::class)->names('invoice-payments');
@@ -80,17 +80,19 @@ Route::middleware('auth')->group(function () {
     Route::resource('project-expenses', ProjectExpenseController::class)->names('admin.project-expenses');
     Route::resource('expense-categories', ExpenseCategoryController::class)->names('admin.expense-categories');
 
+    Route::post('/investments/{id}/return', [InvestmentController::class, 'returnMoney'])->name('admin.investments.return');
     Route::resource('investments', InvestmentController::class)->names('admin.investments');
     Route::post('/advances/{id}/return', [AdvanceController::class, 'returnMoney'])->name('admin.advances.returnMoney');
     Route::get('/advances/ledger/{userId}', [AdvanceController::class, 'employeeLedger'])
     ->name('admin.advances.employeeLedger');
     
     Route::resource('advances', AdvanceController::class)->names('admin.advances');
+    Route::post('transactions/transfer', [TransactionController::class, 'transfer'])->name('admin.transactions.transfer');
     Route::resource('transactions', TransactionController::class)->names('admin.transactions');
     Route::resource('accounts', AccountController::class)->names('admin.accounts');
 
     // web.php
-    Route::get('/admin/invoices/{id}/print', [InvoiceController::class, 'print'])->name('admin.invoices.print');
+    Route::get('/invoices/{id}/print', [InvoiceController::class, 'print'])->name('admin.invoices.print');
 
     // 3. Office Administration
     Route::resource('assets', AssetController::class)->names('admin.assets');

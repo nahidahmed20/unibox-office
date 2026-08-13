@@ -29,7 +29,7 @@ class TransactionController extends Controller
             $totalCount = $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = min((int) $request->input('per_page', 10), 100000); 
+            $perPage = min((int) $request->input('per_page', 25), 100000); 
         }
 
         $transactions = $query
@@ -38,7 +38,6 @@ class TransactionController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        // Dropdown data
         $accounts = Account::where('is_active', true)
             ->select('id', 'name', 'current_balance')
             ->orderBy('name')
@@ -76,11 +75,60 @@ class TransactionController extends Controller
         return back()->with('success', 'Transaction saved successfully and balance updated.');
     }
 
+    // --- NEW: Fund Transfer (Bank <-> Cash) ---
+    public function transfer(Request $request)
+    {
+        $validated = $request->validate([
+            'from_account_id'   => 'required|exists:accounts,id|different:to_account_id',
+            'to_account_id'     => 'required|exists:accounts,id',
+            'amount'            => 'required|numeric|min:0.01',
+            'transaction_date'  => 'required|date',
+            'description'       => 'nullable|string|max:500',
+            'reference_number'  => 'nullable|string|max:100',
+        ]);
+
+        DB::transaction(function () use ($validated) {
+            $fromAccount = Account::findOrFail($validated['from_account_id']);
+            $toAccount = Account::findOrFail($validated['to_account_id']);
+
+            if ($fromAccount->current_balance < $validated['amount']) {
+                throw new \Exception("Source account does not have sufficient balance!");
+            }
+
+            $desc = $validated['description'] ?: "Fund transfer from {$fromAccount->name} to {$toAccount->name}";
+            $ref = $validated['reference_number'];
+
+            // 1. Debit from source account
+            $fromAccount->decrement('current_balance', $validated['amount']);
+            Transaction::create([
+                'account_id'       => $fromAccount->id,
+                'type'             => 'debit',
+                'amount'           => $validated['amount'],
+                'transaction_date' => $validated['transaction_date'],
+                'description'      => $desc . " (Out)",
+                'reference_number' => $ref,
+            ]);
+
+            // 2. Credit to destination account
+            $toAccount->increment('current_balance', $validated['amount']);
+            Transaction::create([
+                'account_id'       => $toAccount->id,
+                'type'             => 'credit',
+                'amount'           => $validated['amount'],
+                'transaction_date' => $validated['transaction_date'],
+                'description'      => $desc . " (In)",
+                'reference_number' => $ref,
+            ]);
+        });
+
+        return back()->with('success', 'Fund transferred successfully between accounts.');
+    }
+
     public function update(Request $request, $id)
     {
         $transaction = Transaction::findOrFail($id);
         if ($transaction->transactionable_id !== null) {
-            return back()->withErrors(['error' => 'Auto-generated transactions cannot be modified directly. Please edit the source (e.g. Expense/Bill).']);
+            return back()->withErrors(['error' => 'Auto-generated transactions cannot be modified directly.']);
         }
 
         $validated = $request->validate([
@@ -93,7 +141,6 @@ class TransactionController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $request, $transaction) {
-            
             $oldAccount = Account::find($transaction->account_id);
             if ($oldAccount) {
                 if ($transaction->type === 'credit') {
@@ -122,7 +169,7 @@ class TransactionController extends Controller
     {
         $transaction = Transaction::findOrFail($id);
         if ($transaction->transactionable_id !== null) {
-            return back()->withErrors(['error' => 'Auto-generated transactions cannot be deleted directly. Please delete the source (e.g. Expense/Bill).']);
+            return back()->withErrors(['error' => 'Auto-generated transactions cannot be deleted directly.']);
         }
 
         DB::transaction(function () use ($transaction) {

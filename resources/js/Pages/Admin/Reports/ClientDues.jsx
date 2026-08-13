@@ -9,12 +9,14 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
     const permissions = auth?.permissions || [];
     const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
 
+    // Filters States
     const [searchTerm, setSearchTerm] = useState(filters?.search || "");
-    const [perPage, setPerPage] = useState(filters?.per_page || 10);
+    const [perPage, setPerPage] = useState(filters?.per_page || "10");
     const isFirstRender = useRef(true);
 
     const clients = clientDues?.data || [];
 
+    // --- Search & Pagination Logic ---
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -24,9 +26,9 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
         const delayDebounceFn = setTimeout(() => {
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
-            if (perPage !== 10) params.per_page = perPage;
+            if (perPage !== "10" && perPage !== 10) params.per_page = perPage;
 
-            router.get(route('admin.client-dues'), params, {
+            router.get(window.location.pathname, params, {
                 preserveState: true,
                 preserveScroll: true,
                 replace: true
@@ -84,12 +86,10 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                         th, td { padding: 12px 16px; border: 1px solid #cbd5e1; font-size: 13px; }
                         th { background-color: #f8fafc; font-weight: 600; color: #475569; text-transform: uppercase; }
 
-                        /* Add a Serial Number column visually only for print */
                         table { counter-reset: rowNumber; }
                         tbody tr { counter-increment: rowNumber; }
                         tbody tr td:first-child::before { content: counter(rowNumber) ". "; font-weight: bold; margin-right: 5px; }
 
-                        /* Ensure the Total Due column aligns to the right */
                         th:last-child, td:last-child { text-align: right !important; color: #dc2626; font-weight: bold; }
                         th:nth-last-child(2), td:nth-last-child(2) { text-align: right !important; color: #16a34a; }
                     </style>
@@ -127,7 +127,7 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                             <i className="fa-solid fa-users text-[20px]"></i>
                         </div>
                         <div>
-                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-500">Clients on this Page</p>
+                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-500">Total Clients Listed</p>
                             <h3 className="text-[22px] font-extrabold text-gray-900 m-0">{clientDues?.total || 0}</h3>
                         </div>
                     </div>
@@ -137,8 +137,12 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                             <i className="fa-solid fa-file-invoice-dollar text-[18px]"></i>
                         </div>
                         <div>
-                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-red-500">Page Total Receivable</p>
-                            <h3 className="text-[22px] font-extrabold text-red-700 m-0">TK. {Number(grandTotalDue).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</h3>
+                            {/* 🟢 Updated Text */}
+                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-red-500">Total Due Amount</p>
+                            <h3 className="text-[22px] font-extrabold text-red-700 m-0">
+                                <i className="fa-solid fa-bangladeshi-taka-sign text-[18px] mr-1 text-red-400"></i>
+                                {Number(grandTotalDue).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </h3>
                         </div>
                     </div>
                 </div>
@@ -162,13 +166,13 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                                 <span>Show</span>
                                 <select
                                     value={perPage}
-                                    onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
-                                    className="w-[100px] appearance-none bg-none rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                    onChange={(e) => setPerPage(e.target.value)}
+                                    className="w-[100px] appearance-none text-center bg-none rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
                                 >
-                                    <option value={10}>10 Entries</option>
-                                    <option value={25}>25 Entries</option>
-                                    <option value={50}>50 Entries</option>
-                                    <option value={100}>100 Entries</option>
+                                    <option value="10">10 Entries</option>
+                                    <option value="25">25 Entries</option>
+                                    <option value="50">50 Entries</option>
+                                    <option value="100">100 Entries</option>
                                     <option value="all">All Entries</option>
                                 </select>
                             </div>
@@ -242,10 +246,20 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right font-bold text-emerald-600 text-[14.5px]">
-                                                TK. {parseFloat(client.available_advance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                {parseFloat(client.available_advance || 0) > 0 ? (
+                                                    <><i className="fa-solid fa-bangladeshi-taka-sign text-[12px] mr-0.5"></i>{parseFloat(client.available_advance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</>
+                                                ) : '-'}
                                             </td>
                                             <td className="px-6 py-4 text-right font-bold text-red-600 text-[14.5px]">
-                                                TK. {parseFloat(client.total_due || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                {(() => {
+                                                    const invoiced = parseFloat(client.total_invoiced || 0);
+                                                    const paid = parseFloat(client.total_paid || 0);
+                                                    const due = invoiced - paid;
+
+                                                    return due > 0 ? (
+                                                        <><i className="fa-solid fa-bangladeshi-taka-sign text-[12px] mr-0.5"></i>{due.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</>
+                                                    ) : '-';
+                                                })()}
                                             </td>
                                         </tr>
                                     ))
@@ -266,7 +280,7 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                                         key={index}
                                         href={link.url || "#"}
                                         className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] transition-colors
-                                            ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : link.url ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'border-gray-200 bg-gray-100 text-gray-400 pointer-events-none'}
+                                            ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm' : link.url ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'border-gray-200 bg-gray-100 text-gray-400 pointer-events-none'}
                                         `}
                                         preserveState
                                         dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }}

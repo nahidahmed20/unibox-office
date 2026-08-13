@@ -390,7 +390,7 @@ class VendorController extends Controller
         $validated = $request->validate([
             'name'            => 'required|string|max:255',
             'company_name'    => 'nullable|string|max:255',
-            'phone'           => 'nullable|string|max:20',
+            'phone'           => 'nullable|string|max:20|unique:vendors,phone',
             'address'         => 'nullable|string',
             'opening_balance' => 'nullable|numeric',
         ]);
@@ -413,7 +413,7 @@ class VendorController extends Controller
         $validated = $request->validate([
             'name'            => 'required|string|max:255',
             'company_name'    => 'nullable|string|max:255',
-            'phone'           => 'nullable|string|max:20',
+            'phone'           => 'nullable|string|max:20|unique:vendors,phone',
             'address'         => 'nullable|string',
             'opening_balance' => 'nullable|numeric',
         ]);

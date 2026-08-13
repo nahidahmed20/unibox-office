@@ -223,7 +223,10 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
     };
 
     useEffect(() => {
-        if (isFirstRender.current) return;
+        if (isFirstRender.current) {
+            isFirstRender.current = false; 
+            return;
+        }
         const delay = setTimeout(() => applyFilters({ search: searchTerm }), 500);
         return () => clearTimeout(delay);
     }, [searchTerm]);
@@ -242,10 +245,10 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
 
     const goToPage = (url) => {
         if (!url) return;
-        router.get(url, {
-            search: searchTerm, per_page: perPage, client_id: clientId,
-            account_id: accountFilter, year, date_from: dateFrom, date_to: dateTo,
-        }, { preserveState: true, replace: true });
+        router.get(url, {}, { 
+            preserveState: true, 
+            preserveScroll: true 
+        });
     };
 
     const handleCopy = () => {
@@ -808,8 +811,13 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                     <input 
                                         type="number" 
                                         step="0.01" 
+                                        max={
+                                            data.invoice_id 
+                                            ? Math.max(0, (parseFloat(invoiceOptions.find(i => String(i.id) === String(data.invoice_id))?.due_amount) || 0) - (parseFloat(data.discount_amount) || 0)) 
+                                            : ""
+                                        }
                                         value={data.amount} 
-                                        onChange={(e) => setData("amount", e.target.value)} 
+                                        onChange={(e) => setData("amount", e.target.value)}
                                         className="w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-[15px] font-bold text-emerald-800 outline-none transition-shadow focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50" 
                                         required 
                                     />

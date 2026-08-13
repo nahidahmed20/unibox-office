@@ -22,9 +22,9 @@ class InvoicePaymentController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->whereHas('invoice', fn($invoice) => $invoice->where('invoice_number', 'like', "%{$search}%"))
                 ->orWhereHas('invoice.client', fn($client) => $client->where('name', 'like', "%{$search}%"))
-                ->orWhereHas('account', fn($account) => $account->where('account_name', 'like', "%{$search}%"))
-                ->orWhere('payment_method', 'like', "%{$search}%")
-                ->orWhere('reference', 'like', "%{$search}%");
+                ->orWhereHas('account', fn($account) => $account->where('name', 'like', "%{$search}%")) // account_name এর বদলে name
+                ->orWhere('method', 'like', "%{$search}%") // payment_method এর বদলে method
+                ->orWhere('note', 'like', "%{$search}%"); // reference এর বদলে note
             });
         }
 
@@ -59,7 +59,7 @@ class InvoicePaymentController extends Controller
             $perPage = min((int) $request->input('per_page', 10), 100000);
         }
 
-        $payments = $query->latest()->paginate($perPage)->withQueryString();
+        $payments = $query->orderByDesc('payment_date')->orderByDesc('id')->paginate($perPage)->withQueryString();
 
         $invoices = Invoice::with('client')
             ->withSum('payments', 'amount')
@@ -109,7 +109,19 @@ class InvoicePaymentController extends Controller
             'note'            => 'nullable|string'
         ]);
 
-        DB::transaction(function () use ($validated, $request) {
+        $invoice = Invoice::withSum('payments', 'amount')->findOrFail($request->invoice_id);
+        $totalPaid = $invoice->payments_sum_amount ?? 0;
+        $dueAmount = max(0, $invoice->grand_total - $totalPaid);
+        $discount = $request->discount_amount ?? 0;
+        $effectiveDue = max(0, $dueAmount - $discount);
+
+        if ($request->amount > $effectiveDue) {
+            return back()->withErrors([
+                'amount' => 'পেমেন্ট এমাউন্ট বকেয়া টাকার চেয়ে বেশি হতে পারবে না! (সর্বোচ্চ: ' . $effectiveDue . ' TK)'
+            ]);
+        }
+
+        DB::transaction(function () use ($validated, $request, $invoice) {
             $invoice = Invoice::findOrFail($request->invoice_id);
 
             if (!empty($validated['discount_amount']) && $validated['discount_amount'] > 0) {

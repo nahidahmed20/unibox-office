@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; 
+import React, { useState } from 'react'; 
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, usePage } from '@inertiajs/react';
 import Select from 'react-select';
@@ -7,7 +7,7 @@ import Swal from 'sweetalert2';
 const COMPANY = {
     name: 'UNIBOX',
     tagline: "Let's Create Together",
-    logo: `${window.location.origin}/images/logo.png`,
+    logo: typeof window !== 'undefined' ? `${window.location.origin}/images/logo.png` : '',
     phone: '+8801627188836',
     email: 'uniboxbd4u@gmail.com',
     website: 'www.uniboxbd4u.com',
@@ -69,7 +69,6 @@ export default function ClientLedger({ clients = [], ledger = [], summary = {}, 
                         .text-rose { color: #dc2626; font-weight: bold; }
                         .text-emerald { color: #16a34a; font-weight: bold; }
                         .bg-highlight { background-color: #f8fafc; font-weight: bold; }
-                        .badge { padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; border: 1px solid #e2e8f0; }
                     </style>
                 </head>
                 <body>
@@ -123,7 +122,6 @@ export default function ClientLedger({ clients = [], ledger = [], summary = {}, 
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
     };
 
-    // React-Select Styles
     const selectStyles = {
         control: (provided, state) => ({
             ...provided, 
@@ -134,6 +132,7 @@ export default function ClientLedger({ clients = [], ledger = [], summary = {}, 
             "&:hover": { borderColor: "#9ca3af" }, 
             fontSize: "14px", 
             background: "#fff",
+            cursor: "pointer"
         }),
         option: (provided, state) => ({
             ...provided, 
@@ -158,7 +157,7 @@ export default function ClientLedger({ clients = [], ledger = [], summary = {}, 
                     </div>
                 </div>
 
-                <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
+                <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden mb-20">
                     
                     {/* Toolbar / Filters */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-5 border-b border-gray-100 bg-gray-50/50">
@@ -193,7 +192,8 @@ export default function ClientLedger({ clients = [], ledger = [], summary = {}, 
                                     <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Total Billed (Dr)</span>
                                 </div>
                                 <div className="text-[22px] font-extrabold text-gray-900">
-                                    TK. {Number(summary.total_billed).toLocaleString('en-IN')}
+                                    <i className="fa-solid fa-bangladeshi-taka-sign text-[18px] mr-1 text-gray-400"></i>
+                                    {Number(summary.total_billed).toLocaleString('en-IN')}
                                 </div>
                             </div>
 
@@ -206,33 +206,38 @@ export default function ClientLedger({ clients = [], ledger = [], summary = {}, 
                                     <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Total Paid (Cr)</span>
                                 </div>
                                 <div className="text-[22px] font-extrabold text-gray-900">
-                                    TK. {Number(summary.total_paid).toLocaleString('en-IN')}
+                                    <i className="fa-solid fa-bangladeshi-taka-sign text-[18px] mr-1 text-gray-400"></i>
+                                    {Number(summary.total_paid).toLocaleString('en-IN')}
                                 </div>
                             </div>
 
-                            {/* Card 3: Net Due */}
-                            <div className="relative overflow-hidden rounded-xl border border-rose-200 bg-rose-50/50 p-5 shadow-sm transition-shadow hover:shadow-md">
+                            {/* Card 3: DYNAMIC NET DUE CARD */}
+                            <div className={`relative overflow-hidden rounded-xl border p-5 shadow-sm transition-shadow hover:shadow-md ${summary.net_due > 0 ? 'border-rose-200 bg-rose-50/50' : summary.net_due < 0 ? 'border-emerald-200 bg-emerald-50/50' : 'border-gray-200 bg-gray-50'}`}>
                                 <div className="flex items-center gap-3 mb-3">
-                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
-                                        <i className="fa-solid fa-triangle-exclamation text-[16px]"></i>
+                                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${summary.net_due > 0 ? 'bg-rose-100 text-rose-600' : summary.net_due < 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-200 text-gray-500'}`}>
+                                        <i className={`fa-solid text-[16px] ${summary.net_due > 0 ? 'fa-triangle-exclamation' : summary.net_due < 0 ? 'fa-wallet' : 'fa-check'}`}></i>
                                     </div>
-                                    <span className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Net Due Balance</span>
+                                    <span className={`text-[11px] font-bold uppercase tracking-wider ${summary.net_due > 0 ? 'text-rose-600' : summary.net_due < 0 ? 'text-emerald-600' : 'text-gray-500'}`}>
+                                        {summary.net_due > 0 ? 'Client Owes Us (Due)' : summary.net_due < 0 ? 'Client Advance' : 'Settled / No Due'}
+                                    </span>
                                 </div>
-                                <div className="text-[22px] font-extrabold text-rose-700">
-                                    TK. {Number(summary.net_due).toLocaleString('en-IN')}
+                                <div className={`text-[22px] font-extrabold ${summary.net_due > 0 ? 'text-rose-700' : summary.net_due < 0 ? 'text-emerald-700' : 'text-gray-700'}`}>
+                                    <i className={`fa-solid fa-bangladeshi-taka-sign text-[18px] mr-1 ${summary.net_due > 0 ? 'text-rose-400' : summary.net_due < 0 ? 'text-emerald-400' : 'text-gray-400'}`}></i>
+                                    {Number(Math.abs(summary.net_due)).toLocaleString('en-IN')}
                                 </div>
                             </div>
 
-                            {/* Card 4: Advance Balance */}
+                            {/* Card 4: Total Given Advance */}
                             <div className="relative overflow-hidden rounded-xl border border-purple-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
                                 <div className="flex items-center gap-3 mb-3">
                                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-600">
                                         <i className="fa-solid fa-wallet text-[16px]"></i>
                                     </div>
-                                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Advance Balance</span>
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Total Given Advance</span>
                                 </div>
                                 <div className="text-[22px] font-extrabold text-gray-900">
-                                    TK. {Number(summary.total_advance).toLocaleString('en-IN')}
+                                    <i className="fa-solid fa-bangladeshi-taka-sign text-[18px] mr-1 text-gray-400"></i>
+                                    {Number(summary.total_advance).toLocaleString('en-IN')}
                                 </div>
                             </div>
                         </div>
@@ -291,23 +296,24 @@ export default function ClientLedger({ clients = [], ledger = [], summary = {}, 
                                             {/* Debit (Bill) */}
                                             <td className="px-6 py-4 text-right bg-rose-50/10">
                                                 <span className="font-bold text-rose-600">
-                                                    {item.debit > 0 ? `TK. ${Number(item.debit).toLocaleString('en-IN')}` : '-'}
+                                                    {item.debit > 0 ? <><i className="fa-solid fa-bangladeshi-taka-sign text-[11px] mr-1 text-rose-400"></i>{Number(item.debit).toLocaleString('en-IN')}</> : '-'}
                                                 </span>
                                             </td>
                                             
                                             {/* Credit (Payment) */}
                                             <td className="px-6 py-4 text-right bg-emerald-50/10">
                                                 <span className="font-bold text-emerald-600">
-                                                    {item.credit > 0 ? `TK. ${Number(item.credit).toLocaleString('en-IN')}` : '-'}
+                                                    {item.credit > 0 ? <><i className="fa-solid fa-bangladeshi-taka-sign text-[11px] mr-1 text-emerald-400"></i>{Number(item.credit).toLocaleString('en-IN')}</> : '-'}
                                                 </span>
                                             </td>
                                             
                                             {/* Running Balance */}
                                             <td className="px-6 py-4 text-right bg-slate-50/80">
-                                                <div className={`font-extrabold text-[14.5px] ${item.balance > 0 ? 'text-rose-600' : 'text-gray-900'}`}>
-                                                    TK. {Number(item.balance).toLocaleString('en-IN')}
-                                                    <span className={`text-[11px] ml-1.5 font-bold ${item.balance > 0 ? 'text-rose-400' : 'text-gray-400'}`}>
-                                                        {item.balance > 0 ? '(Dr)' : '(Cr)'}
+                                                <div className={`font-extrabold text-[14.5px] ${item.balance > 0 ? 'text-rose-600' : item.balance < 0 ? 'text-emerald-600' : 'text-gray-900'}`}>
+                                                    <i className={`fa-solid fa-bangladeshi-taka-sign text-[12px] mr-1 ${item.balance > 0 ? 'text-rose-400' : item.balance < 0 ? 'text-emerald-400' : 'text-gray-400'}`}></i>
+                                                    {Number(Math.abs(item.balance)).toLocaleString('en-IN')}
+                                                    <span className={`text-[11px] ml-1.5 font-bold ${item.balance > 0 ? 'text-rose-400' : item.balance < 0 ? 'text-emerald-400' : 'text-gray-400'}`}>
+                                                        {item.balance > 0 ? '(Dr)' : item.balance < 0 ? '(Cr)' : ''}
                                                     </span>
                                                 </div>
                                             </td>

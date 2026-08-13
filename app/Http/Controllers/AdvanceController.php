@@ -21,11 +21,11 @@ class AdvanceController extends Controller
             $query->where(function ($q) use ($searchTerm) {
                 $q->whereHas('user', function ($q2) use ($searchTerm) {
                     $q2->where('name', 'like', "%{$searchTerm}%");
-                })->orWhere('purpose', 'like', "%{$searchTerm}%");
+                })->orWhere('purpose', 'like', "%{$searchTerm}%")
+                ->orWhere('notes', 'like', "%{$searchTerm}%"); 
             });
         }
 
-        // সরাসরি advances টেবিল থেকে নিখুঁত ক্যালকুলেশন (যাতে Account ও Advance পেজের হিসাব মিলে যায়)
         $totalUnsettled = (clone $query)
             ->get(['amount', 'settled_amount', 'returned_amount'])
             ->sum(function ($adv) {
@@ -37,10 +37,10 @@ class AdvanceController extends Controller
             $totalCount = $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = min((int) $request->input('per_page', 10), 100000); 
+            $perPage = min((int) $request->input('per_page', 50), 100000); 
         }
 
-        $advances = $query->latest()->paginate($perPage)->withQueryString();
+        $advances = $query->orderBy('date', 'desc')->latest()->paginate($perPage)->withQueryString();
 
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->get();
         $employees = User::whereHas('employeeProfile')->select('id', 'name')->get();

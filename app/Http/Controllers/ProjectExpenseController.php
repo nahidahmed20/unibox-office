@@ -17,6 +17,9 @@ use Illuminate\Support\Facades\DB;
 
 class ProjectExpenseController extends Controller
 {
+    /**
+     * Display a listing of project expenses.
+     */
     public function index(Request $request)
     {
         $query = ProjectExpense::with(['project', 'category', 'account', 'vendor', 'advanceUser']);
@@ -34,7 +37,7 @@ class ProjectExpenseController extends Controller
             $query->where('project_id', $request->project_id);
         }
 
-        // --- NEW: Year & Date Filter Logic ---
+        // Year & Date Filters
         if ($request->filled('year')) {
             $query->whereYear('date', $request->year);
         }
@@ -46,7 +49,6 @@ class ProjectExpenseController extends Controller
         } elseif ($request->filled('date_to')) {
             $query->whereDate('date', '<=', $request->date_to);
         }
-        // -------------------------------------
 
         $totals = [
             'total_bill'  => (float) (clone $query)->sum('total_bill'),
@@ -61,7 +63,11 @@ class ProjectExpenseController extends Controller
             $perPage = min((int) $request->input('per_page', 10), 100000); 
         }
 
-        $project_expenses = $query->latest()->paginate($perPage)->withQueryString();
+        // 🟢 UPDATE: Sorted by 'date' descending, then by 'id' descending
+        $project_expenses = $query->orderBy('date', 'desc')
+                                ->orderBy('id', 'desc')
+                                ->paginate($perPage)
+                                ->withQueryString();
 
         $projects = Project::with('client:id,name,company_name')
             ->select('id', 'title', 'client_id', 'status')
@@ -69,8 +75,26 @@ class ProjectExpenseController extends Controller
             ->get();
 
         $categories = ExpenseCategory::select('id', 'name')->orderBy('name')->get();
+
+        return Inertia::render('Admin/ProjectExpenses/Index', compact(
+            'project_expenses', 'projects', 'categories', 'totals'
+        ) + [
+            'filters' => $request->only(['search', 'project_id', 'per_page', 'year', 'date_from', 'date_to']),
+        ]);
+    }
+
+    /**
+     * Show the form for creating a new project expense.
+     */
+    public function create()
+    {
+        $projects = Project::with('client:id,name,company_name')
+            ->select('id', 'title', 'client_id', 'status')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $categories = ExpenseCategory::select('id', 'name')->orderBy('name')->get();
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->orderBy('name')->get();
-        
         $vendors = Vendor::select('id', 'name', 'company_name', 'wallet_balance')->get();
 
         $advances = AdvanceBalance::with('user:id,name')
@@ -84,13 +108,14 @@ class ProjectExpenseController extends Controller
                 'balance' => round($b->balance, 2),
             ]);
 
-        return Inertia::render('Admin/ProjectExpenses/Index', compact(
-            'project_expenses', 'projects', 'categories', 'accounts', 'vendors', 'advances', 'totals'
-        ) + [
-            'filters' => $request->only(['search', 'project_id', 'per_page', 'year', 'date_from', 'date_to']),
-        ]);
+        return Inertia::render('Admin/ProjectExpenses/Create', compact(
+            'projects', 'categories', 'accounts', 'vendors', 'advances'
+        ));
     }
 
+    /**
+     * Store a newly created project expense.
+     */
     public function store(Request $request)
     {
         $validated = $this->validateData($request);
@@ -103,11 +128,9 @@ class ProjectExpenseController extends Controller
         $overpayment = $isOverpaid ? ($enteredPaid - $bill) : 0;
         $actualExpensePaid = $isOverpaid ? $bill : $enteredPaid;
 
-        // --- NEW LOGIC: Prevent money vanishing ---
         if ($overpayment > 0 && empty($validated['return_account_id']) && empty($validated['vendor_id'])) {
             return redirect()->back()->withErrors(['error' => "Overpayment detected (BDT {$overpayment})! You must select either a Vendor (for advance) or a Return Cash Box."]);
         }
-        // ------------------------------------------
 
         if ($error = $this->validateSource($validated, $enteredPaid)) {
             return redirect()->back()->withErrors(['error' => $error]);
@@ -146,13 +169,47 @@ class ProjectExpenseController extends Controller
                 ]);
             });
 
-            return redirect()->back()->with('success', 'Expense logged successfully.');
+            return redirect()->route('admin.project-expenses.index')->with('success', 'Expense logged successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->withErrors(['error' => $e->getMessage()]);
         }
     }
 
+    /**
+     * Show the form for editing the specified project expense.
+     */
+    public function edit(string $id)
+    {
+        $expense = ProjectExpense::findOrFail($id);
 
+        $projects = Project::with('client:id,name,company_name')
+            ->select('id', 'title', 'client_id', 'status')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $categories = ExpenseCategory::select('id', 'name')->orderBy('name')->get();
+        $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->orderBy('name')->get();
+        $vendors = Vendor::select('id', 'name', 'company_name', 'wallet_balance')->get();
+
+        $advances = AdvanceBalance::with('user:id,name')
+            ->get()
+            ->filter(fn ($b) => $b->balance > 0.009)
+            ->sortBy(fn ($b) => $b->user->name ?? '')
+            ->values()
+            ->map(fn ($b) => [
+                'user_id' => $b->user_id,
+                'user'    => $b->user,
+                'balance' => round($b->balance, 2),
+            ]);
+
+        return Inertia::render('Admin/ProjectExpenses/Edit', compact(
+            'expense', 'projects', 'categories', 'accounts', 'vendors', 'advances'
+        ));
+    }
+
+    /**
+     * Update the specified project expense.
+     */
     public function update(Request $request, string $id)
     {
         $expense = ProjectExpense::findOrFail($id);
@@ -174,7 +231,6 @@ class ProjectExpenseController extends Controller
             DB::transaction(function () use ($expense, $validated, $enteredPaid, $actualExpensePaid, $overpayment, $bill) {
                 $oldPaid = (float) $expense->paid_amount;
                 
-                // Determine old payment source logic
                 $oldPayType = 'wallet';
                 if ($expense->account_id) $oldPayType = 'account';
                 elseif ($expense->advance_user_id) $oldPayType = 'advance';
@@ -214,7 +270,6 @@ class ProjectExpenseController extends Controller
 
                 $updateData = collect($validated)->except(['pay_type', 'return_account_id'])->toArray();
 
-                // To ensure unselected sources are set to null in DB
                 if ($newPayType === 'account') $updateData['advance_user_id'] = null;
                 if ($newPayType === 'advance') $updateData['account_id'] = null;
                 if ($newPayType === 'wallet') {
@@ -230,12 +285,15 @@ class ProjectExpenseController extends Controller
                 ]);
             });
 
-            return redirect()->back()->with('success', 'Expense updated successfully.');
+            return redirect()->route('admin.project-expenses.index')->with('success', 'Expense updated successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->withErrors(['error' => $e->getMessage()]);
         }
     }
 
+    /**
+     * Remove the specified project expense.
+     */
     public function destroy(string $id)
     {
         $expense = ProjectExpense::findOrFail($id);
@@ -252,7 +310,9 @@ class ProjectExpenseController extends Controller
         }
     }
 
-    // --- NEW: Move Cancelled Project Funds to Vendor Wallet ---
+    /**
+     * Move funds to vendor wallet.
+     */
     public function moveToWallet(string $id)
     {
         $expense = ProjectExpense::findOrFail($id);
@@ -277,7 +337,6 @@ class ProjectExpenseController extends Controller
                     ]);
                 }
 
-                // Delete expense without refunding to bank (since money is now in vendor wallet)
                 $expense->delete();
             });
 
@@ -287,21 +346,22 @@ class ProjectExpenseController extends Controller
         }
     }
 
-    // Validation & Source Management Methods
+    // --- Private Helper Methods ---
+
     private function validateData(Request $request): array
     {
         return $request->validate([
-            'project_id'            => 'required|exists:projects,id',
-            'expense_category_id'   => 'required|exists:expense_categories,id',
-            'account_id'            => 'nullable|exists:accounts,id',
-            'advance_user_id'       => 'nullable|exists:users,id',
-            'title'                 => 'required|string|max:255',
-            'vendor_id'             => 'nullable|exists:vendors,id',
-            'total_bill'            => 'required|numeric|min:0',
-            'paid_amount'           => 'nullable|numeric|min:0',
-            'date'                  => 'required|date',
-            'description'           => 'nullable|string',
-            'pay_type'              => 'required|in:account,advance,wallet', // New Field
+            'project_id'          => 'required|exists:projects,id',
+            'expense_category_id' => 'required|exists:expense_categories,id',
+            'account_id'          => 'nullable|exists:accounts,id',
+            'advance_user_id'     => 'nullable|exists:users,id',
+            'title'               => 'required|string|max:255',
+            'vendor_id'           => 'nullable|exists:vendors,id',
+            'total_bill'          => 'required|numeric|min:0',
+            'paid_amount'         => 'nullable|numeric|min:0',
+            'date'                => 'required|date',
+            'description'         => 'nullable|string',
+            'pay_type'            => 'required|in:account,advance,wallet',
         ]);
     }
 
@@ -359,7 +419,6 @@ class ProjectExpenseController extends Controller
         } elseif ($expense->advance_user_id) {
             $this->refundAdvance($expense->advance_user_id, $amount);
         } else {
-            // If neither account nor advance, it must be a wallet payment
             if ($expense->vendor_id) {
                 $vendor = Vendor::find($expense->vendor_id);
                 if ($vendor) {
@@ -420,6 +479,4 @@ class ProjectExpenseController extends Controller
             AdvanceBalance::where('user_id', $userId)->decrement('total_used', $actuallyRefunded);
         }
     }
-
-    
 }

@@ -17,17 +17,20 @@ class ClientAdvanceController extends Controller
         $search = $request->input('search');
 
         $baseQuery = Client::whereHas('clientAdvances')
-            ->with(['clientAdvances' => function($q) {
-                $q->with('account')->latest('date'); 
+            ->with(['clientAdvances' => function ($q) {
+                $q->with('account')->latest('date');
             }])
+            ->withMax('clientAdvances', 'date')
             ->withSum('clientAdvances as total_amount', 'amount')
             ->withSum('clientAdvances as total_used', 'used_amount')
             ->when($search, function ($query, $search) {
-                $query->where(function($q) use ($search) {
+                $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
                     ->orWhere('company_name', 'like', "%{$search}%");
                 });
-            });
+            })
+            ->orderByDesc('client_advances_max_date')
+            ->orderByDesc('id');
 
         if ($request->input('per_page') === 'all') {
             $totalCount = $baseQuery->count();
@@ -74,7 +77,7 @@ class ClientAdvanceController extends Controller
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
             'account_id' => 'required|exists:accounts,id',
-            'amount' => 'required|numeric|min:1',
+            'amount' => 'required|numeric|min:0',
             'date' => 'required|date',
             'note' => 'nullable|string',
         ]);
@@ -101,7 +104,7 @@ class ClientAdvanceController extends Controller
         $request->validate([
             'client_id' => 'required|exists:clients,id',
             'account_id' => 'required|exists:accounts,id',
-            'amount' => 'required|numeric|min:1',
+            'amount' => 'required|numeric|min:0',
             'date' => 'required|date',
             'note' => 'nullable|string'
         ]);

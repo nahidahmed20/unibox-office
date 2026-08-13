@@ -1,364 +1,275 @@
-import React, { useState, useEffect, useRef } from 'react'; 
+import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
-import Swal from 'sweetalert2'; 
+import Swal from 'sweetalert2';
 import Select from 'react-select';
 
-export default function Index({ investments = {}, accounts = [], filters = {}, totalAmount = 0 }) {
+// Color system: investor type is the one piece of information that repeats everywhere
+// (avatar, chip, table caption), so it gets a consistent color mapping instead of a
+// decorative one. Kept as static class strings (not template-built) so Tailwind's
+// scanner picks them up.
+const INVESTOR_TYPE_META = {
+    lender: { label: 'Lender', bn: 'ধার', chip: 'border-amber-500 bg-amber-50 text-amber-700', avatar: 'bg-amber-50 text-amber-700', dot: 'bg-amber-500' },
+    partner: { label: 'Partner', bn: 'অংশীদার', chip: 'border-indigo-500 bg-indigo-50 text-indigo-700', avatar: 'bg-indigo-50 text-indigo-700', dot: 'bg-indigo-500' },
+    owner: { label: 'Owner', bn: 'মালিক', chip: 'border-emerald-500 bg-emerald-50 text-emerald-700', avatar: 'bg-emerald-50 text-emerald-700', dot: 'bg-emerald-500' },
+};
+const INVESTMENT_TYPE_META = {
+    loan: { label: 'Loan', bn: 'ধার বা ঋণ হিসেবে গ্রহণ', chip: 'border-slate-500 bg-slate-50 text-slate-700', icon: 'fa-hand-holding-dollar' },
+    equity: { label: 'Equity', bn: 'স্থায়ী মূলধন হিসেবে গ্রহণ', chip: 'border-violet-500 bg-violet-50 text-violet-700', icon: 'fa-chart-pie' },
+};
+
+const inputCls = "w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-[13.5px] font-medium text-gray-900 outline-none focus:bg-white focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent)]/10 transition-all";
+const labelCls = "block text-[12px] font-bold text-gray-600 uppercase tracking-wide mb-2";
+
+export default function Index({ investments = {}, accounts = [], existingInvestors = [], filters = {}, totalAmount = 0, totalReturned = 0, totalProfitPaid = 0 }) {
     const { auth } = usePage().props;
-    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
     const permissions = auth?.permissions || [];
     const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
 
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
-    
+
+    // Return Money Modal State
+    const [showReturnModal, setShowReturnModal] = useState(false);
+    const [selectedInvestment, setSelectedInvestment] = useState(null);
+
     const investmentList = investments.data || [];
-    
-    const [searchTerm, setSearchTerm] = useState(() => {
-        return new URLSearchParams(window.location.search).get('search') || filters.search || '';
-    });
-    
-    const [perPage, setPerPage] = useState(() => {
-        return new URLSearchParams(window.location.search).get('per_page') || filters.per_page || '10';
-    });
-    
+
+    const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get('search') || filters.search || '');
+    const [perPage, setPerPage] = useState(() => new URLSearchParams(window.location.search).get('per_page') || filters.per_page || '10');
     const isFirstRender = useRef(true);
 
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
-        id: '', 
-        account_id: '', 
-        amount: '', 
-        investor_name: '', 
-        investment_date: '', 
-        purpose: 'Office Purpose', 
-        notes: ''
+        id: '', account_id: '', amount: '',
+        investor_name: '', investor_phone: '', investor_type: 'lender', investment_type: 'loan',
+        date: new Date().toISOString().slice(0, 10), purpose: 'Business Capital', note: ''
+    });
+
+    const returnForm = useForm({
+        account_id: '', principal_amount: 0, profit_amount: 0, payment_date: new Date().toISOString().slice(0, 10), note: ''
     });
 
     useEffect(() => {
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            return;
-        }
+        if (isFirstRender.current) { isFirstRender.current = false; return; }
         const delayDebounceFn = setTimeout(() => {
-            router.get(
-                route('admin.investments.index'), 
-                { search: searchTerm, per_page: perPage }, 
-                { preserveState: true, replace: true }
-            );
+            router.get(route('admin.investments.index'), { search: searchTerm, per_page: perPage }, { preserveState: true, replace: true });
         }, 400);
-
         return () => clearTimeout(delayDebounceFn);
     }, [searchTerm, perPage]);
 
-    const handleCopy = () => {
-        if (!investmentList.length) return Swal.fire("Empty!", "No data to copy", "warning");
-        const text = investmentList
-            .map((inv, idx) => `${idx + 1}\t${inv.investor_name}\t${inv.investment_date}\t${inv.purpose}\t$${parseFloat(inv.amount).toFixed(2)}`)
-            .join("\n");
-        navigator.clipboard.writeText(text);
-        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1200, showConfirmButton: false, toast: true, position: 'top-end' });
-    };
-
-    const handleExportCSV = () => {
-        if (!investmentList.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const headers = ["SL,Investor Name,Date,Purpose,Account,Amount\n"];
-        const rows = investmentList.map((inv, idx) => {
-            const accountName = inv.account ? inv.account.name : 'N/A';
-            return `"${idx + 1}","${inv.investor_name}","${inv.investment_date}","${inv.purpose}","${accountName}","${inv.amount}"`;
-        });
-        const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `Investment_Report_${new Date().toISOString().slice(0,10)}.csv`);
-        link.click();
-    };
-
-    const handlePrint = () => {
-        const tableContent = document.getElementById("printable-investment-table");
-        if (!tableContent) return;
-
-        const printWindow = window.open('', '_blank', `width=${window.screen.width},height=${window.screen.height}`);
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Capital & Investments Report</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; padding: 30px; color: #334155; }
-                        h2 { text-align: center; color: #0f172a; margin-bottom: 5px; }
-                        p { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 14px; }
-                        table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; }
-                        th, td { padding: 12px 16px; border: 1px solid #cbd5e1; font-size: 13px; }
-                        th { background-color: #f8fafc; font-weight: 600; color: #475569; text-transform: uppercase; }
-                        th:last-child, td:last-child { display: none !important; }
-                    </style>
-                </head>
-                <body>
-                    <h2>Capital & Investments Directory</h2>
-                    <p>Generated Report Date: ${new Date().toLocaleDateString()}</p>
-                    ${tableContent.outerHTML}
-                </body>
-            </html>
-        `);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
-    };
-
     const openCreateModal = () => {
         clearErrors();
-        setData({
-            id: '',
-            account_id: '',
-            amount: '',
-            investor_name: '',
-            investment_date: new Date().toISOString().slice(0, 10),
-            purpose: 'Office Purpose',
-            notes: ''
-        });
-        setEditMode(false);
-        setShowModal(true);
+        setData({ id: '', account_id: '', amount: '', investor_name: '', investor_phone: '', investor_type: 'lender', investment_type: 'loan', date: new Date().toISOString().slice(0, 10), purpose: 'Business Capital', note: '' });
+        setEditMode(false); setShowModal(true);
     };
 
     const openEditModal = (inv) => {
-        clearErrors(); 
+        clearErrors();
         setData({
             id: inv.id,
             account_id: inv.account_id || '',
             amount: inv.amount,
-            investor_name: inv.investor_name,
-            investment_date: inv.investment_date,
-            purpose: inv.purpose || 'Office Purpose',
-            notes: inv.notes || ''
+            investor_name: inv.investor?.name || '',
+            investor_phone: inv.investor?.phone || '',
+            investor_type: inv.investor?.type || 'lender',
+            investment_type: inv.investment_type || 'loan',
+            date: inv.date,
+            purpose: inv.purpose || 'Business Capital',
+            note: inv.note || ''
         });
-        setEditMode(true); 
-        setShowModal(true);
+        setEditMode(true); setShowModal(true);
+    };
+
+    const openReturnModal = (inv) => {
+        setSelectedInvestment(inv);
+        returnForm.reset();
+        returnForm.setData({ account_id: '', principal_amount: inv.due_amount, profit_amount: 0, payment_date: new Date().toISOString().slice(0, 10), note: '' });
+        returnForm.clearErrors();
+        setShowReturnModal(true);
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        
-        if (!data.account_id) return Swal.fire("Required", "Please select a deposit account.", "warning");
-
         if (editMode) {
-            put(route('admin.investments.update', data.id), { 
-                onSuccess: () => {
-                    setShowModal(false);
-                    Swal.fire({ icon: 'success', title: 'Updated!', text: 'Investment updated successfully.', timer: 1500, showConfirmButton: false });
-                }
-            });
+            put(route('admin.investments.update', data.id), { onSuccess: () => { setShowModal(false); Swal.fire({ icon: 'success', title: 'Updated!', timer: 1500, showConfirmButton: false }); } });
         } else {
-            post(route('admin.investments.store'), { 
-                onSuccess: () => { 
-                    reset(); 
-                    setShowModal(false); 
-                    Swal.fire({ icon: 'success', title: 'Logged!', text: 'New investment added successfully.', timer: 1500, showConfirmButton: false });
-                }
-            });
+            if (!data.account_id) return Swal.fire("Required", "Please select a deposit account.", "warning");
+            post(route('admin.investments.store'), { onSuccess: () => { reset(); setShowModal(false); Swal.fire({ icon: 'success', title: 'Logged!', timer: 1500, showConfirmButton: false }); } });
         }
     };
 
-    const handleDelete = (id) => {
-        Swal.fire({
-            title: 'Are you sure?',
-            text: 'This investment record will be permanently deleted and account balance will be updated!',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, delete it',
-            cancelButtonText: 'Cancel',
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#64748b'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                destroy(route('admin.investments.destroy', id), {
-                    preserveScroll: true,
-                    onSuccess: () => Swal.fire({ icon: 'success', title: 'Deleted!', text: 'Record has been removed.', timer: 1500, showConfirmButton: false })
-                });
+    const handleReturnSubmit = (e) => {
+        e.preventDefault();
+        if (!returnForm.data.account_id) return Swal.fire("Required", "Please select an account to pay from.", "warning");
+        if (Number(returnForm.data.principal_amount) > selectedInvestment.due_amount) {
+            return Swal.fire("Error", "Principal return cannot exceed the remaining due amount.", "error");
+        }
+
+        returnForm.post(route('admin.investments.return', selectedInvestment.id), {
+            onSuccess: () => {
+                setShowReturnModal(false);
+                Swal.fire({ icon: 'success', title: 'Payment Processed!', text: 'Money returned successfully.', timer: 1500, showConfirmButton: false });
             }
         });
     };
 
-    const totalInvestment = parseFloat(totalAmount || 0);
+    const handleDelete = (id) => {
+        Swal.fire({ title: 'Are you sure?', text: 'This record will be permanently deleted and account balance updated!', icon: 'warning', showCancelButton: true, confirmButtonText: 'Yes, delete', confirmButtonColor: '#ef4444' }).then((result) => {
+            if (result.isConfirmed) destroy(route('admin.investments.destroy', id), { preserveScroll: true, onSuccess: () => Swal.fire({ icon: 'success', title: 'Deleted!', timer: 1500, showConfirmButton: false }), onError: (err) => Swal.fire('Error', err.error || 'Cannot delete record with existing payments.', 'error') });
+        });
+    };
 
-    // React-Select Custom Styles
     const selectStyles = {
-        control: (provided, state) => ({
-            ...provided, 
-            minHeight: "42px", 
-            borderRadius: "0.5rem",
-            border: state.isFocused ? "1px solid var(--accent)" : "1px solid #d1d5db",
-            boxShadow: state.isFocused ? "0 0 0 1px rgba(200, 155, 60, 0.5)" : "none",
-            "&:hover": { borderColor: "#9ca3af" },
-            fontSize: "13.5px",
-            background: "#fff",
-            padding: "0px"
-        }),
-        valueContainer: (provided) => ({ ...provided, padding: "2px 10px" }),
-        placeholder: (provided) => ({ ...provided, color: "#9ca3af", fontSize: "13.5px" }),
-        singleValue: (provided) => ({ ...provided, color: "#111827", fontSize: "13.5px" }),
-        option: (provided, state) => ({
-            ...provided, fontSize: "13.5px",
-            backgroundColor: state.isSelected ? "var(--accent)" : state.isFocused ? "var(--accent-bg)" : "#fff",
-            color: state.isSelected ? "#fff" : "#111827", cursor: "pointer",
-        }),
+        control: (provided, state) => ({ ...provided, minHeight: "46px", borderRadius: "0.75rem", border: state.isFocused ? "1px solid var(--accent)" : "1px solid #e5e7eb", backgroundColor: state.isFocused ? '#ffffff' : '#f8fafc', boxShadow: state.isFocused ? "0 0 0 4px rgba(200, 155, 60, 0.12)" : "none", fontSize: "13.5px", cursor: 'pointer' }),
+        menu: (base) => ({ ...base, borderRadius: '0.75rem', overflow: 'hidden', fontSize: '13.5px', zIndex: 50 }),
+        option: (base, state) => ({ ...base, backgroundColor: state.isSelected ? 'var(--accent)' : state.isFocused ? '#f8fafc' : 'white', color: state.isSelected ? 'white' : '#334155', cursor: 'pointer' }),
         menuPortal: base => ({ ...base, zIndex: 9999 })
+    };
+    const accountOptions = accounts.map(a => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString()})` }));
+
+    // Auto complete for existing investors
+    const handleInvestorNameChange = (e) => {
+        const val = e.target.value;
+        setData('investor_name', val);
+        const exists = existingInvestors.find(inv => inv.name.toLowerCase() === val.toLowerCase());
+        if (exists) setData(prev => ({ ...prev, investor_phone: exists.phone || '', investor_type: exists.type }));
     };
 
     return (
         <AdminLayout>
-            <Head title="Investments Management" />
-            
-            <div className="flex flex-col gap-6">
-                
-                {/* Page Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-[22px] font-bold text-[#202223]">Investments Management</h1>
-                        <p className="text-[14px] text-gray-500 mt-1">Track and manage asset allocations, seed funding, and corporate capitals.</p>
-                    </div>
+            <Head title="Investments & Loans" />
 
-                    <div className="flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-5 py-2.5 text-teal-700 shadow-sm">
-                        <i className="fa-solid fa-chart-line text-teal-600"></i>
-                        <span className="text-[14px] font-bold uppercase tracking-wider text-teal-800">Page Total:</span>
-                        <span className="text-[18px] font-bold">TK. {totalInvestment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <div className="flex flex-col gap-8">
+                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+                    <div>
+                        <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-[var(--accent)]">
+                            <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]"></span> Capital Ledger
+                        </div>
+                        <h1 className="text-[26px] font-extrabold text-gray-900 tracking-tight">Investments & Loans</h1>
+                        <p className="text-[14px] text-gray-500 mt-1.5 max-w-md">Track business capital, loans, and manage principal & profit returns.</p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full lg:w-auto">
+                        <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600"><i className="fa-solid fa-arrow-down-to-bracket text-[13px]"></i></div>
+                            <div>
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Received</div>
+                                <div className="text-[16px] font-extrabold text-gray-900 tabular-nums">৳{parseFloat(totalAmount || 0).toLocaleString()}</div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600"><i className="fa-solid fa-triangle-exclamation text-[13px]"></i></div>
+                            <div>
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Due Principal</div>
+                                <div className="text-[16px] font-extrabold text-gray-900 tabular-nums">৳{parseFloat((totalAmount || 0) - (totalReturned || 0)).toLocaleString()}</div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><i className="fa-solid fa-chart-line text-[13px]"></i></div>
+                            <div>
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Profit Paid</div>
+                                <div className="text-[16px] font-extrabold text-gray-900 tabular-nums">৳{parseFloat(totalProfitPaid || 0).toLocaleString()}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* Main Card Container */}
-                <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
-                    
-                    {/* Card Header & Actions */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
-                        <div className="text-[16px] font-semibold text-[#202223] flex items-center gap-2.5">
-                            <i className="fa-solid fa-money-bill-trend-up text-[var(--accent)]"></i> Capital & Investments Directory
+                <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-6 py-5">
+                        <div className="flex items-center gap-2.5">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--accent)]/10 text-[var(--accent)]"><i className="fa-solid fa-building-columns text-[14px]"></i></div>
+                            <div>
+                                <h2 className="text-[15px] font-bold text-gray-900">Directory</h2>
+                                <p className="text-[12px] text-gray-400">{investments.total ?? investmentList.length} total records</p>
+                            </div>
                         </div>
                         {hasPermission('create_investment') && (
-                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13.5px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50">
-                                <i className="fa-solid fa-plus"></i> Log Investment
+                            <button onClick={openCreateModal} className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-[13.5px] font-bold text-white shadow-sm hover:bg-[#b08630] transition-colors">
+                                <i className="fa-solid fa-plus text-[12px]"></i> Add Investment
                             </button>
                         )}
                     </div>
 
-                    {/* Toolbar */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30">
-                        
-                        <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
-                            {/* Show Entries */}
-                            <div className="flex items-center gap-2">
-                                <span>Show</span>
-                                <select 
-                                    value={perPage} 
-                                    onChange={(e) => setPerPage(e.target.value === "all" ? "all" : e.target.value)} 
-                                    className="w-[100px] appearance-none bg-none rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
-                                >
-                                    <option value={10}>10 Entries</option>
-                                    <option value={25}>25 Entries</option>
-                                    <option value={50}>50 Entries</option>
-                                    <option value={100}>100 Entries</option>
-                                    <option value={500}>500 Entries</option>
-                                    <option value={1000}>1000 Entries</option>
-                                    <option value="all">All</option>
-                                </select>
-                            </div>
-
-                            <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
-
-                            {/* Export Buttons */}
-                            <div className="flex items-center gap-1.5">
-                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
-                                    <i className="fas fa-copy text-blue-500"></i> Copy
-                                </button>
-                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
-                                    <i className="fas fa-file-excel text-emerald-500"></i> CSV
-                                </button>
-                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
-                                    <i className="fas fa-print text-gray-500"></i> Print
-                                </button>
-                            </div>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-6 py-4 bg-gray-50/60 border-b border-gray-100">
+                        <div className="relative w-full sm:w-[280px]">
+                            <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-[12.5px]"></i>
+                            <input type="text" placeholder="Search investor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-[13.5px] outline-none focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent)]/10 transition-all" />
                         </div>
-
-                        {/* Search */}
-                        <div className="relative w-full sm:w-[260px]">
-                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
-                            <input 
-                                type="text" 
-                                placeholder="Search investor or purpose..." 
-                                value={searchTerm} 
-                                onChange={(e) => setSearchTerm(e.target.value)} 
-                                className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                            />
-                        </div>
+                        <select value={perPage} onChange={(e) => setPerPage(e.target.value)} className="w-full sm:w-[130px] rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-gray-600 outline-none focus:border-[var(--accent)] transition-all">
+                            <option value={10}>10 Entries</option><option value={25}>25 Entries</option><option value="all">All</option>
+                        </select>
                     </div>
 
-                    {/* Data Table */}
-                    <div className="overflow-x-auto brass-scroll border-t border-[#e1e3e5]">
-                        <table id="printable-investment-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
-                            <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left whitespace-nowrap min-w-[1000px]">
+                            <thead className="bg-gray-50/70 text-[10.5px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100">
                                 <tr>
-                                    <th className="px-6 py-4 w-12">SL</th>
-                                    <th className="px-6 py-4">Investor Name</th>
-                                    <th className="px-6 py-4">Investment Date</th>
-                                    <th className="px-6 py-4">Purpose Target</th>
-                                    <th className="px-6 py-4 text-right">Amount</th>
-                                    <th className="px-6 py-4 text-right">Actions</th>
+                                    <th className="px-6 py-3.5 w-12">SL</th>
+                                    <th className="px-6 py-3.5">Investor Info</th>
+                                    <th className="px-6 py-3.5">Date & Purpose</th>
+                                    <th className="px-6 py-3.5 text-right">Received</th>
+                                    <th className="px-6 py-3.5 text-right">Principal Paid</th>
+                                    <th className="px-6 py-3.5 text-right">Profit Paid</th>
+                                    <th className="px-6 py-3.5 text-right">Due Base</th>
+                                    <th className="px-6 py-3.5 text-center">Status</th>
+                                    <th className="px-6 py-3.5 text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="text-[13.5px] text-[#202223]">
-                                {investmentList.length > 0 ? (
-                                    investmentList.map((inv, index) => (
-                                        <tr key={inv.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                                            <td className="px-6 py-4 font-medium text-gray-500">
-                                                {(investments.current_page - 1) * investments.per_page + index + 1}
+                            <tbody className="text-[13.5px] text-gray-800 divide-y divide-gray-100">
+                                {investmentList.length > 0 ? investmentList.map((inv, index) => {
+                                    const typeMeta = INVESTOR_TYPE_META[inv.investor?.type] || { avatar: 'bg-gray-100 text-gray-500' };
+                                    return (
+                                        <tr key={inv.id} className="hover:bg-gray-50/60 transition-colors">
+                                            <td className="px-6 py-4 text-gray-400 font-medium">{(investments.current_page - 1) * investments.per_page + index + 1}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-bold uppercase ${typeMeta.avatar}`}>
+                                                        {(inv.investor?.name || '?').charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-bold text-gray-900 text-[13.5px]">{inv.investor?.name}</div>
+                                                        <div className="text-[11px] text-gray-400 font-medium mt-0.5">{typeMeta.label || inv.investor?.type} · {INVESTMENT_TYPE_META[inv.investment_type]?.label || inv.investment_type}</div>
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="font-bold text-gray-900">{inv.investor_name}</div>
-                                                {inv.account && (
-                                                    <div className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-[11px] font-bold text-indigo-600">
-                                                        <i className="fa-solid fa-building-columns text-[10px]"></i> {inv.account.name}
-                                                    </div>
-                                                )}
-                                                {inv.notes && (
-                                                    <div className="text-[12px] text-gray-500 mt-1.5 max-w-[220px] truncate">
-                                                        {inv.notes}
-                                                    </div>
-                                                )}
+                                                <div className="font-semibold text-gray-800">{inv.date}</div>
+                                                <div className="text-[11.5px] text-gray-400 max-w-[180px] truncate">{inv.purpose}</div>
                                             </td>
-                                            <td className="px-6 py-4 text-gray-500 font-medium">
-                                                {inv.investment_date}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider
-                                                    ${inv.purpose === 'Work Purpose' ? 'bg-sky-50 text-sky-600 border border-sky-200' : inv.purpose === 'Office Purpose' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-gray-100 text-gray-600 border border-gray-200'}
-                                                `}>
-                                                    {inv.purpose}
+                                            <td className="px-6 py-4 text-right font-bold text-gray-900 tabular-nums">৳{parseFloat(inv.amount).toLocaleString()}</td>
+                                            <td className="px-6 py-4 text-right font-bold text-emerald-600 tabular-nums">৳{parseFloat(inv.returned_principal || 0).toLocaleString()}</td>
+                                            <td className="px-6 py-4 text-right font-bold text-indigo-500 tabular-nums">৳{parseFloat(inv.returned_profit || 0).toLocaleString()}</td>
+                                            <td className="px-6 py-4 text-right font-bold text-rose-600 tabular-nums">৳{parseFloat(inv.due_amount).toLocaleString()}</td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${inv.status === 'fully_paid' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                                                    <span className={`h-1.5 w-1.5 rounded-full ${inv.status === 'fully_paid' ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                                                    {inv.status.replace('_', ' ')}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-right font-bold text-teal-600 text-[14.5px]">
-                                                TK. {parseFloat(inv.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                            </td>
                                             <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-1.5">
-                                                    {hasPermission('edit_investment') && (
-                                                        <button onClick={() => openEditModal(inv)} className="flex h-7 w-7 items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors" title="Edit Record">
-                                                            <i className="fa-regular fa-pen-to-square text-[12px]"></i>
+                                                <div className="flex justify-end gap-1.5">
+                                                    {inv.status !== 'fully_paid' && (
+                                                        <button onClick={() => openReturnModal(inv)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors" title="Return Money & Profit">
+                                                            <i className="fa-solid fa-hand-holding-dollar text-[12.5px]"></i>
                                                         </button>
                                                     )}
-                                                    {hasPermission('delete_client') && (
-                                                        <button onClick={() => handleDelete(inv.id)} className="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete Record">
-                                                            <i className="fa-regular fa-trash-can text-[12px]"></i>
-                                                        </button>
+                                                    {hasPermission('edit_investment') && (
+                                                        <button onClick={() => openEditModal(inv)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors" title="Edit Info"><i className="fa-regular fa-pen-to-square text-[12.5px]"></i></button>
+                                                    )}
+                                                    {hasPermission('delete_client') && inv.due_amount === parseFloat(inv.amount) && ( // Allow delete only if no returns are made yet
+                                                        <button onClick={() => handleDelete(inv.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete"><i className="fa-regular fa-trash-can text-[12.5px]"></i></button>
                                                     )}
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))
-                                ) : (
+                                    );
+                                }) : (
                                     <tr>
-                                        <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
-                                            <div className="flex flex-col items-center justify-center">
-                                                <i className="fa-solid fa-money-bill-trend-up text-4xl text-gray-300 mb-3"></i>
-                                                <p>No investment records found.</p>
+                                        <td colSpan="9" className="px-6 py-16 text-center">
+                                            <div className="flex flex-col items-center gap-2.5">
+                                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-gray-300"><i className="fa-solid fa-inbox text-lg"></i></div>
+                                                <p className="text-gray-600 font-semibold text-[13.5px]">No records found</p>
+                                                <p className="text-gray-400 text-[12px]">Try a different search term, or add a new investment.</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -366,24 +277,12 @@ export default function Index({ investments = {}, accounts = [], filters = {}, t
                             </tbody>
                         </table>
                     </div>
-
-                    {/* Pagination */}
                     {investments.links && investments.links.length > 3 && (
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#e1e3e5] bg-[#f6f6f7] px-6 py-4">
-                            <div className="text-[13px] text-gray-500">
-                                Showing {investments.from || 0} to {investments.to || 0} of {investments.total || 0} entries
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1">
+                        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-gray-100 bg-gray-50/50 px-6 py-4">
+                            <div className="text-[12.5px] text-gray-500">Showing <strong className="text-gray-700">{investments.from || 0}</strong> to <strong className="text-gray-700">{investments.to || 0}</strong> of <strong className="text-gray-700">{investments.total || 0}</strong></div>
+                            <div className="flex gap-1">
                                 {investments.links.map((link, i) => (
-                                    <Link 
-                                        key={i} 
-                                        href={link.url || "#"} 
-                                        className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] transition-colors
-                                            ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : link.url ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'border-gray-200 bg-gray-100 text-gray-400 pointer-events-none'}
-                                        `}
-                                        preserveState
-                                        dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }}
-                                    />
+                                    <Link key={i} href={link.url || "#"} preserveState className={`min-w-[34px] text-center px-2.5 py-1.5 rounded-lg border text-[12.5px] font-semibold transition-colors ${link.active ? 'bg-[var(--accent)] text-white border-[var(--accent)] shadow-sm' : link.url ? 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300' : 'bg-transparent text-gray-300 border-transparent pointer-events-none'}`} dangerouslySetInnerHTML={{ __html: link.label.replace("&laquo;", "«").replace("&raquo;", "»") }} />
                                 ))}
                             </div>
                         </div>
@@ -391,117 +290,149 @@ export default function Index({ investments = {}, accounts = [], filters = {}, t
                 </div>
             </div>
 
-            {/* --- CREATE / EDIT FORM MODAL --- */}
+            {/* --- CREATE / EDIT MODAL --- */}
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
-                        {/* Modal Header */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
-                            <h3 className="text-[18px] font-semibold text-[#202223]">
-                                {editMode ? '📝 Edit Investment Info' : '✨ Log New Investment'}
-                            </h3>
-                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                                <i className="fa-solid fa-xmark text-lg"></i>
-                            </button>
-                        </div>
-                        
-                        {/* Modal Body & Form */}
-                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
-                            <div className="p-6 overflow-y-auto brass-scroll">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Investor Name *</label>
-                                        <input 
-                                            type="text" 
-                                            value={data.investor_name} 
-                                            onChange={e => setData('investor_name', e.target.value)} 
-                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                            placeholder="e.g., John Doe" 
-                                            required
-                                        />
-                                        {errors.investor_name && <p className="text-red-500 text-[12px] mt-1">{errors.investor_name}</p>}
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Deposit To Account *</label>
-                                        <Select
-                                            options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${a.current_balance})` }))}
-                                            value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: TK. ${a.current_balance})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
-                                            onChange={(selected) => setData("account_id", selected ? selected.value : "")}
-                                            placeholder="-- Search & Choose Account --"
-                                            isSearchable
-                                            isClearable
-                                            styles={selectStyles}
-                                            menuPosition="fixed"
-                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
-                                        />
-                                        {errors.account_id && <p className="text-red-500 text-[12px] mt-1">{errors.account_id}</p>}
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Amount (TK) *</label>
-                                        <input 
-                                            type="number" 
-                                            step="0.01"
-                                            value={data.amount} 
-                                            onChange={e => setData('amount', e.target.value)} 
-                                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[15px] font-bold text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                            placeholder="0.00" 
-                                            required
-                                        />
-                                        {errors.amount && <p className="text-red-500 text-[12px] mt-1">{errors.amount}</p>}
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Investment Date *</label>
-                                        <input 
-                                            type="date" 
-                                            value={data.investment_date} 
-                                            onChange={e => setData('investment_date', e.target.value)} 
-                                            className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[14px] text-gray-900 outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                            required
-                                        />
-                                        {errors.investment_date && <p className="text-red-500 text-[12px] mt-1">{errors.investment_date}</p>}
-                                    </div>
-                                </div>
-
-                                <div className="mb-5">
-                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Purpose *</label>
-                                    <select 
-                                        value={data.purpose} 
-                                        onChange={e => setData('purpose', e.target.value)} 
-                                        className="w-full appearance-none bg-none rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
-                                    >
-                                        <option value="Office Purpose">Office Purpose</option>
-                                        <option value="Work Purpose">Work Purpose</option>
-                                        <option value="Other Purpose">Other Purpose</option>
-                                    </select>
-                                    {errors.purpose && <p className="text-red-500 text-[12px] mt-1">{errors.purpose}</p>}
-                                </div>
-
-                                <div className="border-t border-gray-100 pt-5">
-                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Notes</label>
-                                    <textarea 
-                                        value={data.notes} 
-                                        onChange={e => setData('notes', e.target.value)} 
-                                        rows="3"
-                                        className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none resize-y min-h-[80px] transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50" 
-                                        placeholder="Any additional funding details..." 
-                                    ></textarea>
-                                    {errors.notes && <p className="text-red-500 text-[12px] mt-1">{errors.notes}</p>}
+                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl ring-1 ring-black/5 flex flex-col max-h-[92vh]">
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--accent)]/10 text-[var(--accent)]"><i className="fa-solid fa-file-signature text-[15px]"></i></div>
+                                <div>
+                                    <h3 className="text-[16px] font-bold text-gray-900">{editMode ? 'Edit Record Info' : 'Log New Investment / Loan'}</h3>
+                                    <p className="text-[12px] text-gray-400">{editMode ? 'Update investor and transaction details' : 'Capture a new investor deposit'}</p>
                                 </div>
                             </div>
+                            <button onClick={() => setShowModal(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"><i className="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto">
+                            <div className="grid grid-cols-2 gap-5 mb-5">
+                                <div className="col-span-2 sm:col-span-1">
+                                    <label className={labelCls}>Investor/Lender Name *</label>
+                                    <input type="text" list="investors" value={data.investor_name} onChange={handleInvestorNameChange} className={inputCls} placeholder="Start typing name..." required />
+                                    <datalist id="investors">{existingInvestors.map((i, x) => <option key={x} value={i.name} />)}</datalist>
+                                </div>
+                                <div className="col-span-2 sm:col-span-1">
+                                    <label className={labelCls}>Phone</label>
+                                    <input type="text" value={data.investor_phone} onChange={e => setData('investor_phone', e.target.value)} className={inputCls} placeholder="01XXXXXXXXX" />
+                                </div>
 
-                            {/* Modal Footer */}
-                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 shrink-0">
-                                <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
-                                    Cancel
-                                </button>
-                                <button type="submit" disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70">
-                                    {processing ? 'Saving...' : 'Save Investment'}
-                                </button>
+                                <div className="col-span-2 sm:col-span-1">
+                                    <label className={labelCls}>Person Type *</label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {Object.entries(INVESTOR_TYPE_META).map(([value, meta]) => (
+                                            <button key={value} type="button" onClick={() => setData('investor_type', value)} className={`rounded-xl border-2 px-2 py-2.5 text-center transition-all ${data.investor_type === value ? meta.chip : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
+                                                <span className="block text-[12px] font-bold">{meta.label}</span>
+                                                <span className="block text-[10px] mt-0.5 opacity-75">{meta.bn}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="col-span-2 sm:col-span-1">
+                                    <label className={labelCls}>Investment Type *</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {Object.entries(INVESTMENT_TYPE_META).map(([value, meta]) => (
+                                            <button key={value} type="button" onClick={() => setData('investment_type', value)} className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 px-2 py-2.5 text-center transition-all ${data.investment_type === value ? meta.chip : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
+                                                <i className={`fa-solid ${meta.icon} text-[13px]`}></i>
+                                                <span className="text-[12px] font-bold">{meta.label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className={labelCls}>Deposit To Account *</label>
+                                    <Select options={accountOptions} value={accountOptions.find(opt => opt.value === data.account_id) || null} onChange={s => setData("account_id", s ? s.value : "")} placeholder="Search account..." isClearable styles={selectStyles} menuPortalTarget={document.body} />
+                                    {errors.account_id && <p className="text-red-500 text-xs mt-1.5 font-medium">{errors.account_id}</p>}
+                                </div>
+                                <div>
+                                    <label className={`${labelCls} text-emerald-600`}>Amount (৳) *</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500 font-bold text-[15px]">৳</span>
+                                        <input type="number" step="any" value={data.amount} onChange={e => setData('amount', e.target.value)} className="w-full rounded-xl border border-emerald-200 bg-emerald-50/60 pl-8 pr-3.5 py-3 text-[16px] font-extrabold text-emerald-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all" required />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className={labelCls}>Date *</label>
+                                    <input type="date" value={data.date} onChange={e => setData('date', e.target.value)} className={inputCls} required />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Purpose</label>
+                                    <input type="text" value={data.purpose} onChange={e => setData('purpose', e.target.value)} className={inputCls} placeholder="e.g. Business Expansion" />
+                                </div>
+                            </div>
+                            <div className="border-t border-gray-100 pt-5">
+                                <label className={labelCls}>Notes</label>
+                                <textarea value={data.note} onChange={e => setData('note', e.target.value)} rows="2" className={inputCls} placeholder="Any agreements/details..."></textarea>
+                            </div>
+                            <div className="flex justify-end gap-3 pt-5 border-t border-gray-100 mt-5">
+                                <button type="button" onClick={() => setShowModal(false)} className="px-5 py-2.5 border border-gray-200 rounded-xl text-[13.5px] font-bold text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+                                <button type="submit" disabled={processing} className="px-6 py-2.5 bg-[var(--accent)] text-white rounded-xl text-[13.5px] font-bold hover:bg-[#b08630] transition-colors disabled:opacity-60">{processing ? 'Processing...' : 'Save'}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* --- RETURN MONEY MODAL --- */}
+            {showReturnModal && selectedInvestment && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl ring-1 ring-black/5 flex flex-col max-h-[92vh]">
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><i className="fa-solid fa-hand-holding-dollar text-[15px]"></i></div>
+                                <div>
+                                    <h3 className="text-[16px] font-bold text-gray-900">Pay Return / Profit</h3>
+                                    <p className="text-[12px] text-gray-400">Settle principal and optional profit in one payment</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowReturnModal(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"><i className="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <form onSubmit={handleReturnSubmit} className="p-6 overflow-y-auto">
+                            <div className="mb-5 flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                                <div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wide text-gray-400">Investor</span>
+                                    <strong className="text-gray-900 text-[14px]">{selectedInvestment.investor?.name}</strong>
+                                </div>
+                                <div className="text-right">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wide text-rose-400">Base Due</span>
+                                    <strong className="text-rose-600 text-[19px] tabular-nums">৳{parseFloat(selectedInvestment.due_amount).toLocaleString()}</strong>
+                                </div>
+                            </div>
+                            <div className="space-y-4 mb-6">
+                                <div>
+                                    <label className={labelCls}>Pay From Account *</label>
+                                    <Select options={accountOptions} onChange={s => returnForm.setData("account_id", s ? s.value : "")} placeholder="Search account..." isClearable styles={selectStyles} menuPortalTarget={document.body} />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={labelCls}>Return Principal (৳) *</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-[15px]">৳</span>
+                                            <input type="number" step="any" max={selectedInvestment.due_amount} value={returnForm.data.principal_amount} onChange={e => returnForm.setData('principal_amount', e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-8 pr-3.5 py-3 text-[15px] font-bold text-gray-900 outline-none focus:bg-white focus:border-gray-400 focus:ring-4 focus:ring-gray-500/10 transition-all" required />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className={`${labelCls} text-indigo-600`}>Add Profit/Interest (৳)</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-indigo-500 font-bold text-[15px]">৳</span>
+                                            <input type="number" step="any" value={returnForm.data.profit_amount} onChange={e => returnForm.setData('profit_amount', e.target.value)} className="w-full rounded-xl border border-indigo-200 bg-indigo-50/60 pl-8 pr-3.5 py-3 text-[15px] font-bold text-indigo-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Payment Date *</label>
+                                    <input type="date" value={returnForm.data.payment_date} onChange={e => returnForm.setData('payment_date', e.target.value)} className={inputCls} required />
+                                </div>
+
+                                <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 mt-2">
+                                    <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Total Bank Deduction</span>
+                                    <strong className="text-[20px] font-extrabold text-slate-800 tabular-nums">৳{(Number(returnForm.data.principal_amount) + Number(returnForm.data.profit_amount)).toLocaleString()}</strong>
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-3 pt-5 border-t border-gray-100">
+                                <button type="button" onClick={() => setShowReturnModal(false)} className="px-5 py-2.5 border border-gray-200 rounded-xl text-[13.5px] font-bold text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+                                <button type="submit" disabled={returnForm.processing} className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-[13.5px] font-bold hover:bg-emerald-700 transition-colors disabled:opacity-60">{returnForm.processing ? 'Processing...' : 'Process Payment'}</button>
                             </div>
                         </form>
                     </div>
