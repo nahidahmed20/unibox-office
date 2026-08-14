@@ -4,10 +4,6 @@ import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
 
-// Color system: investor type is the one piece of information that repeats everywhere
-// (avatar, chip, table caption), so it gets a consistent color mapping instead of a
-// decorative one. Kept as static class strings (not template-built) so Tailwind's
-// scanner picks them up.
 const INVESTOR_TYPE_META = {
     lender: { label: 'Lender', bn: 'ধার', chip: 'border-amber-500 bg-amber-50 text-amber-700', avatar: 'bg-amber-50 text-amber-700', dot: 'bg-amber-500' },
     partner: { label: 'Partner', bn: 'অংশীদার', chip: 'border-indigo-500 bg-indigo-50 text-indigo-700', avatar: 'bg-indigo-50 text-indigo-700', dot: 'bg-indigo-500' },

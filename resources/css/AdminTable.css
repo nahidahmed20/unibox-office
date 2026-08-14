@@ -13,7 +13,7 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #003d9e; 
+    background: #003d9e;
     border-radius: 10px;
 }
 
@@ -120,12 +120,12 @@ body {
 .show-entries select {
     margin: 0 8px;
     padding: 5px 25px 5px 12px;
-    border: 1px solid #ced4da; 
+    border: 1px solid #ced4da;
     border-radius: 4px;
     background-color: white;
     font-size: 14px;
     color: #4a5568;
-    min-width: 65px; 
+    min-width: 65px;
 }
 .export-buttons {
     display: flex;
@@ -208,13 +208,13 @@ body {
 .action-btns {
     display: flex;
     justify-content: center;
-    gap: 10px; 
+    gap: 10px;
 }
 
 .icon-btn {
     background: transparent;
-    border: 1px solid #ced4da; 
-    padding: 6px 10px; 
+    border: 1px solid #ced4da;
+    padding: 6px 10px;
     border-radius: 4px;
     cursor: pointer;
     color: #6c757d;
@@ -224,13 +224,13 @@ body {
     transition: 0.2s ease-in-out;
 }
 
-.icon-btn.edit:hover { 
-    border-color: #0d6efd; 
-    color: #0d6efd; 
+.icon-btn.edit:hover {
+    border-color: #0d6efd;
+    color: #0d6efd;
 }
-.icon-btn.delete:hover { 
-    border-color: #dc3545; 
-    color: #dc3545; 
+.icon-btn.delete:hover {
+    border-color: #dc3545;
+    color: #dc3545;
 }
 
 /* Pagination */
@@ -449,10 +449,10 @@ body {
     width: 100%;
     max-width: 420px;
     background: rgba(255, 255, 255, 0.95);
-    
+
     padding: 40px;
     border-radius: 16px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05); 
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
     border: 1px solid rgba(255, 255, 255, 1);
     z-index: 10;
     box-sizing: border-box;
@@ -508,12 +508,12 @@ body {
 .unibox-input:focus {
     border-color: #0f172a;
     background-color: #ffffff;
-    box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1); 
+    box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
 }
 .unibox-btn {
     width: 100%;
     padding: 12px;
-    background-color: #0f172a; 
+    background-color: #0f172a;
     color: white;
     border: none;
     border-radius: 8px;

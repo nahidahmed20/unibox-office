@@ -35,5 +35,10 @@ class Expense extends Model {
     {
         return $this->belongsTo(ExpenseCategory::class);
     }
-    
+
+    public function advance_user()
+    {
+        return $this->belongsTo(User::class, 'advance_user_id');
+    }
+
 }

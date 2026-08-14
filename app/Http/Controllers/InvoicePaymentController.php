@@ -14,35 +14,32 @@ class InvoicePaymentController extends Controller
 {
     public function index(Request $request)
     {
-        $query = InvoicePayment::with(['invoice.client', 'account']);
+        // 🟢 FIXED: Added 'invoice.items.project' to show project details in payment list
+        $query = InvoicePayment::with(['invoice.client', 'invoice.items.project', 'account']);
 
-        // Keyword Search
+        // 🟢 Advanced Search
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->whereHas('invoice', fn($invoice) => $invoice->where('invoice_number', 'like', "%{$search}%"))
-                ->orWhereHas('invoice.client', fn($client) => $client->where('name', 'like', "%{$search}%"))
-                ->orWhereHas('account', fn($account) => $account->where('name', 'like', "%{$search}%")) // account_name এর বদলে name
-                ->orWhere('method', 'like', "%{$search}%") // payment_method এর বদলে method
-                ->orWhere('note', 'like', "%{$search}%"); // reference এর বদলে note
+                ->orWhereHas('invoice.client', fn($client) => $client->where('name', 'like', "%{$search}%")->orWhere('company_name', 'like', "%{$search}%"))
+                ->orWhereHas('account', fn($account) => $account->where('name', 'like', "%{$search}%"))
+                ->orWhere('method', 'like', "%{$search}%")
+                ->orWhere('note', 'like', "%{$search}%")
+                ->orWhereHas('invoice.items.project', fn($project) => $project->where('title', 'like', "%{$search}%"));
             });
         }
 
-        // Client-wise filter
+        // Filters
         if ($request->filled('client_id')) {
             $query->whereHas('invoice', fn($q) => $q->where('client_id', $request->client_id));
         }
-
         if ($request->filled('account_id')) {
             $query->where('account_id', $request->account_id);
         }
-
-        // Year filter
         if ($request->filled('year')) {
             $query->whereYear('payment_date', $request->year);
         }
-
-        // Date range filter
         if ($request->filled('date_from')) {
             $query->whereDate('payment_date', '>=', $request->date_from);
         }
@@ -51,6 +48,10 @@ class InvoicePaymentController extends Controller
         }
 
         $totalAmount = (clone $query)->sum('amount');
+
+        // 🟢 NEW: Get this month's received amount for summary card
+        $thisMonthReceived = (clone $query)->whereMonth('payment_date', now()->month)->whereYear('payment_date', now()->year)->sum('amount');
+
         $totalCount  = (clone $query)->count();
 
         if ($request->input('per_page') === 'all') {
@@ -73,11 +74,8 @@ class InvoicePaymentController extends Controller
             });
 
         $accounts = Account::where('is_active', true)->latest()->get();
-        $clients  = Client::select('id', 'name')->orderBy('name')->get();
-
-        $years = InvoicePayment::selectRaw('DISTINCT YEAR(payment_date) as year')
-            ->orderByDesc('year')
-            ->pluck('year');
+        $clients  = Client::select('id', 'name', 'company_name')->orderBy('name')->get();
+        $years = InvoicePayment::selectRaw('DISTINCT YEAR(payment_date) as year')->orderByDesc('year')->pluck('year');
 
         return Inertia::render('Admin/InvoicePayments/Index', [
             'payments' => $payments,
@@ -86,15 +84,8 @@ class InvoicePaymentController extends Controller
             'clients' => $clients,
             'years' => $years,
             'totalAmount' => $totalAmount,
-            'filters' => [
-                'search'    => $request->search,
-                'per_page'  => $request->input('per_page', 10),
-                'client_id' => $request->client_id,
-                'account_id'=> $request->account_id,
-                'year'      => $request->year,
-                'date_from' => $request->date_from,
-                'date_to'   => $request->date_to,
-            ],
+            'thisMonthReceived' => $thisMonthReceived, // 🟢 Passed to frontend
+            'filters' => $request->only(['search', 'per_page', 'client_id', 'account_id', 'year', 'date_from', 'date_to']),
         ]);
     }
 
@@ -104,7 +95,7 @@ class InvoicePaymentController extends Controller
             'invoice_id'      => 'required|exists:invoices,id',
             'account_id'      => 'required|exists:accounts,id',
             'amount'          => 'required|numeric|min:1',
-            'discount_amount' => 'nullable|numeric|min:0', 
+            'discount_amount' => 'nullable|numeric|min:0',
             'payment_date'    => 'required|date',
             'note'            => 'nullable|string'
         ]);

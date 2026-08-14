@@ -20,8 +20,8 @@ class ReportController extends Controller
         $query = DB::table('projects')
             ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
             ->leftJoin('project_expenses', 'projects.id', '=', 'project_expenses.project_id')
-            ->whereNull('projects.deleted_at') 
-            ->whereNull('clients.deleted_at'); 
+            ->whereNull('projects.deleted_at')
+            ->whereNull('clients.deleted_at');
 
         if ($request->filled('start_date')) {
             $query->whereDate('projects.start_date', '>=', $request->start_date);
@@ -35,7 +35,7 @@ class ReportController extends Controller
 
         $projectsData = $query->select(
                 'projects.id',
-                'projects.client_id', 
+                'projects.client_id',
                 'projects.title',
                 'projects.budget',
                 'projects.start_date',
@@ -57,7 +57,7 @@ class ReportController extends Controller
             $cName = $p->client_name ?? 'Unknown Client';
             if (!isset($clientsMap[$cName])) {
                 $clientsMap[$cName] = [
-                    'client_id' => $p->client_id, 
+                    'client_id' => $p->client_id,
                     'client_name' => $cName,
                     'total_projects' => 0,
                     'total_budget' => 0,
@@ -128,7 +128,7 @@ class ReportController extends Controller
         foreach ($projectsData as $p) {
             $month = $p->start_date ? date('F Y', strtotime($p->start_date)) : 'No Date Provided';
             $sortKey = $p->start_date ? date('Y-m', strtotime($p->start_date)) : '0000-00';
-            
+
             if (!isset($monthlyData[$month])) {
                 $monthlyData[$month] = [
                     'month' => $month,
@@ -204,59 +204,58 @@ class ReportController extends Controller
     public function clientLedger(Request $request)
     {
         $clients = Client::select('id', 'name', 'phone', 'company_name')->orderBy('name')->get();
-        
+
         $ledger = [];
         $summary = [
-            'total_billed' => 0, 
-            'total_paid' => 0, 
-            'total_advance' => 0, 
+            'total_billed' => 0,
+            'total_paid' => 0,
+            'total_advance' => 0,
             'net_due' => 0
         ];
         $clientInfo = null;
 
         if ($request->filled('client_id')) {
             $clientInfo = Client::with([
-                'projects' => function($q) {
-                    $q->where('status', 'completed'); 
-                }, 
-                'invoices.payments', 
+                'invoices' => function($query) {
+                    $query->whereNull('deleted_at');
+                },
+                'invoices.items.project',
+                'invoices.payments',
                 'clientAdvances'
             ])->find($request->client_id);
 
             if ($clientInfo) {
                 $events = collect();
 
-                foreach ($clientInfo->projects as $project) {
-                    $budget = (float) ($project->budget ?? $project->amount ?? 0); 
-
-                    $events->push([
-                        'date' => $project->deadline ?? $project->updated_at->format('Y-m-d'),
-                        'type' => 'Project',
-                        'ref' => 'PRJ-' . $project->id,
-                        'description' => "Project Completed: " . $project->title,
-                        'debit' => $budget,
-                        'credit' => 0,
-                    ]);
-                    $summary['total_billed'] += $budget;
-                }
-
                 foreach ($clientInfo->invoices as $invoice) {
+
+                    $itemNames = collect($invoice->items)->map(function($item) {
+                        return $item->project ? $item->project->title : $item->item_name;
+                    })->filter()->implode(', ');
+
+                    $desc = "Invoice Generated";
+                    if (!empty($itemNames)) {
+                        $desc .= " (" . mb_strimwidth($itemNames, 0, 60, '...') . ")";
+                    }
+
                     $events->push([
                         'date' => $invoice->invoice_date ?? $invoice->created_at->format('Y-m-d'),
+                        'created_at' => $invoice->created_at,
                         'type' => 'Invoice',
                         'ref' => $invoice->invoice_number ?? 'INV-' . $invoice->id,
-                        'description' => "Invoice Generated",
-                        'debit' => (float) $invoice->grand_total,
+                        'description' => $desc,
+                        'debit' => (float) $invoice->grand_total, // ডিসকাউন্ট বাদে অরিজিনাল বিল
                         'credit' => 0,
                     ]);
                     $summary['total_billed'] += (float) $invoice->grand_total;
-                    
+
                     foreach ($invoice->payments as $payment) {
                         $events->push([
                             'date' => $payment->payment_date ?? $payment->created_at->format('Y-m-d'),
+                            'created_at' => $payment->created_at,
                             'type' => 'Payment',
                             'ref' => $invoice->invoice_number ?? 'INV-' . $invoice->id,
-                            'description' => $payment->note ?? "Payment received for invoice",
+                            'description' => $payment->note ? "Payment Received: " . $payment->note : "Payment Received",
                             'debit' => 0,
                             'credit' => (float) $payment->amount,
                         ]);
@@ -267,28 +266,34 @@ class ReportController extends Controller
                 foreach ($clientInfo->clientAdvances as $advance) {
                     $events->push([
                         'date' => $advance->date ?? $advance->created_at->format('Y-m-d'),
+                        'created_at' => $advance->created_at,
                         'type' => 'Advance',
                         'ref' => 'ADV-' . $advance->id,
-                        'description' => $advance->note ?? "Advance payment received",
+                        'description' => $advance->note ? "Advance Received: " . $advance->note : "Advance payment received",
                         'debit' => 0,
                         'credit' => (float) $advance->amount,
                     ]);
                     $summary['total_advance'] += (float) $advance->amount;
                 }
 
-                $sorted = $events->sortBy(function ($event) {
-                    return strtotime($event['date']);
+                $sorted = $events->sort(function ($a, $b) {
+                    $dateA = strtotime($a['date']);
+                    $dateB = strtotime($b['date']);
+                    if ($dateA === $dateB) {
+                        return strtotime($a['created_at']) <=> strtotime($b['created_at']);
+                    }
+                    return $dateA <=> $dateB;
                 })->values()->all();
 
-                $balance = 0; 
+                $balance = 0;
                 foreach ($sorted as $item) {
-                    $balance += $item['debit'];   
-                    $balance -= $item['credit'];  
-                    
+                    $balance += $item['debit'];
+                    $balance -= $item['credit'];
+
                     $item['balance'] = $balance;
                     $ledger[] = $item;
                 }
-                
+
                 $summary['net_due'] = $balance;
             }
         }
@@ -309,19 +314,19 @@ class ReportController extends Controller
             ->addSelect([
                 'total_invoiced' => DB::table('invoices')
                     ->whereColumn('client_id', 'clients.id')
-                    ->whereNull('deleted_at') 
+                    ->whereNull('deleted_at')
                     ->selectRaw('COALESCE(SUM(grand_total), 0)'),
-                    
+
                 'total_paid' => DB::table('invoice_payments')
                     ->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')
                     ->whereColumn('invoices.client_id', 'clients.id')
                     ->whereNull('invoices.deleted_at')
                     ->selectRaw('COALESCE(SUM(invoice_payments.amount), 0)'),
-                    
+
                 'total_advance' => DB::table('client_advances')
                     ->whereColumn('client_id', 'clients.id')
                     ->selectRaw('COALESCE(SUM(amount), 0)'),
-                    
+
                 'total_used' => DB::table('client_advances')
                     ->whereColumn('client_id', 'clients.id')
                     ->selectRaw('COALESCE(SUM(used_amount), 0)')
@@ -350,17 +355,17 @@ class ReportController extends Controller
             $paid = (float) $client->total_paid;
             $advance = (float) $client->total_advance;
             $used = (float) $client->total_used;
-            
+
             $client->total_due = max($invoiced - $paid, 0);
             $client->available_advance = max($advance - $used, 0);
-            
+
             return $client;
         })->withQueryString();
 
         return Inertia::render('Admin/Reports/ClientDues', [
             'clientDues' => $clientDues,
             'filters' => $request->only('search', 'per_page'),
-            'grandTotalDue' => $grandTotalDue,   
+            'grandTotalDue' => $grandTotalDue,
         ]);
     }
 
@@ -392,8 +397,8 @@ class ReportController extends Controller
 
         return Inertia::render('Admin/Reports/VendorDues', [
             'vendorDues' => $vendorDues,
-            'grandTotal' => $grandTotalDue, 
-            'grandTotalAdvance' => $totalAdvanceAmount 
+            'grandTotal' => $grandTotalDue,
+            'grandTotalAdvance' => $totalAdvanceAmount
         ]);
     }
 

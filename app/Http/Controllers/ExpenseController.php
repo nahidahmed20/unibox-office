@@ -18,21 +18,32 @@ class ExpenseController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Expense::with(['category', 'account', 'logger']);
+        $query = Expense::with(['category', 'account', 'logger', 'advance_user']);
 
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('title', 'like', "%{$searchTerm}%")
+                ->orWhere('description', 'like', "%{$searchTerm}%")
+
+                ->orWhere('amount', 'like', "%{$searchTerm}%")
+                ->orWhere('date', 'like', "%{$searchTerm}%")
+
                 ->orWhereHas('category', function ($cq) use ($searchTerm) {
                     $cq->where('name', 'like', "%{$searchTerm}%");
                 })
+
                 ->orWhereHas('account', function ($aq) use ($searchTerm) {
                     $aq->where('name', 'like', "%{$searchTerm}%");
+                })
+
+                ->orWhereHas('advance_user', function ($uq) use ($searchTerm) {
+                    $uq->where('name', 'like', "%{$searchTerm}%");
                 });
             });
         }
 
+        // Date Filters...
         if ($request->filled('date_filter')) {
             $filter = $request->date_filter;
             if ($filter === 'today') {
@@ -45,7 +56,7 @@ class ExpenseController extends Controller
                 $query->whereYear('date', Carbon::now()->year);
             } elseif ($filter === 'custom' && $request->filled('start_date') && $request->filled('end_date')) {
                 $query->whereBetween('date', [
-                    $request->start_date . ' 00:00:00', 
+                    $request->start_date . ' 00:00:00',
                     $request->end_date . ' 23:59:59'
                 ]);
             }
@@ -54,16 +65,17 @@ class ExpenseController extends Controller
         $thisMonthTotal = Expense::whereMonth('date', Carbon::now()->month)
                                 ->whereYear('date', Carbon::now()->year)
                                 ->sum('amount');
+
+        // Filtered total amount
         $totalAmount = (clone $query)->sum('amount');
 
-        $perPage = $request->input('per_page') === 'all' ? max($query->count(), 1) : min((int) $request->input('per_page', 10), 100000); 
+        $perPage = $request->input('per_page') === 'all' ? max($query->count(), 1) : min((int) $request->input('per_page', 10), 100000);
 
         $expenses = $query->latest()->paginate($perPage)->withQueryString();
 
         $categories = ExpenseCategory::select('id', 'name')->orderBy('name')->get();
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->orderBy('name')->get();
-        
-        // 🟢 FIXED: Fetch grouped advance balances per user like Project Expense
+
         $advances = AdvanceBalance::with('user:id,name')
             ->get()
             ->filter(fn ($b) => $b->balance > 0.009)
@@ -127,7 +139,7 @@ class ExpenseController extends Controller
                 $updateData = collect($validated)->except(['pay_type'])->toArray();
                 if ($validated['pay_type'] === 'account') $updateData['advance_user_id'] = null;
                 if ($validated['pay_type'] === 'advance') $updateData['account_id'] = null;
-                
+
                 $expense->update($updateData);
                 $this->deductFromSource($validated, (float) $validated['amount'], $expense);
             });

@@ -14,27 +14,50 @@ class TransactionController extends Controller
     public function index(Request $request)
     {
         $query = Transaction::with('account');
+
+        // 🟢 Omni-Search (Search everything)
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('description', 'like', "%{$searchTerm}%")
-                ->orWhere('reference_number', 'like', "%{$searchTerm}%")
-                ->orWhereHas('account', function ($aq) use ($searchTerm) {
-                    $aq->where('name', 'like', "%{$searchTerm}%");
-                });
+                  ->orWhere('reference_number', 'like', "%{$searchTerm}%")
+                  ->orWhere('amount', 'like', "%{$searchTerm}%")
+                  ->orWhere('type', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('account', function ($aq) use ($searchTerm) {
+                      $aq->where('name', 'like', "%{$searchTerm}%");
+                  });
             });
         }
 
+        // 🟢 Advanced Filters
+        if ($request->filled('account_id')) {
+            $query->where('account_id', $request->account_id);
+        }
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+        if ($request->filled('date_from')) {
+            $query->whereDate('transaction_date', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('transaction_date', '<=', $request->date_to);
+        }
+
+        // 🟢 Top Summary Calculations (Based on current filter)
+        $totalCredit = (clone $query)->where('type', 'credit')->sum('amount');
+        $totalDebit  = (clone $query)->where('type', 'debit')->sum('amount');
+        $netBalance  = $totalCredit - $totalDebit;
+
+        $totalCount = $query->count();
         if ($request->input('per_page') === 'all') {
-            $totalCount = $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = min((int) $request->input('per_page', 25), 100000); 
+            $perPage = min((int) $request->input('per_page', 25), 100000);
         }
 
         $transactions = $query
-            ->latest('transaction_date')
-            ->latest('id')
+            ->orderByDesc('transaction_date')
+            ->orderByDesc('id')
             ->paginate($perPage)
             ->withQueryString();
 
@@ -46,7 +69,10 @@ class TransactionController extends Controller
         return Inertia::render('Admin/Transactions/Index', [
             'transactions' => $transactions,
             'accounts' => $accounts,
-            'filters' => $request->only('search', 'per_page'),
+            'totalCredit' => $totalCredit,
+            'totalDebit' => $totalDebit,
+            'netBalance' => $netBalance,
+            'filters' => $request->only('search', 'per_page', 'account_id', 'type', 'date_from', 'date_to'),
         ]);
     }
 
@@ -64,10 +90,13 @@ class TransactionController extends Controller
         DB::transaction(function () use ($validated, $request) {
             Transaction::create($validated);
             $account = Account::findOrFail($request->account_id);
-            
+
             if ($request->type === 'credit') {
                 $account->increment('current_balance', $request->amount);
             } else {
+                if ($account->current_balance < $request->amount) {
+                    throw new \Exception("Insufficient balance in the account!");
+                }
                 $account->decrement('current_balance', $request->amount);
             }
         });
@@ -75,7 +104,6 @@ class TransactionController extends Controller
         return back()->with('success', 'Transaction saved successfully and balance updated.');
     }
 
-    // --- NEW: Fund Transfer (Bank <-> Cash) ---
     public function transfer(Request $request)
     {
         $validated = $request->validate([
