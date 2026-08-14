@@ -378,4 +378,4 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
             </div>
         </AdminLayout>
     );
-}
+}``

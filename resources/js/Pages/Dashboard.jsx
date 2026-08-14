@@ -2,48 +2,25 @@ import React from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, Link } from '@inertiajs/react';
 
-/* ---------------------------------------------------------------- */
-/*  Design tokens shared with AdminLayout — `--accent` etc. are set */
-/*  on AdminLayout's root and inherit down here automatically.      */
-/*  `--accent-ink` is a darker brass tuned for text on a white card */
-/*  (the light `--accent-bright` from the sidebar is too pale here).*/
-/* ---------------------------------------------------------------- */
-
-const TONE_STYLES = {
-    ink: { chip: 'bg-[#0A0E1A] text-[var(--accent-bright)]', value: 'text-[#1D2029]' },
-    accent: { chip: 'bg-[var(--accent-bg)] text-[var(--accent-ink)]', value: 'text-[var(--accent-ink)]' },
-    emerald: { chip: 'bg-emerald-50 text-emerald-600', value: 'text-emerald-700' },
-    rose: { chip: 'bg-rose-50 text-rose-600', value: 'text-rose-700' },
-    slate: { chip: 'bg-slate-100 text-slate-600', value: 'text-slate-700' },
-};
-
-const SectionLabel = ({ children }) => (
-    <div className="mb-3 flex items-center gap-2">
-        <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-ink)]" />
-        <h2 className="whitespace-nowrap text-xs font-bold uppercase tracking-wider text-gray-500 sm:text-sm">{children}</h2>
-        <span className="h-px flex-1 bg-gray-200" />
-    </div>
-);
-
-const StatCard = ({ label, value, icon, tone = 'ink', hero = false, note, noteTone = 'default' }) => {
-    const t = TONE_STYLES[tone];
+// Premium Stat Card Component
+const StatCard = ({ label, value, icon, gradient, note, noteColor }) => {
     return (
-        <div
-            className={`group flex items-center justify-between gap-3 rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-5 ${
-                hero ? 'border-[var(--accent)]/40 ring-1 ring-[var(--accent)]/15' : 'border-[#ECEDF0]'
-            }`}
-        >
-            <div className="min-w-0 flex-1">
-                <h3 className="truncate text-xs font-medium text-gray-500 sm:text-sm">{label}</h3>
-                <p className={`mt-1 truncate text-xl font-bold tabular-nums sm:text-2xl ${t.value}`}>{value}</p>
-                {note && (
-                    <p className={`mt-0.5 text-[11px] font-semibold sm:text-xs ${noteTone === 'alert' ? 'text-rose-500' : 'text-gray-400'}`}>
-                        {note}
-                    </p>
-                )}
-            </div>
-            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg sm:h-12 sm:w-12 sm:text-xl ${t.chip}`}>
-                <i className={`fa-solid ${icon}`}></i>
+        <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)] transition-all hover:shadow-md group">
+            <div className={`absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-10 transition-transform duration-500 group-hover:scale-150 ${gradient}`}></div>
+
+            <div className="relative z-10 flex items-start justify-between">
+                <div className="flex flex-col gap-1.5">
+                    <p className="text-[11.5px] font-bold uppercase tracking-wider text-gray-500">{label}</p>
+                    <h3 className="text-[24px] font-black text-gray-900 tracking-tight tabular-nums">{value}</h3>
+                    {note && (
+                        <p className={`text-[11.5px] font-bold ${noteColor || 'text-gray-400'}`}>
+                            {note}
+                        </p>
+                    )}
+                </div>
+                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-white shadow-sm ${gradient}`}>
+                    <i className={`fa-solid ${icon} text-[20px]`}></i>
+                </div>
             </div>
         </div>
     );
@@ -51,154 +28,164 @@ const StatCard = ({ label, value, icon, tone = 'ink', hero = false, note, noteTo
 
 const money = (n) => (
     <>
-        <span className="mr-1 text-xs font-semibold sm:text-sm">TK.</span>
-        {(n || 0).toLocaleString('en-IN')}
+        <span className="text-[16px] font-bold text-gray-400 mr-0.5">৳</span>
+        {(Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 0 })}
     </>
 );
 
-export default function Dashboard({
-    stats = {
-        totalEmployees: 45,
-        presentToday: 42,
-        activeProjects: 12,
-        pendingTasks: 28,
-        unpaidInvoices: 5,
-        monthlyRevenue: 24500,
-        monthlyExpenses: 3200,
-        pendingLeaves: 3,
-        pendingRequisitions: 4,
-        totalInvestment: 500000,
-        totalClients: 18,
-        totalBalance: 150000,
-        cashBalance: 25000,
-        bankBalance: 125000,
-        totalProjectDue: 15000,
-        totalClientDue: 35000,
-    },
-    recentNotices = [],
-    recentTasks = [],
-    recentTransactions = [],
-}) {
+export default function Dashboard({ stats, recentPendingInvoices = [], recentNotices = [], recentTasks = [], recentTransactions = [] }) {
+    // 🟢 Calculating Total Monthly Spent (Expenses + Payroll)
+    const totalSpentThisMonth = (Number(stats.monthlyExpensesOnly) || 0) + (Number(stats.monthlySalaryPaid) || 0);
+
     return (
         <AdminLayout>
-            <div className="slider-page-wrapper mx-auto max-w-[1600px] p-3 sm:p-6" style={{ '--accent-ink': '#8A6A24' }}>
-                <Head title="Dashboard Overview" />
+            <Head title="Dashboard Overview" />
 
-                {/* --- Header --- */}
-                <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <style dangerouslySetInnerHTML={{__html: `
+                .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+                .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
+                .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+                .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+            `}} />
+
+            <div className="mx-auto w-full max-w-[1600px] flex flex-col gap-8 pb-12">
+
+                {/* --- Page Header --- */}
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mt-2">
                     <div>
-                        <h1 className="text-xl font-bold text-[#202223] sm:text-2xl">Dashboard Overview</h1>
-                        <p className="mt-0.5 text-xs text-gray-500 sm:text-sm">Welcome back! Here is your business at a glance.</p>
+                        <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-indigo-600">
+                            <span className="h-1.5 w-1.5 rounded-full bg-indigo-600"></span> Welcome Back
+                        </div>
+                        <h1 className="text-[28px] font-extrabold text-[#202223] tracking-tight">Business Overview</h1>
+                        <p className="text-[14.5px] text-gray-500 mt-1.5">Here is what's happening with your business today.</p>
                     </div>
-                    <div className="flex items-center gap-2 self-start whitespace-nowrap rounded-md border border-[#ECEDF0] bg-white px-3.5 py-2 text-xs font-medium text-gray-500 shadow-sm sm:self-auto sm:text-sm">
-                        <i className="fa-regular fa-calendar text-[var(--accent-ink)]"></i>
-                        {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    <div className="flex items-center gap-2 self-start rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-600 shadow-sm sm:self-auto">
+                        <i className="fa-regular fa-calendar text-indigo-600"></i>
+                        {new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
                     </div>
                 </div>
 
-                {/* --- Row 1: Accounts & Assets --- */}
-                <SectionLabel>Accounts & Assets</SectionLabel>
-                <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
-                    <StatCard hero tone="accent" label="Total Available Balance" value={money(stats.totalBalance)} icon="fa-wallet" />
-                    <StatCard tone="ink" label="Cash in Hand" value={money(stats.cashBalance)} icon="fa-money-bill-wave" />
-                    <StatCard tone="ink" label="Bank & Mobile Banking" value={money(stats.bankBalance)} icon="fa-building-columns" />
-                    <StatCard tone="ink" label="Total Capital / Invest" value={money(stats.totalInvestment)} icon="fa-sack-dollar" />
-                </div>
-
-                {/* --- Row 2: Finance, Dues & Payables --- */}
-                <SectionLabel>Finance, Dues & Payables</SectionLabel>
-                <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
-                    <StatCard tone="emerald" label="Monthly Revenue" value={money(stats.monthlyRevenue)} icon="fa-chart-line" />
-                    <StatCard tone="rose" label="Monthly Expenses" value={money(stats.monthlyExpenses)} icon="fa-receipt" />
+                {/* --- Row 1: Key Financials (Top Priority) --- */}
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
                     <StatCard
-                        tone="accent"
-                        label="Client Dues (Receivable)"
+                        label="Available Balance"
+                        value={money(stats.totalBalance)}
+                        icon="fa-wallet"
+                        gradient="bg-gradient-to-br from-indigo-500 to-blue-600"
+                        note={`Cash: ৳${(Number(stats.cashBalance) || 0).toLocaleString()} | Bank: ৳${(Number(stats.bankBalance) || 0).toLocaleString()}`}
+                        noteColor="text-indigo-600"
+                    />
+                    <StatCard
+                        label="Market Receivable (Due)"
                         value={money(stats.totalClientDue)}
                         icon="fa-file-invoice-dollar"
-                        note={`${stats.unpaidInvoices} Unpaid Invoices`}
-                        noteTone="alert"
+                        gradient="bg-gradient-to-br from-rose-500 to-red-600"
+                        note={`${stats.unpaidInvoices} Invoices are unpaid`}
+                        noteColor="text-rose-500"
                     />
                     <StatCard
-                        tone="slate"
-                        label="Vendor Dues (Payable)"
-                        value={money(stats.totalProjectDue)}
-                        icon="fa-hand-holding-dollar"
-                        note="To be paid"
+                        label="Received This Month"
+                        value={money(stats.monthlyRevenue)}
+                        icon="fa-arrow-down-to-bracket"
+                        gradient="bg-gradient-to-br from-emerald-400 to-teal-500"
+                        note="Total cash-in this month"
+                        noteColor="text-emerald-600"
+                    />
+                    {/* 🟢 NEW: Updated Spent Card with Payroll Data */}
+                    <StatCard
+                        label="Spent This Month"
+                        value={money(totalSpentThisMonth)}
+                        icon="fa-arrow-right-from-bracket"
+                        gradient="bg-gradient-to-br from-orange-400 to-amber-500"
+                        note={`Exp: ৳${(Number(stats.monthlyExpensesOnly) || 0).toLocaleString()} | Payroll: ৳${(Number(stats.monthlySalaryPaid) || 0).toLocaleString()}`}
+                        noteColor="text-orange-600"
                     />
                 </div>
 
-                {/* --- Row 3: Operations & HR --- */}
-                <SectionLabel>Operations & HR</SectionLabel>
-                <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
-                    <StatCard tone="ink" label="Active Projects" value={stats.activeProjects} icon="fa-layer-group" />
-                    <StatCard tone="ink" label="Total Clients" value={stats.totalClients} icon="fa-users-line" />
-                    <StatCard
-                        tone="ink"
-                        label="Present Today"
-                        value={
-                            <>
-                                {stats.presentToday} <span className="text-xs font-normal text-gray-400 sm:text-sm">/ {stats.totalEmployees}</span>
-                            </>
-                        }
-                        icon="fa-user-check"
-                    />
-                    <StatCard
-                        tone="ink"
-                        label="Requisitions"
-                        value={
-                            <>
-                                {stats.pendingRequisitions} <span className="text-xs font-normal text-[var(--accent-ink)] sm:text-sm">Pending</span>
-                            </>
-                        }
-                        icon="fa-clipboard-list"
-                    />
+                {/* --- Row 2: Secondary Stats --- */}
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                    <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col items-center justify-center text-center">
+                        <i className="fa-solid fa-layer-group text-blue-500 text-xl mb-2"></i>
+                        <h4 className="text-2xl font-black text-gray-800">{stats.activeProjects}</h4>
+                        <p className="text-[11px] font-bold uppercase text-gray-500 mt-0.5">Active Projects</p>
+                    </div>
+                    {/* 🟢 NEW: Unpaid Salaries Card */}
+                    <Link href={route('admin.salaries.index')} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col items-center justify-center text-center hover:bg-gray-50 transition-colors">
+                        <i className="fa-solid fa-money-check-dollar text-rose-500 text-xl mb-2"></i>
+                        <h4 className="text-[18px] font-black text-gray-800 tabular-nums">৳{(Number(stats.unpaidSalaries)/1000).toFixed(1)}k</h4>
+                        <p className="text-[11px] font-bold uppercase text-rose-500 mt-0.5">Unpaid Salaries</p>
+                    </Link>
+                    <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col items-center justify-center text-center">
+                        <i className="fa-solid fa-hand-holding-dollar text-orange-500 text-xl mb-2"></i>
+                        <h4 className="text-[18px] font-black text-gray-800 tabular-nums">৳{(Number(stats.totalProjectDue)/1000).toFixed(1)}k</h4>
+                        <p className="text-[11px] font-bold uppercase text-gray-500 mt-0.5">Vendor Dues</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col items-center justify-center text-center">
+                        <i className="fa-solid fa-list-check text-amber-500 text-xl mb-2"></i>
+                        <h4 className="text-2xl font-black text-gray-800">{stats.pendingTasks}</h4>
+                        <p className="text-[11px] font-bold uppercase text-gray-500 mt-0.5">Pending Tasks</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col items-center justify-center text-center">
+                        <i className="fa-solid fa-user-check text-emerald-500 text-xl mb-2"></i>
+                        <h4 className="text-2xl font-black text-gray-800">{stats.presentToday} <span className="text-sm text-gray-400">/ {stats.totalEmployees}</span></h4>
+                        <p className="text-[11px] font-bold uppercase text-gray-500 mt-0.5">Staff Present</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col items-center justify-center text-center">
+                        <i className="fa-solid fa-clipboard-list text-purple-500 text-xl mb-2"></i>
+                        <h4 className="text-2xl font-black text-gray-800">{stats.pendingRequisitions}</h4>
+                        <p className="text-[11px] font-bold uppercase text-gray-500 mt-0.5">Requisitions</p>
+                    </div>
                 </div>
 
-                {/* --- Section 4: Lists & Activity --- */}
-                <SectionLabel>Recent Activities</SectionLabel>
+                {/* --- Row 3: Complex Data (Receivables & Transactions) --- */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                    {/* Recent Transactions Table */}
-                    <div className="flex flex-col overflow-hidden rounded-lg border border-[#ECEDF0] bg-white shadow-sm lg:col-span-2">
-                        <div className="flex items-center justify-between border-b px-4 py-3.5 sm:px-5 sm:py-4">
-                            <h3 className="text-sm font-bold text-[#202223] sm:text-base">
-                                <i className="fa-solid fa-arrow-right-arrow-left mr-2 text-[var(--accent-ink)]"></i> Recent Transactions
+                    {/* Pending Receivables Table */}
+                    <div className="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 bg-gray-50/50">
+                            <h3 className="text-[15px] font-bold text-gray-900 flex items-center gap-2">
+                                <i className="fa-solid fa-file-invoice-dollar text-rose-500"></i> Pending Receivables (Who owes what)
                             </h3>
-                            <Link href={route('admin.transactions.index')} className="text-xs font-medium text-[var(--accent-ink)] hover:text-[var(--accent)] hover:underline sm:text-sm">
-                                View Ledger
+                            <Link href={route('admin.invoices.index')} className="text-[12px] font-bold text-indigo-600 hover:text-indigo-800">
+                                View All &rarr;
                             </Link>
                         </div>
-
-                        <div className="overflow-x-auto p-0">
-                            <table className="w-full min-w-[500px] border-collapse text-left">
-                                <thead>
-                                    <tr className="border-b bg-gray-50">
-                                        <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold uppercase text-gray-500 sm:px-4">Date</th>
-                                        <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold uppercase text-gray-500 sm:px-4">Account</th>
-                                        <th className="px-3 py-3 text-xs font-semibold uppercase text-gray-500 sm:px-4">Description</th>
-                                        <th className="whitespace-nowrap px-3 py-3 text-right text-xs font-semibold uppercase text-gray-500 sm:px-4">Amount</th>
+                        <div className="overflow-x-auto custom-scroll">
+                            <table className="w-full text-left whitespace-nowrap">
+                                <thead className="bg-white border-b border-gray-100 text-[10.5px] font-bold uppercase text-gray-400">
+                                    <tr>
+                                        <th className="px-5 py-3">Client & Invoice</th>
+                                        <th className="px-5 py-3">Work / Project</th>
+                                        <th className="px-5 py-3 text-right">Due Amount</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {recentTransactions.length > 0 ? (
-                                        recentTransactions.map((trx) => (
-                                            <tr key={trx.id} className="transition-colors hover:bg-gray-50">
-                                                <td className="whitespace-nowrap px-3 py-3 text-xs text-gray-500 sm:px-4 sm:text-sm">{trx.transaction_date}</td>
-                                                <td className="whitespace-nowrap px-3 py-3 text-xs font-medium text-gray-800 sm:px-4 sm:text-sm">{trx.account?.name || '-'}</td>
-                                                <td className="max-w-[150px] truncate px-3 py-3 text-xs text-gray-600 sm:max-w-[250px] sm:px-4 sm:text-sm">{trx.description}</td>
-                                                <td
-                                                    className={`whitespace-nowrap px-3 py-3 text-right text-xs font-bold tabular-nums sm:px-4 sm:text-sm ${
-                                                        trx.type === 'credit' ? 'text-emerald-600' : 'text-rose-600'
-                                                    }`}
-                                                >
-                                                    {trx.type === 'credit' ? '+' : '-'}TK. {parseFloat(trx.amount).toLocaleString('en-IN')}
+                                <tbody className="text-[13px] text-gray-700 divide-y divide-gray-50">
+                                    {recentPendingInvoices.length > 0 ? (
+                                        recentPendingInvoices.map((inv) => (
+                                            <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-5 py-3.5">
+                                                    <div className="font-bold text-gray-900">{inv.client?.name}</div>
+                                                    <div className="text-[11.5px] text-indigo-600 font-bold mt-0.5">#{inv.invoice_number}</div>
+                                                </td>
+                                                <td className="px-5 py-3.5">
+                                                    <div className="flex items-center gap-1.5 max-w-[200px] truncate" title={inv.work_details}>
+                                                        <i className="fa-solid fa-briefcase text-gray-400 text-[10px]"></i>
+                                                        <span className="font-medium">{inv.work_details}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-5 py-3.5 text-right">
+                                                    <div className="font-black text-rose-600 tabular-nums">৳ {Number(inv.due_amount).toLocaleString('en-IN')}</div>
+                                                    <Link href={route('invoice-payments.index', { search: inv.invoice_number })} className="inline-block mt-1 text-[10px] font-bold uppercase text-white bg-rose-500 px-2 py-0.5 rounded hover:bg-rose-600">
+                                                        Collect
+                                                    </Link>
                                                 </td>
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan="4" className="px-4 py-8 text-center text-xs text-gray-500 sm:text-sm">
-                                                No recent transactions found.
+                                            <td colSpan="3" className="px-5 py-10 text-center text-gray-400">
+                                                <i className="fa-solid fa-check-double text-3xl mb-2 text-emerald-400"></i>
+                                                <p className="font-bold text-[13px]">No pending receivables!</p>
                                             </td>
                                         </tr>
                                     )}
@@ -207,68 +194,117 @@ export default function Dashboard({
                         </div>
                     </div>
 
-                    {/* Right Column: Tasks & Notices Stacked */}
-                    <div className="flex flex-col gap-6">
-                        {/* Recent Tasks */}
-                        <div className="rounded-lg border border-[#ECEDF0] bg-white shadow-sm">
-                            <div className="flex items-center justify-between border-b px-4 py-3.5 sm:px-5 sm:py-4">
-                                <h3 className="text-sm font-bold text-[#202223] sm:text-base">
-                                    <i className="fa-solid fa-list-check mr-2 text-[var(--accent-ink)]"></i> Recent Tasks
-                                </h3>
-                                <Link href={route('admin.tasks.index')} className="text-xs font-medium text-[var(--accent-ink)] hover:text-[var(--accent)] hover:underline sm:text-sm">
-                                    View All
-                                </Link>
-                            </div>
-                            <div className="p-0">
-                                <ul className="divide-y divide-gray-100">
-                                    {recentTasks.map((task) => (
-                                        <li key={task.id} className="flex flex-col justify-between gap-2 p-3.5 hover:bg-gray-50 sm:flex-row sm:items-center sm:p-4">
-                                            <div className="min-w-0">
-                                                <p className="truncate text-xs font-semibold text-gray-800 sm:text-sm">{task.title}</p>
-                                                <span
-                                                    className={`mt-1 inline-block rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
-                                                        task.priority === 'high' ? 'bg-red-100 text-red-700' : 'bg-[var(--accent-bg)] text-[var(--accent-ink)]'
-                                                    }`}
-                                                >
-                                                    {task.priority} Priority
-                                                </span>
-                                            </div>
-                                            <span className="self-start whitespace-nowrap rounded bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-500 sm:self-auto sm:text-xs">
-                                                {task.status.replace('_', ' ').toUpperCase()}
-                                            </span>
-                                        </li>
-                                    ))}
-                                    {recentTasks.length === 0 && <li className="p-4 text-center text-xs text-gray-500 sm:text-sm">No recent tasks.</li>}
-                                </ul>
-                            </div>
+                    {/* Recent Transactions */}
+                    <div className="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 bg-gray-50/50">
+                            <h3 className="text-[15px] font-bold text-gray-900 flex items-center gap-2">
+                                <i className="fa-solid fa-money-bill-transfer text-emerald-500"></i> Recent Transactions
+                            </h3>
+                            <Link href={route('admin.transactions.index')} className="text-[12px] font-bold text-indigo-600 hover:text-indigo-800">
+                                Ledger &rarr;
+                            </Link>
                         </div>
-
-                        {/* Notice Board */}
-                        <div className="rounded-lg border border-[#ECEDF0] bg-white shadow-sm">
-                            <div className="flex items-center justify-between border-b px-4 py-3.5 sm:px-5 sm:py-4">
-                                <h3 className="text-sm font-bold text-[#202223] sm:text-base">
-                                    <i className="fa-solid fa-bullhorn mr-2 text-[var(--accent-ink)]"></i> Notice Board
-                                </h3>
-                                <Link href={route('admin.notices.index')} className="text-xs font-medium text-[var(--accent-ink)] hover:text-[var(--accent)] hover:underline sm:text-sm">
-                                    View All
-                                </Link>
-                            </div>
-                            <div className="p-0">
-                                <ul className="divide-y divide-gray-100">
-                                    {recentNotices.map((notice) => (
-                                        <li key={notice.id} className="p-3.5 hover:bg-gray-50 sm:p-4">
-                                            <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center sm:gap-4">
-                                                <p className="break-words text-xs font-semibold text-[var(--accent-ink)] sm:text-sm">{notice.title}</p>
-                                                <span className="shrink-0 whitespace-nowrap text-[11px] text-gray-400 sm:text-xs">{notice.date}</span>
-                                            </div>
-                                        </li>
-                                    ))}
-                                    {recentNotices.length === 0 && <li className="p-4 text-center text-xs text-gray-500 sm:text-sm">No active notices.</li>}
-                                </ul>
-                            </div>
+                        <div className="overflow-x-auto custom-scroll">
+                            <table className="w-full text-left whitespace-nowrap">
+                                <thead className="bg-white border-b border-gray-100 text-[10.5px] font-bold uppercase text-gray-400">
+                                    <tr>
+                                        <th className="px-5 py-3">Date</th>
+                                        <th className="px-5 py-3">Account & Details</th>
+                                        <th className="px-5 py-3 text-right">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="text-[13px] text-gray-700 divide-y divide-gray-50">
+                                    {recentTransactions.length > 0 ? (
+                                        recentTransactions.map((trx) => (
+                                            <tr key={trx.id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-5 py-3.5 font-medium text-gray-500 text-[12px]">{new Date(trx.transaction_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</td>
+                                                <td className="px-5 py-3.5">
+                                                    <div className="font-bold text-gray-900 flex items-center gap-1.5">
+                                                        <i className="fa-solid fa-building-columns text-[10px] text-gray-400"></i> {trx.account?.name || '-'}
+                                                    </div>
+                                                    <div className="text-[11px] text-gray-500 mt-0.5 max-w-[200px] truncate" title={trx.description}>{trx.description}</div>
+                                                </td>
+                                                <td className={`px-5 py-3.5 text-right font-black tabular-nums ${trx.type === 'credit' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                    {trx.type === 'credit' ? '+' : '-'}৳ {Number(trx.amount).toLocaleString('en-IN')}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="3" className="px-5 py-10 text-center text-gray-400">
+                                                <p className="font-bold text-[13px]">No recent transactions.</p>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
+
+                {/* --- Row 4: Tasks & Notices --- */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Recent Tasks */}
+                    <div className="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 bg-gray-50/50">
+                            <h3 className="text-[15px] font-bold text-gray-900 flex items-center gap-2">
+                                <i className="fa-solid fa-list-check text-amber-500"></i> Active Tasks
+                            </h3>
+                            <Link href={route('admin.tasks.index')} className="text-[12px] font-bold text-indigo-600 hover:text-indigo-800">
+                                View Board &rarr;
+                            </Link>
+                        </div>
+                        <ul className="divide-y divide-gray-50">
+                            {recentTasks.length > 0 ? (
+                                recentTasks.map((task) => (
+                                    <li key={task.id} className="flex items-center justify-between p-4 hover:bg-gray-50">
+                                        <div>
+                                            <p className="text-[13.5px] font-bold text-gray-800">{task.title}</p>
+                                            <span className={`mt-1 inline-flex px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${task.priority === 'high' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+                                                {task.priority} Priority
+                                            </span>
+                                        </div>
+                                        <span className="rounded-lg bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-gray-500 border border-gray-200 uppercase">
+                                            {task.status.replace('_', ' ')}
+                                        </span>
+                                    </li>
+                                ))
+                            ) : (
+                                <li className="p-8 text-center text-[13px] font-bold text-gray-400">All caught up! No active tasks.</li>
+                            )}
+                        </ul>
+                    </div>
+
+                    {/* Notice Board */}
+                    <div className="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 bg-gray-50/50">
+                            <h3 className="text-[15px] font-bold text-gray-900 flex items-center gap-2">
+                                <i className="fa-solid fa-bullhorn text-purple-500"></i> Notice Board
+                            </h3>
+                            <Link href={route('admin.notices.index')} className="text-[12px] font-bold text-indigo-600 hover:text-indigo-800">
+                                View All &rarr;
+                            </Link>
+                        </div>
+                        <ul className="divide-y divide-gray-50">
+                            {recentNotices.length > 0 ? (
+                                recentNotices.map((notice) => (
+                                    <li key={notice.id} className="p-4 hover:bg-gray-50 flex items-start gap-3">
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-500">
+                                            <i className="fa-regular fa-bell"></i>
+                                        </div>
+                                        <div>
+                                            <p className="text-[13.5px] font-bold text-gray-800 leading-snug">{notice.title}</p>
+                                            <p className="text-[11.5px] font-medium text-gray-400 mt-0.5">{notice.date}</p>
+                                        </div>
+                                    </li>
+                                ))
+                            ) : (
+                                <li className="p-8 text-center text-[13px] font-bold text-gray-400">No active notices.</li>
+                            )}
+                        </ul>
+                    </div>
+                </div>
+
             </div>
         </AdminLayout>
     );

@@ -154,7 +154,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                             <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]"></span> Business Analytics
                         </div>
                         <h1 className="text-[26px] font-extrabold text-gray-900 tracking-tight">Financial Reports</h1>
-                        <p className="text-[14px] text-gray-500 mt-1.5 max-w-md">Analyze client profitability, monthly expenses, invoices, and payments.</p>
+                        <p className="text-[14px] text-gray-500 mt-1.5 max-w-md">Analyze true net profit, client profitability, monthly expenses, invoices, and payments.</p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
@@ -198,57 +198,63 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                     </div>
                 </div>
 
-                {/* Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                {/* 🟢 True Profit & Loss Summary Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+
+                    {/* Card 1: Total Revenue (Billed) */}
                     <div className="flex flex-col gap-2 rounded-2xl border border-blue-200 bg-blue-50/50 p-5 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-2.5 text-blue-600 mb-1">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100"><i className="fa-solid fa-diagram-project text-[14px]"></i></div>
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-blue-600/80">Project Value</p>
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100"><i className="fa-solid fa-file-invoice-dollar text-[14px]"></i></div>
+                            <p className="text-[10.5px] font-bold uppercase tracking-wider text-blue-600/80">Total Revenue (Billed)</p>
                         </div>
-                        <h3 className="text-[22px] font-black text-blue-800 m-0 tabular-nums tracking-tight">৳ {(summary.total_receivable || 0).toLocaleString('en-IN')}</h3>
+                        <h3 className="text-[22px] font-black text-blue-800 m-0 tabular-nums tracking-tight">৳ {(summary.total_revenue || 0).toLocaleString('en-IN')}</h3>
                     </div>
 
+                    {/* Card 2: Project Costs */}
+                    <div className="flex flex-col gap-2 rounded-2xl border border-orange-200 bg-orange-50/50 p-5 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-2.5 text-orange-600 mb-1">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100"><i className="fa-solid fa-boxes-packing text-[14px]"></i></div>
+                            <p className="text-[10.5px] font-bold uppercase tracking-wider text-orange-600/80">(-) Project Costs</p>
+                        </div>
+                        <h3 className="text-[22px] font-black text-orange-800 m-0 tabular-nums tracking-tight">৳ {(summary.total_project_cost || 0).toLocaleString('en-IN')}</h3>
+                    </div>
+
+                    {/* Card 3: Payroll (Salary) */}
+                    <div className="flex flex-col gap-2 rounded-2xl border border-purple-200 bg-purple-50/50 p-5 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-2.5 text-purple-600 mb-1">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100"><i className="fa-solid fa-money-check-dollar text-[14px]"></i></div>
+                            <p className="text-[10.5px] font-bold uppercase tracking-wider text-purple-600/80">(-) Payroll / Salary</p>
+                        </div>
+                        <h3 className="text-[22px] font-black text-purple-800 m-0 tabular-nums tracking-tight">৳ {(summary.total_salary_expense || 0).toLocaleString('en-IN')}</h3>
+                    </div>
+
+                    {/* Card 4: Office Expenses */}
                     <div className="flex flex-col gap-2 rounded-2xl border border-rose-200 bg-rose-50/50 p-5 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-2.5 text-rose-600 mb-1">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-100"><i className="fa-solid fa-file-invoice-dollar text-[14px]"></i></div>
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600/80">Project Cost</p>
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-100"><i className="fa-solid fa-receipt text-[14px]"></i></div>
+                            <p className="text-[10.5px] font-bold uppercase tracking-wider text-rose-600/80">(-) Office Expenses</p>
                         </div>
-                        <h3 className="text-[22px] font-black text-rose-800 m-0 tabular-nums tracking-tight">৳ {(summary.total_cost || 0).toLocaleString('en-IN')}</h3>
+                        <h3 className="text-[22px] font-black text-rose-800 m-0 tabular-nums tracking-tight">৳ {(summary.total_office_expense || 0).toLocaleString('en-IN')}</h3>
                     </div>
 
+                    {/* Card 5: True Net Profit */}
                     <div className={`flex flex-col gap-2 rounded-2xl border p-5 shadow-sm hover:shadow-md transition-shadow ${summary.net_profit >= 0 ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'}`}>
                         <div className={`flex items-center gap-2.5 mb-1 ${summary.net_profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                             <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${summary.net_profit >= 0 ? 'bg-emerald-100' : 'bg-red-100'}`}>
                                 <i className="fa-solid fa-chart-line text-[14px]"></i>
                             </div>
-                            <p className="text-[11px] font-bold uppercase tracking-wider opacity-80">Est. Net Profit</p>
+                            <p className="text-[10.5px] font-bold uppercase tracking-wider opacity-80">True Net Profit</p>
                         </div>
                         <h3 className={`text-[22px] font-black m-0 tabular-nums tracking-tight ${summary.net_profit >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                             {summary.net_profit > 0 ? '+' : ''}৳ {(summary.net_profit || 0).toLocaleString('en-IN')}
                         </h3>
-                    </div>
-
-                    <div className="flex flex-col gap-2 rounded-2xl border border-purple-200 bg-purple-50/50 p-5 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-2.5 text-purple-600 mb-1">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100"><i className="fa-solid fa-file-invoice text-[14px]"></i></div>
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-purple-600/80">Total Invoiced</p>
-                        </div>
-                        <h3 className="text-[22px] font-black text-purple-800 m-0 tabular-nums tracking-tight">৳ {(summary.total_invoiced || 0).toLocaleString('en-IN')}</h3>
-                    </div>
-
-                    <div className="flex flex-col gap-2 rounded-2xl border border-teal-200 bg-teal-50/50 p-5 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-2.5 text-teal-600 mb-1">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-100"><i className="fa-solid fa-hand-holding-dollar text-[14px]"></i></div>
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-teal-600/80">Total Received</p>
-                        </div>
-                        <h3 className="text-[22px] font-black text-teal-800 m-0 tabular-nums tracking-tight">৳ {(summary.total_received || 0).toLocaleString('en-IN')}</h3>
                     </div>
                 </div>
 
                 {/* Tabs & Main Content */}
                 <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
 
-                    {/* 🟢 Modern Pill-Style Tabs */}
+                    {/* Modern Pill-Style Tabs */}
                     <div className="bg-white px-6 pt-5 pb-1 border-b border-gray-100">
                         <div className="inline-flex p-1.5 space-x-1 bg-gray-100/80 border border-gray-200/60 rounded-xl w-max">
                             <button
@@ -335,7 +341,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 text-right font-bold text-blue-600 tabular-nums">৳ {client.total_budget.toLocaleString('en-IN')}</td>
-                                                    <td className="px-6 py-4 text-right font-bold text-rose-500 tabular-nums">৳ {client.total_expense.toLocaleString('en-IN')}</td>
+                                                    <td className="px-6 py-4 text-right font-bold text-orange-500 tabular-nums">৳ {client.total_expense.toLocaleString('en-IN')}</td>
 
                                                     <td className="px-6 py-4 text-center border-l border-gray-100">
                                                         <span className="inline-flex items-center justify-center rounded-md bg-purple-50 border border-purple-100 text-purple-700 px-2.5 py-1 text-[11.5px] font-bold">
@@ -343,8 +349,8 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 text-right font-bold text-purple-700 tabular-nums">৳ {client.total_billed.toLocaleString('en-IN')}</td>
-                                                    <td className="px-6 py-4 text-right font-bold text-teal-600 tabular-nums">৳ {client.total_paid.toLocaleString('en-IN')}</td>
-                                                    <td className={`px-6 py-4 text-right font-black text-[14.5px] tabular-nums ${client.total_due > 0 ? "text-red-600" : "text-gray-400"}`}>
+                                                    <td className="px-6 py-4 text-right font-bold text-emerald-600 tabular-nums">৳ {client.total_paid.toLocaleString('en-IN')}</td>
+                                                    <td className={`px-6 py-4 text-right font-black text-[14.5px] tabular-nums ${client.total_due > 0 ? "text-rose-600" : "text-gray-400"}`}>
                                                         ৳ {client.total_due.toLocaleString('en-IN')}
                                                     </td>
                                                 </tr>
@@ -433,8 +439,8 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                                                             </td>
                                                             <td className="px-6 py-4 font-medium text-gray-600">{proj.client}</td>
                                                             <td className="px-6 py-4 text-right font-bold text-blue-600 tabular-nums">৳ {proj.budget.toLocaleString('en-IN')}</td>
-                                                            <td className="px-6 py-4 text-right font-bold text-rose-500 tabular-nums">৳ {proj.expense.toLocaleString('en-IN')}</td>
-                                                            <td className={`px-6 py-4 text-right font-black tabular-nums ${proj.profit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                                            <td className="px-6 py-4 text-right font-bold text-orange-500 tabular-nums">৳ {proj.expense.toLocaleString('en-IN')}</td>
+                                                            <td className={`px-6 py-4 text-right font-black tabular-nums ${proj.profit >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                                                                 {proj.profit > 0 ? '+' : ''}৳ {proj.profit.toLocaleString('en-IN')}
                                                             </td>
                                                         </tr>
@@ -447,10 +453,10 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                                                         <td className="px-6 py-4 text-right font-black text-blue-700 text-[14.5px] tabular-nums">
                                                             ৳ {data.month_budget.toLocaleString('en-IN')}
                                                         </td>
-                                                        <td className="px-6 py-4 text-right font-black text-rose-600 text-[14.5px] tabular-nums">
+                                                        <td className="px-6 py-4 text-right font-black text-orange-600 text-[14.5px] tabular-nums">
                                                             ৳ {data.month_expense.toLocaleString('en-IN')}
                                                         </td>
-                                                        <td className={`px-6 py-4 text-right font-black text-[16px] tabular-nums ${data.month_profit >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                                                        <td className={`px-6 py-4 text-right font-black text-[16px] tabular-nums ${data.month_profit >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
                                                             {data.month_profit > 0 ? '+' : ''}৳ {data.month_profit.toLocaleString('en-IN')}
                                                         </td>
                                                     </tr>

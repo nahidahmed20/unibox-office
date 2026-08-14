@@ -34,85 +34,43 @@ class ReportController extends Controller
         }
 
         $projectsData = $query->select(
-                'projects.id',
-                'projects.client_id',
-                'projects.title',
-                'projects.budget',
-                'projects.start_date',
-                'projects.status',
-                'clients.name as client_name',
-                DB::raw('COALESCE(SUM(project_expenses.total_bill), 0) as total_expense'),
-                DB::raw('COALESCE(SUM(project_expenses.paid_amount), 0) as vendor_paid'),
-                DB::raw('COALESCE(SUM(project_expenses.due_amount), 0) as vendor_due')
-            )
-            ->groupBy('projects.id', 'projects.client_id', 'projects.title', 'projects.budget', 'projects.start_date', 'projects.status', 'clients.name')
-            ->orderBy('projects.start_date', 'desc')
-            ->get();
+                'projects.id', 'projects.client_id', 'projects.title', 'projects.budget', 'projects.start_date', 'projects.status', 'clients.name as client_name',
+                DB::raw('COALESCE(SUM(project_expenses.total_bill), 0) as total_expense')
+            )->groupBy('projects.id', 'projects.client_id', 'projects.title', 'projects.budget', 'projects.start_date', 'projects.status', 'clients.name')
+            ->orderBy('projects.start_date', 'desc')->get();
 
         $clientsMap = [];
-        $overallTotalBudget = 0;
-        $overallTotalExpense = 0;
-
         foreach ($projectsData as $p) {
             $cName = $p->client_name ?? 'Unknown Client';
             if (!isset($clientsMap[$cName])) {
                 $clientsMap[$cName] = [
-                    'client_id' => $p->client_id,
-                    'client_name' => $cName,
-                    'total_projects' => 0,
-                    'total_budget' => 0,
-                    'total_expense' => 0,
-                    'vendor_paid' => 0,
-                    'vendor_due' => 0,
-                    'total_invoices' => 0,
-                    'total_billed' => 0,
-                    'total_paid' => 0,
-                    'total_due' => 0,
+                    'client_id' => $p->client_id, 'client_name' => $cName, 'total_projects' => 0, 'total_budget' => 0, 'total_expense' => 0, 'total_invoices' => 0, 'total_billed' => 0, 'total_paid' => 0, 'total_due' => 0,
                 ];
             }
             $clientsMap[$cName]['total_projects'] += 1;
             $clientsMap[$cName]['total_budget'] += (float)$p->budget;
             $clientsMap[$cName]['total_expense'] += (float)$p->total_expense;
-            $clientsMap[$cName]['vendor_paid'] += (float)$p->vendor_paid;
-            $clientsMap[$cName]['vendor_due'] += (float)$p->vendor_due;
-
-            $overallTotalBudget += (float)$p->budget;
-            $overallTotalExpense += (float)$p->total_expense;
         }
 
         $clientIds = array_filter(array_column($clientsMap, 'client_id'));
+        $overallTotalBilled = 0;
+        $overallTotalPaid = 0;
 
         if (!empty($clientIds)) {
-            $invoiceStats = DB::table('invoices')
-                ->whereIn('client_id', $clientIds)
-                ->whereNull('deleted_at')
-                ->select(
-                    'client_id',
-                    DB::raw('COUNT(id) as total_invoices'),
-                    DB::raw('SUM(grand_total) as total_billed')
-                )
-                ->groupBy('client_id')
-                ->get()
-                ->keyBy('client_id');
+            $invoiceStats = DB::table('invoices')->whereIn('client_id', $clientIds)->whereNull('deleted_at')
+                ->select('client_id', DB::raw('COUNT(id) as total_invoices'), DB::raw('SUM(grand_total) as total_billed'))
+                ->groupBy('client_id')->get()->keyBy('client_id');
 
-            $paymentStats = DB::table('invoice_payments')
-                ->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')
-                ->whereIn('invoices.client_id', $clientIds)
-                ->whereNull('invoices.deleted_at')
-                ->select(
-                    'invoices.client_id',
-                    DB::raw('SUM(invoice_payments.amount) as total_paid')
-                )
-                ->groupBy('invoices.client_id')
-                ->get()
-                ->keyBy('client_id');
+            $paymentStats = DB::table('invoice_payments')->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')
+                ->whereIn('invoices.client_id', $clientIds)->whereNull('invoices.deleted_at')
+                ->select('invoices.client_id', DB::raw('SUM(invoice_payments.amount) as total_paid'))
+                ->groupBy('invoices.client_id')->get()->keyBy('client_id');
 
             foreach ($clientsMap as $cName => &$data) {
                 $cId = $data['client_id'];
                 if ($cId) {
                     $inv = $invoiceStats->get($cId) ?? null;
                     $pay = $paymentStats->get($cId) ?? null;
-
                     $data['total_invoices'] = $inv ? (int)$inv->total_invoices : 0;
                     $data['total_billed']   = $inv ? (float)$inv->total_billed : 0;
                     $data['total_paid']     = $pay ? (float)$pay->total_paid : 0;
@@ -120,55 +78,66 @@ class ReportController extends Controller
                 }
             }
             unset($data);
+            $overallTotalBilled = array_sum(array_column($clientsMap, 'total_billed'));
+            $overallTotalPaid = array_sum(array_column($clientsMap, 'total_paid'));
         }
 
-        $clientsData = array_values($clientsMap);
-
         $monthlyData = [];
+        $overallTotalBudget = 0;
+        $overallTotalProjectExpense = 0;
+
         foreach ($projectsData as $p) {
             $month = $p->start_date ? date('F Y', strtotime($p->start_date)) : 'No Date Provided';
             $sortKey = $p->start_date ? date('Y-m', strtotime($p->start_date)) : '0000-00';
 
             if (!isset($monthlyData[$month])) {
-                $monthlyData[$month] = [
-                    'month' => $month,
-                    'sort_key' => $sortKey,
-                    'projects' => [],
-                    'month_budget' => 0,
-                    'month_expense' => 0,
-                    'month_profit' => 0
-                ];
+                $monthlyData[$month] = ['month' => $month, 'sort_key' => $sortKey, 'projects' => [], 'month_budget' => 0, 'month_expense' => 0, 'month_profit' => 0];
             }
-            $monthlyData[$month]['projects'][] = [
-                'title' => $p->title,
-                'client' => $p->client_name,
-                'budget' => (float)$p->budget,
-                'expense' => (float)$p->total_expense,
-                'profit' => (float)$p->budget - (float)$p->total_expense,
-                'status' => $p->status
-            ];
+            $monthlyData[$month]['projects'][] = ['title' => $p->title, 'client' => $p->client_name, 'budget' => (float)$p->budget, 'expense' => (float)$p->total_expense, 'profit' => (float)$p->budget - (float)$p->total_expense, 'status' => $p->status];
             $monthlyData[$month]['month_budget'] += (float)$p->budget;
             $monthlyData[$month]['month_expense'] += (float)$p->total_expense;
             $monthlyData[$month]['month_profit'] += ((float)$p->budget - (float)$p->total_expense);
+
+            $overallTotalBudget += (float)$p->budget;
+            $overallTotalProjectExpense += (float)$p->total_expense;
         }
 
-        usort($monthlyData, function($a, $b) {
-            return strcmp($b['sort_key'], $a['sort_key']);
-        });
+        usort($monthlyData, function($a, $b) { return strcmp($b['sort_key'], $a['sort_key']); });
 
-        $overallTotalBilled = array_sum(array_column($clientsMap, 'total_billed'));
-        $overallTotalPaid = array_sum(array_column($clientsMap, 'total_paid'));
+        // 🟢 NEW: Get Salaries and General Expenses for true Net Profit
+        $salaryQuery = DB::table('salaries')->where('status', 'paid');
+        $expenseQuery = DB::table('expenses');
+
+        if ($request->filled('start_date')) {
+            $salaryQuery->whereDate('payment_date', '>=', $request->start_date);
+            $expenseQuery->whereDate('date', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $salaryQuery->whereDate('payment_date', '<=', $request->end_date);
+            $expenseQuery->whereDate('date', '<=', $request->end_date);
+        }
+        if ($request->filled('year') && !$request->filled('start_date') && !$request->filled('end_date')) {
+            $salaryQuery->whereYear('payment_date', $request->year);
+            $expenseQuery->whereYear('date', $request->year);
+        }
+
+        $totalSalaryPaid = (float) $salaryQuery->sum('net_pay');
+        $totalOfficeExpense = (float) $expenseQuery->sum('amount');
+
+        // 🟢 True Net Profit Calculation: (Total Billed/Revenue) - (Project Costs + Salary + Office Expenses)
+        $trueNetProfit = $overallTotalBilled - ($overallTotalProjectExpense + $totalSalaryPaid + $totalOfficeExpense);
 
         $summary = [
-            'total_receivable' => $overallTotalBudget,
-            'total_cost' => $overallTotalExpense,
-            'net_profit' => $overallTotalBudget - $overallTotalExpense,
-            'total_invoiced' => $overallTotalBilled,
+            'total_revenue' => $overallTotalBilled, // Gross Revenue
             'total_received' => $overallTotalPaid,
+            'total_project_cost' => $overallTotalProjectExpense,
+            'total_salary_expense' => $totalSalaryPaid,
+            'total_office_expense' => $totalOfficeExpense,
+            'net_profit' => $trueNetProfit,
         ];
 
         return Inertia::render('Admin/Reports/FinancialReports', [
-            'clientsReport' => $clientsData,
+            'clientsReport' => array_values($clientsMap),
             'monthlyReport' => $monthlyData,
             'summary' => $summary,
             'filters' => $request->only(['start_date', 'end_date', 'year'])
