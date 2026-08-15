@@ -34,8 +34,8 @@ const topItemClass = (active) =>
 
 const groupToggleClass = (open, isActive) =>
     `group flex w-full items-center gap-3.5 rounded-xl px-4 py-2.5 text-[14px] font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 ${
-        open || isActive 
-            ? 'bg-white/[0.03] text-white' 
+        open || isActive
+            ? 'bg-white/[0.03] text-white'
             : 'text-[#A0ABC0] hover:bg-white/[0.04] hover:text-white'
     }`;
 
@@ -51,7 +51,7 @@ const chevronClass = (open) =>
         open ? 'rotate-90 text-[var(--accent)]' : 'text-[#5C6478] group-hover:text-[#A0ABC0]'
     }`;
 
-const groupIconClass = (open, isActive) => 
+const groupIconClass = (open, isActive) =>
     `fa-solid w-5 text-center text-[16px] transition-colors duration-300 ${
         open || isActive ? 'text-[var(--accent)]' : 'opacity-70 group-hover:text-[var(--accent)] group-hover:opacity-100'
     }`;
@@ -71,7 +71,6 @@ export default function AdminLayout({ children }) {
         return userPermissions.includes(permission);
     };
 
-    // রাউটগুলোকে লজিক্যাল মডিউলে ভাগ করা হয়েছে
     const activeRoutes = {
         hr: route().current('admin.departments.*') || route().current('admin.designations.*') || route().current('admin.employees.*') || route().current('admin.attendances.*') || route().current('admin.leaves.*') || route().current('admin.salaries.*'),
         crm: route().current('admin.clients.*') || route().current('admin.projects.*') || route().current('admin.tasks.*') || route().current('admin.vendors.*'),
@@ -161,7 +160,7 @@ export default function AdminLayout({ children }) {
 
                 <div className="brass-scroll flex-1 overflow-y-auto py-4">
                     <ul className="m-0 list-none space-y-1.5 p-0">
-                        
+
                         <SectionLabel>Overview</SectionLabel>
                         <li className="mx-3 mb-4">
                             <Link href={route('dashboard')} className={topItemClass(route().current('dashboard'))}>
@@ -172,7 +171,7 @@ export default function AdminLayout({ children }) {
 
                         <SectionLabel>Workspace Modules</SectionLabel>
 
-                        
+
 
                         {/* 2. CRM & Projects (Operations) */}
                         {hasPermission('view_crm') && (
@@ -282,7 +281,7 @@ export default function AdminLayout({ children }) {
                             </li>
                         )}
 
-                        {/* 5. Reports */}
+                        {/* 5. Reports & Analytics */}
                         {hasPermission('view_report') && (
                             <li className="mx-3 mt-1 mb-2">
                                 <button
@@ -296,6 +295,7 @@ export default function AdminLayout({ children }) {
                                 </button>
                                 {openMenus.report && (
                                     <SubMenu>
+                                        <li><Link href={route('admin.reports.daybook')} className={subItemClass(route().current('admin.reports.daybook'))}><i className="fa-solid fa-book-open text-[11px] opacity-80"></i> Daily Daybook</Link></li>
                                         <li><Link href={route('admin.reports.financial')} className={subItemClass(route().current('admin.reports.financial'))}><i className="fa-solid fa-chart-area text-[11px] opacity-80"></i> Financial Report</Link></li>
                                         <li><Link href={route('admin.account.transactions')} className={subItemClass(route().current('admin.account.transactions'))}><i className="fa-solid fa-money-check text-[11px] opacity-80"></i> Transaction Report</Link></li>
                                         <li><Link href={route('admin.reports.client-ledger')} className={subItemClass(route().current('admin.reports.client-ledger'))}><i className="fa-solid fa-book-journal-whills text-[11px] opacity-80"></i> Client Ledger</Link></li>
@@ -336,7 +336,7 @@ export default function AdminLayout({ children }) {
 
             <div className="flex min-h-screen flex-col transition-all duration-300 md:ml-[270px]">
                 {/* Navbar */}
-                <header className="sticky top-0 z-30 flex h-[65px] items-center justify-between border-b border-[#e1e3e5] bg-white px-4 shadow-sm sm:px-6">
+                <header className="sticky top-0 z-30 flex h-[65px] items-center justify-between border-b border-[#e1e3e5] bg-white px-4 shadow-sm sm:px-6 print:hidden">
                     <div className="flex items-center">
                         <button
                             onClick={() => setIsSidebarOpen(true)}
@@ -387,18 +387,18 @@ export default function AdminLayout({ children }) {
 
                 <main className="flex-1 p-4 sm:p-6 md:p-8">
                     {flash?.success && (
-                        <div className="mb-6 flex items-center rounded-lg border border-green-200 bg-green-50 p-4 text-[14px] font-medium text-green-700 shadow-sm animate-fade-in-down">
+                        <div className="mb-6 flex items-center rounded-lg border border-green-200 bg-green-50 p-4 text-[14px] font-medium text-green-700 shadow-sm animate-fade-in-down print:hidden">
                             <i className="fa-solid fa-circle-check mr-2.5 text-lg"></i>
                             {flash.success}
                         </div>
                     )}
                     {flash?.error && (
-                        <div className="mb-6 flex items-center rounded-lg border border-red-200 bg-red-50 p-4 text-[14px] font-medium text-red-700 shadow-sm animate-fade-in-down">
+                        <div className="mb-6 flex items-center rounded-lg border border-red-200 bg-red-50 p-4 text-[14px] font-medium text-red-700 shadow-sm animate-fade-in-down print:hidden">
                             <i className="fa-solid fa-circle-xmark mr-2.5 text-lg"></i>
                             {flash.error}
                         </div>
                     )}
-                    
+
                     {children}
                 </main>
             </div>

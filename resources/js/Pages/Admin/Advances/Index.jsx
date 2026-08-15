@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react'; 
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
-import Swal from 'sweetalert2'; 
+import Swal from 'sweetalert2';
 import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 
@@ -24,24 +24,24 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
     const [expandedRows, setExpandedRows] = useState({});
 
     const { auth } = usePage().props;
-    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin'); 
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
     const permissions = auth?.permissions || [];
     const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
-     
+
     const advanceList = Array.isArray(advances) ? advances : (advances.data || []);
-     
+
     const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get('search') || filters.search || '');
     const [perPage, setPerPage] = useState(() => new URLSearchParams(window.location.search).get('per_page') || filters.per_page || '50');
-     
+
     const isFirstRender = useRef(true);
 
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
-        id: '', 
+        id: '',
         account_id: '',
-        user_id: '', 
-        amount: '', 
-        date: new Date().toISOString().slice(0, 10), 
-        purpose: 'Office Purpose', 
+        user_id: '',
+        amount: '',
+        date: new Date().toISOString().slice(0, 10),
+        purpose: 'Office Purpose',
         status: 'unsettled',
         notes: ''
     });
@@ -57,8 +57,8 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
         }
         const delayDebounceFn = setTimeout(() => {
             router.get(
-                route('admin.advances.index'), 
-                { search: searchTerm, per_page: perPage }, 
+                route('admin.advances.index'),
+                { search: searchTerm, per_page: perPage },
                 { preserveState: true, replace: true, preserveScroll: true }
             );
         }, 400);
@@ -178,12 +178,12 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
     };
 
     const openEditModal = (adv) => {
-        clearErrors(); 
+        clearErrors();
         setData({
             id: adv.id, account_id: adv.account_id || '', user_id: adv.user_id || '', amount: adv.amount,
             date: adv.date, purpose: adv.purpose || 'Office Purpose', status: adv.status || 'unsettled', notes: adv.notes || ''
         });
-        setEditMode(true); 
+        setEditMode(true);
         setShowModal(true);
     };
 
@@ -208,7 +208,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
         if (!data.account_id) return Swal.fire("Required", "Please select an account.", "warning");
 
         if (editMode) {
-            put(route('admin.advances.update', data.id), { 
+            put(route('admin.advances.update', data.id), {
                 preserveScroll: true,
                 onSuccess: () => {
                     setShowModal(false);
@@ -216,11 +216,11 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                 }
             });
         } else {
-            post(route('admin.advances.store'), { 
+            post(route('admin.advances.store'), {
                 preserveScroll: true,
-                onSuccess: () => { 
-                    reset(); 
-                    setShowModal(false); 
+                onSuccess: () => {
+                    reset();
+                    setShowModal(false);
                     Swal.fire({ icon: 'success', title: 'Logged!', text: 'New advance payment logged.', timer: 1500, showConfirmButton: false });
                 }
             });
@@ -265,7 +265,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
     return (
         <AdminLayout>
             <Head title="Advance Payments" />
-            
+
             <style dangerouslySetInnerHTML={{__html: `
                 .custom-table-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
                 .custom-table-scroll::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
@@ -274,7 +274,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
             `}} />
 
             <div className="flex flex-col gap-8 w-full max-w-[1600px] mx-auto pb-12">
-                
+
                 {/* 🟢 Premium Page Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mt-2">
                     <div>
@@ -345,7 +345,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
                 {/* Main Card Container */}
                 <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
-                    
+
                     {/* Card Header & Actions */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 px-6 py-5 gap-4 bg-gray-50/40">
                         <div className="text-[16px] font-bold text-gray-900 flex items-center gap-2.5">
@@ -366,9 +366,9 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
                             <div className="flex items-center gap-2.5">
                                 <span className="font-medium text-gray-500">Show</span>
-                                <select 
-                                    value={perPage} 
-                                    onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                <select
+                                    value={perPage}
+                                    onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
                                     className="appearance-none text-center bg-white rounded-xl border border-gray-300 px-4 py-2.5 text-[13.5px] font-bold outline-none transition-shadow focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-sm"
                                 >
                                     <option value={50}>50 Rows</option>
@@ -396,12 +396,12 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
                         <div className="relative w-full sm:w-[320px]">
                             <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13.5px]"></i>
-                            <input 
-                                type="text" 
-                                placeholder="Search employee..." 
-                                value={searchTerm} 
-                                onChange={(e) => setSearchTerm(e.target.value)} 
-                                className="w-full rounded-xl border border-gray-300 py-3 pl-10 pr-4 text-[13.5px] outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white" 
+                            <input
+                                type="text"
+                                placeholder="Search employee..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full rounded-xl border border-gray-300 py-3 pl-10 pr-4 text-[13.5px] outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white"
                             />
                         </div>
                     </div>
@@ -435,7 +435,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                 <tr className={`transition-colors group ${isExpanded ? 'bg-indigo-50/30' : 'hover:bg-slate-50/80'}`}>
                                                     <td className="px-6 py-4 text-center expand-btn-col">
                                                         {hasMultiple && (
-                                                            <button 
+                                                            <button
                                                                 onClick={() => toggleExpand(group.user_id)}
                                                                 className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors hover:bg-indigo-600 hover:text-white focus:outline-none shadow-sm"
                                                             >
@@ -492,7 +492,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                     </td>
                                                     <td className="px-6 py-4 text-center actions-col">
                                                         {hasMultiple ? (
-                                                            <button 
+                                                            <button
                                                                 onClick={() => toggleExpand(group.user_id)}
                                                                 className="rounded-xl bg-indigo-50 border border-indigo-100 px-3 py-1.5 text-[12px] font-bold text-indigo-600 transition-colors hover:bg-indigo-600 hover:text-white shadow-sm"
                                                             >
@@ -568,7 +568,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                                                     <td className="px-4 py-3.5 text-gray-600 font-medium">
                                                                                         {adv.purpose || '-'}
                                                                                     </td>
-                                                                                    
+
                                                                                     <td className="px-4 py-3.5 text-right font-black text-gray-900 tabular-nums">
                                                                                         ৳ {totalGiven.toLocaleString('en-IN')}
                                                                                     </td>
@@ -663,7 +663,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
             {showViewModal && selectedAdvance && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
                     <div className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl flex flex-col relative my-auto animate-[fadeIn_0.2s_ease-out] overflow-hidden">
-                        
+
                         <div className="absolute top-6 left-6 z-20">
                             <span className={`inline-flex items-center px-3.5 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest border shadow-sm ${selectedAdvance.status === 'settled' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
                                 {selectedAdvance.status}
@@ -753,7 +753,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
                     <div className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl flex flex-col my-auto max-h-[95vh] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-                        
+
                         <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white shrink-0">
                             <div>
                                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase tracking-wider mb-1.5">
@@ -767,7 +767,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                 <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
-                        
+
                         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
                             <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
                                 <div className="flex-1 p-8 overflow-y-auto brass-scroll bg-gray-50/30 space-y-6">
@@ -834,12 +834,12 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
                                         <div className="md:col-span-2">
                                             <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Notes / Description</label>
-                                            <textarea 
-                                                value={data.notes} 
-                                                onChange={e => setData('notes', e.target.value)} 
+                                            <textarea
+                                                value={data.notes}
+                                                onChange={e => setData('notes', e.target.value)}
                                                 rows="3"
-                                                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-900 outline-none resize-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm" 
-                                                placeholder="Optional additional details..." 
+                                                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-900 outline-none resize-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm"
+                                                placeholder="Optional additional details..."
                                             ></textarea>
                                             {errors.notes && <p className="text-rose-500 text-[12px] mt-1.5 font-medium">{errors.notes}</p>}
                                         </div>
@@ -854,12 +854,12 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                 <label className="block text-[13px] font-medium text-emerald-400 mb-2">Amount (BDT) <span className="text-rose-500">*</span></label>
                                                 <div className="relative">
                                                     <i className="fa-solid fa-bangladeshi-taka-sign absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500"></i>
-                                                    <input 
+                                                    <input
                                                         type="number" step="0.01" min="1"
-                                                        value={data.amount} 
-                                                        onChange={e => setData('amount', e.target.value)} 
-                                                        className="w-full rounded-xl border border-emerald-500/30 bg-emerald-900/20 pl-9 pr-4 py-4 text-[18px] font-bold text-emerald-400 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/50 transition-all" 
-                                                        placeholder="0.00" required 
+                                                        value={data.amount}
+                                                        onChange={e => setData('amount', e.target.value)}
+                                                        className="w-full rounded-xl border border-emerald-500/30 bg-emerald-900/20 pl-9 pr-4 py-4 text-[18px] font-bold text-emerald-400 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                                                        placeholder="0.00" required
                                                     />
                                                 </div>
                                                 {errors.amount && <p className="text-rose-400 text-xs mt-1.5 font-medium">{errors.amount}</p>}
@@ -867,8 +867,8 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
                                             <div>
                                                 <label className="block text-[13px] font-medium text-gray-300 mb-2">Date <span className="text-rose-400">*</span></label>
-                                                <input 
-                                                    type="date" value={data.date} onChange={e => setData('date', e.target.value)} 
+                                                <input
+                                                    type="date" value={data.date} onChange={e => setData('date', e.target.value)}
                                                     className="w-full rounded-xl border border-gray-700 bg-gray-800 px-4 py-3.5 text-[15px] font-semibold text-white outline-none focus:border-indigo-500 transition-all cursor-pointer" required style={{ colorScheme: 'dark' }}
                                                 />
                                                 {errors.date && <p className="text-rose-400 text-xs mt-1.5 font-medium">{errors.date}</p>}
@@ -914,7 +914,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                 <i className="fa-solid fa-xmark text-[15px]"></i>
                             </button>
                         </div>
-                        
+
                         <form onSubmit={handleReturnSubmit} className="flex flex-col overflow-hidden">
                             <div className="p-6 overflow-y-auto brass-scroll">
                                 {returnErrors.error && (
@@ -926,9 +926,9 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                     <label className="block text-[13px] font-bold text-gray-700 uppercase tracking-wider mb-2.5">Refund Amount <span className="text-rose-500">*</span></label>
                                     <div className="relative">
                                         <i className="fa-solid fa-bangladeshi-taka-sign absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-[15px]"></i>
-                                        <input 
-                                            type="number" step="0.01" value={returnData.return_amount} onChange={e => setReturnData('return_amount', e.target.value)} 
-                                            className="w-full rounded-xl border border-gray-300 bg-gray-50 pl-9 pr-4 py-3.5 text-[18px] font-bold text-emerald-700 outline-none transition-all focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm" 
+                                        <input
+                                            type="number" step="0.01" value={returnData.return_amount} onChange={e => setReturnData('return_amount', e.target.value)}
+                                            className="w-full rounded-xl border border-gray-300 bg-gray-50 pl-9 pr-4 py-3.5 text-[18px] font-bold text-emerald-700 outline-none transition-all focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
                                             placeholder="0.00" required autoFocus
                                         />
                                     </div>

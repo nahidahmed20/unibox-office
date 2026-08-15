@@ -12,6 +12,11 @@ use App\Models\Vendor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use App\Models\Expense;
+use App\Models\Salary;
+use App\Models\Transaction;
+use App\Models\VendorPayment;
+use Carbon\Carbon;
 
 class ReportController extends Controller
 {
@@ -368,6 +373,102 @@ class ReportController extends Controller
             'vendorDues' => $vendorDues,
             'grandTotal' => $grandTotalDue,
             'grandTotalAdvance' => $totalAdvanceAmount
+        ]);
+    }
+
+    public function daybook(Request $request)
+    {
+        // 🟢 Default to Today if no date is selected
+        $date = $request->input('date', Carbon::today()->toDateString());
+        $parsedDate = Carbon::parse($date);
+
+        $accounts = Account::all();
+        $accountSummary = [];
+
+        $totalOpening = 0;
+        $totalInflow = 0;
+        $totalOutflow = 0;
+        $totalClosing = 0;
+
+        // 🟢 Calculate true Opening and Closing balances for the specific date
+        foreach ($accounts as $acc) {
+            // Inflows and Outflows AFTER the selected date
+            $inflowsAfter = Transaction::where('account_id', $acc->id)
+                ->whereDate('transaction_date', '>', $date)
+                ->where('type', 'credit')->sum('amount');
+
+            $outflowsAfter = Transaction::where('account_id', $acc->id)
+                ->whereDate('transaction_date', '>', $date)
+                ->where('type', 'debit')->sum('amount');
+
+            // Closing balance at the end of the selected date
+            $closingBalance = $acc->current_balance - $inflowsAfter + $outflowsAfter;
+
+            // Inflows and Outflows exactly ON the selected date
+            $inflowToday = Transaction::where('account_id', $acc->id)
+                ->whereDate('transaction_date', $date)
+                ->where('type', 'credit')->sum('amount');
+
+            $outflowToday = Transaction::where('account_id', $acc->id)
+                ->whereDate('transaction_date', $date)
+                ->where('type', 'debit')->sum('amount');
+
+            // Opening balance at the start of the selected date
+            $openingBalance = $closingBalance - $inflowToday + $outflowToday;
+
+            $accountSummary[] = [
+                'id' => $acc->id,
+                'name' => $acc->name,
+                'type' => $acc->type,
+                'opening' => $openingBalance,
+                'inflow' => $inflowToday,
+                'outflow' => $outflowToday,
+                'closing' => $closingBalance,
+            ];
+
+            $totalOpening += $openingBalance;
+            $totalInflow += $inflowToday;
+            $totalOutflow += $outflowToday;
+            $totalClosing += $closingBalance;
+        }
+
+        // 🟢 Detailed Outflow (Where money went today)
+        $expenses = Expense::whereDate('date', $date)->get();
+        $vendorPayments = VendorPayment::with('vendor')->whereDate('date', $date)->get();
+        $salaries = Salary::with('user')->where('status', 'paid')->whereDate('payment_date', $date)->get();
+
+        // 🟢 Detailed Inflow (Where money came from today)
+        $invoicePayments = InvoicePayment::with('invoice.client')->whereDate('payment_date', $date)->get();
+
+        // 🟢 All Raw Transactions for the day
+        $transactions = Transaction::with('account')->whereDate('transaction_date', $date)->latest('id')->get();
+
+        // 🟢 Current Market Snapshot (As of right now)
+        $totalMarketReceivable = DB::table('invoices')->whereNull('deleted_at')->sum('grand_total')
+                                 - DB::table('invoice_payments')->sum('amount');
+        $totalMarketPayable = DB::table('project_expenses')->sum('due_amount');
+
+        return Inertia::render('Admin/Reports/Daybook', [
+            'selectedDate' => $date,
+            'formattedDate' => $parsedDate->format('l, jS F Y'),
+            'summary' => [
+                'opening' => $totalOpening,
+                'inflow'  => $totalInflow,
+                'outflow' => $totalOutflow,
+                'closing' => $totalClosing,
+            ],
+            'accountSummary' => $accountSummary,
+            'details' => [
+                'expenses' => $expenses,
+                'vendorPayments' => $vendorPayments,
+                'salaries' => $salaries,
+                'invoicePayments' => $invoicePayments,
+                'transactions' => $transactions,
+            ],
+            'marketSnapshot' => [
+                'receivable' => max($totalMarketReceivable, 0),
+                'payable' => max($totalMarketPayable, 0),
+            ]
         ]);
     }
 

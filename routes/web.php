@@ -43,7 +43,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
-    
+
     // Profile Routes
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -85,7 +85,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/advances/{id}/return', [AdvanceController::class, 'returnMoney'])->name('admin.advances.returnMoney');
     Route::get('/advances/ledger/{userId}', [AdvanceController::class, 'employeeLedger'])
     ->name('admin.advances.employeeLedger');
-    
+
     Route::resource('advances', AdvanceController::class)->names('admin.advances');
     Route::post('transactions/transfer', [TransactionController::class, 'transfer'])->name('admin.transactions.transfer');
     Route::resource('transactions', TransactionController::class)->names('admin.transactions');
@@ -108,6 +108,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/financial-reports', [ReportController::class, 'financialSummary'])->name('admin.reports.financial');
     Route::get('account/transactions', [ReportController::class, 'transactionsReport'])->name('admin.account.transactions');
     Route::get('reports/client-ledger', [ReportController::class, 'clientLedger'])->name('admin.reports.client-ledger');
+    Route::get('/daybook', [ReportController::class, 'daybook'])->name('admin.reports.daybook');
 
     Route::post('/project-expenses/{id}/move-to-wallet', [ProjectExpenseController::class, 'moveToWallet'])->name('admin.project-expenses.move-to-wallet');
 
