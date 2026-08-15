@@ -172,30 +172,7 @@ export default function AdminLayout({ children }) {
 
                         <SectionLabel>Workspace Modules</SectionLabel>
 
-                        {/* 1. HR & Payroll (People first) */}
-                        {hasPermission('view_hr') && (
-                            <li className="mx-3 mt-1">
-                                <button
-                                    onClick={() => toggleMenu('hr')}
-                                    aria-expanded={openMenus.hr}
-                                    className={groupToggleClass(openMenus.hr, activeRoutes.hr)}
-                                >
-                                    <i className={groupIconClass(openMenus.hr, activeRoutes.hr) + ' fa-users-viewfinder'}></i>
-                                    HR & Payroll
-                                    <i className={chevronClass(openMenus.hr)}></i>
-                                </button>
-                                {openMenus.hr && (
-                                    <SubMenu>
-                                        <li><Link href={route('admin.departments.index')} className={subItemClass(route().current('admin.departments.*'))}><i className="fa-solid fa-building-user text-[11px] opacity-80"></i> Departments</Link></li>
-                                        <li><Link href={route('admin.designations.index')} className={subItemClass(route().current('admin.designations.*'))}><i className="fa-solid fa-user-tie text-[11px] opacity-80"></i> Designations</Link></li>
-                                        <li><Link href={route('admin.employees.index')} className={subItemClass(route().current('admin.employees.*'))}><i className="fa-solid fa-id-badge text-[11px] opacity-80"></i> Employees</Link></li>
-                                        <li><Link href={route('admin.attendances.index')} className={subItemClass(route().current('admin.attendances.*'))}><i className="fa-solid fa-clock-rotate-left text-[11px] opacity-80"></i> Attendance</Link></li>
-                                        <li><Link href={route('admin.leaves.index')} className={subItemClass(route().current('admin.leaves.*'))}><i className="fa-solid fa-calendar-minus text-[11px] opacity-80"></i> Leaves</Link></li>
-                                        <li><Link href={route('admin.salaries.index')} className={subItemClass(route().current('admin.salaries.*'))}><i className="fa-solid fa-money-check-dollar text-[11px] opacity-80"></i> Payroll</Link></li>
-                                    </SubMenu>
-                                )}
-                            </li>
-                        )}
+                        
 
                         {/* 2. CRM & Projects (Operations) */}
                         {hasPermission('view_crm') && (
@@ -275,6 +252,31 @@ export default function AdminLayout({ children }) {
                                         <li><Link href={route('admin.assets.index')} className={subItemClass(route().current('admin.assets.*'))}><i className="fa-solid fa-boxes-stacked text-[11px] opacity-80"></i> Assets</Link></li>
                                         <li><Link href={route('admin.requisitions.index')} className={subItemClass(route().current('admin.requisitions.*'))}><i className="fa-solid fa-clipboard-list text-[11px] opacity-80"></i> Requisitions</Link></li>
                                         <li><Link href={route('admin.notices.index')} className={subItemClass(route().current('admin.notices.*'))}><i className="fa-solid fa-bullhorn text-[11px] opacity-80"></i> Notices</Link></li>
+                                    </SubMenu>
+                                )}
+                            </li>
+                        )}
+
+                        {/* 1. HR & Payroll (People first) */}
+                        {hasPermission('view_hr') && (
+                            <li className="mx-3 mt-1">
+                                <button
+                                    onClick={() => toggleMenu('hr')}
+                                    aria-expanded={openMenus.hr}
+                                    className={groupToggleClass(openMenus.hr, activeRoutes.hr)}
+                                >
+                                    <i className={groupIconClass(openMenus.hr, activeRoutes.hr) + ' fa-users-viewfinder'}></i>
+                                    HR & Payroll
+                                    <i className={chevronClass(openMenus.hr)}></i>
+                                </button>
+                                {openMenus.hr && (
+                                    <SubMenu>
+                                        <li><Link href={route('admin.departments.index')} className={subItemClass(route().current('admin.departments.*'))}><i className="fa-solid fa-building-user text-[11px] opacity-80"></i> Departments</Link></li>
+                                        <li><Link href={route('admin.designations.index')} className={subItemClass(route().current('admin.designations.*'))}><i className="fa-solid fa-user-tie text-[11px] opacity-80"></i> Designations</Link></li>
+                                        <li><Link href={route('admin.employees.index')} className={subItemClass(route().current('admin.employees.*'))}><i className="fa-solid fa-id-badge text-[11px] opacity-80"></i> Employees</Link></li>
+                                        <li><Link href={route('admin.attendances.index')} className={subItemClass(route().current('admin.attendances.*'))}><i className="fa-solid fa-clock-rotate-left text-[11px] opacity-80"></i> Attendance</Link></li>
+                                        <li><Link href={route('admin.leaves.index')} className={subItemClass(route().current('admin.leaves.*'))}><i className="fa-solid fa-calendar-minus text-[11px] opacity-80"></i> Leaves</Link></li>
+                                        <li><Link href={route('admin.salaries.index')} className={subItemClass(route().current('admin.salaries.*'))}><i className="fa-solid fa-money-check-dollar text-[11px] opacity-80"></i> Payroll</Link></li>
                                     </SubMenu>
                                 )}
                             </li>
