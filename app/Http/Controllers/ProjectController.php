@@ -92,7 +92,13 @@ class ProjectController extends Controller
             $projectItem['client_id'] = $request->client_id;
             $projectItem['project_manager_id'] = $request->project_manager_id;
             $projectItem['priority'] = $projectItem['priority'] ?? 'medium';
-            $projectItem['progress'] = $projectItem['progress'] ?? 0;
+            
+            // 🟢 FIXED: If status is completed, force progress to 100
+            if (isset($projectItem['status']) && $projectItem['status'] === 'completed') {
+                $projectItem['progress'] = 100;
+            } else {
+                $projectItem['progress'] = $projectItem['progress'] ?? 0;
+            }
 
             Project::create($projectItem);
         }
@@ -112,7 +118,6 @@ class ProjectController extends Controller
             'managers' => $managers,
         ]);
     }
-
     public function update(Request $request, string $id)
     {
         $project = Project::findOrFail($id);
@@ -139,6 +144,11 @@ class ProjectController extends Controller
             'live_url'           => 'nullable|url|max:255',
         ]);
 
+        // 🟢 FIXED: If status is completed, force progress to 100
+        if ($validated['status'] === 'completed') {
+            $validated['progress'] = 100;
+        }
+
         $project->update($validated);
         
         return redirect()->route('admin.projects.index')->with('success', 'Project updated successfully.');
@@ -159,6 +169,14 @@ class ProjectController extends Controller
             'status' => 'required|in:planning,in_progress,completed,on_hold',
         ]);
         
+        if ($validated['status'] === 'completed') {
+            $validated['progress'] = 100; 
+        } elseif ($validated['status'] === 'planning') {
+            $validated['progress'] = 0; 
+        } elseif ($project->status === 'completed' && in_array($validated['status'], ['in_progress', 'on_hold'])) {
+            $validated['progress'] = 90; 
+        }
+
         $project->update($validated);
         
         return back()->with('success', 'Project status updated.');

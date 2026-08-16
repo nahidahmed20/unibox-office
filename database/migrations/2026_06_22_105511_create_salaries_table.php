@@ -15,15 +15,19 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('user_id');
             $table->string('month_year'); // e.g., 06-2026
-            $table->decimal('basic_salary', 10, 2);
-            $table->decimal('allowances', 10, 2)->default(0); 
-            $table->decimal('bonus', 10, 2)->default(0);
-            $table->decimal('deductions', 10, 2)->default(0);
-            $table->decimal('net_pay', 10, 2);
-            $table->enum('status', ['paid', 'unpaid'])->default('unpaid');
+            
+            $table->decimal('basic_salary', 12, 2);
+            $table->decimal('allowances', 12, 2)->default(0); 
+            $table->decimal('bonus', 12, 2)->default(0);
+            $table->decimal('deductions', 12, 2)->default(0);
+            $table->decimal('net_pay', 12, 2);
+            $table->decimal('paid_amount', 12, 2)->default(0);
+            $table->decimal('due_amount', 12, 2)->default(0);
+            $table->enum('status', ['paid', 'unpaid', 'partially_paid'])->default('unpaid');
             $table->unsignedBigInteger('account_id')->nullable();
             $table->date('payment_date')->nullable();
             $table->string('payment_method')->nullable(); 
+            
             $table->timestamps();
         });
     }

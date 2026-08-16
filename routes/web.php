@@ -103,6 +103,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('designations', DesignationController::class)->names('admin.designations');
     Route::resource('employees', EmployeeProfileController::class)->names('admin.employees');
     Route::resource('attendances', AttendanceController::class)->names('admin.attendances');
+    Route::post('/salaries/{id}/pay', [SalaryController::class, 'addPayment'])->name('salaries.pay');
     Route::resource('salaries', SalaryController::class)->names('admin.salaries');
     Route::resource('leaves', LeaveController::class)->names('admin.leaves');
     Route::get('/financial-reports', [ReportController::class, 'financialSummary'])->name('admin.reports.financial');

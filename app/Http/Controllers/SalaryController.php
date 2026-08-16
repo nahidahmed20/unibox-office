@@ -36,7 +36,13 @@ class SalaryController extends Controller
         $perPage = $request->input('per_page', 25);
         $salaries = $query->latest()->paginate($perPage)->withQueryString();
         
-        $users = User::select('id', 'name')->orderBy('name')->get();
+        $users = User::select('id', 'name')
+            ->with(['employeeProfile' => function ($q) {
+                $q->select('user_id', 'basic_salary');
+            }])
+            ->orderBy('name')
+            ->get();
+            
         $accounts = Account::where('is_active', true)->get();
 
         return Inertia::render('Admin/Salaries/Index', [
@@ -55,31 +61,33 @@ class SalaryController extends Controller
             'allowances'     => 'nullable|numeric|min:0',
             'bonus'          => 'nullable|numeric|min:0',
             'deductions'     => 'nullable|numeric|min:0',
-            'net_pay'        => 'required|numeric',
-            'status'         => 'required|in:unpaid,paid',
+            'status'         => 'required|in:unpaid,paid,partially_paid',
             'payment_date'   => 'nullable|date',
-            'payments'       => 'required_if:status,paid|array|min:1',
-            'payments.*.account_id' => 'required_if:status,paid|exists:accounts,id',
-            'payments.*.amount'     => 'required_if:status,paid|numeric|min:0',
+            'payments'       => 'nullable|array',
+            'payments.*.account_id' => 'required_with:payments|exists:accounts,id',
+            'payments.*.amount'     => 'required_with:payments|numeric|min:0',
         ]);
 
-        // 🟢 Null values handling to avoid DB errors
-        $salaryData = [
-            'user_id' => $validated['user_id'],
-            'month_year' => $validated['month_year'],
-            'basic_salary' => $validated['basic_salary'] ?? 0,
-            'allowances' => $validated['allowances'] ?? 0,
-            'bonus' => $validated['bonus'] ?? 0,
-            'deductions' => $validated['deductions'] ?? 0,
-            'net_pay' => $validated['net_pay'],
-            'status' => $validated['status'],
-            'payment_date' => $validated['payment_date'],
-        ];
+        $net_pay = ($validated['basic_salary'] ?? 0) + ($validated['allowances'] ?? 0) + ($validated['bonus'] ?? 0) - ($validated['deductions'] ?? 0);
 
-        DB::transaction(function () use ($salaryData, $request) {
-            $salary = Salary::create($salaryData);
+        DB::transaction(function () use ($validated, $net_pay, $request) {
+            $salary = Salary::create([
+                'user_id'      => $validated['user_id'],
+                'month_year'   => $validated['month_year'],
+                'basic_salary' => $validated['basic_salary'] ?? 0,
+                'allowances'   => $validated['allowances'] ?? 0,
+                'bonus'        => $validated['bonus'] ?? 0,
+                'deductions'   => $validated['deductions'] ?? 0,
+                'net_pay'      => $net_pay,
+                'paid_amount'  => 0,
+                'due_amount'   => $net_pay,
+                'status'       => 'unpaid',
+                'payment_date' => $validated['payment_date'],
+            ]);
 
-            if ($salary->status === 'paid' && $request->has('payments')) {
+            $total_paid = 0;
+
+            if (in_array($validated['status'], ['paid', 'partially_paid']) && $request->has('payments')) {
                 foreach ($request->payments as $payment) {
                     if ($payment['amount'] > 0) {
                         $account = Account::findOrFail($payment['account_id']);
@@ -89,12 +97,19 @@ class SalaryController extends Controller
                             'account_id'       => $account->id,
                             'type'             => 'debit',
                             'amount'           => $payment['amount'],
-                            'transaction_date' => $salary->payment_date ?? now(),
-                            'description'      => "Salary Split Payment: " . $salary->month_year,
+                            'transaction_date' => $validated['payment_date'] ?? now(),
+                            'description'      => "Salary Payment: " . $salary->month_year,
                         ]);
+
+                        $total_paid += $payment['amount'];
                     }
                 }
             }
+
+            $salary->paid_amount = $total_paid;
+            $salary->due_amount = $net_pay - $total_paid;
+            $salary->status = $salary->due_amount <= 0 ? 'paid' : ($salary->paid_amount > 0 ? 'partially_paid' : 'unpaid');
+            $salary->save();
         });
 
         return redirect()->back()->with('success', 'Salary processed successfully.');
@@ -111,16 +126,17 @@ class SalaryController extends Controller
             'allowances'     => 'nullable|numeric|min:0',
             'bonus'          => 'nullable|numeric|min:0',
             'deductions'     => 'nullable|numeric|min:0',
-            'status'         => 'required|in:paid,unpaid',
+            'status'         => 'required|in:unpaid,paid,partially_paid',
             'payment_date'   => 'nullable|date',
-            'payments'       => 'required_if:status,paid|array',
-            'payments.*.account_id' => 'required_if:status,paid|exists:accounts,id',
-            'payments.*.amount'     => 'required_if:status,paid|numeric|min:0',
+            'payments'       => 'nullable|array',
+            'payments.*.account_id' => 'required_with:payments|exists:accounts,id',
+            'payments.*.amount'     => 'required_with:payments|numeric|min:0',
         ]);
 
         $net_pay = ($validated['basic_salary'] ?? 0) + ($validated['allowances'] ?? 0) + ($validated['bonus'] ?? 0) - ($validated['deductions'] ?? 0);
 
         DB::transaction(function () use ($salary, $validated, $net_pay, $request) {
+            
             // 🟢 Reverse Old Transactions safely
             foreach ($salary->transactions as $txn) {
                 $account = Account::find($txn->account_id);
@@ -130,8 +146,10 @@ class SalaryController extends Controller
                 $txn->delete();
             }
 
-            // 🟢 Create New Transactions if paid
-            if ($validated['status'] === 'paid' && $request->has('payments')) {
+            $total_paid = 0;
+
+            // 🟢 Create New Transactions based on updated form
+            if (in_array($validated['status'], ['paid', 'partially_paid']) && $request->has('payments')) {
                 foreach ($request->payments as $payment) {
                     if ($payment['amount'] > 0) {
                         $account = Account::findOrFail($payment['account_id']);
@@ -144,19 +162,23 @@ class SalaryController extends Controller
                             'transaction_date' => $validated['payment_date'] ?? now(), 
                             'description' => "Salary Payment Updated: " . $salary->month_year
                         ]);
+
+                        $total_paid += $payment['amount'];
                     }
                 }
             }
 
             $salary->update([
-                'user_id' => $validated['user_id'],
-                'month_year' => $validated['month_year'],
+                'user_id'      => $validated['user_id'],
+                'month_year'   => $validated['month_year'],
                 'basic_salary' => $validated['basic_salary'] ?? 0,
-                'allowances' => $validated['allowances'] ?? 0,
-                'bonus' => $validated['bonus'] ?? 0,
-                'deductions' => $validated['deductions'] ?? 0,
-                'net_pay' => $net_pay,
-                'status' => $validated['status'],
+                'allowances'   => $validated['allowances'] ?? 0,
+                'bonus'        => $validated['bonus'] ?? 0,
+                'deductions'   => $validated['deductions'] ?? 0,
+                'net_pay'      => $net_pay,
+                'paid_amount'  => $total_paid,
+                'due_amount'   => $net_pay - $total_paid,
+                'status'       => ($net_pay - $total_paid) <= 0 ? 'paid' : ($total_paid > 0 ? 'partially_paid' : 'unpaid'),
                 'payment_date' => $validated['payment_date'],
             ]);
         });
@@ -164,12 +186,44 @@ class SalaryController extends Controller
         return redirect()->back()->with('success', 'Salary updated successfully.');
     }
 
+    // 🟢 Keep this method for adding FUTURE payments to an existing payslip
+    public function addPayment(Request $request, string $id)
+    {
+        $salary = Salary::findOrFail($id);
+        
+        $validated = $request->validate([
+            'account_id' => 'required|exists:accounts,id',
+            'amount'     => 'required|numeric|min:1|max:' . $salary->due_amount,
+            'date'       => 'required|date',
+            'note'       => 'nullable|string'
+        ]);
+
+        DB::transaction(function () use ($salary, $validated) {
+            $account = Account::findOrFail($validated['account_id']);
+            $account->decrement('current_balance', $validated['amount']);
+
+            $salary->transactions()->create([
+                'account_id'       => $account->id,
+                'type'             => 'debit',
+                'amount'           => $validated['amount'],
+                'transaction_date' => $validated['date'],
+                'description'      => "Salary Installment Paid for " . $salary->month_year . " - " . ($validated['note'] ?? ''),
+            ]);
+
+            $salary->paid_amount += $validated['amount'];
+            $salary->due_amount -= $validated['amount'];
+            $salary->status = $salary->due_amount <= 0 ? 'paid' : 'partially_paid';
+            $salary->save();
+        });
+
+        return redirect()->back()->with('success', 'Payment installment added successfully.');
+    }
+
     public function destroy(string $id)
     {
         $salary = Salary::findOrFail($id);
 
         DB::transaction(function () use ($salary) {
-            // Reverse all split transactions
             foreach ($salary->transactions as $txn) {
                 $account = Account::find($txn->account_id);
                 if ($account) {

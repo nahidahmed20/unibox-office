@@ -12,4 +12,9 @@ class Salary extends Model {
     {
         return $this->morphMany(Transaction::class, 'transactionable');
     }
+
+    public function employeeProfile()
+    {
+        return $this->hasOne(EmployeeProfile::class);
+    }
 }

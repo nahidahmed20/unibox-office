@@ -4,6 +4,21 @@ import { useForm, Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 import Select from "react-select";
 
+// 🟢 Custom Straight Taka Component
+const Taka = ({ className = "text-[14px]" }) => (
+    <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
+);
+
+const COMPANY = {
+    name: 'UNIBOX',
+    tagline: "Let's Create Together",
+    logo: typeof window !== 'undefined' ? `${window.location.origin}/images/logo.png` : '',
+    phone: '+8801627188836',
+    email: 'uniboxbd4u@gmail.com',
+    website: 'www.uniboxbd4u.com',
+    address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
+};
+
 export default function Index({ expenses = { data: [], links: [] }, totalAmount = 0, thisMonthTotal = 0, categories = [], accounts = [], advances = [] }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
@@ -89,7 +104,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
             .map((e) => `${e.date}\t${e.title}\t${e.category?.name || "N/A"}\t${e.account_id ? e.account?.name : (e.advance_user_id ? 'Advance' : 'N/A')}\tTK. ${e.amount}`)
             .join("\n");
         navigator.clipboard.writeText(text);
-        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false });
+        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
     };
 
     const handleExportCSV = () => {
@@ -191,7 +206,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
         post(editMode ? route("admin.expenses.update", data.id) : route("admin.expenses.store"), {
             onSuccess: () => {
                 reset(); setShowModal(false);
-                Swal.fire({ icon: "success", title: editMode ? "Updated Successfully!" : "Logged Successfully!", timer: 1500, showConfirmButton: false });
+                Swal.fire({ icon: "success", title: editMode ? "Updated Successfully!" : "Logged Successfully!", timer: 1500, showConfirmButton: false, toast: true, position: 'top-end' });
             },
             forceFormData: true,
         });
@@ -202,28 +217,28 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
             title: "Delete Expense?", text: "This will restore the amount to your account or advance balance.", icon: "warning",
             showCancelButton: true, confirmButtonColor: "#ef4444", cancelButtonColor: "#6b7280", confirmButtonText: "Yes, Delete It",
         }).then((res) => {
-            if (res.isConfirmed) destroy(route("admin.expenses.destroy", id), { preserveScroll: true, onSuccess: () => Swal.fire({ icon: "success", title: "Deleted!", timer: 1500, showConfirmButton: false }) });
+            if (res.isConfirmed) destroy(route("admin.expenses.destroy", id), { preserveScroll: true, onSuccess: () => Swal.fire({ icon: "success", title: "Deleted!", timer: 1500, showConfirmButton: false, toast: true, position: 'top-end' }) });
         });
     };
 
     const selectStyles = {
         control: (provided, state) => ({
             ...provided,
-            minHeight: "46px",
+            minHeight: "48px",
             borderRadius: "0.75rem",
-            border: state.isFocused ? "1px solid var(--accent)" : "1px solid #e5e7eb",
-            boxShadow: state.isFocused ? "0 0 0 3px rgba(200, 155, 60, 0.15)" : "none",
-            "&:hover": { borderColor: state.isFocused ? "var(--accent)" : "#d1d5db" },
+            border: state.isFocused ? "1px solid var(--accent, #6366f1)" : "1px solid #d1d5db",
+            boxShadow: state.isFocused ? "0 0 0 3px rgba(99, 102, 241, 0.1)" : "none",
+            "&:hover": { borderColor: state.isFocused ? "var(--accent, #6366f1)" : "#9ca3af" },
             fontSize: "14px",
-            background: state.isFocused ? "#fff" : "#f9fafb",
+            background: "#fff",
             cursor: "pointer"
         }),
         valueContainer: (provided) => ({ ...provided, padding: "2px 12px" }),
         placeholder: (provided) => ({ ...provided, color: "#9ca3af", fontSize: "14px" }),
-        singleValue: (provided) => ({ ...provided, color: "#1f2937", fontSize: "14px", fontWeight: "500" }),
+        singleValue: (provided) => ({ ...provided, color: "#1f2937", fontSize: "14px", fontWeight: "600" }),
         option: (provided, state) => ({
             ...provided, fontSize: "14px",
-            backgroundColor: state.isSelected ? "var(--accent)" : state.isFocused ? "var(--accent-bg)" : "#fff",
+            backgroundColor: state.isSelected ? "var(--accent, #4f46e5)" : state.isFocused ? "#f8fafc" : "#fff",
             color: state.isSelected ? "#fff" : "#1f2937", cursor: "pointer",
             padding: "10px 12px"
         }),
@@ -232,110 +247,126 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
     };
 
     const advanceOptions = advances.map((a) => {
-        return { value: a.user_id, label: `${a.user?.name || 'Unknown'} (Rem: ${Number(a.balance).toLocaleString('en-IN')})` };
+        return { value: a.user_id, label: `${a.user?.name || 'Unknown'} (Rem: ৳${Number(a.balance).toLocaleString('en-IN')})` };
     });
 
     return (
         <AdminLayout>
             <Head title="Office Expenses" />
 
-            <div className="flex flex-col gap-6">
+            <style dangerouslySetInnerHTML={{__html: `
+                .custom-table-scroll::-webkit-scrollbar { height: 8px; }
+                .custom-table-scroll::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
+                .custom-table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+                .custom-table-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+            `}} />
+
+            <div className="flex flex-col gap-8 max-w-[1600px] mx-auto pb-12 mt-2">
 
                 {/* Page Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
                     <div>
-                        <h1 className="text-[22px] font-bold text-[#202223]">Office Expenses</h1>
-                        <p className="text-[14px] text-gray-500 mt-1">Monitor and manage internal company expenses.</p>
-                    </div>
-                </div>
-
-                {/* Summary Stat Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                            <i className="fa-solid fa-calendar-check text-[24px]"></i>
+                        <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-indigo-600">
+                            <span className="h-1.5 w-1.5 rounded-full bg-indigo-600"></span> Financial Operations
                         </div>
-                        <div>
-                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-500">This Month's Total</p>
-                            <h3 className="text-[24px] font-extrabold text-gray-900 m-0">
-                                <i className="fa-solid fa-bangladeshi-taka-sign text-[20px] mr-1 text-gray-400"></i>
-                                {parseFloat(thisMonthTotal || 0).toLocaleString('en-IN')}
-                            </h3>
-                        </div>
+                        <h1 className="text-[28px] font-extrabold text-gray-900 tracking-tight">Office Expenses</h1>
+                        <p className="text-[14.5px] text-gray-500 mt-1.5 max-w-lg leading-relaxed">Monitor and manage internal company expenses and outlays.</p>
                     </div>
 
-                    <div className="flex items-center gap-4 rounded-2xl border border-red-200 bg-red-50/50 p-6 shadow-sm transition-shadow hover:shadow-md">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
-                            <i className="fa-solid fa-filter text-[22px]"></i>
+                    {/* Summary Stat Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full lg:w-auto">
+                        <div className="flex items-center gap-3.5 rounded-2xl border border-blue-100 bg-gradient-to-br from-white to-blue-50/30 px-5 py-4 shadow-sm">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-500 text-white shadow-sm">
+                                <i className="fa-solid fa-calendar-check text-[15px]"></i>
+                            </div>
+                            <div>
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-blue-600/90">This Month's Total</p>
+                                <h3 className="text-[18px] font-black text-blue-700 tabular-nums tracking-tight mt-0.5">
+                                    <Taka />{parseFloat(thisMonthTotal || 0).toLocaleString('en-IN')}
+                                </h3>
+                            </div>
                         </div>
-                        <div>
-                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-red-500">Filtered Total</p>
-                            <h3 className="text-[24px] font-extrabold text-red-700 m-0">
-                                <i className="fa-solid fa-bangladeshi-taka-sign text-[20px] mr-1 text-red-400"></i>
-                                {parseFloat(totalAmount || 0).toLocaleString('en-IN')}
-                            </h3>
+
+                        <div className="flex items-center gap-3.5 rounded-2xl border border-rose-100 bg-gradient-to-br from-white to-rose-50/30 px-5 py-4 shadow-sm">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-500 text-white shadow-sm">
+                                <i className="fa-solid fa-filter text-[15px]"></i>
+                            </div>
+                            <div>
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600/90">Filtered Total</p>
+                                <h3 className="text-[18px] font-black text-rose-700 tabular-nums tracking-tight mt-0.5">
+                                    <Taka />{parseFloat(totalAmount || 0).toLocaleString('en-IN')}
+                                </h3>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Main Card Container */}
-                <div className="rounded-2xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
+                <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
 
                     {/* Card Header & Actions */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 px-6 py-5 gap-4 bg-gray-50/40">
                         <div className="text-[16px] font-bold text-gray-900 flex items-center gap-2.5">
-                            <i className="fa-solid fa-receipt text-[var(--accent)]"></i> Expense List
+                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                                <i className="fa-solid fa-receipt text-[14px]"></i>
+                            </div>
+                            Expense List
                         </div>
                         {hasPermission('create_expense') && (
-                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-2.5 text-[14px] font-bold text-white transition-all shadow-sm hover:shadow-md hover:bg-[#b08630]">
+                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-[13.5px] font-bold text-white transition-all hover:bg-indigo-700 shadow-sm hover:shadow-md">
                                 <i className="fa-solid fa-plus"></i> Log Expense
                             </button>
                         )}
                     </div>
 
                     {/* Toolbar & Filters */}
-                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100">
 
-                        <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
+                        <div className="flex flex-wrap items-center gap-3">
                             {/* Show Entries */}
-                            <div className="flex items-center gap-2">
-                                <span>Show</span>
-                                <select
-                                    value={perPage}
-                                    onChange={(e) => setPerPage(e.target.value)}
-                                    className="w-[100px] appearance-none text-center bg-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
-                                >
-                                    <option value="10">10 Entries</option>
-                                    <option value="25">25 Entries</option>
-                                    <option value="50">50 Entries</option>
-                                    <option value="100">100 Entries</option>
-                                    <option value="1000">1000 Entries</option>
-                                    <option value="all">All</option>
-                                </select>
+                            <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
+                                <span className="bg-gray-50/80 px-4 py-2.5 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
+                                    Show
+                                </span>
+                                <div className="relative">
+                                    <select
+                                        value={perPage}
+                                        onChange={(e) => setPerPage(e.target.value)}
+                                        className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
+                                    >
+                                        <option value="10">10 Rows</option>
+                                        <option value="25">25 Rows</option>
+                                        <option value="50">50 Rows</option>
+                                        <option value="100">100 Rows</option>
+                                        <option value="1000">1000 Rows</option>
+                                        <option value="all">All Data</option>
+                                    </select>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-400">
+                                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
+                            <div className="h-6 w-px bg-gray-200 hidden sm:block mx-1"></div>
 
                             {/* Export Buttons */}
-                            <div className="flex items-center gap-1.5">
-                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
-                                    <i className="fas fa-file-csv text-teal-500"></i> CSV
-                                </button>
-                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
-                                    <i className="fas fa-print text-gray-500"></i> Print
-                                </button>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 shadow-sm"><i className="fas fa-file-csv"></i> CSV</button>
+                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm"><i className="fas fa-print text-gray-500"></i> Print</button>
                             </div>
                         </div>
 
                         {/* Search & Date Filters */}
-                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
+                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
 
                             {/* Date Filter Dropdown */}
                             <div className="flex items-center gap-2 w-full sm:w-auto">
                                 <select
                                     value={dateFilter}
                                     onChange={(e) => { setDateFilter(e.target.value); if(e.target.value !== 'custom') { setStartDate(''); setEndDate(''); } }}
-                                    className="appearance-none text-center bg-none w-full sm:w-auto rounded-lg border border-gray-300 bg-white px-4 py-2 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
+                                    className="appearance-none bg-none [background-image:none] w-full sm:w-auto rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-[13.5px] font-bold text-gray-700 outline-none transition-shadow focus:border-indigo-500 cursor-pointer shadow-sm"
                                 >
                                     <option value="all">All Time</option>
                                     <option value="today">Today</option>
@@ -348,91 +379,91 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                 {/* Custom Date Range Picker */}
                                 {dateFilter === "custom" && (
                                     <div className="flex items-center gap-2 animate-[fadeIn_0.2s_ease-out]">
-                                        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-[13px] outline-none transition-shadow focus:border-[var(--accent)] cursor-pointer" />
+                                        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-[13px] font-semibold outline-none transition-shadow focus:border-indigo-500 cursor-pointer shadow-sm" />
                                         <span className="text-gray-400 text-[13px]">to</span>
-                                        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-[13px] outline-none transition-shadow focus:border-[var(--accent)] cursor-pointer" />
+                                        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-[13px] font-semibold outline-none transition-shadow focus:border-indigo-500 cursor-pointer shadow-sm" />
                                     </div>
                                 )}
                             </div>
 
-                            {/* 🟢 Unified Search Box (Searches everything based on Backend) */}
-                            <div className="relative w-full sm:w-[320px]">
-                                <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                            {/* Search Box */}
+                            <div className="relative w-full sm:w-[260px]">
+                                <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
                                 <input
                                     type="text"
-                                    placeholder="Search Title, Date, Amount, Category, User..."
-                                    title="Search by Title, Description, Amount, Date, Category, Bank or Advance User"
+                                    placeholder="Search expenses..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                    className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13px] outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white font-medium"
                                 />
                             </div>
 
                             {/* CLEAR FILTERS BUTTON */}
                             {(searchTerm || dateFilter !== 'all' || perPage !== '10') && (
-                                <button onClick={clearFilters} className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] font-medium text-red-600 transition-colors hover:bg-red-100 shrink-0">
-                                    <i className="fa-solid fa-xmark"></i> Clear Filters
+                                <button onClick={clearFilters} className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[13px] font-bold text-rose-600 transition-colors hover:bg-rose-100 shadow-sm shrink-0">
+                                    <i className="fa-solid fa-xmark"></i> Clear
                                 </button>
                             )}
                         </div>
                     </div>
 
                     {/* Data Table */}
-                    <div className="overflow-x-auto brass-scroll border-t border-[#e1e3e5]">
-                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
-                            <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
+                    <div className="overflow-x-auto custom-table-scroll pb-2 border-t border-gray-100">
+                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1000px]">
+                            <thead className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
                                 <tr>
-                                    <th className="px-6 py-4 w-12">SL</th>
-                                    <th className="px-6 py-4">Date</th>
-                                    <th className="px-6 py-4">Expense Title</th>
-                                    <th className="px-6 py-4">Category & Source</th>
-                                    <th className="px-6 py-4 text-right">Amount</th>
-                                    <th className="px-6 py-4 text-center">Actions</th>
+                                    <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-12">SL</th>
+                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Date</th>
+                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-[30%]">Expense Title</th>
+                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Category & Source</th>
+                                    <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Amount</th>
+                                    <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] no-print">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="text-[14px] text-gray-700">
+                            <tbody className="text-[13.5px] text-gray-800 divide-y divide-gray-100">
                                 {expList.length > 0 ? (
                                     expList.map((exp, index) => (
-                                        <tr key={exp.id} className="border-b border-gray-100 hover:bg-gray-50/80 transition-colors">
-                                            <td className="px-6 py-4 font-medium text-gray-500">
+                                        <tr key={exp.id} className="hover:bg-slate-50/80 transition-colors group">
+                                            <td className="px-6 py-4 font-medium text-gray-400 text-center">
                                                 {expenses.from ? expenses.from + index : index + 1}
                                             </td>
-                                            <td className="px-6 py-4 text-gray-500 font-medium">{exp.date}</td>
+                                            <td className="px-6 py-4 font-semibold text-gray-600">
+                                                <div className="flex items-center gap-1.5"><i className="fa-regular fa-calendar-days text-[11px] text-gray-400"></i> {exp.date}</div>
+                                            </td>
                                             <td className="px-6 py-4">
-                                                <div className="font-bold text-gray-900">{exp.title}</div>
+                                                <div className="font-extrabold text-[14.5px] text-gray-900 truncate max-w-[300px]" title={exp.title}>{exp.title}</div>
                                                 {exp.description && (
-                                                    <div className="text-[12.5px] text-gray-500 mt-0.5 max-w-[280px] truncate" title={exp.description}>
+                                                    <div className="text-[12px] font-medium text-gray-500 mt-1 max-w-[280px] truncate" title={exp.description}>
                                                         {exp.description}
                                                     </div>
                                                 )}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="inline-flex px-2.5 py-1 mb-1.5 rounded-md bg-gray-100 text-[10px] font-bold uppercase tracking-wider text-gray-600 border border-gray-200">
+                                                <span className="inline-flex px-2.5 py-1 mb-1.5 rounded-md bg-gray-100 text-[10px] font-extrabold uppercase tracking-wider text-gray-600 border border-gray-200">
                                                     {exp.category?.name || "Uncategorized"}
                                                 </span>
-                                                <div className="text-[12.5px] text-gray-600 font-medium">
-                                                    <i className={exp.advance_user_id ? "fa-solid fa-hand-holding-dollar mr-1.5 text-emerald-500" : "fa-solid fa-building-columns mr-1.5 text-purple-500"}></i>
+                                                <div className="text-[12px] text-gray-600 font-bold flex items-center gap-1.5">
+                                                    <i className={exp.advance_user_id ? "fa-solid fa-hand-holding-dollar text-emerald-500 text-[11px]" : "fa-solid fa-building-columns text-indigo-400 text-[11px]"}></i>
                                                     {exp.account_id ? (exp.account?.name || 'Account') : (exp.advance_user_id ? 'Advance' : 'N/A')}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-right font-bold text-red-600 text-[15px]">
-                                                <i className="fa-solid fa-bangladeshi-taka-sign text-[13px] mr-0.5 text-red-400"></i>
-                                                {parseFloat(exp.amount).toLocaleString('en-IN')}
+                                            <td className="px-6 py-4 text-right font-black text-rose-600 text-[15px] tabular-nums bg-rose-50/10 group-hover:bg-rose-50/30 transition-colors">
+                                                <Taka />{parseFloat(exp.amount).toLocaleString('en-IN')}
                                             </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <div className="flex items-center justify-center gap-2">
+                                            <td className="px-6 py-4 text-right no-print">
+                                                <div className="flex items-center justify-end gap-1.5">
                                                     {hasPermission('view_expence') && (
-                                                        <button onClick={() => openViewModal(exp)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors" title="View Details">
+                                                        <button onClick={() => openViewModal(exp)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors shadow-sm" title="View Details">
                                                             <i className="fa-regular fa-eye text-[13px]"></i>
                                                         </button>
                                                     )}
                                                     {hasPermission('edit_expence') && (
-                                                        <button onClick={() => openEditModal(exp)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors" title="Edit Expense">
+                                                        <button onClick={() => openEditModal(exp)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors shadow-sm" title="Edit Expense">
                                                             <i className="fa-regular fa-pen-to-square text-[13px]"></i>
                                                         </button>
                                                     )}
                                                     {hasPermission('delete_expence') && (
-                                                        <button onClick={() => handleDelete(exp.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete Expense">
+                                                        <button onClick={() => handleDelete(exp.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors shadow-sm" title="Delete Expense">
                                                             <i className="fa-regular fa-trash-can text-[13px]"></i>
                                                         </button>
                                                     )}
@@ -442,12 +473,13 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="6" className="px-6 py-16 text-center text-gray-500">
+                                        <td colSpan="6" className="px-6 py-20 text-center text-gray-500">
                                             <div className="flex flex-col items-center justify-center">
-                                                <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                                                    <i className="fa-solid fa-receipt text-2xl text-gray-400"></i>
+                                                <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400 shadow-sm border border-gray-200">
+                                                    <i className="fa-solid fa-receipt text-2xl"></i>
                                                 </div>
-                                                <p className="text-[15px] font-medium text-gray-600">No expenses found for this period.</p>
+                                                <p className="text-[15px] font-bold text-gray-700">No expenses found for this period.</p>
+                                                <p className="text-[13px] font-medium text-gray-400 mt-1">Try adjusting your filters or log a new expense.</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -458,20 +490,20 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
 
                     {/* Pagination */}
                     {expenses.links && expenses.links.length > 3 && (
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#e1e3e5] bg-[#f6f6f7] px-6 py-4">
-                            <div className="text-[13px] text-gray-500 font-medium">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100 bg-white px-6 py-4 no-print">
+                            <div className="text-[13.5px] font-medium text-gray-500">
                                 Showing {expenses.from || 0} to {expenses.to || 0} of {expenses.total || 0} entries
                             </div>
-                            <div className="flex flex-wrap items-center gap-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
                                 {expenses.links.map((link, index) => (
                                     <Link
                                         key={index}
                                         href={link.url || "#"}
-                                        className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] font-medium transition-colors
-                                            ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm' : link.url ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'border-gray-200 bg-transparent text-gray-400 pointer-events-none'}
+                                        className={`flex min-w-[36px] items-center justify-center rounded-lg border px-3 py-2 text-[13px] font-bold transition-all
+                                            ${link.active ? 'border-indigo-600 bg-indigo-600 text-white shadow-md' : link.url ? 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300' : 'border-gray-100 bg-gray-50 text-gray-400 pointer-events-none'}
                                         `}
                                         preserveState
-                                        dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }}
+                                        dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "«").replace("&raquo;", "»") }}
                                     />
                                 ))}
                             </div>
@@ -482,98 +514,87 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
 
             {/* --- WIDE & MODERN VIEW DETAILS MODAL --- */}
             {showViewModal && selectedExpense && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
-                    <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl flex flex-col relative my-auto animate-[fadeIn_0.2s_ease-out]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
+                    <div className="w-full max-w-3xl bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
 
                         {/* Modal Header */}
-                        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-gray-50/80 rounded-t-3xl">
-                            <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-                                    <i className="fa-solid fa-receipt text-lg"></i>
+                        <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 px-8 py-8 shrink-0 overflow-hidden">
+                            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-white opacity-10 translate-x-10 -translate-y-10"></div>
+                            <div className="absolute left-0 bottom-0 h-24 w-24 rounded-full bg-black opacity-10 -translate-x-5 translate-y-5"></div>
+
+                            <button onClick={() => setShowViewModal(false)} className="absolute top-5 right-5 bg-black/20 hover:bg-black/40 text-white h-9 w-9 rounded-full flex items-center justify-center transition-colors backdrop-blur-md z-20">
+                                <i className="fa-solid fa-xmark text-sm"></i>
+                            </button>
+
+                            <div className="relative z-10 flex flex-col sm:flex-row gap-5 items-start">
+                                <div className="h-16 w-16 shrink-0 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-white text-3xl shadow-lg ring-1 ring-white/30">
+                                    <i className="fa-solid fa-receipt"></i>
                                 </div>
                                 <div>
-                                    <h3 className="text-[18px] font-extrabold text-gray-900 tracking-tight">Expense Details</h3>
-                                    <p className="text-[12.5px] text-gray-500 font-medium">Reference: #{String(selectedExpense.id).padStart(5, '0')}</p>
+                                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                                        <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-widest bg-white/20 text-white">
+                                            Ref: #{String(selectedExpense.id).padStart(5, '0')}
+                                        </span>
+                                    </div>
+                                    <h2 className="text-[26px] font-black text-white tracking-tight leading-tight">{selectedExpense.title}</h2>
                                 </div>
                             </div>
-                            <button onClick={() => setShowViewModal(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-200 text-gray-600 hover:bg-red-100 hover:text-red-600 transition-colors">
-                                <i className="fa-solid fa-xmark text-[15px]"></i>
-                            </button>
                         </div>
 
                         {/* Modal Body */}
-                        <div className="p-8">
-                            {/* Amount Display */}
-                            <div className="text-center mb-8 bg-red-50/50 py-6 rounded-2xl border border-red-100">
-                                <span className="block text-[11px] font-bold uppercase tracking-widest text-red-400 mb-1">Total Expense</span>
-                                <div className="text-[36px] font-black text-red-600 tracking-tight flex justify-center items-center gap-1.5">
-                                    <i className="fa-solid fa-bangladeshi-taka-sign text-[26px] text-red-400"></i>
-                                    {parseFloat(selectedExpense.amount).toLocaleString('en-IN')}
+                        <div className="p-6 md:p-8 overflow-y-auto custom-table-scroll space-y-6">
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5"><i className="fa-solid fa-tag mr-1 text-indigo-400"></i> Category</span>
+                                    <div className="font-bold text-gray-900 text-[15px]">{selectedExpense.category?.name || "Uncategorized"}</div>
+                                </div>
+                                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5"><i className="fa-regular fa-calendar-days mr-1 text-rose-400"></i> Date</span>
+                                    <div className="font-bold text-gray-900 text-[15px]">{selectedExpense.date || "-"}</div>
+                                </div>
+                                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5"><i className="fa-solid fa-money-bill-wave mr-1 text-emerald-500"></i> Amount</span>
+                                    <div className="font-black text-rose-600 text-[18px] tabular-nums"><Taka />{parseFloat(selectedExpense.amount).toLocaleString('en-IN')}</div>
                                 </div>
                             </div>
 
-                            {/* Details Grid */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-                                <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 sm:col-span-2">
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">Expense Title</span>
-                                    <div className="text-[18px] font-bold text-gray-900">{selectedExpense.title}</div>
-                                </div>
-
-                                <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">Category</span>
-                                    <div className="font-bold text-gray-800 flex items-center gap-2">
-                                        <i className="fa-solid fa-tag text-[var(--accent)]"></i>
-                                        {selectedExpense.category?.name || "Uncategorized"}
-                                    </div>
-                                </div>
-
-                                <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">Date Logged</span>
-                                    <div className="font-bold text-gray-800 flex items-center gap-2">
-                                        <i className="fa-regular fa-calendar-days text-rose-500"></i>
-                                        {selectedExpense.date || "-"}
-                                    </div>
-                                </div>
-
-                                <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 sm:col-span-2">
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">Payment Source</span>
-                                    <div className="flex items-center gap-3">
-                                        {selectedExpense.account_id ? (
-                                            <><div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><i className="fa-solid fa-building-columns"></i></div><div><p className="text-[15px] font-bold text-gray-900">{selectedExpense.account?.name}</p><p className="text-[12px] text-gray-500">Bank / Cash Box</p></div></>
-                                        ) : selectedExpense.advance_user_id ? (
-                                            <><div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600"><i className="fa-solid fa-hand-holding-dollar"></i></div><div><p className="text-[15px] font-bold text-gray-900">{selectedExpense.advance_user?.name}</p><p className="text-[12px] text-gray-500">Advance Balance</p></div></>
-                                        ) : (
-                                            <><div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500"><i className="fa-solid fa-ban"></i></div><div><p className="text-[15px] font-bold text-gray-900">Unknown Source</p></div></>
-                                        )}
+                            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
+                                <div>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Payment Source</span>
+                                    <div className="font-bold text-gray-900 text-[15px] flex items-center gap-2">
+                                        <i className={selectedExpense.advance_user_id ? "fa-solid fa-hand-holding-dollar text-emerald-500" : "fa-solid fa-building-columns text-indigo-500"}></i>
+                                        {selectedExpense.account_id ? (selectedExpense.account?.name || 'Account') : (selectedExpense.advance_user_id ? `Advance (${selectedExpense.advance_user?.name || ''})` : 'N/A')}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Description & Notes */}
-                            <div className="border-t border-gray-100 pt-6">
-                                <span className="block text-[12px] font-bold uppercase tracking-wider text-gray-800 mb-3"><i className="fa-solid fa-align-left text-gray-400 mr-2"></i> Description & Notes</span>
-                                <div className="bg-white p-5 rounded-2xl border border-gray-200 text-gray-600 text-[14.5px] leading-relaxed min-h-[80px] whitespace-pre-line shadow-sm">
+                            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                                <span className="block text-[12px] font-bold uppercase tracking-wider text-gray-800 mb-3 border-b border-gray-100 pb-2"><i className="fa-solid fa-align-left text-gray-400 mr-1.5"></i> Description & Notes</span>
+                                <div className="text-gray-600 text-[14.5px] leading-relaxed whitespace-pre-line bg-gray-50 p-4 rounded-xl border border-gray-100 min-h-[90px]">
                                     {selectedExpense.description || <span className="italic text-gray-400">No description provided for this transaction.</span>}
                                 </div>
                             </div>
 
                             {selectedExpense.attachment && (
-                                <div className="mt-6">
+                                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
+                                    <span className="text-[12px] font-bold uppercase tracking-wider text-gray-600">Attached Receipt Document</span>
                                     <a
                                         href={`/storage/${selectedExpense.attachment}`}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-[13.5px] font-bold text-indigo-700 transition-colors hover:bg-indigo-100 hover:border-indigo-300 w-full sm:w-auto"
+                                        className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-xl text-[13px] font-bold transition-colors shadow-sm"
                                     >
-                                        <i className="fa-solid fa-paperclip"></i> View Attached Receipt
+                                        <i className="fa-solid fa-paperclip"></i> View Document
                                     </a>
                                 </div>
                             )}
+
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="px-8 py-5 border-t border-gray-100 bg-gray-50/80 rounded-b-3xl flex justify-end">
-                            <button onClick={() => setShowViewModal(false)} className="rounded-xl bg-gray-900 px-8 py-2.5 text-[14px] font-bold text-white transition-all shadow-md hover:bg-gray-800 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-700/50">
+                        <div className="px-6 py-5 border-t border-gray-200 bg-white flex justify-end shrink-0">
+                            <button onClick={() => setShowViewModal(false)} className="rounded-xl bg-gray-900 px-8 py-3 text-[14px] font-bold text-white transition-colors hover:bg-gray-800 shadow-md">
                                 Close Window
                             </button>
                         </div>
@@ -583,111 +604,107 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
 
             {/* --- WIDE & MODERN CREATE / EDIT FORM MODAL --- */}
             {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 sm:p-6">
-                    <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
+                    <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
 
                         {/* Modal Header */}
                         <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white shrink-0">
                             <div>
                                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase tracking-wider mb-1.5">
-                                    <i className="fa-solid fa-file-invoice-dollar"></i> {editMode ? 'Update' : 'New Entry'}
+                                    <i className="fa-solid fa-receipt"></i> {editMode ? 'Update' : 'New Entry'}
                                 </div>
                                 <h3 className="text-[20px] font-extrabold text-gray-900 tracking-tight">
                                     {editMode ? "Edit Office Expense" : "Log Office Expense"}
                                 </h3>
                             </div>
-                            <button onClick={() => setShowModal(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600 transition-colors">
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-red-500 bg-gray-100 hover:bg-red-50 h-9 w-9 rounded-full flex items-center justify-center transition-colors">
                                 <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
 
                         {/* Modal Body & Form */}
-                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden flex-1">
-                            <div className="p-8 overflow-y-auto brass-scroll flex-1">
+                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden h-full">
+                            <div className="p-8 overflow-y-auto custom-table-scroll space-y-6">
 
                                 {errors.error && (
-                                    <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-[13.5px] font-semibold text-red-700 shadow-sm">
+                                    <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-[13.5px] font-semibold text-red-700 shadow-sm">
                                         <i className="fa-solid fa-circle-exclamation mt-0.5 text-lg"></i>
                                         {errors.error}
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-                                    <div className="sm:col-span-2">
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Expense Title / Subject <span className="text-rose-500">*</span></label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="md:col-span-2">
+                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Expense Title / Subject <span className="text-red-500">*</span></label>
                                         <input
                                             type="text"
                                             value={data.title}
                                             onChange={e => setData('title', e.target.value)}
-                                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-[15px] font-semibold text-gray-900 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
+                                            className="w-full rounded-xl border border-gray-300 px-4 py-3 text-[14px] font-bold text-gray-900 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm"
                                             placeholder="e.g. Monthly Electricity Bill"
                                             required
                                             autoFocus
                                         />
-                                        {errors.title && <p className="text-rose-500 text-[12px] mt-1.5 font-medium">{errors.title}</p>}
+                                        {errors.title && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.title}</p>}
                                     </div>
 
-                                    <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Expense Category <span className="text-rose-500">*</span></label>
+                                    <div className="relative z-[60]">
+                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Expense Category <span className="text-red-500">*</span></label>
                                         <Select
                                             options={categories.map((c) => ({ value: c.id, label: c.name }))}
                                             value={categories.map((c) => ({ value: c.id, label: c.name })).find((opt) => Number(opt.value) === Number(data.expense_category_id)) || null}
                                             onChange={(selected) => setData("expense_category_id", selected ? selected.value : "")}
                                             placeholder="Search Category..."
-                                            isSearchable
-                                            isClearable
+                                            isSearchable isClearable
                                             styles={selectStyles}
-                                            menuPosition="fixed"
                                             menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
                                         />
-                                        {errors.expense_category_id && <p className="text-rose-500 text-[12px] mt-1.5 font-medium">{errors.expense_category_id}</p>}
+                                        {errors.expense_category_id && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.expense_category_id}</p>}
                                     </div>
 
                                     <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Transaction Date <span className="text-rose-500">*</span></label>
+                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Transaction Date <span className="text-red-500">*</span></label>
                                         <input
                                             type="date"
                                             value={data.date}
                                             onChange={e => setData('date', e.target.value)}
-                                            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-[14.5px] font-semibold text-gray-900 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
+                                            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-[14px] font-bold text-gray-700 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm"
                                             required
                                         />
-                                        {errors.date && <p className="text-rose-500 text-[12px] mt-1.5 font-medium">{errors.date}</p>}
+                                        {errors.date && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.date}</p>}
                                     </div>
                                 </div>
 
-                                <div className="mb-6 p-5 bg-gray-50/80 rounded-2xl border border-gray-100">
-                                    <label className="block text-[13px] font-extrabold text-gray-900 mb-3 border-b border-gray-200 pb-2">Payment Source <span className="text-rose-500">*</span></label>
+                                <div className="p-5 bg-gray-50 border border-gray-100 rounded-2xl">
+                                    <label className="block text-[12px] font-bold text-gray-700 uppercase tracking-wider mb-3">Payment Source <span className="text-red-500">*</span></label>
 
                                     <div className="flex flex-col sm:flex-row gap-4 mb-4">
-                                        <label className={`flex-1 cursor-pointer rounded-xl border-2 p-4 text-center transition-all ${data.pay_type === 'account' ? 'border-emerald-500 bg-emerald-50 shadow-sm' : 'border-gray-200 bg-white hover:border-emerald-200'}`}>
+                                        <label className={`flex-1 cursor-pointer rounded-2xl border-2 p-4 text-center transition-all ${data.pay_type === 'account' ? 'border-indigo-500 bg-indigo-50/50 shadow-sm' : 'border-gray-200 bg-white hover:border-indigo-200'}`}>
                                             <input type="radio" name="payType" className="sr-only" checked={data.pay_type === 'account'} onChange={() => { setData('pay_type', 'account'); setData('advance_user_id', ''); }} />
-                                            <i className={`fa-solid fa-building-columns text-2xl mb-2 block transition-colors ${data.pay_type === 'account' ? 'text-emerald-600' : 'text-gray-400'}`}></i>
-                                            <span className={`block text-[14px] font-bold transition-colors ${data.pay_type === 'account' ? 'text-emerald-800' : 'text-gray-600'}`}>Bank / Cash Box</span>
+                                            <i className={`fa-solid fa-building-columns text-xl mb-1.5 block ${data.pay_type === 'account' ? 'text-indigo-600' : 'text-gray-400'}`}></i>
+                                            <span className={`block text-[13.5px] font-extrabold ${data.pay_type === 'account' ? 'text-indigo-900' : 'text-gray-600'}`}>Bank / Cash Box</span>
                                         </label>
 
-                                        <label className={`flex-1 cursor-pointer rounded-xl border-2 p-4 text-center transition-all ${data.pay_type === 'advance' ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-gray-200 bg-white hover:border-blue-200'}`}>
+                                        <label className={`flex-1 cursor-pointer rounded-2xl border-2 p-4 text-center transition-all ${data.pay_type === 'advance' ? 'border-emerald-500 bg-emerald-50/50 shadow-sm' : 'border-gray-200 bg-white hover:border-emerald-200'}`}>
                                             <input type="radio" name="payType" className="sr-only" checked={data.pay_type === 'advance'} onChange={() => { setData('pay_type', 'advance'); setData('account_id', ''); }} />
-                                            <i className={`fa-solid fa-hand-holding-dollar text-2xl mb-2 block transition-colors ${data.pay_type === 'advance' ? 'text-blue-600' : 'text-gray-400'}`}></i>
-                                            <span className={`block text-[14px] font-bold transition-colors ${data.pay_type === 'advance' ? 'text-blue-800' : 'text-gray-600'}`}>Advance Balance</span>
+                                            <i className={`fa-solid fa-hand-holding-dollar text-xl mb-1.5 block ${data.pay_type === 'advance' ? 'text-emerald-600' : 'text-gray-400'}`}></i>
+                                            <span className={`block text-[13.5px] font-extrabold ${data.pay_type === 'advance' ? 'text-emerald-900' : 'text-gray-600'}`}>Advance Balance</span>
                                         </label>
                                     </div>
 
-                                    <div className="animate-[fadeIn_0.3s_ease-in-out]">
+                                    <div className="relative z-[50]">
                                         {data.pay_type === 'account' ? (
                                             <>
                                                 <Select
-                                                    options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${Number(a.current_balance).toLocaleString('en-IN')})` }))}
-                                                    value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
+                                                    options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` }))}
+                                                    value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
                                                     onChange={(selected) => setData("account_id", selected ? selected.value : "")}
-                                                    placeholder="Search Account..."
-                                                    isSearchable
-                                                    isClearable
+                                                    placeholder="-- Search Account --"
+                                                    isSearchable isClearable
                                                     styles={selectStyles}
-                                                    menuPosition="fixed"
                                                     menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
                                                 />
-                                                {errors.account_id && <p className="text-rose-500 text-[12px] mt-1.5 font-medium">{errors.account_id}</p>}
+                                                {errors.account_id && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.account_id}</p>}
                                             </>
                                         ) : (
                                             <>
@@ -695,67 +712,65 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                                     options={advanceOptions}
                                                     value={advanceOptions.find((opt) => Number(opt.value) === Number(data.advance_user_id)) || null}
                                                     onChange={(selected) => setData("advance_user_id", selected ? selected.value : "")}
-                                                    placeholder="Search Advance User..."
-                                                    isSearchable
-                                                    isClearable
+                                                    placeholder="-- Search Advance User --"
+                                                    isSearchable isClearable
                                                     styles={selectStyles}
                                                     noOptionsMessage={() => "No active advance found."}
-                                                    menuPosition="fixed"
                                                     menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
                                                 />
-                                                {errors.advance_user_id && <p className="text-rose-500 text-[12px] mt-1.5 font-medium">{errors.advance_user_id}</p>}
+                                                {errors.advance_user_id && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.advance_user_id}</p>}
                                             </>
                                         )}
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Expense Amount <span className="text-rose-500">*</span></label>
+                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Expense Amount <span className="text-red-500">*</span></label>
                                         <div className="relative">
-                                            <i className="fa-solid fa-bangladeshi-taka-sign absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                                            <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-rose-500 text-[16px]" />
                                             <input
                                                 type="number" step="0.01" min="1"
                                                 value={data.amount}
                                                 onChange={e => setData('amount', e.target.value)}
-                                                className="w-full rounded-xl border border-gray-300 bg-white pl-9 pr-4 py-3.5 text-[16px] font-bold text-gray-900 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm"
+                                                className="w-full rounded-xl border border-rose-200 bg-white pl-9 pr-4 py-3 text-[15px] font-black text-rose-700 outline-none transition-shadow focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 shadow-sm"
                                                 placeholder="0.00"
                                                 required
                                             />
                                         </div>
-                                        {errors.amount && <p className="text-rose-500 text-[12px] mt-1.5 font-medium">{errors.amount}</p>}
+                                        {errors.amount && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.amount}</p>}
                                     </div>
 
                                     <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Attachment <span className="text-gray-400 font-normal normal-case">(Optional)</span></label>
+                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Attachment <span className="text-gray-400 font-medium normal-case tracking-normal">(Optional)</span></label>
                                         <input
                                             type="file"
                                             onChange={e => setData('attachment', e.target.files[0])}
-                                            className="w-full rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-2.5 text-[13.5px] text-gray-600 outline-none file:mr-4 file:rounded-lg file:border-0 file:bg-[var(--accent-bg)] file:px-4 file:py-2 file:text-[13px] file:font-bold file:text-[var(--accent)] hover:file:bg-[var(--accent)] hover:file:text-white transition-all cursor-pointer"
+                                            className="w-full rounded-xl border border-dashed border-gray-300 bg-white px-4 py-2.5 text-[13px] font-medium text-gray-600 outline-none file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-[12px] file:font-bold file:text-indigo-600 hover:file:bg-indigo-100 transition-all cursor-pointer shadow-sm"
                                             accept="image/*,application/pdf"
                                         />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Description / Notes</label>
+                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Description / Notes</label>
                                     <textarea
                                         value={data.description}
                                         onChange={e => setData('description', e.target.value)}
-                                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-[14.5px] text-gray-900 outline-none resize-y min-h-[100px] transition-shadow focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+                                        rows="3"
+                                        className="w-full rounded-xl border border-gray-300 bg-white p-4 text-[14px] font-medium text-gray-900 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 resize-y min-h-[90px] shadow-sm"
                                         placeholder="Add any extra context or breakdown of the expense..."
                                     ></textarea>
                                 </div>
-
                             </div>
 
-                            {/* Form Actions Footer */}
-                            <div className="px-8 py-5 border-t border-gray-100 bg-gray-50/80 flex items-center justify-end gap-3 shrink-0 rounded-b-3xl">
-                                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-3 text-[14.5px] font-bold text-gray-700 transition-all hover:bg-gray-50 shadow-sm">
+                            {/* Modal Footer */}
+                            <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0 rounded-b-3xl">
+                                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={processing} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-8 py-3 text-[14.5px] font-bold text-white transition-all shadow-md hover:bg-indigo-700 hover:shadow-lg disabled:opacity-70">
-                                    {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-save"></i> {editMode ? "Update Record" : "Save Record"}</>}
+                                <button type="submit" disabled={processing} className="rounded-xl bg-indigo-600 px-8 py-2.5 text-[14px] font-bold text-white transition-all hover:bg-indigo-700 shadow-md disabled:opacity-70 flex items-center gap-2">
+                                    {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-check"></i> {editMode ? "Update Record" : "Save Record"}</>}
                                 </button>
                             </div>
                         </form>

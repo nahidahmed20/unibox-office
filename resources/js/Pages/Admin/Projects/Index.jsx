@@ -224,9 +224,9 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                     </div>
                 </div>
 
-                {/* Main Card */}
+                {/* 🟢 Main Card */}
                 <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
-
+                    
                     {/* Card Header & Actions */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 px-6 py-5 gap-4 bg-gray-50/40">
                         <div className="text-[16px] font-bold text-gray-900 flex items-center gap-2.5">
@@ -242,12 +242,43 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                         )}
                     </div>
 
-                    {/* Filters & Search Toolbar */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30 border-b border-gray-100" ref={filterRef}>
+                    {/* 🟢 Unified Filters & Search Toolbar */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100" ref={filterRef}>
+                        
+                        {/* Left Side: Show Rows & Filters */}
                         <div className="flex flex-wrap items-center gap-3">
+                            
+                            {/* 🟢 Premium Show Rows Dropdown */}
+                            <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
+                                <span className="bg-gray-50/80 px-4 py-2.5 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
+                                    Show
+                                </span>
+                                <div className="relative">
+                                    <select 
+                                        value={perPage} 
+                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                        className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
+                                    >
+                                        <option value={10}>10 Rows</option>
+                                        <option value={25}>25 Rows</option>
+                                        <option value={50}>50 Rows</option>
+                                        <option value={100}>100 Rows</option>
+                                        <option value="all">All Data</option>
+                                    </select>
+                                    
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-400">
+                                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="h-6 w-px bg-gray-200 hidden sm:block mx-1"></div>
+
                             {/* Client Filter Dropdown */}
-                            <div className="relative w-full sm:w-[260px]">
-                                <div onClick={() => { setShowClientFilterDropdown(!showClientFilterDropdown); setShowStatusFilterDropdown(false); }} className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-[13.5px] hover:bg-gray-50 transition-shadow shadow-sm font-medium">
+                            <div className="relative w-full sm:w-[220px]">
+                                <div onClick={() => { setShowClientFilterDropdown(!showClientFilterDropdown); setShowStatusFilterDropdown(false); }} className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] hover:bg-gray-50 transition-shadow shadow-sm font-medium">
                                     <span className={filterClient ? 'text-indigo-600 font-bold' : 'text-gray-500'}>
                                         {filterClient ? (clients.find(c => c.id == filterClient)?.name || "All Clients") : "Filter by Client"}
                                     </span>
@@ -274,8 +305,8 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                             </div>
 
                             {/* Status Filter Dropdown */}
-                            <div className="relative w-full sm:w-[200px]">
-                                <div onClick={() => { setShowStatusFilterDropdown(!showStatusFilterDropdown); setShowClientFilterDropdown(false); }} className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-[13.5px] hover:bg-gray-50 transition-shadow shadow-sm font-medium">
+                            <div className="relative w-full sm:w-[160px]">
+                                <div onClick={() => { setShowStatusFilterDropdown(!showStatusFilterDropdown); setShowClientFilterDropdown(false); }} className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] hover:bg-gray-50 transition-shadow shadow-sm font-medium">
                                     <span className={filterStatus ? 'text-indigo-600 font-bold' : 'text-gray-500'}>
                                         {filterStatus ? (statusOptions.find(s => s.value === filterStatus)?.label || "All Status") : "Filter by Status"}
                                     </span>
@@ -298,38 +329,42 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                             </div>
                         </div>
 
+                        {/* Right Side: Search & Export */}
                         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
                             <div className="flex items-center gap-1.5 shrink-0">
                                 <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 shadow-sm"><i className="fas fa-file-csv"></i> CSV</button>
                                 <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm"><i className="fas fa-print text-gray-500"></i> Print</button>
                             </div>
-                            <div className="relative w-full sm:w-[280px]">
-                                <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13.5px]"></i>
-                                <input type="text" placeholder="Search project or client..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13.5px] outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white" />
+                            <div className="relative w-full sm:w-[240px]">
+                                <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                                <input type="text" placeholder="Search project..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13px] outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white" />
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex bg-white px-6 py-3 border-b border-gray-100 justify-between items-center text-[13.5px] text-gray-600">
-                        <div className="flex items-center gap-2.5">
-                            <span className="font-medium text-gray-500">Rows per page:</span>
-                            <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} className="appearance-none text-center bg-gray-50 rounded-lg border border-gray-200 px-3 py-1 text-[13px] font-bold outline-none cursor-pointer">
-                                <option value={10}>10</option><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option><option value="all">All</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Data Table */}
-                    <div className="overflow-x-auto custom-table-scroll pb-2">
+                    {/* 🟢 Data Table with Beautiful Header */}
+                    <div className="overflow-x-auto custom-table-scroll pb-2 border-t border-gray-100">
                         <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1200px]">
-                            <thead className="bg-slate-50 text-[10.5px] font-bold uppercase tracking-wider text-slate-500 border-b border-gray-200">
+                            <thead className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
                                 <tr>
-                                    <th className="px-6 py-4.5 w-12">SL</th>
-                                    <th className="px-6 py-4.5 w-[25%]">Project Details</th>
-                                    <th className="px-6 py-4.5">Client & Manager</th>
-                                    <th className="px-6 py-4.5 text-right">Value / Budget</th>
-                                    <th className="px-6 py-4.5 text-center">Status & Progress</th>
-                                    <th className="px-6 py-4.5 text-center no-print w-36">Actions</th>
+                                    <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-12">
+                                        SL
+                                    </th>
+                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-[28%]">
+                                        Project Details
+                                    </th>
+                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">
+                                        Client & Manager
+                                    </th>
+                                    <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">
+                                        Value / Budget
+                                    </th>
+                                    <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">
+                                        Status & Progress
+                                    </th>
+                                    <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] no-print w-36">
+                                        Actions
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="text-[13.5px] text-gray-800 divide-y divide-gray-100">
@@ -340,20 +375,50 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
                                         return (
                                             <tr key={project.id} className="hover:bg-slate-50/80 transition-colors group">
-                                                <td className="px-6 py-4 font-medium text-gray-400">{projects.from ? projects.from + index : index + 1}</td>
+                                                <td className="px-6 py-4 font-medium text-gray-400 text-center">{projects.from ? projects.from + index : index + 1}</td>
+                                                
+                                                {/* 🟢 BEAUTIFIED: Project Details Column */}
                                                 <td className="px-6 py-4">
-                                                    <div className="font-bold text-[14.5px] text-gray-900 truncate max-w-[300px]" title={project.title}>
-                                                        {project.title}
-                                                    </div>
-                                                    <div className="flex items-center gap-2 mt-1.5">
-                                                        {project.priority && <span className={`px-2 py-0.5 rounded text-[9.5px] font-black uppercase tracking-wider border ${getPriorityStyles(project.priority)}`}>{project.priority}</span>}
-                                                        <span className="text-[11.5px] text-gray-500 font-medium flex items-center gap-1"><i className="fa-regular fa-calendar text-[10px]"></i> Deadline: {project.deadline || "-"}</span>
+                                                    <div className="flex items-start gap-3.5">
+                                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 shadow-sm group-hover:scale-105 transition-transform">
+                                                            <i className="fa-solid fa-layer-group text-[16px]"></i>
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-extrabold text-[14.5px] text-gray-900 truncate max-w-[280px]" title={project.title}>
+                                                                {project.title}
+                                                            </div>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                {project.priority && (
+                                                                    <span className={`px-2 py-0.5 rounded text-[9.5px] font-black uppercase tracking-wider border ${getPriorityStyles(project.priority)}`}>
+                                                                        {project.priority}
+                                                                    </span>
+                                                                )}
+                                                                <span className="text-[11.5px] text-gray-500 font-semibold flex items-center gap-1">
+                                                                    <i className="fa-regular fa-calendar text-[10px] text-gray-400"></i> {project.deadline || "No Deadline"}
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </td>
+
+                                                {/* 🟢 BEAUTIFIED: Client & Manager Column */}
                                                 <td className="px-6 py-4">
-                                                    <div className="font-bold text-indigo-700 text-[13.5px]">{project.client?.name || <span className="text-gray-400 italic">No Client</span>}</div>
-                                                    <div className="text-[12px] text-gray-500 mt-0.5 flex items-center gap-1.5"><i className="fa-solid fa-user-tie text-[10px] opacity-70"></i> {project.project_manager?.name || 'Unassigned'}</div>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-[12px] font-black uppercase shadow-sm">
+                                                            {project.client?.name ? project.client.name.charAt(0) : '?'}
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-bold text-gray-900 text-[13.5px]">
+                                                                {project.client?.name || <span className="text-gray-400 italic">No Client</span>}
+                                                            </div>
+                                                            <div className="text-[11.5px] text-gray-500 mt-0.5 flex items-center gap-1.5 font-medium">
+                                                                <i className="fa-solid fa-user-tie text-[10px] text-indigo-400"></i> {project.project_manager?.name || 'Unassigned'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </td>
+
+                                                {/* Value / Budget */}
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="font-black text-gray-900 text-[15px] tabular-nums bg-gray-50 px-2 py-1 rounded inline-block border border-gray-100">
                                                         {project.budget ? `৳ ${Number(project.budget).toLocaleString('en-IN')}` : <span className="text-gray-400 text-[13px] font-medium italic">No budget set</span>}
@@ -364,16 +429,36 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                                         </div>
                                                     )}
                                                 </td>
+
+                                                {/* Status & Progress */}
                                                 <td className="px-6 py-4 w-[180px]">
-                                                    <select value={project.status} onChange={(e) => handleQuickStatusChange(project.id, e.target.value)} disabled={!canModify} className={`w-full appearance-none bg-white border px-3 py-1.5 mb-2 rounded-lg text-[11px] font-bold uppercase tracking-wider outline-none text-center shadow-sm ${canModify ? 'cursor-pointer focus:ring-2 focus:ring-indigo-500/20' : 'cursor-not-allowed opacity-80'} ${getStatusStyles(project.status)}`}>
-                                                        <option value="planning">Planning</option><option value="in_progress">In Progress</option>
-                                                        <option value="on_hold">On Hold</option><option value="completed">Completed</option>
+                                                    <select 
+                                                        value={project.status} 
+                                                        onChange={(e) => handleQuickStatusChange(project.id, e.target.value)} 
+                                                        disabled={!canModify} 
+                                                        className={`w-full appearance-none bg-white border px-3 py-1.5 mb-2 rounded-lg text-[11px] font-bold uppercase tracking-wider outline-none text-center shadow-sm ${canModify ? 'cursor-pointer focus:ring-2 focus:ring-indigo-500/20' : 'cursor-not-allowed opacity-80'} ${getStatusStyles(project.status)}`}
+                                                    >
+                                                        <option value="planning">Planning</option>
+                                                        <option value="in_progress">In Progress</option>
+                                                        <option value="on_hold">On Hold</option>
+                                                        <option value="completed">Completed</option>
                                                     </select>
+                                                    
+                                                    {/* 🟢 Smart Progress Bar UI */}
                                                     <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1 overflow-hidden">
-                                                        <div className={`h-full rounded-full transition-all duration-500 ${project.progress === 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`} style={{ width: `${project.progress || 0}%` }}></div>
+                                                        <div 
+                                                            className={`h-full rounded-full transition-all duration-500 ${
+                                                                (project.status === 'completed' ? 100 : (project.status === 'planning' ? 0 : project.progress)) === 100 ? 'bg-emerald-500' : 'bg-indigo-500'
+                                                            }`} 
+                                                            style={{ width: `${project.status === 'completed' ? 100 : (project.status === 'planning' ? 0 : project.progress)}%` }}
+                                                        ></div>
                                                     </div>
-                                                    <span className="text-[10px] font-bold text-gray-500 mt-1 block text-right">{project.progress || 0}%</span>
+                                                    <span className="text-[10px] font-bold text-gray-500 mt-1 block text-right">
+                                                        {project.status === 'completed' ? 100 : (project.status === 'planning' ? 0 : (project.progress || 0))}%
+                                                    </span>
                                                 </td>
+
+                                                {/* Actions */}
                                                 <td className="px-6 py-4 text-right no-print">
                                                     <div className="flex items-center justify-end gap-1.5">
                                                         {hasPermission('view_project') && (

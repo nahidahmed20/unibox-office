@@ -153,25 +153,39 @@ class ReportController extends Controller
     {
         $query = AccountTransaction::with('account:id,name');
 
-        if ($request->account_id) {
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('description', 'like', "%{$search}%")
+                  ->orWhere('reference_number', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('account_id')) {
             $query->where('account_id', $request->account_id);
         }
-        if ($request->source_type) {
+        if ($request->filled('source_type')) {
             $query->where('source_type', $request->source_type);
         }
-        if ($request->from) {
+        if ($request->filled('from')) {
             $query->whereDate('created_at', '>=', $request->from);
         }
-        if ($request->to) {
+        if ($request->filled('to')) {
             $query->whereDate('created_at', '<=', $request->to);
         }
 
-        $transactions = $query->latest()->paginate(50)->withQueryString();
+        $perPage = $request->input('per_page', 25);
+        if ($perPage === 'all') {
+            $totalCount = $query->count();
+            $perPage = $totalCount > 0 ? $totalCount : 1;
+        }
+
+        $transactions = $query->latest()->paginate($perPage)->withQueryString();
 
         return Inertia::render('Admin/Reports/TransactionsReport', [
             'transactions' => $transactions,
             'accounts'     => Account::select('id', 'name')->get(),
-            'filters'      => $request->only('account_id', 'source_type', 'from', 'to'),
+            'filters'      => $request->only('account_id', 'source_type', 'from', 'to', 'search', 'per_page'),
         ]);
     }
 

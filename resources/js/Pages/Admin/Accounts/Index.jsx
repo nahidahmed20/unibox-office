@@ -294,21 +294,31 @@ export default function Index({ accounts = { data: [], links: [] }, summary = {}
                     {/* Toolbar */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100">
                         <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
-                            <div className="flex items-center gap-2.5">
-                                <span className="font-medium text-gray-500">Show</span>
-                                <select
-                                    value={perPage}
-                                    onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
-                                    className="appearance-none text-center bg-white rounded-xl border border-gray-300 px-4 py-2.5 text-[13.5px] font-bold outline-none transition-shadow focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-sm"
-                                >
-                                    <option value={10}>10 Rows</option>
-                                    <option value={25}>25 Rows</option>
-                                    <option value={50}>50 Rows</option>
-                                    <option value={100}>100 Rows</option>
-                                    <option value="all">All Data</option>
-                                </select>
+                            {/* 🟢 Premium Show Rows Dropdown (No Double Icon) */}
+                            <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
+                                <span className="bg-gray-50/80 px-4 py-2.5 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
+                                    Show
+                                </span>
+                                <div className="relative">
+                                    <select 
+                                        value={perPage} 
+                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                        className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
+                                    >
+                                        <option value={10}>10 Rows</option>
+                                        <option value={25}>25 Rows</option>
+                                        <option value={50}>50 Rows</option>
+                                        <option value={100}>100 Rows</option>
+                                        <option value="all">All Data</option>
+                                    </select>
+                                    
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-400">
+                                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                </div>
                             </div>
-
                             <div className="h-8 w-px bg-gray-200 hidden md:block"></div>
 
                             {/* Export Buttons */}

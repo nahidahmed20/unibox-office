@@ -22,7 +22,7 @@ export default function Index({ designations = { data: [], links: [] } }) {
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
 
-    // View Modal State
+    // View Details Modal State
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedDesignation, setSelectedDesignation] = useState(null);
 
@@ -30,7 +30,8 @@ export default function Index({ designations = { data: [], links: [] } }) {
         return new URLSearchParams(window.location.search).get('search') || '';
     });
     const [perPage, setPerPage] = useState(() => {
-        return Number(new URLSearchParams(window.location.search).get("per_page")) || 10;
+        const raw = new URLSearchParams(window.location.search).get("per_page");
+        return raw === "all" ? "all" : (raw ? Number(raw) : 25);
     });
 
     const isFirstRender = useRef(true);
@@ -50,12 +51,13 @@ export default function Index({ designations = { data: [], links: [] } }) {
         const delayDebounceFn = setTimeout(() => {
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
-            if (perPage !== 10) params.per_page = perPage;
+            if (perPage !== 25) params.per_page = perPage;
 
-            router.get(route('admin.designations.index'), params, {
-                preserveState: true,
-                replace: true
-            });
+            router.get(
+                route('admin.designations.index'),
+                params,
+                { preserveState: true, replace: true }
+            );
         }, 400);
 
         return () => clearTimeout(delayDebounceFn);
@@ -68,7 +70,7 @@ export default function Index({ designations = { data: [], links: [] } }) {
             .map((d) => `${d.name}\t${d.description || "N/A"}`)
             .join("\n");
         navigator.clipboard.writeText(text);
-        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false });
+        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
     };
 
     // --- Export CSV ---
@@ -86,53 +88,7 @@ export default function Index({ designations = { data: [], links: [] } }) {
 
     // --- Custom Full Screen Print ---
     const handlePrint = () => {
-        const tableContent = document.getElementById("printable-table");
-        if (!tableContent) return;
-
-        const printWindow = window.open('', '_blank', `width=${window.screen.width},height=${window.screen.height},top=0,left=0`);
-
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Designations Report</title>
-                    <style>
-                        * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px 40px; color: #1e293b; }
-                        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #147a5b; padding-bottom: 15px; margin-bottom: 20px; }
-                        .logo { height: 45px; width: auto; }
-                        .company-details { text-align: right; font-size: 11px; line-height: 1.5; color: #475569; }
-                        .company-details h2 { margin: 0 0 3px 0; font-size: 18px; color: #147a5b; text-transform: uppercase; letter-spacing: 1px; }
-                        h2.report-title { text-align: center; color: #0f172a; margin-bottom: 5px; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; }
-                        p.report-date { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 13px; }
-                        table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; }
-                        th, td { padding: 10px 12px; border: 1px solid #cbd5e1; font-size: 12.5px; }
-                        th { background-color: #f8fafc; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
-                        /* Hide Actions Column */
-                        th:last-child, td:last-child { display: none !important; }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <div><img src="${COMPANY.logo}" class="logo" alt="Logo" /></div>
-                        <div class="company-details">
-                            <h2>${COMPANY.name}</h2>
-                            ${COMPANY.address}<br/>
-                            Phone: ${COMPANY.phone} | Email: ${COMPANY.email}
-                        </div>
-                    </div>
-                    <h2 class="report-title">Designations Directory Report</h2>
-                    <p class="report-date">Generated on: ${new Date().toLocaleString()}</p>
-                    ${tableContent.outerHTML}
-                </body>
-            </html>
-        `);
-
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-        }, 250);
+        window.print();
     };
 
     // --- Modals ---
@@ -169,7 +125,7 @@ export default function Index({ designations = { data: [], links: [] } }) {
             put(route('admin.designations.update', data.id), {
                 onSuccess: () => {
                     setShowModal(false);
-                    Swal.fire({ icon: "success", title: "Updated Successfully!", timer: 1500, showConfirmButton: false });
+                    Swal.fire({ icon: "success", title: "Updated Successfully!", timer: 1500, showConfirmButton: false, toast: true, position: 'top-end' });
                 }
             });
         } else {
@@ -177,7 +133,7 @@ export default function Index({ designations = { data: [], links: [] } }) {
                 onSuccess: () => {
                     reset();
                     setShowModal(false);
-                    Swal.fire({ icon: "success", title: "Created Successfully!", timer: 1500, showConfirmButton: false });
+                    Swal.fire({ icon: "success", title: "Created Successfully!", timer: 1500, showConfirmButton: false, toast: true, position: 'top-end' });
                 }
             });
         }
@@ -209,128 +165,141 @@ export default function Index({ designations = { data: [], links: [] } }) {
         <AdminLayout>
             <Head title="Designations Management" />
 
-            <div className="flex flex-col gap-6">
+            <style dangerouslySetInnerHTML={{__html: `
+                .custom-table-scroll::-webkit-scrollbar { height: 8px; }
+                .custom-table-scroll::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
+                .custom-table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+                .custom-table-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+                @media print {
+                    body * { visibility: hidden; }
+                    #printable-table, #printable-table * { visibility: visible; }
+                    #printable-table { position: absolute; left: 0; top: 0; width: 100%; }
+                    .no-print { display: none !important; }
+                }
+            `}} />
 
+            <div className="flex flex-col gap-8 max-w-[1600px] mx-auto pb-12 mt-2">
+                
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div>
-                        <h1 className="text-[22px] font-bold text-[#202223]">Designation Workspace</h1>
-                        <p className="text-[14px] text-gray-500 mt-1">Manage and track all company designations.</p>
+                        <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-indigo-600">
+                            <span className="h-1.5 w-1.5 rounded-full bg-indigo-600"></span> Organization Structure
+                        </div>
+                        <h1 className="text-[28px] font-extrabold text-gray-900 tracking-tight">Designation Workspace</h1>
+                        <p className="text-[14.5px] text-gray-500 mt-1.5 max-w-lg leading-relaxed">Manage and track all company designations and roles effectively.</p>
                     </div>
                 </div>
 
-                <div className="rounded-xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden">
+                <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
 
                     {/* Card Header & Actions */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-4 gap-4 bg-gray-50/50">
-                        <div className="text-[16px] font-semibold text-[#202223] flex items-center gap-2.5">
-                            <i className="fa-solid fa-id-badge text-[var(--accent)]"></i> Designation Directory
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 px-6 py-5 gap-4 bg-gray-50/40 no-print">
+                        <div className="text-[16px] font-bold text-gray-900 flex items-center gap-2.5">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                                <i className="fa-solid fa-id-badge text-[14px]"></i>
+                            </div>
+                            Designation Directory
                         </div>
                         {hasPermission('create_designation') && (
-                        <button onClick={openCreateModal} className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-[13.5px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50">
-                            <i className="fa-solid fa-plus"></i> Add New Designation
-                        </button>
+                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-[13.5px] font-bold text-white transition-all hover:bg-indigo-700 shadow-sm hover:shadow-md">
+                                <i className="fa-solid fa-plus"></i> Add New Designation
+                            </button>
                         )}
                     </div>
 
                     {/* Toolbar */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/30 border-b border-gray-100">
-                        <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
-
-                            {/* Show Entries */}
-                            <div className="flex items-center gap-2">
-                                <span>Show</span>
-                                <select
-                                    value={perPage}
-                                    onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
-                                    className="w-[100px] appearance-none bg-none rounded-md border border-gray-300 bg-white px-3 py-1.5 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 cursor-pointer"
-                                >
-                                    <option value={10}>10 Entries</option>
-                                    <option value={25}>25 Entries</option>
-                                    <option value={50}>50 Entries</option>
-                                    <option value={100}>100 Entries</option>
-                                    <option value={500}>500 Entries</option>
-                                    <option value={1000}>1000 Entries</option>
-                                    <option value="all">All</option>
-                                </select>
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100 no-print">
+                        
+                        <div className="flex flex-wrap items-center gap-3">
+                            
+                            {/* Premium Show Rows Dropdown */}
+                            <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
+                                <span className="bg-gray-50/80 px-4 py-2.5 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
+                                    Show
+                                </span>
+                                <div className="relative">
+                                    <select 
+                                        value={perPage} 
+                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                        className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
+                                    >
+                                        <option value={10}>10 Rows</option>
+                                        <option value={25}>25 Rows</option>
+                                        <option value={50}>50 Rows</option>
+                                        <option value={100}>100 Rows</option>
+                                        <option value="all">All Data</option>
+                                    </select>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-400">
+                                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
+                            <div className="h-6 w-px bg-gray-200 hidden sm:block mx-1"></div>
 
                             {/* Export Buttons */}
-                            <div className="flex items-center gap-1.5">
-                                <button type="button" onClick={handleCopy} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
-                                    <i className="fas fa-copy text-blue-500"></i> Copy
-                                </button>
-                                <button type="button" onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
-                                    <i className="fas fa-file-csv text-emerald-500"></i> CSV
-                                </button>
-                                <button type="button" onClick={handlePrint} className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-50">
-                                    <i className="fas fa-print text-gray-500"></i> Print
-                                </button>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <button type="button" onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm"><i className="fas fa-copy text-blue-500"></i> Copy</button>
+                                <button type="button" onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 shadow-sm"><i className="fas fa-file-csv"></i> CSV</button>
+                                <button type="button" onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm"><i className="fas fa-print text-gray-500"></i> Print</button>
                             </div>
                         </div>
 
-                        {/* Search Box */}
-                        <div className="relative w-full sm:w-[260px]">
-                            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                        {/* Search */}
+                        <div className="relative w-full sm:w-[280px]">
+                            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
                             <input
                                 type="text"
                                 placeholder="Search designations..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full rounded-md border border-gray-300 py-1.5 pl-8 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13px] outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white font-medium"
                             />
                         </div>
                     </div>
 
                     {/* Table */}
-                    <div className="overflow-x-auto brass-scroll border-t border-[#e1e3e5]">
+                    <div className="overflow-x-auto custom-table-scroll pb-2 border-t border-gray-100">
                         <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[700px]">
-                            <thead className="bg-[#f6f6f7] text-[11px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
+                            <thead className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
                                 <tr>
-                                    <th className="px-6 py-4 w-12">SL</th>
-                                    <th className="px-6 py-4">Designation Name</th>
-                                    <th className="px-6 py-4 w-[50%]">Description</th>
-                                    <th className="px-6 py-4 text-center">Actions</th>
+                                    <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-12">SL</th>
+                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Designation Name</th>
+                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-[50%]">Description</th>
+                                    <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] no-print">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="text-[13.5px] text-[#202223]">
+                            <tbody className="text-[13.5px] text-gray-800 divide-y divide-gray-100">
                                 {designations.data && designations.data.length > 0 ? (
                                     designations.data.map((designation, index) => (
-                                        <tr key={designation.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                                            <td className="px-6 py-4 font-medium text-gray-500">
+                                        <tr key={designation.id} className="hover:bg-slate-50/80 transition-colors group">
+                                            <td className="px-6 py-4 font-medium text-gray-400 text-center">
                                                 {designations.from ? designations.from + index : index + 1}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="font-bold text-gray-900 text-[14px]">{designation.name}</div>
+                                                <div className="font-extrabold text-gray-900 text-[14.5px]">{designation.name}</div>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <div className="text-[13.5px] text-gray-600 whitespace-normal leading-relaxed">
-                                                    {designation.description ? (
-                                                        designation.description.length > 60
-                                                            ? designation.description.substring(0, 60) + '...'
-                                                            : designation.description
-                                                    ) : (
-                                                        <span className="text-gray-400 italic">No description provided</span>
-                                                    )}
-                                                </div>
+                                            <td className="px-6 py-4 text-gray-600 font-medium whitespace-normal leading-relaxed">
+                                                {designation.description ? designation.description : <span className="text-gray-400 italic">No description provided</span>}
                                             </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <div className="flex items-center justify-center gap-1.5">
+                                            <td className="px-6 py-4 text-right no-print">
+                                                <div className="flex items-center justify-end gap-1.5">
                                                     {hasPermission('view_designation') && (
-                                                        <button onClick={() => openViewModal(designation)} className="flex h-7 w-7 items-center justify-center rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="View Details">
-                                                            <i className="fa-regular fa-eye text-[12px]"></i>
+                                                        <button onClick={() => openViewModal(designation)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors shadow-sm" title="View Details">
+                                                            <i className="fa-regular fa-eye text-[13px]"></i>
                                                         </button>
                                                     )}
                                                     {hasPermission('edit_designation') && (
-                                                        <button onClick={() => openEditModal(designation)} className="flex h-7 w-7 items-center justify-center rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors" title="Edit Designation">
-                                                            <i className="fa-regular fa-pen-to-square text-[12px]"></i>
+                                                        <button onClick={() => openEditModal(designation)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors shadow-sm" title="Edit Designation">
+                                                            <i className="fa-regular fa-pen-to-square text-[13px]"></i>
                                                         </button>
                                                     )}
                                                     {hasPermission('delete_designation') && (
-                                                        <button onClick={() => handleDelete(designation.id)} className="flex h-7 w-7 items-center justify-center rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Delete Designation">
-                                                            <i className="fa-regular fa-trash-can text-[12px]"></i>
+                                                        <button onClick={() => handleDelete(designation.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors shadow-sm" title="Delete Designation">
+                                                            <i className="fa-regular fa-trash-can text-[13px]"></i>
                                                         </button>
                                                     )}
                                                 </div>
@@ -339,10 +308,13 @@ export default function Index({ designations = { data: [], links: [] } }) {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                                        <td colSpan="4" className="px-6 py-20 text-center text-gray-500">
                                             <div className="flex flex-col items-center justify-center">
-                                                <i className="fa-solid fa-id-badge text-4xl text-gray-300 mb-3"></i>
-                                                <p>No designations found.</p>
+                                                <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400 shadow-sm border border-gray-200">
+                                                    <i className="fa-solid fa-id-badge text-2xl"></i>
+                                                </div>
+                                                <p className="text-[15px] font-bold text-gray-700">No designations found.</p>
+                                                <p className="text-[13px] font-medium text-gray-400 mt-1">Try adjusting your filters or add a new designation.</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -353,20 +325,20 @@ export default function Index({ designations = { data: [], links: [] } }) {
 
                     {/* Pagination Links */}
                     {designations.links && designations.links.length > 3 && (
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#e1e3e5] bg-[#f6f6f7] px-6 py-4">
-                            <div className="text-[13px] text-gray-500">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100 bg-white px-6 py-4 no-print">
+                            <div className="text-[13.5px] font-medium text-gray-500">
                                 {designations.total > 0 && `Showing ${designations.from || 0} to ${designations.to || 0} of ${designations.total || 0} entries`}
                             </div>
-                            <div className="flex flex-wrap items-center gap-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
                                 {designations.links.map((link, index) => (
                                     <Link
                                         key={index}
                                         href={link.url || "#"}
-                                        className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] transition-colors
-                                            ${link.active ? 'border-[var(--accent)] bg-[var(--accent)] text-white' : link.url ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50' : 'border-gray-200 bg-gray-100 text-gray-400 pointer-events-none'}
+                                        className={`flex min-w-[36px] items-center justify-center rounded-lg border px-3 py-2 text-[13px] font-bold transition-all
+                                            ${link.active ? 'border-indigo-600 bg-indigo-600 text-white shadow-md' : link.url ? 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300' : 'border-gray-100 bg-gray-50 text-gray-400 pointer-events-none'}
                                         `}
                                         preserveState
-                                        dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }}
+                                        dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "«").replace("&raquo;", "»") }}
                                     />
                                 ))}
                             </div>
@@ -375,84 +347,108 @@ export default function Index({ designations = { data: [], links: [] } }) {
                 </div>
             </div>
 
-            {/* --- VIEW DETAILS MODAL --- */}
+            {/* --- WIDE & MODERN VIEW DETAILS MODAL --- */}
             {showViewModal && selectedDesignation && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
-                            <h3 className="text-[18px] font-semibold text-[#202223] flex items-center gap-2">
-                                <i className="fa-solid fa-id-badge text-[var(--accent)]"></i> Designation Details
-                            </h3>
-                            <button type="button" onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                                <i className="fa-solid fa-xmark text-lg"></i>
-                            </button>
-                        </div>
-                        <div className="p-6 overflow-y-auto brass-scroll">
-                            <div className="mb-5">
-                                <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Designation Name</span>
-                                <div className="text-[18px] font-bold text-gray-900">{selectedDesignation.name}</div>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
+                    <div className="w-full max-w-lg bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                        
+                        {/* Header */}
+                        <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 px-8 py-6 shrink-0 overflow-hidden">
+                            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-white opacity-10 translate-x-10 -translate-y-10"></div>
+                            <div className="flex items-center justify-between relative z-10">
+                                <h3 className="text-[18px] font-extrabold text-white flex items-center gap-2">
+                                    <i className="fa-solid fa-id-badge text-indigo-200"></i> Designation Details
+                                </h3>
+                                <button onClick={() => setShowViewModal(false)} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 h-8 w-8 rounded-full flex items-center justify-center transition-colors">
+                                    <i className="fa-solid fa-xmark"></i>
+                                </button>
                             </div>
-                            <div className="border-t border-gray-100 pt-5">
-                                <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">Description</span>
-                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 text-gray-700 text-[14px] leading-relaxed min-h-[80px] whitespace-pre-line">
-                                    {selectedDesignation.description || <span className="italic text-gray-400">No description provided.</span>}
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-8 space-y-6 overflow-y-auto custom-table-scroll">
+                            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+                                <span className="block text-[11.5px] font-bold uppercase tracking-wider text-gray-400 mb-1">Designation Name</span>
+                                <div className="text-[18px] font-black text-gray-900">{selectedDesignation.name}</div>
+                            </div>
+
+                            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+                                <span className="block text-[11.5px] font-bold uppercase tracking-wider text-gray-400 mb-2">Description</span>
+                                <div className="text-gray-700 text-[14px] leading-relaxed whitespace-pre-line font-medium bg-gray-50 p-4 rounded-xl border border-gray-100 min-h-[80px]">
+                                    {selectedDesignation.description || <span className="italic text-gray-400">No description provided for this role.</span>}
                                 </div>
                             </div>
                         </div>
-                        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end shrink-0">
-                            <button type="button" onClick={() => setShowViewModal(false)} className="rounded-lg bg-gray-800 px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-700/50">
-                                Close
+
+                        {/* Footer */}
+                        <div className="px-8 py-5 border-t border-gray-200 bg-white flex justify-end shrink-0 rounded-b-3xl">
+                            <button type="button" onClick={() => setShowViewModal(false)} className="rounded-xl bg-gray-900 px-8 py-3 text-[14px] font-bold text-white transition-colors hover:bg-gray-800 shadow-md">
+                                Close Window
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* --- CREATE / EDIT FORM MODAL --- */}
+            {/* --- WIDE & MODERN CREATE / EDIT FORM MODAL --- */}
             {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/40 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
-                            <h3 className="text-[18px] font-semibold text-[#202223]">
-                                {editMode ? "📝 Update Designation" : "✨ Add New Designation"}
-                            </h3>
-                            <button type="button" onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
+                    <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                        
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white shrink-0">
+                            <div>
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+                                    <i className="fa-solid fa-id-badge"></i> {editMode ? 'Update' : 'New Entry'}
+                                </div>
+                                <h3 className="text-[20px] font-extrabold text-gray-900 tracking-tight">
+                                    {editMode ? "Update Designation" : "Add New Designation"}
+                                </h3>
+                            </div>
+                            <button type="button" onClick={() => setShowModal(false)} className="text-gray-400 hover:text-red-500 bg-gray-100 hover:bg-red-50 h-9 w-9 rounded-full flex items-center justify-center transition-colors">
                                 <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
-                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
-                            <div className="p-6 overflow-y-auto brass-scroll">
-                                <div className="mb-5">
-                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Designation Name *</label>
+
+                        {/* Form */}
+                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden h-full">
+                            <div className="p-8 overflow-y-auto custom-table-scroll space-y-6">
+
+                                <div>
+                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Designation Name <span className="text-red-500">*</span></label>
                                     <input
                                         type="text"
                                         value={data.name}
                                         onChange={(e) => setData("name", e.target.value)}
                                         placeholder="e.g. Software Engineer"
-                                        className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
+                                        className="w-full rounded-xl border border-gray-300 px-4 py-3 text-[14px] font-bold text-gray-900 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm"
                                         required
+                                        autoFocus
                                     />
-                                    {errors.name && <p className="text-red-500 text-[12px] mt-1">{errors.name}</p>}
+                                    {errors.name && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.name}</p>}
                                 </div>
+
                                 <div>
-                                    <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Description</label>
+                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Description</label>
                                     <textarea
                                         value={data.description}
                                         onChange={(e) => setData("description", e.target.value)}
                                         placeholder="Brief description about the role..."
-                                        className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[14px] outline-none resize-y min-h-[100px] transition-shadow focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50"
                                         rows="4"
+                                        className="w-full rounded-xl border border-gray-300 bg-white p-4 text-[14px] font-medium text-gray-900 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 resize-y min-h-[100px] shadow-sm"
                                     ></textarea>
-                                    {errors.description && <p className="text-red-500 text-[12px] mt-1">{errors.description}</p>}
+                                    {errors.description && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.description}</p>}
                                 </div>
+
                             </div>
 
-                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 shrink-0">
-                                <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-200">
-                                    Dismiss
+                            {/* Footer */}
+                            <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0 rounded-b-3xl">
+                                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
+                                    Cancel
                                 </button>
-                                <button type="submit" disabled={processing} className="rounded-lg bg-[var(--accent)] px-6 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-[#b08630] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 disabled:opacity-70">
-                                    {processing ? "Saving..." : "Save Designation"}
+                                <button type="submit" disabled={processing} className="rounded-xl bg-indigo-600 px-8 py-2.5 text-[14px] font-bold text-white transition-all hover:bg-indigo-700 shadow-md disabled:opacity-70 flex items-center gap-2">
+                                    {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Saving...</> : <><i className="fa-solid fa-check"></i> {editMode ? "Update Designation" : "Save Designation"}</>}
                                 </button>
                             </div>
                         </form>

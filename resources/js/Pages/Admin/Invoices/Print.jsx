@@ -134,7 +134,7 @@ export default function Print({ invoice }) {
 
                     <div className="info-section">
                         <div>
-                            <p style={{ marginBottom: "5px", color: "#64748b" }}><strong>Billed To:</strong></p>
+                            <p style={{ marginBottom: "5px", color: "#64748b" }}><strong>To:</strong></p>
                             <p className="font-bold" style={{ fontSize: "16px", color: "#147a5b" }}>
                                 {invoice.client?.company_name || invoice.client?.name || 'Unknown Client'}
                             </p>

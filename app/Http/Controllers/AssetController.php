@@ -27,32 +27,35 @@ class AssetController extends Controller
             });
         }
 
-        // Pagination
         if ($request->input('per_page') === 'all') {
             $totalCount = $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = min((int) $request->input('per_page', 10), 100000); // sanity cap
+            $perPage = min((int) $request->input('per_page', 25), 100000);
         }
 
-        $assets = $query
-            ->latest()
-            ->paginate($perPage)
-            ->withQueryString();
+        $assets = $query->latest()->paginate($perPage)->withQueryString();
 
-        $users = User::select('id', 'name')
-            ->orderBy('name')
-            ->get();
+        $users = User::select('id', 'name')->orderBy('name')->get();
 
         $accounts = Account::where('is_active', true)
             ->select('id', 'name', 'current_balance')
             ->orderBy('name')
             ->get();
 
+        // 🟢 NEW: Added Statistics for Summary Cards
+        $stats = [
+            'total_assets' => Asset::count(),
+            'total_value' => Asset::sum('purchase_price'),
+            'assigned_assets' => Asset::whereNotNull('assigned_to')->count(),
+            'damaged_repair' => Asset::whereIn('condition', ['damaged', 'under_repair'])->count(),
+        ];
+
         return Inertia::render('Admin/Assets/Index', [
             'assets'   => $assets,
             'users'    => $users,
             'accounts' => $accounts,
+            'stats'    => $stats, // 🟢 Sending stats to frontend
             'filters'  => $request->only('search', 'per_page'),
         ]);
     }
