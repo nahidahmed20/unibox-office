@@ -15,7 +15,6 @@ class TransactionController extends Controller
     {
         $query = Transaction::with('account');
 
-        // 🟢 Omni-Search (Search everything)
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {

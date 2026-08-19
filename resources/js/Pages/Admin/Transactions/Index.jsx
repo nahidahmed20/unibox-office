@@ -90,6 +90,10 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
         if (field === 'per_page') setPerPage(value);
         if (field === 'account_id') setAccountId(value);
         if (field === 'type') setTypeFilter(value);
+
+        if (field === 'date_from') setDateFrom(value);
+        if (field === 'date_to') setDateTo(value);
+
         applyFilters({ [field]: value });
     };
 
@@ -234,32 +238,32 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
 
                 {/* 🟢 Premium Summary Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                    <StatCard 
-                        label="Total Deposit (In)" 
-                        value={<><Taka className="text-[20px]" />{parseFloat(totalCredit || 0).toLocaleString('en-IN')}</>} 
-                        icon="fa-arrow-down-to-bracket" 
-                        gradient="bg-gradient-to-br from-emerald-400 to-teal-500" 
-                        textColor="text-emerald-700" 
+                    <StatCard
+                        label="Total Deposit (In)"
+                        value={<><Taka className="text-[20px]" />{parseFloat(totalCredit || 0).toLocaleString('en-IN')}</>}
+                        icon="fa-arrow-down-to-bracket"
+                        gradient="bg-gradient-to-br from-emerald-400 to-teal-500"
+                        textColor="text-emerald-700"
                     />
-                    <StatCard 
-                        label="Total Withdrawal (Out)" 
-                        value={<><Taka className="text-[20px]" />{parseFloat(totalDebit || 0).toLocaleString('en-IN')}</>} 
-                        icon="fa-arrow-right-from-bracket" 
-                        gradient="bg-gradient-to-br from-rose-500 to-red-600" 
-                        textColor="text-rose-700" 
+                    <StatCard
+                        label="Total Withdrawal (Out)"
+                        value={<><Taka className="text-[20px]" />{parseFloat(totalDebit || 0).toLocaleString('en-IN')}</>}
+                        icon="fa-arrow-right-from-bracket"
+                        gradient="bg-gradient-to-br from-rose-500 to-red-600"
+                        textColor="text-rose-700"
                     />
-                    <StatCard 
-                        label="Net Balance" 
-                        value={<>{netBalance < 0 ? '-' : ''}<Taka className="text-[20px]" />{Math.abs(parseFloat(netBalance || 0)).toLocaleString('en-IN')}</>} 
-                        icon="fa-scale-balanced" 
-                        gradient="bg-gradient-to-br from-indigo-500 to-blue-600" 
-                        textColor={netBalance >= 0 ? "text-indigo-700" : "text-rose-600"} 
+                    <StatCard
+                        label="Net Balance"
+                        value={<>{netBalance < 0 ? '-' : ''}<Taka className="text-[20px]" />{Math.abs(parseFloat(netBalance || 0)).toLocaleString('en-IN')}</>}
+                        icon="fa-scale-balanced"
+                        gradient="bg-gradient-to-br from-indigo-500 to-blue-600"
+                        textColor={netBalance >= 0 ? "text-indigo-700" : "text-rose-600"}
                     />
                 </div>
 
                 {/* Main Card */}
                 <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-                    
+
                     {/* Card Header & Actions */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 px-6 py-5 gap-4">
                         <div className="text-[16px] font-bold text-gray-900 flex items-center gap-2.5">
@@ -288,16 +292,16 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                     {/* 🟢 Premium Toolbar 1: Show Rows & Export */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100">
                         <div className="flex flex-wrap items-center gap-3">
-                            
+
                             {/* Premium SVG Show Dropdown */}
                             <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all z-20">
                                 <span className="bg-gray-50/80 px-4 py-2.5 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select 
-                                        value={perPage} 
-                                        onChange={(e) => handleFilterChange('per_page', e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                    <select
+                                        value={perPage}
+                                        onChange={(e) => handleFilterChange('per_page', e.target.value === "all" ? "all" : Number(e.target.value))}
                                         className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
                                     >
                                         <option value={10}>10 Rows</option>
@@ -321,11 +325,11 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                     </div>
 
                     {/* 🟢 Premium Toolbar 2: Advanced Filters */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 px-6 py-4 bg-gray-50/50 border-b border-gray-100">
-                        
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 px-6 py-4 bg-gray-50/50 border-b border-gray-100 items-center">
+
                         <div className="relative">
                             <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
-                            <input type="text" placeholder="Search ref, desc..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13.5px] font-medium outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all" />
+                            <input type="text" placeholder="Search ref, desc..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13.5px] font-medium outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all bg-white" />
                         </div>
 
                         <div className="relative">
@@ -345,17 +349,32 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                             <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-[11px] pointer-events-none"></i>
                         </div>
 
-                        <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-300 px-3 py-1.5 shadow-sm lg:col-span-1">
-                            <i className="fa-regular fa-calendar-days text-indigo-500 text-[13px]"></i>
-                            <input type="date" value={dateFrom} onChange={(e) => handleFilterChange('date_from', e.target.value)} className="bg-transparent border-none text-[12.5px] font-medium p-0 outline-none cursor-pointer w-full text-gray-600" />
-                            <span className="text-gray-400">–</span>
-                            <input type="date" value={dateTo} onChange={(e) => handleFilterChange('date_to', e.target.value)} className="bg-transparent border-none text-[12.5px] font-medium p-0 outline-none cursor-pointer w-full text-gray-600" />
+                        {/* 🟢 REDESIGNED: Date From */}
+                        <div className="relative pt-2 sm:pt-0">
+                            <span className="absolute left-3 top-[-8px] z-10 bg-white px-1.5 text-[10px] font-bold text-indigo-500 uppercase tracking-wider rounded">From</span>
+                            <input
+                                type="date"
+                                value={dateFrom}
+                                onChange={(e) => handleFilterChange('date_from', e.target.value)}
+                                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-[13.5px] font-medium text-gray-600 outline-none cursor-pointer focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all"
+                            />
+                        </div>
+
+                        {/* 🟢 REDESIGNED: Date To */}
+                        <div className="relative pt-2 sm:pt-0">
+                            <span className="absolute left-3 top-[-8px] z-10 bg-white px-1.5 text-[10px] font-bold text-indigo-500 uppercase tracking-wider rounded">To</span>
+                            <input
+                                type="date"
+                                value={dateTo}
+                                onChange={(e) => handleFilterChange('date_to', e.target.value)}
+                                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-[13.5px] font-medium text-gray-600 outline-none cursor-pointer focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all"
+                            />
                         </div>
 
                         {(searchTerm || accountId || typeFilter || dateFrom || dateTo) && (
-                            <div className="flex justify-end lg:col-span-1">
+                            <div className="flex justify-end lg:col-span-1 pt-2 sm:pt-0">
                                 <button onClick={clearAllFilters} className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-[13px] font-bold text-rose-600 hover:bg-rose-100 transition-colors shadow-sm">
-                                    <i className="fa-solid fa-xmark"></i> Clear 
+                                    <i className="fa-solid fa-xmark"></i> Clear
                                 </button>
                             </div>
                         )}
@@ -483,7 +502,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
             {showTransferModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
                     <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-                        
+
                         <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white shrink-0">
                             <div>
                                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 text-purple-600 text-[10px] font-bold uppercase tracking-wider mb-1.5 border border-purple-100">
@@ -503,7 +522,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                         <i className="fa-solid fa-circle-exclamation mt-0.5"></i> {transferErrors.error}
                                     </div>
                                 )}
-                                
+
                                 <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 shadow-sm relative">
                                     <div className="grid grid-cols-1 gap-6">
                                         <div>
@@ -522,7 +541,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                             </div>
                                             {transferErrors.from_account_id && <p className="text-red-500 text-[11px] font-bold mt-1.5">{transferErrors.from_account_id}</p>}
                                         </div>
-                                        
+
                                         <div className="flex justify-center -my-6 relative z-10 pointer-events-none">
                                             <div className="bg-purple-100 text-purple-600 h-10 w-10 rounded-full flex items-center justify-center border-4 border-gray-50 shadow-sm">
                                                 <i className="fa-solid fa-arrow-down text-[14px]"></i>
@@ -585,7 +604,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                     />
                                 </div>
                             </div>
-                            
+
                             <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0 rounded-b-3xl">
                                 <button type="button" onClick={() => setShowTransferModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
                                     Cancel
@@ -603,7 +622,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
                     <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-                        
+
                         <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white shrink-0">
                             <div>
                                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase tracking-wider mb-1.5 border border-indigo-100">
@@ -620,7 +639,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
 
                         <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden h-full">
                             <div className="p-8 overflow-y-auto custom-table-scroll space-y-6">
-                                
+
                                 <div>
                                     <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Select Account <span className="text-red-500">*</span></label>
                                     <div className="relative">
@@ -712,7 +731,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                     />
                                 </div>
                             </div>
-                            
+
                             <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0 rounded-b-3xl">
                                 <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 hover:bg-gray-100 shadow-sm transition-colors">
                                     Cancel
@@ -730,10 +749,10 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
             {showViewModal && selectedTrx && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
                     <div className="w-full max-w-lg bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-                        
+
                         <div className="relative bg-gradient-to-r from-gray-800 to-gray-900 px-8 py-6 shrink-0 overflow-hidden">
                             <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-white opacity-5 translate-x-10 -translate-y-10"></div>
-                            
+
                             <div className="flex items-center justify-between relative z-10">
                                 <h3 className="text-[18px] font-extrabold text-white flex items-center gap-2">
                                     <i className="fa-solid fa-receipt text-indigo-400"></i> Transaction Receipt
@@ -747,11 +766,11 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                         <div className="p-8 space-y-6">
                             <div className="text-center py-8 bg-white rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden">
                                 <div className={`absolute top-0 left-0 w-full h-1.5 ${selectedTrx.type === 'credit' ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
-                                
+
                                 <span className={`inline-block mb-3 px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest border ${selectedTrx.type === 'credit' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
                                     {selectedTrx.type === 'credit' ? 'Deposit / Cash In' : 'Withdrawal / Cash Out'}
                                 </span>
-                                
+
                                 <div className={`text-[36px] font-black tabular-nums tracking-tight ${selectedTrx.type === 'credit' ? 'text-emerald-600' : 'text-rose-600'}`}>
                                     {selectedTrx.type === 'credit' ? '+' : '-'}<Taka className="text-[24px]" />{parseFloat(selectedTrx.amount).toLocaleString('en-IN')}
                                 </div>

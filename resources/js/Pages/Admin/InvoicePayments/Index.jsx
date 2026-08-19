@@ -101,7 +101,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
     const [dateFrom, setDateFrom] = useState(filters.date_from || "");
     const [dateTo, setDateTo] = useState(filters.date_to || "");
     const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get("search") || "");
-    
+
     const [perPage, setPerPage] = useState(() => {
         const raw = new URLSearchParams(window.location.search).get("per_page") || filters.per_page;
         return raw === "all" ? "all" : (raw ? Number(raw) : 25);
@@ -127,7 +127,31 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
     }, [invoices, editMode, editingPayment]);
 
     const applyFilters = (overrides = {}) => {
-        router.get(route("invoice-payments.index"), { search: overrides.search ?? searchTerm, per_page: overrides.per_page ?? perPage, client_id: overrides.client_id ?? clientId, account_id: overrides.account_id ?? accountFilter, year: overrides.year ?? year, date_from: overrides.date_from ?? dateFrom, date_to: overrides.date_to ?? dateTo, page: 1 }, { preserveState: true, replace: true });
+        router.get(
+            route("invoice-payments.index"),
+            {
+                search: overrides.search ?? searchTerm,
+                per_page: overrides.per_page ?? perPage,
+                client_id: overrides.client_id ?? clientId,
+                account_id: overrides.account_id ?? accountFilter,
+                year: overrides.year ?? year,
+                date_from: overrides.date_from ?? dateFrom,
+                date_to: overrides.date_to ?? dateTo,
+                page: 1
+            },
+            { preserveState: true, replace: true }
+        );
+    };
+
+    const handleDateChange = (field, val) => {
+        if (field === 'date_from') setDateFrom(val);
+        if (field === 'date_to') setDateTo(val);
+        applyFilters({ [field]: val });
+    };
+
+    const clearAllFilters = () => {
+        setClientId(""); setAccountFilter(""); setYear(""); setDateFrom(""); setDateTo(""); setSearchTerm("");
+        router.get(route("invoice-payments.index"), { per_page: perPage }, { preserveState: true, replace: true });
     };
 
     useEffect(() => {
@@ -257,7 +281,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
             `}} />
 
             <div className="flex flex-col gap-8 max-w-[1600px] mx-auto pb-12 mt-2">
-                
+
                 {/* Header */}
                 <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
                     <div>
@@ -307,19 +331,19 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                         )}
                     </div>
 
-                    {/* Toolbar */}
+                    {/* Toolbar & Filters */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100 no-print">
                         <div className="flex flex-wrap items-center gap-3">
-                            
+
                             {/* Premium Show Rows Dropdown */}
                             <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
                                 <span className="bg-gray-50/80 px-4 py-2.5 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select 
-                                        value={perPage} 
-                                        onChange={handlePerPageChange} 
+                                    <select
+                                        value={perPage}
+                                        onChange={handlePerPageChange}
                                         className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
                                     >
                                         <option value={10}>10 Rows</option>
@@ -346,15 +370,47 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                         </div>
 
                         <div className="flex flex-wrap items-center gap-3">
+                            {/* Client Filter */}
                             <select value={clientId} onChange={handleClientFilter} className="rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-gray-700 outline-none focus:border-indigo-500 cursor-pointer shadow-sm">
                                 <option value="">All Clients</option>
                                 {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
+
+                            {/* Account Filter */}
                             <select value={accountFilter} onChange={handleAccountFilter} className="rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-gray-700 outline-none focus:border-indigo-500 cursor-pointer shadow-sm">
                                 <option value="">All Accounts</option>
                                 {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                             </select>
-                            <div className="relative w-full sm:w-[220px]">
+
+                            {/* 🟢 Date Range Filter (From & To) */}
+                            <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-300 px-3 py-1.5 shadow-sm">
+                                <i className="fa-regular fa-calendar-days text-indigo-500 text-[13px]"></i>
+                                <input
+                                    type="date"
+                                    value={dateFrom}
+                                    onChange={(e) => handleDateChange('date_from', e.target.value)}
+                                    className="bg-transparent border-none text-[12.5px] p-0 outline-none cursor-pointer"
+                                    title="From Date"
+                                />
+                                <span className="text-gray-400">–</span>
+                                <input
+                                    type="date"
+                                    value={dateTo}
+                                    onChange={(e) => handleDateChange('date_to', e.target.value)}
+                                    className="bg-transparent border-none text-[12.5px] p-0 outline-none cursor-pointer"
+                                    title="To Date"
+                                />
+                            </div>
+
+                            {/* 🟢 Clear Filters Button (Shows only when filters are active) */}
+                            {(clientId || accountFilter || dateFrom || dateTo || searchTerm) && (
+                                <button onClick={clearAllFilters} className="flex items-center gap-1.5 rounded-xl bg-rose-50 px-3.5 py-2.5 text-[13px] font-bold text-rose-600 hover:bg-rose-100 transition-colors border border-rose-100 shadow-sm">
+                                    <i className="fa-solid fa-xmark"></i> Clear
+                                </button>
+                            )}
+
+                            {/* Search Input */}
+                            <div className="relative w-full sm:w-[200px]">
                                 <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
                                 <input
                                     type="text"
@@ -651,7 +707,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
             {showDetailsModal && selectedPayment && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
                     <div className="w-full max-w-lg bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-                        
+
                         <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 px-8 py-6 shrink-0 overflow-hidden">
                             <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-white opacity-10 translate-x-10 -translate-y-10"></div>
                             <div className="flex items-center justify-between relative z-10">

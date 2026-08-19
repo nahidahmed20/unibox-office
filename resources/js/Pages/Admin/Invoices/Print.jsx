@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Head } from '@inertiajs/react';
 
+// 🟢 Number to Words Helper Function
 const numberToWords = (num) => {
     if (num === null || num === undefined || isNaN(num) || num === 0) return 'Zero Taka Only.';
 
@@ -30,14 +31,27 @@ const numberToWords = (num) => {
     if (paisaWords && Number(paisa) > 0) {
         result += ` and ${paisaWords} Paisa`;
     }
-    
+
     return result + ' Only.';
 };
 
-export default function Print({ invoice }) {
-    const [showSeal, setShowSeal] = useState(false);
-    const [showLogo, setShowLogo] = useState(true);
-    const [showFooter, setShowFooter] = useState(true);
+// 🟢 Main Print Component (Receives invoice and dbSettings)
+export default function Print({ invoice, dbSettings }) {
+
+    // 🟢 Safe Settings Fallback (In case DB is empty)
+    const settings = {
+        show_logo: dbSettings?.show_logo ?? true,
+        show_watermark: dbSettings?.show_watermark ?? true,
+        show_client_info: dbSettings?.show_client_info ?? true,
+        show_invoice_meta: dbSettings?.show_invoice_meta ?? true,
+        show_notes: dbSettings?.show_notes ?? true,
+        show_bank_info: dbSettings?.show_bank_info ?? true,
+        show_signature: dbSettings?.show_signature ?? true,
+        show_seal: dbSettings?.show_seal ?? false,
+        show_footer: dbSettings?.show_footer ?? true,
+        bank_details: dbSettings?.bank_details || '',
+        footer_text: dbSettings?.footer_text || '',
+    };
 
     const { hasTax, hasDiscount, hasAdvance, advanceAmount, payableAmount, grandTotalWords, rowSpanCount } = useMemo(() => {
         if (!invoice) return {};
@@ -45,16 +59,16 @@ export default function Print({ invoice }) {
         const discount = parseFloat(invoice.discount) || 0;
         const advance = Number(invoice.advance_used) || 0;
         const grandTotal = Number(invoice.grand_total) || 0;
-        
+
         const hasTax = tax > 0;
         const hasDiscount = discount > 0;
         const hasAdvance = advance > 0;
-        
+
         const payable = hasAdvance ? (grandTotal - advance) : grandTotal;
         const words = numberToWords(payable);
-        
+
         const rows = 2 + (hasTax ? 1 : 0) + (hasDiscount ? 1 : 0) + (hasAdvance ? 2 : 0);
-        
+
         return { hasTax, hasDiscount, hasAdvance, advanceAmount: advance, payableAmount: payable, grandTotalWords: words, rowSpanCount: rows };
     }, [invoice]);
 
@@ -76,71 +90,65 @@ export default function Print({ invoice }) {
         .text-center { text-align: center; } .text-right { text-align: right; }
         .align-top { vertical-align: top; } .align-middle { vertical-align: middle; }
         .html-text-box { font-size: 14px; line-height: 1.5; color: #333; }
-        
-        /* Removed background and styling from bank info */
         .bank-info { line-height: 1.6; font-size: 13px; margin-bottom: 60px; }
-        
         .signature-section { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 80px; padding: 0 10px; }
         .sign-box { width: 180px; text-align: center; position: relative; height: 100px; }
         .sign-line { border-top: 1px solid #333; padding-top: 5px; font-weight: bold; position: absolute; bottom: 0; width: 100%; z-index: 2; }
         .signature-image { position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); height: 90px; width: auto; z-index: 1; mix-blend-mode: multiply; }
         .invoice-footer { text-align: center; font-size: 12px; color: #64748b; margin-top: 40px; padding-top: 15px; border-top: 1px dashed #cbd5e1; line-height: 1.6; }
-        
-        .print-toolbar { padding: 15px; background: #fff; text-align: center; border-bottom: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .print-toolbar button { margin: 0 10px; padding: 10px 20px; cursor: pointer; font-weight: 600; font-size: 14px; border-radius: 6px; border: none; transition: all 0.2s ease-in-out; }
-        .print-toolbar button:hover { opacity: 0.9; transform: translateY(-1px); }
-        
+
+        .print-action-bar { text-align: center; padding: 20px; background: #fff; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .print-btn { background: #C89B3C; color: white; border: none; padding: 12px 30px; font-size: 15px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 6px rgba(200, 155, 60, 0.2); }
+        .print-btn:hover { background: #b08630; transform: translateY(-2px); }
+
         @media print {
-            body { margin: 0; background: #fff; } 
+            body { margin: 0; background: #fff; }
             @page { size: A4 portrait; margin: 0; }
             .invoice-container { margin: 0; border: none; box-shadow: none; padding-top: 15mm; min-height: 100vh; }
-            .print-toolbar { display: none !important; }
+            .print-action-bar { display: none !important; }
         }
     `;
 
     return (
         <>
             <style>{customCss}</style>
-            
-            <div className="print-toolbar">
-                <button onClick={() => setShowLogo(!showLogo)} style={{ background: showLogo ? '#ef4444' : '#3b82f6', color: 'white' }}>
-                    {showLogo ? "❌ Remove Logo" : "✅ Add Logo"}
-                </button>
-                <button onClick={() => setShowFooter(!showFooter)} style={{ background: showFooter ? '#ef4444' : '#3b82f6', color: 'white' }}>
-                    {showFooter ? "❌ Remove Footer" : "✅ Add Footer"}
-                </button>
-                <button onClick={() => setShowSeal(!showSeal)} style={{ background: showSeal ? '#ef4444' : '#3b82f6', color: 'white' }}>
-                    {showSeal ? "❌ Remove Signature Seal" : "✅ Add Signature Seal"}
-                </button>
-                <button onClick={() => window.print()} style={{ background: '#10b981', color: 'white' }}>
-                    🖨️ Print / Save PDF
+
+            <div className="print-action-bar">
+                <button className="print-btn" onClick={() => window.print()}>
+                    <i className="fa-solid fa-print"></i> Print / Save PDF
                 </button>
             </div>
 
             <div className="invoice-container">
                 <Head title={`Invoice - ${invoice.invoice_number}`} />
 
-                <div className="watermark">UNIBOX</div>
+                {/* 🟢 Background Elements (Visibility controlled) */}
+                <div className="watermark" style={{ visibility: settings.show_watermark ? 'visible' : 'hidden' }}>UNIBOX</div>
                 {invoice.status === 'paid' && <div className="paid-stamp">PAID</div>}
                 <div className="vertical-text">Invoice</div>
 
                 <div className="invoice-content">
+
+                    {/* 🟢 Logo */}
                     <img
                         src="/images/logo.png"
                         alt="UNIBOX Logo"
                         className="invoice-logo"
-                        style={{ visibility: showLogo ? 'visible' : 'hidden' }}
+                        style={{ visibility: settings.show_logo ? 'visible' : 'hidden' }}
                     />
 
                     <div className="info-section">
-                        <div>
+                        {/* 🟢 Client Info */}
+                        <div style={{ visibility: settings.show_client_info ? 'visible' : 'hidden' }}>
                             <p style={{ marginBottom: "5px", color: "#64748b" }}><strong>To:</strong></p>
                             <p className="font-bold" style={{ fontSize: "16px", color: "#147a5b" }}>
                                 {invoice.client?.company_name || invoice.client?.name || 'Unknown Client'}
                             </p>
                             <p style={{ maxWidth: "250px" }}>{invoice.client?.address || 'Address not provided'}</p>
                         </div>
-                        <div className="text-right">
+
+                        {/* 🟢 Invoice Meta Data */}
+                        <div className="text-right" style={{ visibility: settings.show_invoice_meta ? 'visible' : 'hidden' }}>
                             <p><strong>Invoice No:</strong> <span style={{ color: "#147a5b", fontWeight: "bold" }}>{invoice.invoice_number}</span></p>
                             <p><strong>Issue Date:</strong> {invoice.invoice_date}</p>
                             <p><strong>Due Date:</strong> {invoice.due_date}</p>
@@ -173,9 +181,10 @@ export default function Print({ invoice }) {
                                     <tr>
                                         <td rowSpan={rowSpanCount} colSpan="2" className="align-top">
                                             <p style={{ marginBottom: "10px" }}><strong>Amount In words:</strong> <br/>{grandTotalWords}</p>
-                                            
+
+                                            {/* 🟢 Notes & Terms */}
                                             {invoice.notes && invoice.notes !== '<p><br></p>' && (
-                                                <div style={{ marginTop: '20px' }}>
+                                                <div style={{ marginTop: '20px', visibility: settings.show_notes ? 'visible' : 'hidden' }}>
                                                     <strong>Notes / Terms & Conditions:</strong>
                                                     <div className="html-text-box" style={{ marginTop: "8px", borderTop: "1px dashed #cbd5e1", paddingTop: "8px" }} dangerouslySetInnerHTML={{ __html: invoice.notes }}></div>
                                                 </div>
@@ -184,26 +193,26 @@ export default function Print({ invoice }) {
                                         <td className="text-right align-middle" style={{ paddingRight: '15px', fontWeight: 'bold' }}>Sub-total</td>
                                         <td className="text-center align-middle font-bold">{Number(invoice.sub_total).toFixed(2)}/-</td>
                                     </tr>
-                                    
+
                                     {hasTax && (
                                         <tr>
                                             <td className="text-right" style={{ paddingRight: '15px' }}>@Vat ({invoice.tax}%)</td>
                                             <td className="text-center">{(((invoice.sub_total || 0) * invoice.tax) / 100).toFixed(2)}/-</td>
                                         </tr>
                                     )}
-                                    
+
                                     {hasDiscount && (
                                         <tr>
                                             <td className="text-right" style={{ paddingRight: '15px' }}>Discount</td>
                                             <td className="text-center text-red-600">- {Number(invoice.discount).toFixed(2)}/-</td>
                                         </tr>
                                     )}
-                                    
+
                                     <tr>
                                         <td className="text-right font-bold" style={{ paddingRight: '15px', backgroundColor: '#f8fafc' }}>Grand Total</td>
                                         <td className="text-center font-bold" style={{ backgroundColor: '#f8fafc' }}>{Number(invoice.grand_total).toFixed(2)}/-</td>
                                     </tr>
-                                    
+
                                     {hasAdvance && (
                                         <>
                                             <tr>
@@ -221,29 +230,45 @@ export default function Print({ invoice }) {
                         </tbody>
                     </table>
 
-                    <div className="bank-info">
-                        <p><strong>A/C No:</strong> 20502150201847805</p>
-                        <p><strong>Name:</strong> Md. Moudud Islam</p>
-                        <p><strong>Routing No:</strong> 125261337</p>
-                        <p>Elephant Road Branch, Dhaka</p>
-                        <p><strong>Islami Bank Bangladesh PLC</strong></p>
+                    {/* 🟢 Dynamic Bank Details */}
+                    <div className="bank-info" style={{ visibility: settings.show_bank_info ? 'visible' : 'hidden' }}>
+                        {settings.bank_details ? (
+                            <div className="html-text-box" dangerouslySetInnerHTML={{ __html: settings.bank_details }}></div>
+                        ) : (
+                            <div className="html-text-box">
+                                <p><strong>A/C No:</strong> 2304997144001</p>
+                                <p><strong>Name:</strong> MD MOUDUD ISLAM</p>
+                                <p><strong>Routing No:</strong> 225263527</p>
+                                <p>ELEPHANT ROAD SUB BRANCH (DHAKA)</p>
+                                <p><strong>City Bank</strong></p>
+                            </div>
+                        )}
                     </div>
 
-                    <div className="signature-section">
+                    {/* 🟢 Signature Section */}
+                    <div className="signature-section" style={{ visibility: settings.show_signature ? 'visible' : 'hidden' }}>
                         <div className="sign-box">
                             <div className="sign-line">Received by</div>
                         </div>
-                        
+
                         <div className="sign-box">
-                            {showSeal && <img src="/paid_sill.png" alt="Signature Seal" className="signature-image" />}
+                            {/* Seal is conditional so it won't take space if hidden */}
+                            {settings.show_seal && <img src="/paid_sill.png" alt="Signature Seal" className="signature-image" />}
                             <div className="sign-line">Authorized Signature</div>
                         </div>
                     </div>
 
-                    <div className="invoice-footer" style={{ visibility: showFooter ? 'visible' : 'hidden' }}>
-                        <p style={{ fontWeight: 'bold', marginBottom: '4px', color: '#2cb34a' }}>Thank you for your business!</p>
-                        <p>Address: 278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205</p>
-                        <p>Email: uniboxbd4u@gmail.com, Phone: +880 1979 997 027</p>
+                    {/* 🟢 Dynamic Footer Text */}
+                    <div className="invoice-footer" style={{ visibility: settings.show_footer ? 'visible' : 'hidden' }}>
+                        {settings.footer_text ? (
+                            <div dangerouslySetInnerHTML={{ __html: settings.footer_text }}></div>
+                        ) : (
+                            <>
+                                <p style={{ fontWeight: 'bold', marginBottom: '4px', color: '#2cb34a' }}>Thank you for your business!</p>
+                                <p>Address: 278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205</p>
+                                <p>Email: uniboxbd4u@gmail.com, Phone: +880 1979 997 027</p>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>

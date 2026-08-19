@@ -77,6 +77,7 @@ export default function AdminLayout({ children }) {
         finance: route().current('admin.project-expenses.*') || route().current('admin.accounts.*') || route().current('admin.transactions.*') || route().current('admin.investments.*') || route().current('admin.invoices.*') || route().current('invoice-payments.*') || route().current('admin.client-advances.*') || route().current('admin.expenses.*') || route().current('admin.expense-categories.*') || route().current('admin.advances.*'),
         office: route().current('admin.assets.*') || route().current('admin.requisitions.*') || route().current('admin.notices.*'),
         report: route().current('admin.reports.*') || route().current('admin.account.transactions') || route().current('admin.client-dues') || route().current('admin.vendor-dues'),
+        settings: route().current('admin.invoice-settings.*'),
         access: route().current('admin.users.*') || route().current('admin.roles.*') || route().current('admin.permissions.*'),
     };
 
@@ -310,6 +311,12 @@ export default function AdminLayout({ children }) {
                         {hasPermission('view_settings') && (
                             <>
                                 <SectionLabel>System Configuration</SectionLabel>
+                                <li className="mx-3 mb-1">
+                                    <Link href={route('admin.invoice-settings.index')} className={topItemClass(route().current('admin.invoice-settings.*'))}>
+                                        <i className="fa-solid fa-file-invoice-dollar w-5 text-center text-[16px]"></i>
+                                        <span>Invoice Settings</span>
+                                    </Link>
+                                </li>
                                 <li className="mx-3 mb-6">
                                     <button
                                         onClick={() => toggleMenu('access')}

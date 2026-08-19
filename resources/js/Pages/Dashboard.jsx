@@ -118,13 +118,13 @@ export default function Dashboard({ stats, recentPendingInvoices = [], recentNot
                         <h4 className="text-2xl font-black text-gray-800">{stats.activeProjects}</h4>
                         <p className="text-[11px] font-bold uppercase text-gray-500 mt-1">Active Projects</p>
                     </Link>
-                    
+
                     <Link href={route('admin.salaries.index')} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md hover:border-rose-200 transition-all group">
                         <i className="fa-solid fa-money-check-dollar text-rose-500 text-2xl mb-2.5 group-hover:scale-110 transition-transform"></i>
                         <h4 className="text-[20px] font-black text-gray-800 tabular-nums">৳ {(Number(stats.unpaidSalaries)/1000).toFixed(1)}k</h4>
                         <p className="text-[11px] font-bold uppercase text-rose-500 mt-1">Unpaid Salaries</p>
                     </Link>
-                    
+
                     <Link href={route('admin.project-expenses.index')} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md hover:border-orange-200 transition-all group">
                         <i className="fa-solid fa-hand-holding-dollar text-orange-500 text-2xl mb-2.5 group-hover:scale-110 transition-transform"></i>
                         <h4 className="text-[20px] font-black text-gray-800 tabular-nums">৳ {(Number(stats.totalProjectDue)/1000).toFixed(1)}k</h4>

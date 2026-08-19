@@ -66,12 +66,15 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
     }, [invoiceNumber, projectName, dateFrom, dateTo]);
 
     const handleFilterChange = (field, value) => {
-        if (field === 'per_page') setPerPage(value);
-        if (field === 'client_id') setClientId(value);
-        if (field === 'status') setStatus(value);
-        if (field === 'year') setYear(value);
-        applyFilters({ [field]: value });
-    };
+    if (field === 'per_page') setPerPage(value);
+    if (field === 'client_id') setClientId(value);
+    if (field === 'status') setStatus(value);
+    if (field === 'year') setYear(value);
+    if (field === 'date_from') setDateFrom(value);
+    if (field === 'date_to') setDateTo(value);
+
+    applyFilters({ [field]: value });
+};
 
     const clearAllFilters = () => {
         setInvoiceNumber(""); setClientId(""); setStatus(""); setProjectName(""); setYear(""); setDateFrom(""); setDateTo("");
@@ -155,7 +158,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
             `}} />
 
             <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12 mt-2">
-                
+
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div>
@@ -224,16 +227,16 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                     {/* 🟢 Modern Filter Toolbar */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100 no-print">
                         <div className="flex flex-wrap items-center gap-3">
-                            
+
                             {/* Premium Show Rows Dropdown */}
                             <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all z-20">
                                 <span className="bg-gray-50/80 px-4 py-2 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select 
-                                        value={perPage} 
-                                        onChange={(e) => handleFilterChange('per_page', e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                    <select
+                                        value={perPage}
+                                        onChange={(e) => handleFilterChange('per_page', e.target.value === "all" ? "all" : Number(e.target.value))}
                                         className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
                                     >
                                         <option value={10}>10 Rows</option>
@@ -273,7 +276,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
                     {/* 🟢 Searchable Selects & Date Filters */}
                     <div className="flex flex-wrap items-center gap-3 px-6 py-4 bg-gray-50/50 border-b border-gray-100 no-print">
-                        
+
                         {/* React-Select for Client */}
                         <div className="relative w-full sm:w-[260px] z-[60]">
                             <Select
@@ -352,14 +355,14 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                     return (
                                         <tr key={inv.id} className="hover:bg-slate-50/80 transition-colors group">
                                             <td className="px-6 py-4 font-medium text-gray-400 text-center">{invoices.from ? invoices.from + index : index + 1}</td>
-                                            
+
                                             <td className="px-6 py-4">
                                                 <div className="font-black text-indigo-600 text-[14.5px]">#{inv.invoice_number}</div>
                                                 <div className="text-[11.5px] font-semibold text-gray-500 mt-1 flex items-center gap-1.5">
                                                     <i className="fa-regular fa-calendar text-gray-400"></i> {inv.invoice_date}
                                                 </div>
                                             </td>
-                                            
+
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-[12px] font-black uppercase shadow-sm">
@@ -403,21 +406,21 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                                     <Taka />{parseFloat(inv.grand_total).toLocaleString('en-IN')}
                                                 </div>
                                             </td>
-                                            
+
                                             <td className="px-6 py-4 text-right font-black text-emerald-600 text-[14.5px] tabular-nums bg-emerald-50/10 group-hover:bg-emerald-50/30 transition-colors">
                                                 {totalPaid > 0 ? <><Taka />{totalPaid.toLocaleString('en-IN')}</> : <span className="text-gray-300">-</span>}
                                             </td>
-                                            
+
                                             <td className="px-6 py-4 text-right font-black text-rose-600 text-[14.5px] tabular-nums bg-rose-50/10 group-hover:bg-rose-50/30 transition-colors border-r border-gray-100">
                                                 {dueAmount > 0 ? <><Taka />{dueAmount.toLocaleString('en-IN')}</> : <span className="text-gray-300">-</span>}
                                             </td>
-                                            
+
                                             <td className="px-6 py-4 text-center">
                                                 <span className={`inline-flex px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${statusStyle.bg} ${statusStyle.text}`}>
                                                     {statusStyle.label}
                                                 </span>
                                             </td>
-                                            
+
                                             <td className="px-6 py-4 text-right no-print">
                                                 <div className="flex items-center justify-end gap-1.5">
                                                     {hasPermission('view_invoices') && (
@@ -481,7 +484,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
             {showViewModal && selectedInvoice && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
                     <div className="w-full max-w-4xl bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-                        
+
                         <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 px-8 py-8 shrink-0 overflow-hidden">
                             <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-white opacity-10 translate-x-10 -translate-y-10"></div>
                             <button onClick={() => setShowViewModal(false)} className="absolute top-5 right-5 bg-black/20 hover:bg-black/40 text-white h-9 w-9 rounded-full flex items-center justify-center transition-colors backdrop-blur-md z-20"><i className="fa-solid fa-xmark text-sm"></i></button>

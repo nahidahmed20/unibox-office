@@ -29,6 +29,7 @@ use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VendorController;
+use App\Http\Controllers\InvoiceSettingController;
 use App\Models\Invoice;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -110,6 +111,9 @@ Route::middleware('auth')->group(function () {
     Route::get('account/transactions', [ReportController::class, 'transactionsReport'])->name('admin.account.transactions');
     Route::get('reports/client-ledger', [ReportController::class, 'clientLedger'])->name('admin.reports.client-ledger');
     Route::get('/daybook', [ReportController::class, 'daybook'])->name('admin.reports.daybook');
+
+    Route::get('/invoice-settings', [InvoiceSettingController::class, 'index'])->name('admin.invoice-settings.index');
+    Route::post('/invoice-settings', [InvoiceSettingController::class, 'update'])->name('admin.invoice-settings.update');
 
     Route::post('/project-expenses/{id}/move-to-wallet', [ProjectExpenseController::class, 'moveToWallet'])->name('admin.project-expenses.move-to-wallet');
 

@@ -7,6 +7,7 @@ use App\Models\ClientAdvance;
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\Project;
+use App\Models\InvoiceSetting;
 use App\Models\ProjectExpense;
 use App\Models\Vendor;
 use Illuminate\Http\Request;
@@ -333,7 +334,13 @@ class InvoiceController extends Controller
     public function print($id)
     {
         $invoice = Invoice::with(['client', 'items.project'])->findOrFail($id);
-        return inertia('Admin/Invoices/Print', ['invoice' => $invoice]);
+
+        $settings = InvoiceSetting::first();
+
+        return inertia('Admin/Invoices/Print', [
+            'invoice' => $invoice,
+            'dbSettings' => $settings
+        ]);
     }
 
 
