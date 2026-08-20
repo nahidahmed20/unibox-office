@@ -35,10 +35,46 @@ const numberToWords = (num) => {
     return result + ' Only.';
 };
 
-// 🟢 Main Print Component (Receives invoice and dbSettings)
+// 🟢 Auto Bold Specific Labels Function (Bank Details)
+const formatBankText = (text) => {
+    if (!text) return '';
+    const labelsToBold = [
+        'Bank Name:', 'Account Name:', 'Account Number:',
+        'Branch District:', 'Branch Name:', 'Routing Number:'
+    ];
+    let formattedText = text;
+    labelsToBold.forEach(label => {
+        const regex = new RegExp(`(${label})`, 'gi');
+        formattedText = formattedText.replace(regex, '<strong>$1</strong>');
+    });
+    return formattedText;
+};
+
+// 🟢 Auto Format Footer Text Function (Fixes Design & Spacing)
+const formatFooterText = (text) => {
+    if (!text) return '';
+
+    // যদি টেক্সটে আগে থেকেই HTML (Text Editor থেকে) থাকে
+    if (text.includes('<p>') || text.includes('<br>')) {
+        let cleanHTML = text.replace(/<p><br><\/p>/g, '').replace(/<p>&nbsp;<\/p>/g, ''); // অতিরিক্ত স্পেস রিমুভ
+        return cleanHTML.replace(/(Thank you for your business!?)/gi, '<span style="color: #147a5b; font-size: 18px; font-weight: bold; display: block; margin-bottom: 8px;">$1</span>');
+    }
+
+    // প্লেইন টেক্সট হলে লাইন বাই লাইন ভাগ করে ফাঁকা লাইন মুছে ফেলবে এবং ডিজাইন করবে
+    return text.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0) // ফাঁকা লাইনগুলো বাদ দিয়ে দেবে
+        .map(line => {
+            if (line.toLowerCase().includes('thank you for your business')) {
+                return `<p style="color: #147a5b; font-size: 18px; font-weight: bold; margin-bottom: 8px;">${line}</p>`;
+            }
+            return `<p style="margin-bottom: 3px; font-size: 13px;">${line}</p>`;
+        }).join('');
+};
+
+// 🟢 Main Print Component
 export default function Print({ invoice, dbSettings }) {
 
-    // 🟢 Safe Settings Fallback (In case DB is empty)
     const settings = {
         show_logo: dbSettings?.show_logo ?? true,
         show_watermark: dbSettings?.show_watermark ?? true,
@@ -66,7 +102,6 @@ export default function Print({ invoice, dbSettings }) {
 
         const payable = hasAdvance ? (grandTotal - advance) : grandTotal;
         const words = numberToWords(payable);
-
         const rows = 2 + (hasTax ? 1 : 0) + (hasDiscount ? 1 : 0) + (hasAdvance ? 2 : 0);
 
         return { hasTax, hasDiscount, hasAdvance, advanceAmount: advance, payableAmount: payable, grandTotalWords: words, rowSpanCount: rows };
@@ -77,6 +112,9 @@ export default function Print({ invoice, dbSettings }) {
     const customCss = `
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: #f1f5f9; font-family: 'Segoe UI', Arial, sans-serif; color: #333; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+        strong, b { font-weight: bold !important; }
+
         .invoice-container { width: 210mm; min-height: 297mm; margin: 20px auto; padding: 15mm; position: relative; background: #fff; font-size: 14px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 160px; font-weight: 900; color: rgba(20, 122, 91, 0.04); z-index: 0; pointer-events: none; text-transform: uppercase; white-space: nowrap; }
         .paid-stamp { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); font-size: 80px; font-weight: 900; color: rgba(220, 38, 38, 0.15); border: 8px solid rgba(220, 38, 38, 0.15); padding: 15px 30px; border-radius: 15px; z-index: 2; pointer-events: none; text-transform: uppercase; white-space: nowrap; }
@@ -95,7 +133,7 @@ export default function Print({ invoice, dbSettings }) {
         .sign-box { width: 180px; text-align: center; position: relative; height: 100px; }
         .sign-line { border-top: 1px solid #333; padding-top: 5px; font-weight: bold; position: absolute; bottom: 0; width: 100%; z-index: 2; }
         .signature-image { position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); height: 90px; width: auto; z-index: 1; mix-blend-mode: multiply; }
-        .invoice-footer { text-align: center; font-size: 12px; color: #64748b; margin-top: 40px; padding-top: 15px; border-top: 1px dashed #cbd5e1; line-height: 1.6; }
+        .invoice-footer { text-align: center; color: #64748b; margin-top: 40px; padding-top: 15px; border-top: 1px dashed #cbd5e1; line-height: 1.6; }
 
         .print-action-bar { text-align: center; padding: 20px; background: #fff; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .print-btn { background: #C89B3C; color: white; border: none; padding: 12px 30px; font-size: 15px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 6px rgba(200, 155, 60, 0.2); }
@@ -122,32 +160,23 @@ export default function Print({ invoice, dbSettings }) {
             <div className="invoice-container">
                 <Head title={`Invoice - ${invoice.invoice_number}`} />
 
-                {/* 🟢 Background Elements (Visibility controlled) */}
                 <div className="watermark" style={{ visibility: settings.show_watermark ? 'visible' : 'hidden' }}>UNIBOX</div>
                 {invoice.status === 'paid' && <div className="paid-stamp">PAID</div>}
                 <div className="vertical-text">Invoice</div>
 
                 <div className="invoice-content">
 
-                    {/* 🟢 Logo */}
-                    <img
-                        src="/images/logo.png"
-                        alt="UNIBOX Logo"
-                        className="invoice-logo"
-                        style={{ visibility: settings.show_logo ? 'visible' : 'hidden' }}
-                    />
+                    <img src="/images/logo.png" alt="UNIBOX Logo" className="invoice-logo" style={{ visibility: settings.show_logo ? 'visible' : 'hidden' }} />
 
                     <div className="info-section">
-                        {/* 🟢 Client Info */}
                         <div style={{ visibility: settings.show_client_info ? 'visible' : 'hidden' }}>
                             <p style={{ marginBottom: "5px", color: "#64748b" }}><strong>To:</strong></p>
                             <p className="font-bold" style={{ fontSize: "16px", color: "#147a5b" }}>
-                                {invoice.client?.company_name || invoice.client?.name || 'Unknown Client'}
+                                <strong>{invoice.client?.company_name || invoice.client?.name || 'Unknown Client'}</strong>
                             </p>
                             <p style={{ maxWidth: "250px" }}>{invoice.client?.address || 'Address not provided'}</p>
                         </div>
 
-                        {/* 🟢 Invoice Meta Data */}
                         <div className="text-right" style={{ visibility: settings.show_invoice_meta ? 'visible' : 'hidden' }}>
                             <p><strong>Invoice No:</strong> <span style={{ color: "#147a5b", fontWeight: "bold" }}>{invoice.invoice_number}</span></p>
                             <p><strong>Issue Date:</strong> {invoice.invoice_date}</p>
@@ -168,11 +197,11 @@ export default function Print({ invoice, dbSettings }) {
                             {invoice.items && invoice.items.length > 0 ? invoice.items.map((item, index) => (
                                 <tr key={index}>
                                     <td className="align-top">
-                                        <div className="html-text-box" dangerouslySetInnerHTML={{ __html: item.description || 'No description' }}></div>
+                                        <div className="html-text-box" style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: item.description || 'No description' }}></div>
                                     </td>
-                                    <td className="text-center align-middle font-bold">{item.quantity}</td>
+                                    <td className="text-center align-middle"><strong>{item.quantity}</strong></td>
                                     <td className="text-center align-middle">{Number(item.unit_price).toFixed(2)}</td>
-                                    <td className="text-center align-middle font-bold">{Number(item.total).toFixed(2)}/-</td>
+                                    <td className="text-center align-middle"><strong>{Number(item.total).toFixed(2)}/-</strong></td>
                                 </tr>
                             )) : <tr><td colSpan="4" className="text-center" style={{ padding: '30px', color: '#94a3b8' }}>No items found in this invoice.</td></tr>}
 
@@ -182,16 +211,15 @@ export default function Print({ invoice, dbSettings }) {
                                         <td rowSpan={rowSpanCount} colSpan="2" className="align-top">
                                             <p style={{ marginBottom: "10px" }}><strong>Amount In words:</strong> <br/>{grandTotalWords}</p>
 
-                                            {/* 🟢 Notes & Terms */}
                                             {invoice.notes && invoice.notes !== '<p><br></p>' && (
                                                 <div style={{ marginTop: '20px', visibility: settings.show_notes ? 'visible' : 'hidden' }}>
                                                     <strong>Notes / Terms & Conditions:</strong>
-                                                    <div className="html-text-box" style={{ marginTop: "8px", borderTop: "1px dashed #cbd5e1", paddingTop: "8px" }} dangerouslySetInnerHTML={{ __html: invoice.notes }}></div>
+                                                    <div className="html-text-box" style={{ marginTop: "8px", borderTop: "1px dashed #cbd5e1", paddingTop: "8px", whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: invoice.notes }}></div>
                                                 </div>
                                             )}
                                         </td>
-                                        <td className="text-right align-middle" style={{ paddingRight: '15px', fontWeight: 'bold' }}>Sub-total</td>
-                                        <td className="text-center align-middle font-bold">{Number(invoice.sub_total).toFixed(2)}/-</td>
+                                        <td className="text-right align-middle" style={{ paddingRight: '15px' }}><strong>Sub-total</strong></td>
+                                        <td className="text-center align-middle"><strong>{Number(invoice.sub_total).toFixed(2)}/-</strong></td>
                                     </tr>
 
                                     {hasTax && (
@@ -209,8 +237,8 @@ export default function Print({ invoice, dbSettings }) {
                                     )}
 
                                     <tr>
-                                        <td className="text-right font-bold" style={{ paddingRight: '15px', backgroundColor: '#f8fafc' }}>Grand Total</td>
-                                        <td className="text-center font-bold" style={{ backgroundColor: '#f8fafc' }}>{Number(invoice.grand_total).toFixed(2)}/-</td>
+                                        <td className="text-right" style={{ paddingRight: '15px', backgroundColor: '#f8fafc' }}><strong>Grand Total</strong></td>
+                                        <td className="text-center" style={{ backgroundColor: '#f8fafc' }}><strong>{Number(invoice.grand_total).toFixed(2)}/-</strong></td>
                                     </tr>
 
                                     {hasAdvance && (
@@ -220,8 +248,8 @@ export default function Print({ invoice, dbSettings }) {
                                                 <td className="text-center">- {advanceAmount.toFixed(2)}/-</td>
                                             </tr>
                                             <tr>
-                                                <td className="text-right font-bold" style={{ paddingRight: '15px', color: "#d93025", fontSize: '15px' }}>Payable Due</td>
-                                                <td className="text-center font-bold" style={{ color: "#d93025", fontSize: '15px' }}>{payableAmount.toFixed(2)}/-</td>
+                                                <td className="text-right" style={{ paddingRight: '15px', color: "#d93025", fontSize: '15px' }}><strong>Payable Due</strong></td>
+                                                <td className="text-center" style={{ color: "#d93025", fontSize: '15px' }}><strong>{payableAmount.toFixed(2)}/-</strong></td>
                                             </tr>
                                         </>
                                     )}
@@ -230,46 +258,44 @@ export default function Print({ invoice, dbSettings }) {
                         </tbody>
                     </table>
 
-                    {/* 🟢 Dynamic Bank Details */}
                     <div className="bank-info" style={{ visibility: settings.show_bank_info ? 'visible' : 'hidden' }}>
                         {settings.bank_details ? (
-                            <div className="html-text-box" dangerouslySetInnerHTML={{ __html: settings.bank_details }}></div>
+                            <div className="html-text-box" style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: formatBankText(settings.bank_details) }}></div>
                         ) : (
                             <div className="html-text-box">
                                 <p><strong>A/C No:</strong> 2304997144001</p>
                                 <p><strong>Name:</strong> MD MOUDUD ISLAM</p>
                                 <p><strong>Routing No:</strong> 225263527</p>
-                                <p>ELEPHANT ROAD SUB BRANCH (DHAKA)</p>
+                                <p>ELEPHANT ROAD </p>
                                 <p><strong>City Bank</strong></p>
                             </div>
                         )}
                     </div>
 
-                    {/* 🟢 Signature Section */}
                     <div className="signature-section" style={{ visibility: settings.show_signature ? 'visible' : 'hidden' }}>
                         <div className="sign-box">
                             <div className="sign-line">Received by</div>
                         </div>
 
                         <div className="sign-box">
-                            {/* Seal is conditional so it won't take space if hidden */}
                             {settings.show_seal && <img src="/paid_sill.png" alt="Signature Seal" className="signature-image" />}
                             <div className="sign-line">Authorized Signature</div>
                         </div>
                     </div>
 
-                    {/* 🟢 Dynamic Footer Text */}
+                    {/* 🟢 Updated Dynamic Footer Text */}
                     <div className="invoice-footer" style={{ visibility: settings.show_footer ? 'visible' : 'hidden' }}>
                         {settings.footer_text ? (
-                            <div dangerouslySetInnerHTML={{ __html: settings.footer_text }}></div>
+                            <div dangerouslySetInnerHTML={{ __html: formatFooterText(settings.footer_text) }}></div>
                         ) : (
                             <>
-                                <p style={{ fontWeight: 'bold', marginBottom: '4px', color: '#2cb34a' }}>Thank you for your business!</p>
-                                <p>Address: 278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205</p>
-                                <p>Email: uniboxbd4u@gmail.com, Phone: +880 1979 997 027</p>
+                                <p style={{ color: '#147a5b', fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>Thank you for your business!</p>
+                                <p style={{ marginBottom: '3px', fontSize: '13px' }}>Address: 278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205</p>
+                                <p style={{ marginBottom: '3px', fontSize: '13px' }}>Email: uniboxbd4u@gmail.com, Phone: +880 1979 997 027</p>
                             </>
                         )}
                     </div>
+
                 </div>
             </div>
         </>

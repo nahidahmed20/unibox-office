@@ -267,15 +267,15 @@ export default function Edit({ project, clients = [], managers = [] }) {
                                 <div className="lg:col-span-4">
                                     <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Total Budget (TK)</label>
                                     <div className="relative">
-                                        <div className="absolute left-0 top-0 bottom-0 w-12 flex items-center justify-center bg-emerald-50 border-r border-emerald-200 rounded-l-xl">
-                                            <span className="text-emerald-600 font-bold text-[16px]">৳</span>
+                                        <div className="absolute left-0 top-0 bottom-0 w-12 flex items-center justify-center bg-emerald-50 border-r border-emerald-200 rounded-l-xl z-10">
+                                            <span className="text-emerald-600 font-bold text-[17px]" style={{ fontFamily: 'Arial, sans-serif' }}>৳</span>
                                         </div>
                                         <input
                                             type="number" min="0" step="0.01"
                                             value={data.budget}
                                             onChange={e => setData("budget", e.target.value)}
                                             placeholder="0.00"
-                                            className="w-full rounded-xl border border-gray-300 bg-white pl-15 pr-4 py-3.5 text-[15px] font-black text-emerald-700 outline-none transition-shadow focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
+                                            className="w-full rounded-xl border border-gray-300 bg-white pl-14 pr-4 py-3.5 text-[15px] font-black text-emerald-700 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm relative z-0"
                                         />
                                     </div>
                                 </div>

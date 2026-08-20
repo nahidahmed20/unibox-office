@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react'; 
+import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useForm, Head, Link } from '@inertiajs/react'; 
-import Swal from 'sweetalert2'; 
-import Select from 'react-select'; 
+import { useForm, Head, Link } from '@inertiajs/react';
+import Swal from 'sweetalert2';
+import Select from 'react-select';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
@@ -51,12 +51,12 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
             if (validAdvanceUsed > grand) validAdvanceUsed = grand;
             return { ...prev, sub_total: subtotal, grand_total: grand, use_advance_amount: validAdvanceUsed };
         });
-    }, [data.items, data.tax, data.discount]); 
+    }, [data.items, data.tax, data.discount]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!data.client_id) return Swal.fire("Required", "Please select a client.", "warning");
-        post(route('admin.invoices.store'), { 
+        post(route('admin.invoices.store'), {
             onSuccess: () => Swal.fire({ icon: 'success', title: 'Invoice Created!', timer: 1500, showConfirmButton: false }),
         });
     };
@@ -83,7 +83,7 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
             <style dangerouslySetInnerHTML={{__html: `.ql-editor { min-height: 120px; font-size: 14.5px; background: #fff; border-radius: 0 0 0.75rem 0.75rem; } .ql-toolbar { border-radius: 0.75rem 0.75rem 0 0; background: #f8fafc; } .ql-container { border-radius: 0 0 0.75rem 0.75rem; }`}} />
 
             <div className="flex flex-col gap-6 max-w-[1400px] mx-auto pb-12 mt-2">
-                
+
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div>
@@ -98,7 +98,7 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
                 </div>
 
                 <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
-                    
+
                     {/* General Details Section */}
                     <div className="p-8 border-b border-gray-100 bg-gradient-to-br from-gray-50/50 to-white">
                         <h3 className="text-[16px] font-bold text-gray-800 mb-6 flex items-center gap-2">
@@ -107,9 +107,9 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             <div className="lg:col-span-2 relative z-50">
                                 <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Select Client <span className="text-red-500">*</span></label>
-                                <Select 
-                                    options={clientOptions} 
-                                    onChange={(opt) => { setData("client_id", opt ? opt.value : ""); setAvailableAdvance(opt ? opt.advance : 0); }} 
+                                <Select
+                                    options={clientOptions}
+                                    onChange={(opt) => { setData("client_id", opt ? opt.value : ""); setAvailableAdvance(opt ? opt.advance : 0); }}
                                     isClearable placeholder="🔍 Search Client..." styles={selectStyles} menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                                 />
                                 {errors.client_id && <span className="text-red-500 text-xs font-bold mt-1.5 block">{errors.client_id}</span>}
@@ -159,20 +159,20 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
                                     <button type="button" onClick={() => { const rows=[...data.items]; rows.splice(index,1); setData("items", rows); }} disabled={data.items.length===1} className="absolute right-4 top-4 text-gray-400 hover:text-red-500 hover:bg-red-50 h-8 w-8 rounded-full flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
                                         <i className="fa-solid fa-trash-can"></i>
                                     </button>
-                                    
+
                                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 pr-10 relative z-40">
                                         <div>
                                             <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Project (Optional)</label>
-                                            <Select 
-                                                options={getAvailableProjectOptions(index)} 
+                                            <Select
+                                                options={getAvailableProjectOptions(index)}
                                                 onChange={(opt) => {
                                                     const projId = opt ? opt.value : null;
                                                     const proj = projects.find(p => p.id === projId);
                                                     const rows = [...data.items];
                                                     rows[index].project_id = projId;
-                                                    
+
                                                     if(proj) {
-                                                        rows[index].item_name = proj.title; 
+                                                        rows[index].item_name = proj.title;
                                                         rows[index].description = proj.description || '';
                                                         rows[index].quantity = Number(proj.quantity) || 1;
                                                         rows[index].unit_price = (Number(proj.budget) || 0) / rows[index].quantity;
@@ -183,7 +183,7 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
                                                         rows[index].item_name = ""; rows[index].description = ""; rows[index].unit_price = 0; rows[index].total = 0;
                                                         setData("items", rows);
                                                     }
-                                                }} 
+                                                }}
                                                 isClearable placeholder="Link Project..." styles={selectStyles} menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                                             />
                                         </div>
@@ -198,17 +198,17 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
                                                 <ReactQuill theme="snow" value={item.description} onChange={(val) => updateItem(index, "description", val)} />
                                             </div>
                                         </div>
-                                        <div className="lg:col-span-2"></div>
-                                        <div>
-                                            <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Qty & Unit Price</label>
-                                            <div className="flex gap-3">
-                                                <input type="number" step="any" value={item.quantity} onChange={(e) => updateItem(index, "quantity", e.target.value)} className="w-1/3 rounded-xl border border-gray-300 px-4 py-3 text-[14px] font-bold text-gray-900 outline-none focus:border-indigo-500 shadow-sm text-center" placeholder="Qty" />
-                                                <div className="relative w-2/3">
-                                                    <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-[14px]" />
-                                                    <input type="number" step="any" value={item.unit_price} onChange={(e) => updateItem(index, "unit_price", e.target.value)} className="w-full rounded-xl border border-gray-300 pl-8 pr-4 py-3 text-[14px] font-bold text-gray-900 outline-none focus:border-indigo-500 shadow-sm text-right" placeholder="Price" />
+                                        <div className="hidden lg:block lg:col-span-1"></div>
+                                            <div className="lg:col-span-2">
+                                                <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Qty & Unit Price</label>
+                                                <div className="flex gap-3">
+                                                    <input type="number" step="any" value={item.quantity} onChange={(e) => updateItem(index, "quantity", e.target.value)} className="w-28 md:w-32 rounded-xl border border-gray-300 px-2 py-3 text-[14px] font-bold text-gray-900 outline-none focus:border-indigo-500 shadow-sm text-center" placeholder="Qty" />
+                                                    <div className="relative flex-1">
+                                                        <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-[14px]" />
+                                                        <input type="number" step="any" value={item.unit_price} onChange={(e) => updateItem(index, "unit_price", e.target.value)} className="w-full rounded-xl border border-gray-300 pl-8 pr-4 py-3 text-[14px] font-bold text-gray-900 outline-none focus:border-indigo-500 shadow-sm text-right" placeholder="Price" />
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
                                         <div>
                                             <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Total Value</label>
                                             <div className="relative">
@@ -232,23 +232,23 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
                         </div>
                         <div className="w-full lg:w-[400px] shrink-0 bg-white rounded-3xl p-6 md:p-8 border border-gray-200 shadow-lg">
                             <h4 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-100 pb-3">Financial Summary</h4>
-                            
+
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-[14px] font-bold text-gray-600">Sub Total:</span> 
+                                    <span className="text-[14px] font-bold text-gray-600">Sub Total:</span>
                                     <span className="text-[15px] font-black text-gray-900"><Taka />{Number(data.sub_total).toLocaleString('en-IN')}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span className="text-[14px] font-bold text-gray-600">Tax / VAT (%):</span> 
+                                    <span className="text-[14px] font-bold text-gray-600">Tax / VAT (%):</span>
                                     <input type="number" value={data.tax} onChange={(e) => setData("tax", e.target.value)} className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-[14px] font-bold text-right outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-sm" />
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span className="text-[14px] font-bold text-gray-600">Discount (TK):</span> 
+                                    <span className="text-[14px] font-bold text-gray-600">Discount (TK):</span>
                                     <input type="number" value={data.discount} onChange={(e) => setData("discount", e.target.value)} className="w-24 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-[14px] font-bold text-rose-700 text-right outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all shadow-sm" />
                                 </div>
-                                
+
                                 <div className="border-t-2 border-dashed border-gray-200 pt-5 mt-3 flex justify-between items-end">
-                                    <span className="text-[14px] font-bold text-gray-800 uppercase tracking-widest">Grand Total:</span> 
+                                    <span className="text-[14px] font-bold text-gray-800 uppercase tracking-widest">Grand Total:</span>
                                     <span className="text-[26px] font-black text-indigo-700 tracking-tight"><Taka className="text-[20px]"/>{Number(data.grand_total).toLocaleString('en-IN')}</span>
                                 </div>
                             </div>
