@@ -61,15 +61,15 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
     const handleCopy = () => {
         if (!expList.length) return Swal.fire("Empty!", "No data to copy", "warning");
-        const text = expList.map((e) => `${e.date}\t${e.title}\t${e.vendor?.name || "N/A"}\t${e.total_bill}\t${e.paid_amount}\t${e.payment_status?.toUpperCase()}`).join("\n");
-        navigator.clipboard.writeText("Date\tTitle\tVendor\tTotal Bill\tPaid\tStatus\n" + text);
+        const text = expList.map((e) => `${e.date}\t${e.project?.client?.name || 'N/A'}\t${e.title}\t${e.vendor?.name || "N/A"}\t${e.total_bill}\t${e.paid_amount}\t${e.payment_status?.toUpperCase()}`).join("\n");
+        navigator.clipboard.writeText("Date\tClient\tTitle\tVendor\tTotal Bill\tPaid\tStatus\n" + text);
         Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
     };
 
     const handleExportCSV = () => {
         if (!expList.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const headers = ["Date,Project,Expense Title,Vendor,Account/Source,Total Bill,Paid,Due,Status\n"];
-        const rows = expList.map(e => `"${e.date}","${e.project?.title || ''}","${e.title}","${e.vendor?.name || ''}","${e.account_id ? e.account?.name : (e.advance_user_id ? 'Advance' : 'Wallet')}","${e.total_bill}","${e.paid_amount}","${e.due_amount}","${e.payment_status}"`);
+        const headers = ["Date,Client,Project,Expense Title,Vendor,Account/Source,Total Bill,Paid,Due,Status\n"];
+        const rows = expList.map(e => `"${e.date}","${e.project?.client?.name || ''}","${e.project?.title || ''}","${e.title}","${e.vendor?.name || ''}","${e.account_id ? e.account?.name : (e.advance_user_id ? 'Advance' : 'Wallet')}","${e.total_bill}","${e.paid_amount}","${e.due_amount}","${e.payment_status}"`);
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -125,7 +125,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const totalBilled = totals ? totals.total_bill : expList.reduce((sum, item) => sum + parseFloat(item.total_bill || 0), 0);
     const totalPaid = totals ? totals.paid_amount : expList.reduce((sum, item) => sum + parseFloat(item.paid_amount || 0), 0);
     const totalDue = totals ? totals.due_amount : expList.reduce((sum, item) => sum + parseFloat(item.due_amount || 0), 0);
-    
+
     const filteredProject = projectFilter ? projects.find(p => p.id == projectFilter) : null;
     const filteredProjectTitle = filteredProject ? `${filteredProject.title} (${filteredProject.client?.name || 'No Client'})` : null;
 
@@ -141,7 +141,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             `}} />
 
             <div className="flex flex-col gap-8 w-full max-w-[1600px] mx-auto pb-12">
-                
+
                 {/* 🟢 Premium Page Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mt-2">
                     <div>
@@ -208,7 +208,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
                 {/* 🟢 Main Card */}
                 <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
-                    
+
                     {/* Card Header & Actions */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 px-6 py-5 gap-4 bg-gray-50/40">
                         <div className="text-[16px] font-bold text-gray-900 flex items-center gap-2.5">
@@ -226,7 +226,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
                     {/* Toolbar */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100">
-                        
+
                         <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
                             {/* Rows per page */}
                             <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all z-20">
@@ -234,9 +234,9 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select 
-                                        value={perPage} 
-                                        onChange={(e) => handleFilterChange('per_page', e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                    <select
+                                        value={perPage}
+                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
                                         className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
                                     >
                                         <option value={10}>10 Rows</option>
@@ -266,7 +266,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
                         {/* Filters & Search */}
                         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-                            
+
                             {/* Date / Year Filter */}
                             <div className="flex items-center gap-2">
                                 <div className="relative w-full sm:w-[120px]">
@@ -279,7 +279,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                 <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setYearFilter(''); }} className="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-[13px] font-medium outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer" />
                                 <span className="text-gray-400 font-bold">–</span>
                                 <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setYearFilter(''); }} className="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-[13px] font-medium outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer" />
-                                
+
                                 {(dateFrom || dateTo || yearFilter) && (
                                     <button onClick={() => { setDateFrom(""); setDateTo(""); setYearFilter(""); }} className="h-9 w-9 rounded-full bg-red-50 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
                                         <i className="fa-solid fa-xmark text-sm"></i>
@@ -290,12 +290,12 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                             {/* Search */}
                             <div className="relative w-full sm:w-[260px]">
                                 <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13.5px]"></i>
-                                <input 
-                                    type="text" 
-                                    placeholder="Search bills, vendors..." 
-                                    value={searchTerm} 
-                                    onChange={(e) => setSearchTerm(e.target.value)} 
-                                    className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13.5px] outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white" 
+                                <input
+                                    type="text"
+                                    placeholder="Client, Project, Vendor..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13.5px] outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white"
                                 />
                             </div>
                         </div>
@@ -308,7 +308,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                 <tr>
                                     <th className="px-6 py-4.5 w-12">SL</th>
                                     <th className="px-6 py-4.5">Date</th>
-                                    <th className="px-6 py-4.5">Expense Details</th>
+                                    <th className="px-6 py-4.5">Project & Expense</th>
                                     <th className="px-6 py-4.5">Vendor / Payee</th>
                                     <th className="px-6 py-4.5 text-right bg-blue-50/40">Total Bill</th>
                                     <th className="px-6 py-4.5 text-right bg-emerald-50/40">Paid Amount</th>
@@ -329,18 +329,28 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                     {exp.date}
                                                 </span>
                                             </td>
+
                                             <td className="px-6 py-4">
-                                                <div className="font-bold text-gray-900 text-[14px]">{exp.project?.title || <span className="text-gray-400 italic">No Project</span>}</div>
-                                                <div className="text-[12px] font-medium text-gray-500 mt-0.5 truncate max-w-[250px]" title={exp.title}>{exp.title}</div>
+                                                <div className="font-bold text-gray-900 text-[14px]">
+                                                    {exp.project?.title || <span className="text-gray-400 italic">No Project</span>}
+                                                </div>
+                                                {exp.project?.client && (
+                                                    <div className="text-[11.5px] font-bold text-indigo-600 mt-0.5" title="Client Name">
+                                                        <i className="fa-regular fa-building mr-1 opacity-75"></i>
+                                                        {exp.project.client.name} {exp.project.client.company_name ? `(${exp.project.client.company_name})` : ''}
+                                                    </div>
+                                                )}
+                                                <div className="text-[12px] font-medium text-gray-500 mt-1 truncate max-w-[250px]" title={exp.title}>{exp.title}</div>
                                             </td>
+
                                             <td className="px-6 py-4">
                                                 <div className="font-bold text-gray-800 flex items-center gap-2">
                                                     <i className="fa-solid fa-user-tie text-[12px] text-gray-400"></i> {exp.vendor?.name || <span className="italic text-gray-400">Unknown Vendor</span>}
                                                 </div>
                                                 <div className="text-[11px] font-medium text-gray-500 mt-1 flex items-center gap-1.5">
-                                                    {exp.account_id ? <><i className="fa-solid fa-building-columns text-blue-500"></i> {exp.account?.name}</> 
-                                                    : exp.advance_user_id ? <><i className="fa-solid fa-hand-holding-dollar text-emerald-500"></i> Advance</> 
-                                                    : exp.paid_amount > 0 ? <><i className="fa-solid fa-wallet text-purple-500"></i> Vendor Wallet</> 
+                                                    {exp.account_id ? <><i className="fa-solid fa-building-columns text-blue-500"></i> {exp.account?.name}</>
+                                                    : exp.advance_user_id ? <><i className="fa-solid fa-hand-holding-dollar text-emerald-500"></i> Advance</>
+                                                    : exp.paid_amount > 0 ? <><i className="fa-solid fa-wallet text-purple-500"></i> Vendor Wallet</>
                                                     : 'N/A'}
                                                 </div>
                                             </td>
@@ -368,8 +378,8 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <span className={`inline-flex items-center px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border
-                                                    ${exp.payment_status === 'paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                                                    : exp.payment_status === 'partial' ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                                                    ${exp.payment_status === 'paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                    : exp.payment_status === 'partial' ? 'bg-amber-50 text-amber-700 border-amber-200'
                                                     : 'bg-rose-50 text-rose-700 border-rose-200'}
                                                 `}>
                                                     {exp.payment_status}
@@ -409,7 +419,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                     <i className="fa-solid fa-receipt text-2xl text-gray-400"></i>
                                                 </div>
                                                 <p className="text-[15px] font-bold text-gray-700">No project expenses found.</p>
-                                                <p className="text-[13px] text-gray-400 mt-1">Try adjusting your filters or log a new bill.</p>
+                                                <p className="text-[13px] text-gray-400 mt-1">Try adjusting your filters or search by client/project.</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -426,14 +436,14 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                             </div>
                             <div className="flex flex-wrap items-center gap-1.5">
                                 {project_expenses.links.map((link, index) => (
-                                    <Link 
-                                        key={index} 
-                                        href={link.url || "#"} 
+                                    <Link
+                                        key={index}
+                                        href={link.url || "#"}
                                         className={`flex min-w-[36px] items-center justify-center rounded-lg border px-3 py-2 text-[13px] font-bold transition-all
-                                            ${link.active 
-                                                ? 'border-indigo-600 bg-indigo-600 text-white shadow-md' 
-                                                : link.url 
-                                                    ? 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300' 
+                                            ${link.active
+                                                ? 'border-indigo-600 bg-indigo-600 text-white shadow-md'
+                                                : link.url
+                                                    ? 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300'
                                                     : 'border-gray-100 bg-gray-50 text-gray-400 pointer-events-none'
                                             }
                                         `}
@@ -451,14 +461,12 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             {showViewModal && selectedExpense && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
                     <div className="w-full max-w-5xl bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col relative my-auto animate-[fadeIn_0.2s_ease-out] overflow-hidden">
-                        
-                        {/* Status Ribbon Ribbon */}
-                        <div className={`absolute top-6 left-0 px-4 py-1.5 text-white text-[11.5px] font-black tracking-widest uppercase rounded-r-lg shadow-md z-20 
+
+                        <div className={`absolute top-6 left-0 px-4 py-1.5 text-white text-[11.5px] font-black tracking-widest uppercase rounded-r-lg shadow-md z-20
                             ${selectedExpense.payment_status === 'paid' ? 'bg-emerald-500' : selectedExpense.payment_status === 'partial' ? 'bg-amber-500' : 'bg-rose-500'}`}>
                             {selectedExpense.payment_status}
                         </div>
 
-                        {/* Modal Header */}
                         <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white pl-28 shrink-0">
                             <div>
                                 <h3 className="text-[20px] font-extrabold text-gray-900 tracking-tight">Expense Receipt</h3>
@@ -473,23 +481,29 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                 </button>
                             </div>
                         </div>
-                        
-                        {/* Modal Body */}
+
                         <div className="p-6 md:p-8 overflow-y-auto custom-table-scroll bg-white">
-                            
-                            {/* Top Info Grid */}
+
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                                 <div className="bg-gray-50/80 rounded-2xl p-5 border border-gray-100 flex flex-col justify-center">
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Project</span>
-                                    <div className="text-[15px] font-bold text-gray-900 flex items-start gap-2.5">
-                                        <i className="fa-solid fa-folder text-indigo-500 mt-0.5"></i> 
-                                        <span className="leading-tight">{selectedExpense.project?.title || "N/A"}</span>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Project & Client</span>
+                                    <div className="text-[15px] font-bold text-gray-900 flex flex-col gap-1">
+                                        <div className="flex items-start gap-2.5">
+                                            <i className="fa-solid fa-folder text-indigo-500 mt-0.5"></i>
+                                            <span className="leading-tight">{selectedExpense.project?.title || "N/A"}</span>
+                                        </div>
+                                        {selectedExpense.project?.client && (
+                                            <div className="flex items-start gap-2 text-[12.5px] text-gray-500 font-medium ml-1">
+                                                <i className="fa-regular fa-building mt-0.5 opacity-70"></i>
+                                                <span>{selectedExpense.project.client.name}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="bg-gray-50/80 rounded-2xl p-5 border border-gray-100 flex flex-col justify-center">
                                     <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Vendor / Payee</span>
                                     <div className="text-[15px] font-bold text-gray-900 flex items-start gap-2.5">
-                                        <i className="fa-solid fa-user-tie text-blue-500 mt-0.5"></i> 
+                                        <i className="fa-solid fa-user-tie text-blue-500 mt-0.5"></i>
                                         <span className="leading-tight">{selectedExpense.vendor?.name || "N/A"}</span>
                                     </div>
                                 </div>
@@ -502,10 +516,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                 </div>
                             </div>
 
-                            {/* Two Column Layout: Details & Financials */}
                             <div className="flex flex-col md:flex-row gap-8">
-                                
-                                {/* Left: Info & Description */}
                                 <div className="flex-1 space-y-6">
                                     <div>
                                         <h4 className="text-[13px] font-bold text-gray-900 mb-3 border-b border-gray-100 pb-2">Expense Title</h4>
@@ -537,10 +548,9 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                     </div>
                                 </div>
 
-                                {/* Right: Financial Summary Box (Dark Mode) */}
                                 <div className="w-full md:w-[340px] shrink-0 bg-gray-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden flex flex-col justify-between">
                                     <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/5 blur-2xl pointer-events-none"></div>
-                                    
+
                                     <div>
                                         <h4 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-800 pb-3">Amount Summary</h4>
                                         <div className="space-y-5">
