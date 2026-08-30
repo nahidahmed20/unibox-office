@@ -30,6 +30,7 @@ use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\InvoiceSettingController;
+use App\Http\Controllers\GlobalSearchController;
 use App\Models\Invoice;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -116,7 +117,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/invoice-settings', [InvoiceSettingController::class, 'update'])->name('admin.invoice-settings.update');
 
     Route::post('/project-expenses/{id}/move-to-wallet', [ProjectExpenseController::class, 'moveToWallet'])->name('admin.project-expenses.move-to-wallet');
-
+    Route::get('/admin/global-search', [GlobalSearchController::class, 'search'])->name('admin.global-search');
 });
 
 require __DIR__.'/auth.php';

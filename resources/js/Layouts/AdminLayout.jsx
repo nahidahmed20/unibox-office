@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Link, usePage } from '@inertiajs/react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, usePage, router } from '@inertiajs/react';
+import axios from 'axios';
 
 /* ---------------------------------------------------------------- */
-/*  Polished Presentational Helpers                                 */
+/*   Polished Presentational Helpers                                */
 /* ---------------------------------------------------------------- */
 
 const SectionLabel = ({ children }) => (
@@ -60,8 +61,16 @@ export default function AdminLayout({ children }) {
     const { auth, flash = {} } = usePage().props;
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [profileDropdown, setProfileDropdown] = useState(false);
+    const [quickAddDropdown, setQuickAddDropdown] = useState(false);
 
-    // --- Access Control Logic ---
+    // 🟢 Global Search State
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const searchInputRef = useRef(null);
+
+    // Access Control Logic
     const userRoles = auth?.roles || [];
     const userPermissions = auth?.permissions || [];
     const isSuperAdmin = userRoles.includes('Super Admin') || userRoles.includes('super-admin');
@@ -91,6 +100,55 @@ export default function AdminLayout({ children }) {
             }, {});
         });
     };
+
+    // 🟢 Keyboard Shortcut (Cmd+K / Ctrl+K / Escape)
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                setSearchOpen((prev) => !prev);
+            }
+            if (e.key === 'Escape') {
+                setSearchOpen(false);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    // 🟢 Auto focus input when modal opens
+    useEffect(() => {
+        if (searchOpen && searchInputRef.current) {
+            setTimeout(() => searchInputRef.current?.focus(), 100);
+        } else {
+            setSearchQuery('');
+            setSearchResults([]);
+        }
+    }, [searchOpen]);
+
+    // 🟢 Live Search API Call (Debounced)
+    useEffect(() => {
+        if (!searchQuery.trim() || searchQuery.length < 2) {
+            setSearchResults([]);
+            return;
+        }
+
+        setIsSearching(true);
+        const timer = setTimeout(async () => {
+            try {
+                const res = await axios.get(route('admin.global-search'), {
+                    params: { q: searchQuery }
+                });
+                setSearchResults(res.data || []);
+            } catch (err) {
+                console.error('Search error:', err);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -146,7 +204,7 @@ export default function AdminLayout({ children }) {
                     isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
                 }`}
             >
-                <div className="relative flex h-16 shrink-0 items-center justify-between border-b border-white/[0.05] bg-[#070b15] px-5 md:justify-center">
+                <div className="relative flex h-[72px] shrink-0 items-center justify-between border-b border-white/[0.05] bg-[#070b15] px-5 md:justify-center">
                     <Link href={route('dashboard')} className="flex items-center gap-3 transition-transform hover:scale-105">
                         <img src="/images/logo.png" alt="Logo" className="h-9 w-auto object-contain drop-shadow-md" />
                     </Link>
@@ -172,9 +230,7 @@ export default function AdminLayout({ children }) {
 
                         <SectionLabel>Workspace Modules</SectionLabel>
 
-
-
-                        {/* 2. CRM & Projects (Operations) */}
+                        {/* CRM & Projects */}
                         {hasPermission('view_crm') && (
                             <li className="mx-3 mt-1">
                                 <button
@@ -198,7 +254,7 @@ export default function AdminLayout({ children }) {
                             </li>
                         )}
 
-                        {/* 3. Finance & Accounts */}
+                        {/* Finance & Accounts */}
                         {hasPermission('view_finance') && (
                             <li className="mx-3 mt-1">
                                 <button
@@ -235,7 +291,7 @@ export default function AdminLayout({ children }) {
                             </li>
                         )}
 
-                        {/* 4. Office Administration */}
+                        {/* Office Administration */}
                         {hasPermission('view_office') && (
                             <li className="mx-3 mt-1">
                                 <button
@@ -257,7 +313,7 @@ export default function AdminLayout({ children }) {
                             </li>
                         )}
 
-                        {/* 1. HR & Payroll (People first) */}
+                        {/* HR & Payroll */}
                         {hasPermission('view_hr') && (
                             <li className="mx-3 mt-1">
                                 <button
@@ -282,7 +338,7 @@ export default function AdminLayout({ children }) {
                             </li>
                         )}
 
-                        {/* 5. Reports & Analytics */}
+                        {/* Reports & Analytics */}
                         {hasPermission('view_report') && (
                             <li className="mx-3 mt-1 mb-2">
                                 <button
@@ -307,7 +363,7 @@ export default function AdminLayout({ children }) {
                             </li>
                         )}
 
-                        {/* --- SETTINGS --- */}
+                        {/* SETTINGS */}
                         {hasPermission('view_settings') && (
                             <>
                                 <SectionLabel>System Configuration</SectionLabel>
@@ -342,47 +398,116 @@ export default function AdminLayout({ children }) {
             </nav>
 
             <div className="flex min-h-screen flex-col transition-all duration-300 md:ml-[270px]">
-                {/* Navbar */}
-                <header className="sticky top-0 z-30 flex h-[65px] items-center justify-between border-b border-[#e1e3e5] bg-white px-4 shadow-sm sm:px-6 print:hidden">
-                    <div className="flex items-center">
+
+                {/* 🟢 Premium Top Navbar */}
+                <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-gray-200/80 bg-white/80 backdrop-blur-xl px-4 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] sm:px-6 print:hidden transition-all duration-300">
+
+                    {/* Left Side: Toggle & Search Trigger */}
+                    <div className="flex items-center gap-4 flex-1">
                         <button
                             onClick={() => setIsSidebarOpen(true)}
                             aria-label="Open menu"
-                            className="mr-3 rounded-lg border border-[#e1e3e5] bg-gray-50 p-2 text-gray-700 transition-colors hover:bg-gray-100 md:hidden"
+                            className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50 md:hidden shadow-sm"
                         >
-                            <i className="fa-solid fa-bars text-lg"></i>
+                            <i className="fa-solid fa-bars-staggered text-[17px]"></i>
+                        </button>
+
+                        {/* 🟢 Functional Search Trigger */}
+                        <button
+                            type="button"
+                            onClick={() => setSearchOpen(true)}
+                            className="flex items-center justify-between w-full max-w-md rounded-full border border-gray-200 bg-gray-50/70 hover:bg-white hover:border-[var(--accent)] px-4 py-2.5 text-[13.5px] text-gray-400 transition-all shadow-sm group"
+                        >
+                            <div className="flex items-center gap-3">
+                                <i className="fa-solid fa-magnifying-glass text-[14px] text-gray-400 group-hover:text-[var(--accent)] transition-colors"></i>
+                                <span className="font-medium text-gray-500">Search projects, clients, invoices...</span>
+                            </div>
+                            <div className="hidden sm:flex items-center gap-1 rounded-md bg-white border border-gray-200 px-2 py-0.5 text-[10.5px] font-bold text-gray-500 shadow-sm">
+                                <span>⌘</span><span>K</span>
+                            </div>
                         </button>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    {/* Right Side: Actions & Profile */}
+                    <div className="flex items-center gap-3 sm:gap-5">
+
+                        {/* Quick Add Dropdown */}
+                        <div className="relative hidden sm:block">
+                            <button
+                                onClick={() => setQuickAddDropdown(!quickAddDropdown)}
+                                className="flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2.5 text-[13px] font-bold text-white transition-all hover:bg-gray-800 hover:shadow-md hover:-translate-y-0.5"
+                            >
+                                <i className="fa-solid fa-plus text-[12px]"></i>
+                                <span>Create New</span>
+                            </button>
+
+                            {quickAddDropdown && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setQuickAddDropdown(false)}></div>
+                                    <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl ring-1 ring-black/5 animate-[fadeIn_0.2s_ease-out]">
+                                        <div className="px-4 py-2.5 border-b border-gray-50 bg-gray-50/50 text-[11px] font-bold uppercase tracking-wider text-gray-500">Quick Actions</div>
+                                        <div className="p-1.5 flex flex-col gap-0.5">
+                                            <Link href={route('admin.invoices.create')} className="flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-bold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
+                                                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-500"><i className="fa-solid fa-file-invoice"></i></div> Invoice
+                                            </Link>
+                                            <Link href={route('admin.project-expenses.create')} className="flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-bold text-gray-700 hover:bg-rose-50 hover:text-rose-600 transition-colors">
+                                                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-100 text-rose-500"><i className="fa-solid fa-file-invoice-dollar"></i></div> Expense
+                                            </Link>
+                                            <Link href={route('admin.tasks.index')} className="flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-bold text-gray-700 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                                                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-500"><i className="fa-solid fa-list-check"></i></div> Task
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Divider */}
+                        <div className="h-7 w-px bg-gray-200 hidden sm:block"></div>
+
+                        {/* Notification Bell */}
+                        <button className="relative flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-500 transition-all hover:bg-white hover:text-[var(--accent)] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50">
+                            <i className="fa-regular fa-bell text-[18px]"></i>
+                            <span className="absolute right-2.5 top-2.5 flex h-2.5 w-2.5">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white"></span>
+                            </span>
+                        </button>
+
+                        {/* Profile Dropdown */}
                         <div className="relative">
                             <button
                                 onClick={() => setProfileDropdown(!profileDropdown)}
-                                className="flex items-center gap-2 rounded-full outline-none transition-shadow hover:ring-2 hover:ring-[var(--accent)]/30 focus:ring-2 focus:ring-[var(--accent)]/50 focus-visible:ring-offset-2"
+                                className="flex items-center gap-3 rounded-full outline-none transition-all hover:ring-2 hover:ring-[var(--accent)]/30 focus:ring-2 focus:ring-[var(--accent)]/50 focus-visible:ring-offset-2 p-1 pr-3 hover:bg-gray-50 border border-transparent hover:border-gray-100"
                             >
-                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-bold text-white shadow-sm">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[var(--accent)] to-amber-600 text-sm font-bold text-white shadow-sm ring-2 ring-white">
                                     {initials}
                                 </div>
-                                <span className="hidden text-sm font-semibold text-gray-700 sm:block">
-                                    {displayName}
-                                </span>
-                                <i className={`fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-300 ${profileDropdown ? 'rotate-180' : ''}`}></i>
+                                <div className="hidden text-left sm:block">
+                                    <span className="block text-[13px] font-bold text-gray-800 leading-tight">
+                                        {displayName}
+                                    </span>
+                                    <span className="block text-[11px] font-semibold text-gray-400">
+                                        {isSuperAdmin ? 'Super Admin' : 'Staff'}
+                                    </span>
+                                </div>
+                                <i className={`fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-300 ml-1 ${profileDropdown ? 'rotate-180' : ''}`}></i>
                             </button>
 
                             {profileDropdown && (
                                 <>
                                     <div className="fixed inset-0 z-40" onClick={() => setProfileDropdown(false)}></div>
-                                    <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg ring-1 ring-black/5">
-                                        <div className="bg-gray-50 px-4 py-3 border-b border-gray-100">
-                                            <p className="text-sm font-medium text-gray-900">{displayName}</p>
-                                            <p className="text-xs text-gray-500 truncate">{auth?.user?.email}</p>
+                                    <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl ring-1 ring-black/5 animate-[fadeIn_0.2s_ease-out]">
+                                        <div className="bg-gray-50 px-5 py-4 border-b border-gray-100">
+                                            <p className="text-[14px] font-bold text-gray-900">{displayName}</p>
+                                            <p className="text-[12px] font-medium text-gray-500 truncate mt-0.5">{auth?.user?.email}</p>
                                         </div>
-                                        <div className="py-1">
-                                            <Link href={route('profile.edit')} className="flex items-center px-4 py-2 text-[13px] font-medium text-gray-700 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] transition-colors">
-                                                <i className="fa-regular fa-user mr-2.5 w-4 text-center"></i> My Profile
+                                        <div className="py-2 px-1.5">
+                                            <Link href={route('profile.edit')} className="flex items-center rounded-xl px-4 py-2.5 text-[13px] font-bold text-gray-700 hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] transition-colors">
+                                                <i className="fa-regular fa-user mr-3 text-[14px] opacity-70"></i> My Profile
                                             </Link>
-                                            <Link href={route('logout')} method="post" as="button" className="flex w-full items-center px-4 py-2 text-left text-[13px] font-medium text-red-600 hover:bg-red-50 transition-colors">
-                                                <i className="fa-solid fa-arrow-right-from-bracket mr-2.5 w-4 text-center"></i> Sign Out
+                                            <Link href={route('logout')} method="post" as="button" className="flex w-full items-center rounded-xl px-4 py-2.5 text-left text-[13px] font-bold text-red-600 hover:bg-red-50 transition-colors mt-0.5">
+                                                <i className="fa-solid fa-arrow-right-from-bracket mr-3 text-[14px] opacity-70"></i> Sign Out
                                             </Link>
                                         </div>
                                     </div>
@@ -392,16 +517,96 @@ export default function AdminLayout({ children }) {
                     </div>
                 </header>
 
+                {/* 🟢 COMMAND PALETTE SEARCH MODAL */}
+                {searchOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-start justify-center bg-gray-900/60 backdrop-blur-sm p-4 pt-16 sm:pt-24 animate-[fadeIn_0.15s_ease-out]">
+                        <div
+                            className="fixed inset-0"
+                            onClick={() => setSearchOpen(false)}
+                        />
+                        <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-10">
+
+                            {/* Search Header Input */}
+                            <div className="flex items-center px-4 py-3.5 border-b border-gray-100">
+                                <i className="fa-solid fa-magnifying-glass text-[16px] text-gray-400 mr-3"></i>
+                                <input
+                                    ref={searchInputRef}
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Type to search projects, clients, invoices, tasks..."
+                                    className="w-full bg-transparent text-[15px] font-medium text-gray-900 placeholder:text-gray-400 outline-none border-none focus:ring-0"
+                                />
+                                {isSearching ? (
+                                    <i className="fa-solid fa-spinner fa-spin text-gray-400 text-sm"></i>
+                                ) : (
+                                    <button
+                                        onClick={() => setSearchOpen(false)}
+                                        className="rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-500 hover:bg-gray-200"
+                                    >
+                                        ESC
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Search Results / Empty State */}
+                            <div className="max-h-96 overflow-y-auto p-2 custom-scroll">
+                                {searchResults.length > 0 ? (
+                                    <div className="space-y-1">
+                                        {searchResults.map((item, index) => (
+                                            <Link
+                                                key={index}
+                                                href={item.url}
+                                                onClick={() => setSearchOpen(false)}
+                                                className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors group"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-[14px]">
+                                                        <i className={item.icon}></i>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[14px] font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">
+                                                            {item.title}
+                                                        </p>
+                                                        <p className="text-[11.5px] text-gray-400 font-medium">
+                                                            {item.subtitle}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <span className="text-[10.5px] font-bold uppercase tracking-wider text-gray-400 bg-gray-100 px-2 py-1 rounded">
+                                                    {item.category}
+                                                </span>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                ) : searchQuery.length >= 2 ? (
+                                    <div className="py-12 text-center text-gray-400">
+                                        <i className="fa-solid fa-magnifying-glass text-2xl mb-2 opacity-50"></i>
+                                        <p className="text-[14px] font-bold text-gray-600">No results found for "{searchQuery}"</p>
+                                        <p className="text-[12px] text-gray-400 mt-1">Try searching by client name, project title, or invoice number.</p>
+                                    </div>
+                                ) : (
+                                    <div className="p-4 text-[12.5px] text-gray-400 flex items-center justify-between">
+                                        <span>Type at least 2 characters to search across all records...</span>
+                                        <span className="font-semibold text-gray-500">Pro tip: Press ⌘K anytime</span>
+                                    </div>
+                                )}
+                            </div>
+
+                        </div>
+                    </div>
+                )}
+
                 <main className="flex-1 p-4 sm:p-6 md:p-8">
                     {flash?.success && (
-                        <div className="mb-6 flex items-center rounded-lg border border-green-200 bg-green-50 p-4 text-[14px] font-medium text-green-700 shadow-sm animate-fade-in-down print:hidden">
-                            <i className="fa-solid fa-circle-check mr-2.5 text-lg"></i>
+                        <div className="mb-6 flex items-center rounded-2xl border border-green-200 bg-green-50/80 p-4 text-[14px] font-bold text-green-700 shadow-sm animate-fade-in-down print:hidden backdrop-blur-sm">
+                            <i className="fa-solid fa-circle-check mr-3 text-xl"></i>
                             {flash.success}
                         </div>
                     )}
                     {flash?.error && (
-                        <div className="mb-6 flex items-center rounded-lg border border-red-200 bg-red-50 p-4 text-[14px] font-medium text-red-700 shadow-sm animate-fade-in-down print:hidden">
-                            <i className="fa-solid fa-circle-xmark mr-2.5 text-lg"></i>
+                        <div className="mb-6 flex items-center rounded-2xl border border-red-200 bg-red-50/80 p-4 text-[14px] font-bold text-red-700 shadow-sm animate-fade-in-down print:hidden backdrop-blur-sm">
+                            <i className="fa-solid fa-circle-xmark mr-3 text-xl"></i>
                             {flash.error}
                         </div>
                     )}

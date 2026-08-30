@@ -26,7 +26,7 @@ const StatCard = ({ label, value, icon, gradient, note, noteColor }) => {
     );
 };
 
-// 🟢 FIXED: Straight Taka Symbol Component
+// Straight Taka Symbol Component
 const Taka = () => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontWeight: 'bold' }} className="mr-1 opacity-70 text-[18px]">৳</span>
 );
@@ -39,7 +39,7 @@ const money = (n) => (
 );
 
 export default function Dashboard({ stats, recentPendingInvoices = [], recentNotices = [], recentTasks = [], recentTransactions = [] }) {
-    // 🟢 Calculating Total Monthly Spent (Expenses + Payroll)
+    // Calculating Total Monthly General Spent (Office Expenses + Payroll)
     const totalSpentThisMonth = (Number(stats.monthlyExpensesOnly) || 0) + (Number(stats.monthlySalaryPaid) || 0);
 
     return (
@@ -75,44 +75,92 @@ export default function Dashboard({ stats, recentPendingInvoices = [], recentNot
                     </div>
                 </div>
 
-                {/* --- Row 1: Key Financials (Top Priority) --- */}
+                {/* --- Row 1 & 2: 8 Key Financials (Top Priority) --- */}
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+
+                    {/* 1. Available Balance */}
                     <StatCard
                         label="Available Balance"
-                        value={money(stats.totalBalance)}
+                        value={money(stats.availableBalance)}
                         icon="fa-wallet"
                         gradient="bg-gradient-to-br from-indigo-500 to-blue-600"
-                        note={`Cash: ৳ ${(Number(stats.cashBalance) || 0).toLocaleString()} | Bank: ৳ ${(Number(stats.bankBalance) || 0).toLocaleString()}`}
+                        note={`Accounts: ৳ ${(Number(stats.totalBalance) || 0).toLocaleString()} | Cl. Adv: ৳ ${(Number(stats.clientAdvance) || 0).toLocaleString()}`}
                         noteColor="text-indigo-600"
                     />
+
+                    {/* 2. Vendor Payables & Advance */}
+                    <StatCard
+                        label="Vendor Dues (Payables)"
+                        value={money(stats.vendorDue)}
+                        icon="fa-truck-field"
+                        gradient="bg-gradient-to-br from-rose-500 to-red-600"
+                        note={`Wallet Advance: ৳ ${(Number(stats.vendorAdvance) || 0).toLocaleString()} | Paid: ৳ ${(Number(stats.vendorPaid) || 0).toLocaleString()}`}
+                        noteColor="text-rose-500"
+                    />
+
+                    {/* 3. Market Receivables */}
                     <StatCard
                         label="Market Receivable (Due)"
                         value={money(stats.totalClientDue)}
                         icon="fa-file-invoice-dollar"
-                        gradient="bg-gradient-to-br from-rose-500 to-red-600"
+                        gradient="bg-gradient-to-br from-orange-400 to-amber-500"
                         note={`${stats.unpaidInvoices} Invoices are currently unpaid`}
-                        noteColor="text-rose-500"
+                        noteColor="text-orange-600"
                     />
+
+                    {/* 4. Monthly Project Expense */}
                     <StatCard
-                        label="Received This Month"
-                        value={money(stats.monthlyRevenue)}
-                        icon="fa-arrow-down-to-bracket"
+                        label="Project Exp. (This Month)"
+                        value={money(stats.monthlyProjectExpense)}
+                        icon="fa-diagram-project"
                         gradient="bg-gradient-to-br from-emerald-400 to-teal-500"
-                        note="Total cash-in this month"
+                        note="Total billed on projects this month"
                         noteColor="text-emerald-600"
                     />
+
+                    {/* 5. Total Investments */}
                     <StatCard
-                        label="Spent This Month"
+                        label="Total Investment"
+                        value={money(stats.totalInvestment)}
+                        icon="fa-chart-line"
+                        gradient="bg-gradient-to-br from-purple-500 to-indigo-600"
+                        note="Total capital invested in company"
+                        noteColor="text-purple-600"
+                    />
+
+                    {/* 6. Total Assets */}
+                    <StatCard
+                        label="Total Asset Value"
+                        value={money(stats.totalAssets)}
+                        icon="fa-couch"
+                        gradient="bg-gradient-to-br from-cyan-400 to-emerald-500"
+                        note="Current valuation of company assets"
+                        noteColor="text-cyan-700"
+                    />
+
+                    {/* 7. Employee Advance */}
+                    <StatCard
+                        label="Employee Advance (Given)"
+                        value={money(stats.employeeAdvance)}
+                        icon="fa-user-tie"
+                        gradient="bg-gradient-to-br from-blue-400 to-cyan-500"
+                        note="Total unsettled staff advances"
+                        noteColor="text-blue-600"
+                    />
+
+                    {/* 8. Office Expenses */}
+                    <StatCard
+                        label="Office Spent (This Month)"
                         value={money(totalSpentThisMonth)}
                         icon="fa-arrow-right-from-bracket"
-                        gradient="bg-gradient-to-br from-orange-400 to-amber-500"
-                        note={`Exp: ৳ ${(Number(stats.monthlyExpensesOnly) || 0).toLocaleString()} | Payroll: ৳ ${(Number(stats.monthlySalaryPaid) || 0).toLocaleString()}`}
-                        noteColor="text-orange-600"
+                        gradient="bg-gradient-to-br from-fuchsia-500 to-pink-600"
+                        note={`Office Exp: ৳ ${(Number(stats.monthlyExpensesOnly) || 0).toLocaleString()} | Salary: ৳ ${(Number(stats.monthlySalaryPaid) || 0).toLocaleString()}`}
+                        noteColor="text-fuchsia-600"
                     />
                 </div>
 
-                {/* --- Row 2: Operational Stats --- */}
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                {/* --- Row 3: Operational Stats --- */}
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 mt-2">
                     <Link href={route('admin.projects.index')} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md hover:border-blue-200 transition-all group">
                         <i className="fa-solid fa-layer-group text-blue-500 text-2xl mb-2.5 group-hover:scale-110 transition-transform"></i>
                         <h4 className="text-2xl font-black text-gray-800">{stats.activeProjects}</h4>
@@ -125,10 +173,10 @@ export default function Dashboard({ stats, recentPendingInvoices = [], recentNot
                         <p className="text-[11px] font-bold uppercase text-rose-500 mt-1">Unpaid Salaries</p>
                     </Link>
 
-                    <Link href={route('admin.project-expenses.index')} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md hover:border-orange-200 transition-all group">
-                        <i className="fa-solid fa-hand-holding-dollar text-orange-500 text-2xl mb-2.5 group-hover:scale-110 transition-transform"></i>
-                        <h4 className="text-[20px] font-black text-gray-800 tabular-nums">৳ {(Number(stats.totalProjectDue)/1000).toFixed(1)}k</h4>
-                        <p className="text-[11px] font-bold uppercase text-gray-500 mt-1">Vendor Dues</p>
+                    <Link href={route('admin.invoices.index')} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md hover:border-emerald-200 transition-all group">
+                        <i className="fa-solid fa-arrow-down-to-bracket text-emerald-500 text-2xl mb-2.5 group-hover:scale-110 transition-transform"></i>
+                        <h4 className="text-[20px] font-black text-gray-800 tabular-nums">৳ {(Number(stats.monthlyRevenue)/1000).toFixed(1)}k</h4>
+                        <p className="text-[11px] font-bold uppercase text-gray-500 mt-1">Revenue This Month</p>
                     </Link>
 
                     <Link href={route('admin.tasks.index')} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md hover:border-amber-200 transition-all group">
@@ -156,8 +204,8 @@ export default function Dashboard({ stats, recentPendingInvoices = [], recentNot
                     </Link>
                 </div>
 
-                {/* --- Row 3: Complex Data (Receivables & Transactions) --- */}
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                {/* --- Row 4: Complex Data (Receivables & Transactions) --- */}
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mt-2">
 
                     {/* Pending Receivables Table */}
                     <div className="flex flex-col rounded-3xl border border-gray-100 bg-white shadow-sm overflow-hidden">
@@ -272,7 +320,7 @@ export default function Dashboard({ stats, recentPendingInvoices = [], recentNot
                     </div>
                 </div>
 
-                {/* --- Row 4: Tasks & Notices --- */}
+                {/* --- Row 5: Tasks & Notices --- */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-2">
                     {/* Active Tasks */}
                     <div className="flex flex-col rounded-3xl border border-gray-100 bg-white shadow-sm overflow-hidden">

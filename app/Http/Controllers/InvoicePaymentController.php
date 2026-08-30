@@ -94,7 +94,7 @@ class InvoicePaymentController extends Controller
         $validated = $request->validate([
             'invoice_id'      => 'required|exists:invoices,id',
             'account_id'      => 'required|exists:accounts,id',
-            'amount'          => 'required|numeric|min:1',
+            'amount'          => 'required|numeric|min:0',
             'discount_amount' => 'nullable|numeric|min:0',
             'payment_date'    => 'required|date',
             'note'            => 'nullable|string'

@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\{Account, Invoice, InvoicePayment, ProjectExpense, Expense, Investment, EmployeeProfile, Attendance, Project, Client, Task, Leave, Requisition, Notice, Transaction, Salary};
+use App\Models\{Account, Invoice, InvoicePayment, ProjectExpense, Expense, Investment, EmployeeProfile, Attendance, Project, Client, Task, Leave, Requisition, Notice, Transaction, Salary, Vendor}; // 🟢 Vendor Model Add kora hoyeche
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -13,7 +14,7 @@ class DashboardController extends Controller
         $totalPaid = InvoicePayment::sum('amount');
         $totalClientDue = max($totalInvoiced - $totalPaid, 0);
 
-        // 🟢 NEW: Salaries Data Fetching
+        // Salaries Data
         $monthlySalaryPaid = Salary::where('status', 'paid')
             ->whereMonth('payment_date', now()->month)
             ->whereYear('payment_date', now()->year)
@@ -21,25 +22,65 @@ class DashboardController extends Controller
 
         $unpaidSalaries = Salary::where('status', 'unpaid')->sum('net_pay');
 
+        // General Expenses Data
         $monthlyExpenses = Expense::whereMonth('date', now()->month)
             ->whereYear('date', now()->year)
             ->sum('amount');
 
+        // Advances & Assets Data
+        $clientAdvance = DB::table('client_advances')->selectRaw('COALESCE(SUM(amount - used_amount), 0) as balance')->value('balance');
+        $employeeAdvance = DB::table('advances')->selectRaw('COALESCE(SUM(amount - settled_amount - returned_amount), 0) as balance')->value('balance');
+        $totalAssets = DB::table('assets')->sum('purchase_price');
+
+        // 🟢 FIXED: Vendor Advance (Vendor Wallet Balance)
+        $vendorAdvance = Vendor::sum('wallet_balance');
+
+        // 🟢 FIXED: Total Investment (Total In - Total Returned)
+        $totalInvested = Investment::sum('amount');
+
+        // আপনার যদি ইনভেস্টমেন্ট ফেরত দেওয়ার আলাদা টেবিল থাকে (যেমন: investment_returns), তাহলে নিচের লাইনটি আনকমেন্ট করে ঠিক করে নিবেন:
+        // $totalInvestmentReturned = \App\Models\InvestmentReturn::sum('amount');
+        $totalInvestmentReturned = 0; // আপাতত 0 রাখলাম
+
+        $actualInvestmentBalance = $totalInvested - $totalInvestmentReturned;
+
+
+        // Vendor & Project Expenses Data
+        $vendorPaid = ProjectExpense::whereNotNull('vendor_id')->sum('paid_amount');
+        $vendorDue = ProjectExpense::whereNotNull('vendor_id')->sum('due_amount');
+
+        $monthlyProjectExpense = ProjectExpense::whereMonth('date', now()->month)
+            ->whereYear('date', now()->year)
+            ->sum('total_bill');
+
+        // Available Balance Logic
+        $totalAccountBalance = Account::where('is_active', true)->sum('current_balance');
+        $availableBalance = $totalAccountBalance + $clientAdvance; // Cash/Bank + Client Advance
+
         $stats = [
-            'totalBalance' => Account::where('is_active', true)->sum('current_balance'),
+            'totalBalance' => $totalAccountBalance,
             'cashBalance' => Account::where('type', 'cash')->where('is_active', true)->sum('current_balance'),
             'bankBalance' => Account::whereIn('type', ['bank', 'mobile_banking'])->where('is_active', true)->sum('current_balance'),
+
+            // Stats Added to array
+            'clientAdvance' => $clientAdvance,
+            'availableBalance' => $availableBalance,
+            'employeeAdvance' => $employeeAdvance,
+            'vendorAdvance' => $vendorAdvance, // 🟢 Vendor Advance Added
+            'totalAssets' => $totalAssets,
+            'totalInvestment' => $actualInvestmentBalance, // 🟢 Actual Investment Added
+
+            'vendorPaid' => $vendorPaid,
+            'vendorDue' => $vendorDue,
+            'monthlyProjectExpense' => $monthlyProjectExpense,
+
             'totalClientDue' => $totalClientDue,
             'totalProjectDue' => ProjectExpense::sum('due_amount'),
-
             'monthlyRevenue' => InvoicePayment::whereMonth('payment_date', now()->month)->whereYear('payment_date', now()->year)->sum('amount'),
-
-            // 🟢 Send separate expenses and salaries to frontend
             'monthlyExpensesOnly' => $monthlyExpenses,
             'monthlySalaryPaid' => $monthlySalaryPaid,
             'unpaidSalaries' => $unpaidSalaries,
 
-            'totalInvestment' => Investment::sum('amount'),
             'totalEmployees' => EmployeeProfile::count(),
             'presentToday' => Attendance::whereDate('date', today())->where('status', 'present')->count(),
             'activeProjects' => Project::where('status', 'in_progress')->count(),
@@ -50,7 +91,7 @@ class DashboardController extends Controller
             'pendingRequisitions' => Requisition::where('status', 'pending')->count(),
         ];
 
-        // Pending Receivables (Who owes what)
+        // Pending Receivables
         $recentPendingInvoices = Invoice::with(['client:id,name,company_name', 'items.project:id,title'])
             ->withSum('payments', 'amount')
             ->whereIn('status', ['unpaid', 'partially_paid', 'overdue'])
