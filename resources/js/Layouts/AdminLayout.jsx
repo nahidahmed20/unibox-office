@@ -80,13 +80,14 @@ export default function AdminLayout({ children }) {
         return userPermissions.includes(permission);
     };
 
+    // 🟢 UPDATE: Added Challan routes to activeRoutes
     const activeRoutes = {
         hr: route().current('admin.departments.*') || route().current('admin.designations.*') || route().current('admin.employees.*') || route().current('admin.attendances.*') || route().current('admin.leaves.*') || route().current('admin.salaries.*'),
         crm: route().current('admin.clients.*') || route().current('admin.projects.*') || route().current('admin.tasks.*') || route().current('admin.vendors.*'),
         finance: route().current('admin.project-expenses.*') || route().current('admin.accounts.*') || route().current('admin.transactions.*') || route().current('admin.investments.*') || route().current('admin.invoices.*') || route().current('invoice-payments.*') || route().current('admin.client-advances.*') || route().current('admin.expenses.*') || route().current('admin.expense-categories.*') || route().current('admin.advances.*'),
-        office: route().current('admin.assets.*') || route().current('admin.requisitions.*') || route().current('admin.notices.*'),
+        office: route().current('admin.assets.*') || route().current('admin.requisitions.*') || route().current('admin.notices.*') || route().current('admin.challans.*'),
         report: route().current('admin.reports.*') || route().current('admin.account.transactions') || route().current('admin.client-dues') || route().current('admin.vendor-dues'),
-        settings: route().current('admin.invoice-settings.*'),
+        settings: route().current('admin.invoice-settings.*') || route().current('admin.challan-settings.*'),
         access: route().current('admin.users.*') || route().current('admin.roles.*') || route().current('admin.permissions.*'),
     };
 
@@ -308,6 +309,9 @@ export default function AdminLayout({ children }) {
                                         <li><Link href={route('admin.assets.index')} className={subItemClass(route().current('admin.assets.*'))}><i className="fa-solid fa-boxes-stacked text-[11px] opacity-80"></i> Assets</Link></li>
                                         <li><Link href={route('admin.requisitions.index')} className={subItemClass(route().current('admin.requisitions.*'))}><i className="fa-solid fa-clipboard-list text-[11px] opacity-80"></i> Requisitions</Link></li>
                                         <li><Link href={route('admin.notices.index')} className={subItemClass(route().current('admin.notices.*'))}><i className="fa-solid fa-bullhorn text-[11px] opacity-80"></i> Notices</Link></li>
+
+                                        {/* 🟢 UPDATE: Added Delivery Challans Menu */}
+                                        <li><Link href={route('admin.challans.index')} className={subItemClass(route().current('admin.challans.*'))}><i className="fa-solid fa-truck-fast text-[11px] opacity-80"></i> Delivery Challans</Link></li>
                                     </SubMenu>
                                 )}
                             </li>
@@ -373,7 +377,15 @@ export default function AdminLayout({ children }) {
                                         <span>Invoice Settings</span>
                                     </Link>
                                 </li>
-                                <li className="mx-3 mb-6">
+                                {/* 🟢 UPDATE: Added Challan Settings Menu */}
+                                <li className="mx-3 mb-1">
+                                    <Link href={route('admin.challan-settings.index')} className={topItemClass(route().current('admin.challan-settings.*'))}>
+                                        <i className="fa-solid fa-file-signature w-5 text-center text-[16px]"></i>
+                                        <span>Challan Settings</span>
+                                    </Link>
+                                </li>
+
+                                <li className="mx-3 mb-6 mt-1">
                                     <button
                                         onClick={() => toggleMenu('access')}
                                         aria-expanded={openMenus.access}

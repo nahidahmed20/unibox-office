@@ -10,6 +10,7 @@ use App\Models\ProjectExpense;
 use App\Models\Vendor;
 use App\Models\VendorLedger;
 use App\Models\VendorPayment;
+use App\Models\Transaction; 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -81,7 +82,7 @@ class VendorController extends Controller
             'account_id'            => 'required_if:payment_source,account',
             'advance_user_id'       => 'required_if:payment_source,advance',
             'pay_amount'            => 'required|numeric|min:0',
-            'adjustment_amount'     => 'nullable|numeric|min:0', 
+            'adjustment_amount'     => 'nullable|numeric|min:0',
             'date'                  => 'required|date',
         ]);
 
@@ -90,8 +91,8 @@ class VendorController extends Controller
 
             $payAmount = $request->pay_amount ?: 0;
             $adjustmentAmount = $request->adjustment_amount ?: 0;
-            
-            $totalClearing = $payAmount + $adjustmentAmount; 
+
+            $totalClearing = $payAmount + $adjustmentAmount;
 
             if ($totalClearing <= 0) {
                 throw new \Exception('Pay Amount অথবা Adjustment Amount দিতে হবে।');
@@ -109,13 +110,13 @@ class VendorController extends Controller
             }
 
             $totalDueSelected = $bills->sum('due_amount');
-            
+
             if ($totalClearing > $totalDueSelected && $adjustmentAmount > 0) {
-                throw new \Exception('Adjustment সহ মোট পরিমাণ বিলের বকেয়ার চেয়ে বেশি হতে পারবে না।');
+                throw new \Exception('Adjustment সহ মোট পরিমাণ বিলের বকেয়ার চেয়ে বেশি হতে পারবে না।');
             }
 
             $remainingClearing = $totalClearing;
-            $appliedDetails = []; 
+            $appliedDetails = [];
 
             foreach ($bills as $bill) {
                 if ($remainingClearing <= 0) break;
@@ -137,7 +138,7 @@ class VendorController extends Controller
                 $remainingClearing -= $clearedNow;
             }
 
-            $walletCredit = max(0, $payAmount - $totalDueSelected); 
+            $walletCredit = max(0, $payAmount - $totalDueSelected);
 
             if ($payAmount > 0) {
                 if ($request->payment_source === 'account') {
@@ -189,7 +190,7 @@ class VendorController extends Controller
                 'account_id'           => $request->payment_source === 'account' ? $request->account_id : null,
                 'advance_user_id'      => $request->payment_source === 'advance' ? $request->advance_user_id : null,
                 'pay_amount'           => $payAmount,
-                'adjustment_amount'    => $adjustmentAmount, 
+                'adjustment_amount'    => $adjustmentAmount,
                 'wallet_credit_amount' => $walletCredit,
                 'date'                 => $request->date,
                 'status'               => 'completed',
@@ -204,13 +205,18 @@ class VendorController extends Controller
             }
 
             if ($request->payment_source === 'account' && $payAmount > 0) {
-                $account->debit(
-                    $payAmount,
-                    $payment,                            
-                    'VP-' . $payment->id,                
-                    'Bill payment - ' . $vendor->name,  
-                    $request->date                       
-                );
+                $account = Account::findOrFail($request->account_id);
+                $account->decrement('current_balance', $payAmount);
+
+                Transaction::create([
+                    'account_id'           => $account->id,
+                    'type'                 => 'debit',
+                    'amount'               => $payAmount,
+                    'transaction_date'     => $request->date,
+                    'description'          => 'Bill payment to vendor: ' . $vendor->name . ' (VP-' . $payment->id . ')',
+                    'transactionable_id'   => $payment->id,
+                    'transactionable_type' => VendorPayment::class,
+                ]);
             }
 
             DB::commit();
@@ -240,12 +246,17 @@ class VendorController extends Controller
                 throw new \Exception('অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
             }
 
-            $account->debit(
-                $request->amount,
-                $vendor,
-                null,
-                "Advance given to {$vendor->name}. " . $request->description
-            );
+            $account->decrement('current_balance', $request->amount);
+
+            Transaction::create([
+                'account_id'           => $account->id,
+                'type'                 => 'debit',
+                'amount'               => $request->amount,
+                'transaction_date'     => now()->toDateString(),
+                'description'          => "Advance given to vendor {$vendor->name}. " . $request->description,
+                'transactionable_id'   => $vendor->id,
+                'transactionable_type' => Vendor::class,
+            ]);
 
             $vendor->increment('wallet_balance', $request->amount);
 
@@ -284,13 +295,17 @@ class VendorController extends Controller
             }
 
             $vendor->decrement('wallet_balance', $request->amount);
+            $account->increment('current_balance', $request->amount);
 
-            $account->credit(
-                $request->amount,
-                $vendor,
-                null,
-                "Refund received from {$vendor->name}. " . $request->description
-            );
+            Transaction::create([
+                'account_id'           => $account->id,
+                'type'                 => 'credit',
+                'amount'               => $request->amount,
+                'transaction_date'     => now()->toDateString(),
+                'description'          => "Refund received from vendor {$vendor->name}. " . $request->description,
+                'transactionable_id'   => $vendor->id,
+                'transactionable_type' => Vendor::class,
+            ]);
 
             VendorLedger::create([
                 'vendor_id'   => $vendor->id,
@@ -307,7 +322,6 @@ class VendorController extends Controller
             return redirect()->back()->withErrors(['error' => $e->getMessage()]);
         }
     }
-
 
     public function voidPayment(Request $request, VendorPayment $payment)
     {
@@ -334,12 +348,18 @@ class VendorController extends Controller
 
             if ($payment->payment_source === 'account') {
                 $account = Account::findOrFail($payment->account_id);
-                $account->credit(
-                    $payment->pay_amount,
-                    $payment,
-                    'VP-' . $payment->id . '-VOID',
-                    'Payment voided: ' . $request->void_reason
-                );
+                $account->increment('current_balance', $payment->pay_amount);
+
+                Transaction::create([
+                    'account_id'           => $account->id,
+                    'type'                 => 'credit',
+                    'amount'               => $payment->pay_amount,
+                    'transaction_date'     => now()->toDateString(),
+                    'description'          => 'Payment voided (VP-' . $payment->id . '): ' . $request->void_reason,
+                    'transactionable_id'   => $payment->id,
+                    'transactionable_type' => VendorPayment::class,
+                ]);
+
             } else {
                 $advanceBalance = AdvanceBalance::where('user_id', $payment->advance_user_id)->first();
                 $advanceBalance?->decrement('total_used', $payment->pay_amount);
@@ -405,7 +425,6 @@ class VendorController extends Controller
         return redirect()->back();
     }
 
-
     public function update(Request $request, string $id)
     {
         $vendor = Vendor::findOrFail($id);
@@ -413,7 +432,7 @@ class VendorController extends Controller
         $validated = $request->validate([
             'name'            => 'required|string|max:255',
             'company_name'    => 'nullable|string|max:255',
-            'phone'           => 'nullable|string|max:20|unique:vendors,phone',
+            'phone'           => 'nullable|string|max:20|unique:vendors,phone,' . $vendor->id,
             'address'         => 'nullable|string',
             'opening_balance' => 'nullable|numeric',
         ]);
@@ -430,6 +449,4 @@ class VendorController extends Controller
 
         return redirect()->back();
     }
-
-
 }

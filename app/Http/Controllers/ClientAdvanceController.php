@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ClientAdvance;
 use App\Models\Client;
 use App\Models\Account;
+use App\Models\Transaction; 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -36,12 +37,12 @@ class ClientAdvanceController extends Controller
             $totalCount = $baseQuery->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = min((int) $request->input('per_page', 10), 100000); 
+            $perPage = min((int) $request->input('per_page', 10), 100000);
         }
 
         $clientWithAdvances = $baseQuery
             ->paginate($perPage)
-            ->withQueryString() 
+            ->withQueryString()
             ->through(function ($client) {
                 $client->available_balance = ($client->total_amount ?? 0) - ($client->total_used ?? 0);
                 return $client;
@@ -66,9 +67,9 @@ class ClientAdvanceController extends Controller
             'clientWithAdvances' => $clientWithAdvances,
             'clients' => $clients,
             'accounts' => $accounts,
-            'totalReceived' => $totalReceived,           
-            'totalUsed' => $totalUsed,                    
-            'totalAvailable' => $totalReceived - $totalUsed, 
+            'totalReceived' => $totalReceived,
+            'totalUsed' => $totalUsed,
+            'totalAvailable' => $totalReceived - $totalUsed,
         ]);
     }
 
@@ -83,7 +84,7 @@ class ClientAdvanceController extends Controller
         ]);
 
         DB::transaction(function () use ($validated) {
-            ClientAdvance::create([
+            $advance = ClientAdvance::create([
                 'client_id' => $validated['client_id'],
                 'account_id' => $validated['account_id'],
                 'amount' => $validated['amount'],
@@ -94,9 +95,19 @@ class ClientAdvanceController extends Controller
 
             $account = Account::findOrFail($validated['account_id']);
             $account->increment('current_balance', $validated['amount']);
+
+            Transaction::create([
+                'account_id'           => $account->id,
+                'type'                 => 'credit',
+                'amount'               => $validated['amount'],
+                'transaction_date'     => $validated['date'],
+                'description'          => 'Client Advance Received. ' . ($validated['note'] ? ' Note: ' . $validated['note'] : ''),
+                'transactionable_id'   => $advance->id,
+                'transactionable_type' => ClientAdvance::class,
+            ]);
         });
 
-        return redirect()->back();
+        return redirect()->back()->with('success', 'Advance logged successfully.');
     }
 
     public function update(Request $request, $id)
@@ -133,10 +144,12 @@ class ClientAdvanceController extends Controller
                     $oldAccount = Account::findOrFail($oldAccountId);
                     $oldAccount->current_balance -= $oldAmount;
                     $oldAccount->save();
+
                     $newAccount = Account::findOrFail($newAccountId);
                     $newAccount->current_balance += $newAmount;
                     $newAccount->save();
                 }
+
                 $advance->update([
                     'client_id' => $request->client_id,
                     'account_id' => $newAccountId,
@@ -144,6 +157,20 @@ class ClientAdvanceController extends Controller
                     'date' => $request->date,
                     'note' => $request->note,
                 ]);
+
+                // 🟢 Update Transaction Table
+                $transaction = Transaction::where('transactionable_id', $advance->id)
+                    ->where('transactionable_type', ClientAdvance::class)
+                    ->first();
+
+                if ($transaction) {
+                    $transaction->update([
+                        'account_id'       => $newAccountId,
+                        'amount'           => $newAmount,
+                        'transaction_date' => $request->date,
+                        'description'      => 'Client Advance Received. ' . ($request->note ? ' Note: ' . $request->note : ''),
+                    ]);
+                }
             });
 
             return redirect()->back()->with('success', 'Advance updated successfully.');
@@ -153,20 +180,25 @@ class ClientAdvanceController extends Controller
         }
     }
 
-    /**
-     * Delete an existing advance.
-     */
     public function destroy($id)
     {
         try {
             DB::transaction(function () use ($id) {
                 $advance = ClientAdvance::findOrFail($id);
+
                 if ($advance->used_amount > 0) {
                     throw ValidationException::withMessages(['error' => 'Cannot delete! Already used in an invoice.']);
                 }
+
                 $account = Account::findOrFail($advance->account_id);
                 $account->current_balance -= $advance->amount;
                 $account->save();
+
+                // 🟢 Delete Transaction Record
+                Transaction::where('transactionable_id', $advance->id)
+                    ->where('transactionable_type', ClientAdvance::class)
+                    ->delete();
+
                 $advance->delete();
             });
 

@@ -31,6 +31,9 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\InvoiceSettingController;
 use App\Http\Controllers\GlobalSearchController;
+use App\Http\Controllers\ChallanController;
+use App\Http\Controllers\ChallanSettingController;
+
 use App\Models\Invoice;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -118,6 +121,15 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/project-expenses/{id}/move-to-wallet', [ProjectExpenseController::class, 'moveToWallet'])->name('admin.project-expenses.move-to-wallet');
     Route::get('/admin/global-search', [GlobalSearchController::class, 'search'])->name('admin.global-search');
+
+    // Challan Routes
+    Route::resource('challans', ChallanController::class)->except(['show'])->names('admin.challans');
+    Route::get('challans/{challan}/print', [ChallanController::class, 'print'])->name('admin.challans.print');
+
+    // Challan Setting Routes
+    Route::get('challan-settings', [ChallanSettingController::class, 'index'])->name('admin.challan-settings.index');
+    Route::post('challan-settings', [ChallanSettingController::class, 'update'])->name('admin.challan-settings.update');
+
 });
 
 require __DIR__.'/auth.php';

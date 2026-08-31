@@ -6,6 +6,7 @@ use App\Models\Advance;
 use App\Models\AdvanceBalance;
 use App\Models\Account;
 use App\Models\User;
+use App\Models\Transaction; 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +23,7 @@ class AdvanceController extends Controller
                 $q->whereHas('user', function ($q2) use ($searchTerm) {
                     $q2->where('name', 'like', "%{$searchTerm}%");
                 })->orWhere('purpose', 'like', "%{$searchTerm}%")
-                ->orWhere('notes', 'like', "%{$searchTerm}%"); 
+                ->orWhere('notes', 'like', "%{$searchTerm}%");
             });
         }
 
@@ -37,7 +38,7 @@ class AdvanceController extends Controller
             $totalCount = $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = min((int) $request->input('per_page', 50), 100000); 
+            $perPage = min((int) $request->input('per_page', 50), 100000);
         }
 
         $advances = $query->orderBy('date', 'desc')->latest()->paginate($perPage)->withQueryString();
@@ -50,7 +51,7 @@ class AdvanceController extends Controller
             'filters'        => $request->only('search', 'per_page'),
             'accounts'       => $accounts,
             'employees'      => $employees,
-            'totalUnsettled' => $totalUnsettled,   
+            'totalUnsettled' => $totalUnsettled,
         ]);
     }
 
@@ -80,7 +81,17 @@ class AdvanceController extends Controller
                 $validated['settled_amount'] = 0;
                 $validated['returned_amount'] = 0;
 
-                Advance::create($validated);
+                $advance = Advance::create($validated);
+
+                Transaction::create([
+                    'account_id'           => $account->id,
+                    'type'                 => 'debit',
+                    'amount'               => $validated['amount'],
+                    'transaction_date'     => $validated['date'],
+                    'description'          => 'Employee Advance: ' . ($validated['purpose'] ?? 'Office Purpose'),
+                    'transactionable_id'   => $advance->id,
+                    'transactionable_type' => Advance::class,
+                ]);
 
                 // --- Pooled balance sync ---
                 $balance = AdvanceBalance::firstOrCreate(['user_id' => $validated['user_id']]);
@@ -131,6 +142,21 @@ class AdvanceController extends Controller
                     }
                     $account->current_balance -= $difference;
                     $account->save();
+                }
+
+                // 🟢 Update Transaction Table
+                $transaction = Transaction::where('transactionable_id', $advance->id)
+                    ->where('transactionable_type', Advance::class)
+                    ->where('type', 'debit')
+                    ->first();
+
+                if ($transaction) {
+                    $transaction->update([
+                        'account_id'       => $validated['account_id'],
+                        'amount'           => $validated['amount'],
+                        'transaction_date' => $validated['date'],
+                        'description'      => 'Employee Advance: ' . ($validated['purpose'] ?? 'Office Purpose'),
+                    ]);
                 }
 
                 // --- Pooled balance (per-employee) sync ---
@@ -190,6 +216,16 @@ class AdvanceController extends Controller
                 if ($account) {
                     $account->current_balance += $validated['return_amount'];
                     $account->save();
+
+                    Transaction::create([
+                        'account_id'           => $account->id,
+                        'type'                 => 'credit',
+                        'amount'               => $validated['return_amount'],
+                        'transaction_date'     => now()->toDateString(),
+                        'description'          => 'Advance Refunded: ' . ($advance->purpose ?? 'Office Purpose'),
+                        'transactionable_id'   => $advance->id,
+                        'transactionable_type' => Advance::class,
+                    ]);
                 }
 
                 // --- Pooled balance sync ---
@@ -230,6 +266,10 @@ class AdvanceController extends Controller
                     $balance->decrement('total_given', $advance->amount);
                     $balance->decrement('total_returned', $returned);
                 }
+
+                Transaction::where('transactionable_id', $advance->id)
+                    ->where('transactionable_type', Advance::class)
+                    ->delete();
 
                 $advance->delete();
             });
