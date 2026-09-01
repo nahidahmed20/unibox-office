@@ -46,8 +46,10 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
         notes: ''
     });
 
+    // 🟢 UPDATE: Added return_account_id to the form state
     const { data: returnData, setData: setReturnData, post: postReturn, processing: returnProcessing, reset: returnReset, errors: returnErrors, clearErrors: clearReturnErrors } = useForm({
-        return_amount: ''
+        return_amount: '',
+        return_account_id: ''
     });
 
     useEffect(() => {
@@ -187,13 +189,17 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
         setShowModal(true);
     };
 
+    // 🟢 UPDATE: Initialize modal with default return account
     const openReturnModal = (adv) => {
         setSelectedAdvance(adv);
         returnReset();
         clearReturnErrors();
         const totalSettled = parseFloat(adv.settled_amount || 0) + parseFloat(adv.returned_amount || 0);
         const due = parseFloat(adv.amount) - totalSettled;
-        setReturnData('return_amount', due > 0 ? due : '');
+        setReturnData({
+            return_amount: due > 0 ? due : '',
+            return_account_id: adv.account_id || '' // Default to the original account
+        });
         setShowReturnModal(true);
     };
 
@@ -229,11 +235,16 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
     const handleReturnSubmit = (e) => {
         e.preventDefault();
+        // 🟢 Validate return account
+        if (!returnData.return_account_id) {
+            return Swal.fire("Required", "Please select which account the money is returning to.", "warning");
+        }
+
         postReturn(route('admin.advances.returnMoney', selectedAdvance.id), {
             preserveScroll: true,
             onSuccess: () => {
                 setShowReturnModal(false);
-                Swal.fire({ icon: 'success', title: 'Refunded!', text: 'Leftover cash returned to account.', timer: 2000, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: 'Refunded!', text: 'Cash returned to account successfully.', timer: 2000, showConfirmButton: false });
             }
         });
     };
@@ -787,7 +798,6 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         </div>
 
                         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-                            {/* 🟢 Responsive Flex Column for Mobile, Row for Desktop */}
                             <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto lg:overflow-hidden brass-scroll">
 
                                 {/* Left Side Form */}
@@ -944,6 +954,22 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                         <i className="fa-solid fa-circle-exclamation mt-0.5"></i> {returnErrors.error}
                                     </div>
                                 )}
+
+                                <div className="mb-4">
+                                    <label className="block text-[12px] sm:text-[13px] font-bold text-gray-700 uppercase tracking-wider mb-2 sm:mb-2.5">Return To Account <span className="text-rose-500">*</span></label>
+                                    <Select
+                                        options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${Number(a.current_balance).toLocaleString('en-IN')})` }))}
+                                        value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(returnData.return_account_id)) || null}
+                                        onChange={(selected) => setReturnData("return_account_id", selected ? selected.value : "")}
+                                        placeholder="-- Select Cash/Bank Box --"
+                                        isSearchable isClearable
+                                        styles={selectStyles}
+                                        menuPosition="fixed"
+                                        menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                    />
+                                    {returnErrors.return_account_id && <p className="text-rose-500 text-[11px] sm:text-[12px] mt-1.5 font-bold">{returnErrors.return_account_id}</p>}
+                                </div>
+
                                 <div>
                                     <label className="block text-[12px] sm:text-[13px] font-bold text-gray-700 uppercase tracking-wider mb-2 sm:mb-2.5">Refund Amount <span className="text-rose-500">*</span></label>
                                     <div className="relative">
@@ -958,7 +984,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
                                     <div className="mt-4 sm:mt-5 rounded-xl border border-blue-100 bg-blue-50 p-3 sm:p-4 text-[12px] sm:text-[13px] text-blue-800 flex items-start gap-2.5 shadow-sm font-medium">
                                         <i className="fa-solid fa-circle-info mt-0.5 text-blue-500 shrink-0 text-base sm:text-lg"></i>
-                                        <p className="m-0 leading-relaxed">This amount will be directly deposited back into the <b>{selectedAdvance.account?.name}</b> account balance.</p>
+                                        <p className="m-0 leading-relaxed">This amount will be directly deposited back into <b>{accounts.find(a => a.id === returnData.return_account_id)?.name || 'the selected'}</b> account balance.</p>
                                     </div>
                                 </div>
                             </div>

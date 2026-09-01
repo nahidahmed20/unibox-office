@@ -6,7 +6,7 @@ use App\Models\Advance;
 use App\Models\AdvanceBalance;
 use App\Models\Account;
 use App\Models\User;
-use App\Models\Transaction; 
+use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -195,30 +195,28 @@ class AdvanceController extends Controller
         }
     }
 
-    public function returnMoney(Request $request, string $id)
+    public function returnMoney(Request $request, string$id)
     {
         $advance = Advance::findOrFail($id);
 
-        $validated = $request->validate([
+        $validated =$request->validate([
             'return_amount' => 'required|numeric|min:1',
+            'return_account_id' => 'required|exists:accounts,id',
         ]);
 
         try {
-            DB::transaction(function () use ($advance, $validated) {
-                $advance->returned_amount += $validated['return_amount'];
+            DB::transaction(function () use ($advance,$validated) {
+                $advance->returned_amount +=$validated['return_amount'];
 
-                if (($advance->settled_amount + $advance->returned_amount) >= $advance->amount) {
-                    $advance->status = 'settled';
+                if (($advance->settled_amount +$advance->returned_amount) >= $advance->amount) {$advance->status = 'settled';
                 }
                 $advance->save();
 
-                $account = Account::find($advance->account_id);
-                if ($account) {
-                    $account->current_balance += $validated['return_amount'];
-                    $account->save();
+                $account = Account::find($validated['return_account_id']);
+                if ($account) {$account->current_balance += $validated['return_amount'];$account->save();
 
                     Transaction::create([
-                        'account_id'           => $account->id,
+                        'account_id'           => $account->id, 
                         'type'                 => 'credit',
                         'amount'               => $validated['return_amount'],
                         'transaction_date'     => now()->toDateString(),

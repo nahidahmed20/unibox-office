@@ -136,7 +136,7 @@ export default function Login({ status, canResetPassword }) {
                         UNIBOX
                     </h1>
                     <p className="mt-1.5 text-[9.5px] tracking-[0.35em] uppercase text-[#8FAF9B] font-medium">
-                        School Management System
+                        Office Management System
                     </p>
                 </div>
 
