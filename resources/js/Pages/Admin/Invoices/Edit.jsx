@@ -11,7 +11,7 @@ const Taka = ({ className = "text-[14px]" }) => (
 );
 
 export default function Edit({ invoice, clients = [], projects = [] }) {
-    const totalPaidAmount = Number(invoice.payments_sum_amount || 0) + Number(invoice.advance_used || 0);
+    const totalPaidAmount = Number(invoice.payments_sum_amount || 0);
     const dueAmount = Math.max(Number(invoice.grand_total) - totalPaidAmount, 0);
     const [availableAdvance, setAvailableAdvance] = useState(0);
 

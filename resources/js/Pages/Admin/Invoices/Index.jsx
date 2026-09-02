@@ -85,7 +85,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         if (!invoices.data.length) return Swal.fire("Empty!", "No data to copy", "warning");
         const header = "SL\tINV #\tClient\tDate\tGrand Total\tPaid\tDue\tStatus\n";
         const text = invoices.data.map((inv, idx) => {
-            const paid = Number(inv.payments_sum_amount || 0) + Number(inv.advance_used || 0);
+            const paid = Number(inv.payments_sum_amount || 0);
             const due = Math.max(Number(inv.grand_total) - paid, 0);
             return `${idx + 1}\t${inv.invoice_number}\t${inv.client?.company_name || inv.client?.name}\t${inv.invoice_date}\t${inv.grand_total}\t${paid}\t${due}\t${inv.status}`;
         }).join("\n");
@@ -97,7 +97,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         if (!invoices.data.length) return Swal.fire("Empty!", "No data to export", "warning");
         const headers = ["SL,INV #,Client,Date,Grand Total,Paid,Due,Status\n"];
         const rows = invoices.data.map((inv, idx) => {
-            const paid = Number(inv.payments_sum_amount || 0) + Number(inv.advance_used || 0);
+            const paid = Number(inv.payments_sum_amount || 0);
             const due = Math.max(Number(inv.grand_total) - paid, 0);
             return `"${idx + 1}","${inv.invoice_number}","${inv.client?.company_name || inv.client?.name}","${inv.invoice_date}","${inv.grand_total}","${paid}","${due}","${inv.status}"`;
         });
@@ -348,7 +348,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 {invList.length > 0 ? invList.map((inv, index) => {
                                     const statusStyle = getStatusStyle(inv.status);
                                     const advanceUsed = Number(inv.advance_used || 0);
-                                    const totalPaid = Number(inv.payments_sum_amount || 0) + advanceUsed;
+                                    const totalPaid = Number(inv.payments_sum_amount || 0);
                                     const dueAmount = Math.max(Number(inv.grand_total) - totalPaid, 0);
                                     const projectItems = inv.items?.filter(item => item.project);
 
@@ -569,7 +569,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                                 </div>
                                                 <div className="flex justify-between items-end mt-2">
                                                     <span className="text-[13px] text-rose-300 font-bold uppercase tracking-widest">Payable Due</span>
-                                                    <span className="text-[20px] font-black text-rose-400 tabular-nums"><Taka className="text-[16px]"/>{(Number(selectedInvoice.grand_total) - Number(selectedInvoice.advance_used)).toLocaleString('en-IN')}</span>
+                                                    <span className="text-[20px] font-black text-rose-400 tabular-nums"><Taka className="text-[16px]"/>{Math.max(Number(selectedInvoice.grand_total) - (selectedInvoice.payments || []).reduce((sum, payment) => sum + Number(payment.amount || 0), 0), 0).toLocaleString('en-IN')}</span>
                                                 </div>
                                             </>
                                         )}

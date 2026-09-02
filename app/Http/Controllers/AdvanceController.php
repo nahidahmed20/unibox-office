@@ -206,6 +206,13 @@ class AdvanceController extends Controller
 
         try {
             DB::transaction(function () use ($advance,$validated) {
+                $advance->refresh();
+                $availableToReturn = max((float) $advance->amount - (float) $advance->settled_amount - (float) $advance->returned_amount, 0);
+                if ((float) $validated['return_amount'] > $availableToReturn) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'return_amount' => "Return cannot exceed available advance ({$availableToReturn} TK).",
+                    ]);
+                }
                 $advance->returned_amount +=$validated['return_amount'];
 
                 if (($advance->settled_amount +$advance->returned_amount) >= $advance->amount) {$advance->status = 'settled';

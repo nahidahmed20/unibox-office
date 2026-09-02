@@ -148,7 +148,11 @@ class VendorController extends Controller
                     }
                 } else {
                     $userId = $request->advance_user_id;
-                    $advanceBalance = AdvanceBalance::where('user_id', $userId)->firstOrFail();
+                    $advanceBalance = AdvanceBalance::where('user_id', $userId)->lockForUpdate()->firstOrFail();
+                    $availableAdvance = (float) $advanceBalance->total_given - (float) $advanceBalance->total_used - (float) $advanceBalance->total_returned;
+                    if ($payAmount > $availableAdvance) {
+                        throw new \Exception("Employee has only {$availableAdvance} TK advance available.");
+                    }
                     $advanceBalance->increment('total_used', $payAmount);
 
                     $settleRemaining = $payAmount;

@@ -69,6 +69,10 @@ class SalaryController extends Controller
         ]);
 
         $net_pay = ($validated['basic_salary'] ?? 0) + ($validated['allowances'] ?? 0) + ($validated['bonus'] ?? 0) - ($validated['deductions'] ?? 0);
+        $requestedTotal = collect($validated['payments'] ?? [])->sum(fn ($payment) => (float) ($payment['amount'] ?? 0));
+        if ($requestedTotal > $net_pay) {
+            return back()->withErrors(['payments' => 'Salary payments cannot exceed net pay.']);
+        }
 
         DB::transaction(function () use ($validated, $net_pay, $request) {
             $salary = Salary::create([
@@ -91,6 +95,9 @@ class SalaryController extends Controller
                 foreach ($request->payments as $payment) {
                     if ($payment['amount'] > 0) {
                         $account = Account::findOrFail($payment['account_id']);
+                        if ((float) $account->current_balance < (float) $payment['amount']) {
+                            throw \Illuminate\Validation\ValidationException::withMessages(['payments' => "Insufficient balance in {$account->name}."]);
+                        }
                         $account->decrement('current_balance', $payment['amount']);
 
                         $salary->transactions()->create([
@@ -134,6 +141,10 @@ class SalaryController extends Controller
         ]);
 
         $net_pay = ($validated['basic_salary'] ?? 0) + ($validated['allowances'] ?? 0) + ($validated['bonus'] ?? 0) - ($validated['deductions'] ?? 0);
+        $requestedTotal = collect($validated['payments'] ?? [])->sum(fn ($payment) => (float) ($payment['amount'] ?? 0));
+        if ($requestedTotal > $net_pay) {
+            return back()->withErrors(['payments' => 'Salary payments cannot exceed net pay.']);
+        }
 
         DB::transaction(function () use ($salary, $validated, $net_pay, $request) {
             
@@ -153,6 +164,9 @@ class SalaryController extends Controller
                 foreach ($request->payments as $payment) {
                     if ($payment['amount'] > 0) {
                         $account = Account::findOrFail($payment['account_id']);
+                        if ((float) $account->current_balance < (float) $payment['amount']) {
+                            throw \Illuminate\Validation\ValidationException::withMessages(['payments' => "Insufficient balance in {$account->name}."]);
+                        }
                         $account->decrement('current_balance', $payment['amount']);
                         
                         $salary->transactions()->create([
@@ -200,6 +214,9 @@ class SalaryController extends Controller
 
         DB::transaction(function () use ($salary, $validated) {
             $account = Account::findOrFail($validated['account_id']);
+            if ((float) $account->current_balance < (float) $validated['amount']) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['account_id' => 'Selected account has insufficient balance.']);
+            }
             $account->decrement('current_balance', $validated['amount']);
 
             $salary->transactions()->create([

@@ -129,56 +129,12 @@ class InvoiceController extends Controller
 
         DB::transaction(function () use ($validated) {
             $invoiceData = collect($validated)->except(['items', 'use_advance_amount'])->toArray();
-            $invoiceData['advance_used'] = $validated['use_advance_amount'] ?? 0;
+            $invoiceData['advance_used'] = 0;
 
             $invoice = Invoice::create($invoiceData);
             $invoice->items()->createMany($validated['items']);
 
-            if (!empty($validated['use_advance_amount']) && $validated['use_advance_amount'] > 0) {
-                $deductAmount = $validated['use_advance_amount'];
-                $advances = ClientAdvance::where('client_id', $validated['client_id'])
-                    ->where('is_settled', false)
-                    ->orderBy('date', 'asc')
-                    ->get();
-
-                foreach ($advances as $advance) {
-                    if ($deductAmount <= 0) break;
-                    $availableInThisRow = $advance->amount - $advance->used_amount;
-
-                    if ($availableInThisRow >= $deductAmount) {
-                        $newUsed = $advance->used_amount + $deductAmount;
-                        $advance->update([
-                            'used_amount' => $newUsed,
-                            'is_settled'  => $newUsed >= $advance->amount
-                        ]);
-
-                        InvoicePayment::create([
-                            'invoice_id'   => $invoice->id,
-                            'account_id'   => $advance->account_id,
-                            'amount'       => $deductAmount,
-                            'payment_date' => now(),
-                            'method'       => 'Client Advance',
-                            'note'         => 'Adjusted from Client Advance.'
-                        ]);
-                        $deductAmount = 0;
-                    } else {
-                        $advance->update([
-                            'used_amount' => $advance->amount,
-                            'is_settled'  => true
-                        ]);
-
-                        InvoicePayment::create([
-                            'invoice_id'   => $invoice->id,
-                            'account_id'   => $advance->account_id,
-                            'amount'       => $availableInThisRow,
-                            'payment_date' => now(),
-                            'method'       => 'Client Advance',
-                            'note'         => 'Adjusted from Client Advance.'
-                        ]);
-                        $deductAmount -= $availableInThisRow;
-                    }
-                }
-            }
+            $this->applyClientAdvance($invoice, $validated['client_id'], (float) ($validated['use_advance_amount'] ?? 0));
 
             $totalPaid = InvoicePayment::where('invoice_id', $invoice->id)->sum('amount');
             if ($totalPaid >= $invoice->grand_total) {
@@ -238,46 +194,18 @@ class InvoiceController extends Controller
         ]);
 
         DB::transaction(function () use ($invoice, $validated) {
-            $this->rollbackAdvancePayment($invoice);
+            $this->reverseAdvancePayments($invoice);
 
             $invoiceData = collect($validated)->except(['items', 'use_advance_amount'])->toArray();
-            $invoiceData['advance_used'] = $validated['use_advance_amount'] ?? 0;
+            $invoiceData['advance_used'] = 0;
             $invoice->update($invoiceData);
 
             $invoice->items()->delete();
             $invoice->items()->createMany($validated['items']);
 
-            if (!empty($validated['use_advance_amount']) && $validated['use_advance_amount'] > 0) {
-                $deductAmount = $validated['use_advance_amount'];
-                $advances = ClientAdvance::where('client_id', $validated['client_id'])->where('is_settled', false)->orderBy('id', 'asc')->get();
-
-                foreach ($advances as $advance) {
-                    if ($deductAmount <= 0) break;
-                    $availableInThisRow = $advance->amount - $advance->used_amount;
-
-                    if ($availableInThisRow > 0) {
-                        $take = min($availableInThisRow, $deductAmount);
-                        $advance->increment('used_amount', $take);
-                        $advance->update(['is_settled' => ($advance->used_amount >= $advance->amount)]);
-
-                        InvoicePayment::create([
-                            'invoice_id'   => $invoice->id,
-                            'account_id'   => $advance->account_id,
-                            'amount'       => $take,
-                            'payment_date' => now(),
-                            'method'       => 'Client Advance',
-                            'note'         => 'Adjusted from Client Advance.'
-                        ]);
-                        $deductAmount -= $take;
-                    }
-                }
-
-                $totalPaid = InvoicePayment::where('invoice_id', $invoice->id)->sum('amount');
-                $newStatus = ($totalPaid >= $invoice->grand_total) ? 'paid' : 'partially_paid';
-                $invoice->update(['status' => $newStatus]);
-            } else {
-                 $invoice->update(['status' => 'unpaid']);
-            }
+            $this->applyClientAdvance($invoice, $validated['client_id'], (float) ($validated['use_advance_amount'] ?? 0));
+            $totalPaid = (float) InvoicePayment::where('invoice_id', $invoice->id)->sum('amount');
+            $invoice->update(['status' => $totalPaid >= $invoice->grand_total ? 'paid' : ($totalPaid > 0 ? 'partially_paid' : 'unpaid')]);
         });
 
         return redirect()->route('admin.invoices.index')->with('success', 'Invoice updated successfully.');
@@ -331,6 +259,52 @@ class InvoiceController extends Controller
                 $refundAmount -= $restore;
             }
         }
+    }
+
+    private function applyClientAdvance(Invoice $invoice, int $clientId, float $amount): void
+    {
+        if ($amount <= 0) return;
+        if ($amount > (float) $invoice->grand_total) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['use_advance_amount' => 'Advance cannot exceed invoice total.']);
+        }
+
+        $advances = ClientAdvance::where('client_id', $clientId)->whereColumn('used_amount', '<', 'amount')
+            ->orderBy('date')->orderBy('id')->lockForUpdate()->get();
+        $available = $advances->sum(fn ($advance) => (float) $advance->amount - (float) $advance->used_amount);
+        if ($amount > $available) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['use_advance_amount' => "Only {$available} TK client advance is available."]);
+        }
+
+        $payment = InvoicePayment::create(['invoice_id' => $invoice->id, 'account_id' => null, 'method' => 'Client Advance', 'amount' => $amount, 'payment_date' => $invoice->invoice_date, 'note' => 'Adjusted from Client Advance.']);
+        $remaining = $amount;
+        foreach ($advances as $advance) {
+            if ($remaining <= 0) break;
+            $take = min($remaining, (float) $advance->amount - (float) $advance->used_amount);
+            $advance->increment('used_amount', $take);
+            $advance->update(['is_settled' => (float) $advance->fresh()->used_amount >= (float) $advance->amount]);
+            $payment->advanceAllocations()->create(['client_advance_id' => $advance->id, 'amount' => $take]);
+            $remaining -= $take;
+        }
+    }
+
+    private function reverseAdvancePayments(Invoice $invoice): void
+    {
+        $payments = $invoice->payments()->where('method', 'Client Advance')->with('advanceAllocations.clientAdvance')->get();
+        foreach ($payments as $payment) {
+            if ($payment->advanceAllocations->isNotEmpty()) {
+                foreach ($payment->advanceAllocations as $allocation) {
+                    $allocation->clientAdvance->decrement('used_amount', $allocation->amount);
+                    $allocation->clientAdvance->update(['is_settled' => false]);
+                }
+            } else {
+                $this->restoreClientAdvance($invoice->client_id, (float) $payment->amount);
+            }
+            $payment->delete();
+        }
+        if ($payments->isEmpty() && (float) ($invoice->getRawOriginal('advance_used') ?? 0) > 0) {
+            $this->restoreClientAdvance($invoice->client_id, (float) $invoice->getRawOriginal('advance_used'));
+        }
+        $invoice->update(['advance_used' => 0]);
     }
 
     private function generateNextInvoiceNumber()
