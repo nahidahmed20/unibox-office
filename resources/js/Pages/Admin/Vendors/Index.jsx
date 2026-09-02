@@ -342,9 +342,9 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select 
-                                        value={perPage} 
-                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                    <select
+                                        value={perPage}
+                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
                                         className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
                                     >
                                         <option value={10}>10 Rows</option>

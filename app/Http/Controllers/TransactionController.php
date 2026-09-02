@@ -42,7 +42,7 @@ class TransactionController extends Controller
             $query->whereDate('transaction_date', '<=', $request->date_to);
         }
 
-        // 🟢 Top Summary Calculations (Based on current filter)
+        // 🟢 Top Summary Calculations
         $totalCredit = (clone $query)->where('type', 'credit')->sum('amount');
         $totalDebit  = (clone $query)->where('type', 'debit')->sum('amount');
         $netBalance  = $totalCredit - $totalDebit;
@@ -59,6 +59,65 @@ class TransactionController extends Controller
             ->orderByDesc('id')
             ->paginate($perPage)
             ->withQueryString();
+
+        // 🟢 MAGIC: Eager Load Morph Relations to identify the exact person/vendor
+        try {
+            $transactions->getCollection()->loadMorph('transactionable', [
+                \App\Models\Advance::class => ['user'],
+                \App\Models\ClientAdvance::class => ['client'],
+                \App\Models\VendorPayment::class => ['vendor'],
+                \App\Models\ProjectExpense::class => ['vendor', 'project'],
+                \App\Models\Vendor::class => [],
+            ]);
+        } catch (\Exception $e) {}
+
+        // 🟢 Transform Data for Frontend
+        $transactions->getCollection()->transform(function ($trx) {
+            $trx->party_name = null;
+            $trx->party_type = null;
+            $trx->context_label = 'Manual Entry';
+
+            if ($trx->transactionable) {
+                $type = class_basename($trx->transactionable_type);
+                switch ($type) {
+                    case 'Advance':
+                        $trx->party_name = $trx->transactionable->user->name ?? 'Unknown Employee';
+                        $trx->party_type = 'Employee';
+                        $trx->context_label = 'Staff Advance';
+                        break;
+                    case 'ClientAdvance':
+                        $trx->party_name = $trx->transactionable->client->name ?? 'Unknown Client';
+                        $trx->party_type = 'Client';
+                        $trx->context_label = 'Client Advance';
+                        break;
+                    case 'VendorPayment':
+                        $trx->party_name = $trx->transactionable->vendor->name ?? 'Unknown Vendor';
+                        $trx->party_type = 'Vendor';
+                        $trx->context_label = 'Vendor Bill Payment';
+                        break;
+                    case 'ProjectExpense':
+                        $trx->party_name = $trx->transactionable->vendor->name ?? 'Unknown Vendor';
+                        $trx->party_type = 'Vendor';
+                        $trx->context_label = 'Project Expense';
+                        break;
+                    case 'Vendor':
+                        $trx->party_name = $trx->transactionable->name ?? 'Unknown Vendor';
+                        $trx->party_type = 'Vendor';
+                        $trx->context_label = 'Vendor Wallet Trx';
+                        break;
+                    case 'InvoicePayment':
+                        $trx->party_name = 'Client Payment';
+                        $trx->party_type = 'Client';
+                        $trx->context_label = 'Invoice Payment';
+                        break;
+                    default:
+                        $trx->context_label = $type;
+                        break;
+                }
+            }
+
+            return $trx;
+        });
 
         $accounts = Account::where('is_active', true)
             ->select('id', 'name', 'current_balance')
@@ -125,7 +184,6 @@ class TransactionController extends Controller
             $desc = $validated['description'] ?: "Fund transfer from {$fromAccount->name} to {$toAccount->name}";
             $ref = $validated['reference_number'];
 
-            // 1. Debit from source account
             $fromAccount->decrement('current_balance', $validated['amount']);
             Transaction::create([
                 'account_id'       => $fromAccount->id,
@@ -136,7 +194,6 @@ class TransactionController extends Controller
                 'reference_number' => $ref,
             ]);
 
-            // 2. Credit to destination account
             $toAccount->increment('current_balance', $validated['amount']);
             Transaction::create([
                 'account_id'       => $toAccount->id,
@@ -208,7 +265,6 @@ class TransactionController extends Controller
                     $account->increment('current_balance', $transaction->amount);
                 }
             }
-
             $transaction->delete();
         });
 

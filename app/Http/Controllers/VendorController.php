@@ -10,7 +10,7 @@ use App\Models\ProjectExpense;
 use App\Models\Vendor;
 use App\Models\VendorLedger;
 use App\Models\VendorPayment;
-use App\Models\Transaction; 
+use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;

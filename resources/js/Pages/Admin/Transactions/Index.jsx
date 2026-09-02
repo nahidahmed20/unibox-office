@@ -3,22 +3,10 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 
-// 🟢 Custom Straight Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
 );
 
-const COMPANY = {
-    name: 'UNIBOX',
-    tagline: "Let's Create Together",
-    logo: typeof window !== 'undefined' ? `${window.location.origin}/images/logo.png` : '',
-    phone: '+8801627188836',
-    email: 'uniboxbd4u@gmail.com',
-    website: 'www.uniboxbd4u.com',
-    address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
-};
-
-// 🟢 Premium Stat Card Component
 const StatCard = ({ label, value, icon, gradient, textColor }) => (
     <div className="relative overflow-hidden rounded-3xl border border-gray-100 bg-white p-6 shadow-sm hover:shadow-md transition-all duration-300 group">
         <div className={`absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full opacity-10 transition-transform duration-500 group-hover:scale-150 ${gradient}`}></div>
@@ -46,7 +34,6 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedTrx, setSelectedTrx] = useState(null);
 
-    // Filter States
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [accountId, setAccountId] = useState(filters.account_id || '');
     const [typeFilter, setTypeFilter] = useState(filters.type || '');
@@ -90,7 +77,6 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
         if (field === 'per_page') setPerPage(value);
         if (field === 'account_id') setAccountId(value);
         if (field === 'type') setTypeFilter(value);
-
         if (field === 'date_from') setDateFrom(value);
         if (field === 'date_to') setDateTo(value);
 
@@ -106,15 +92,15 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
 
     const handleCopy = () => {
         if (!trxList.length) return Swal.fire("Empty!", "No data to copy", "warning");
-        const text = trxList.map((t) => `${t.transaction_date}\t${t.account?.name || "N/A"}\t${t.description}\t${t.type?.toUpperCase()}\t${t.amount}`).join("\n");
-        navigator.clipboard.writeText("Date\tAccount\tDescription\tType\tAmount\n" + text);
+        const text = trxList.map((t) => `${t.transaction_date}\t${t.account?.name || "N/A"}\t${t.party_name || 'Manual'}\t${t.description}\t${t.type?.toUpperCase()}\t${t.amount}`).join("\n");
+        navigator.clipboard.writeText("Date\tAccount\tParty/Context\tDescription\tType\tAmount\n" + text);
         Swal.fire({ icon: "success", title: "Copied!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
     };
 
     const handleExportCSV = () => {
         if (!trxList.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const headers = ["Date,Account,Description,Reference,Type,Amount\n"];
-        const rows = trxList.map(t => `"${t.transaction_date}","${t.account?.name || ''}","${t.description}","${t.reference_number || ''}","${t.type}","${t.amount}"`);
+        const headers = ["Date,Account,Party Context,Description,Reference,Type,Amount\n"];
+        const rows = trxList.map(t => `"${t.transaction_date}","${t.account?.name || ''}","${t.party_name || 'Manual Entry'} (${t.context_label || ''})","${t.description}","${t.reference_number || ''}","${t.type}","${t.amount}"`);
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
@@ -292,7 +278,6 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                     {/* 🟢 Premium Toolbar 1: Show Rows & Export */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100">
                         <div className="flex flex-wrap items-center gap-3">
-
                             {/* Premium SVG Show Dropdown */}
                             <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all z-20">
                                 <span className="bg-gray-50/80 px-4 py-2.5 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
@@ -322,73 +307,49 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                             <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-[13px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 shadow-sm"><i className="fas fa-file-csv"></i> CSV</button>
                             <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm"><i className="fas fa-print text-gray-500"></i> Print</button>
                         </div>
-                    </div>
 
-                    {/* 🟢 Premium Toolbar 2: Advanced Filters */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 px-6 py-4 bg-gray-50/50 border-b border-gray-100 items-center">
+                        {/* 🟢 REDESIGNED: Advanced Filters */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex gap-3 items-center w-full lg:w-auto">
+                            <div className="relative w-full lg:w-[180px]">
+                                <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                                <input type="text" placeholder="Search ref, desc..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-xl border border-gray-300 py-2.5 pl-9 pr-3 text-[13px] font-medium outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white" />
+                            </div>
 
-                        <div className="relative">
-                            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
-                            <input type="text" placeholder="Search ref, desc..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13.5px] font-medium outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all bg-white" />
-                        </div>
+                            <div className="relative w-full lg:w-[160px]">
+                                <select value={accountId} onChange={(e) => handleFilterChange('account_id', e.target.value)} className="w-full appearance-none rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-[13px] font-medium text-gray-700 outline-none focus:border-indigo-500 cursor-pointer shadow-sm">
+                                    <option value="">All Accounts</option>
+                                    {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                </select>
+                                <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[11px] pointer-events-none"></i>
+                            </div>
 
-                        <div className="relative">
-                            <select value={accountId} onChange={(e) => handleFilterChange('account_id', e.target.value)} className="w-full appearance-none bg-none [background-image:none] rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-[13.5px] font-medium text-gray-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm">
-                                <option value="">All Accounts</option>
-                                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                            </select>
-                            <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-[11px] pointer-events-none"></i>
-                        </div>
+                            <div className="relative w-full lg:w-[150px]">
+                                <select value={typeFilter} onChange={(e) => handleFilterChange('type', e.target.value)} className="w-full appearance-none rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-[13px] font-medium text-gray-700 outline-none focus:border-indigo-500 cursor-pointer shadow-sm">
+                                    <option value="">All Types</option>
+                                    <option value="credit">Deposit (In)</option>
+                                    <option value="debit">Withdrawal (Out)</option>
+                                </select>
+                                <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[11px] pointer-events-none"></i>
+                            </div>
 
-                        <div className="relative">
-                            <select value={typeFilter} onChange={(e) => handleFilterChange('type', e.target.value)} className="w-full appearance-none bg-none [background-image:none] rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-[13.5px] font-medium text-gray-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm">
-                                <option value="">All Types</option>
-                                <option value="credit">Deposit (In)</option>
-                                <option value="debit">Withdrawal (Out)</option>
-                            </select>
-                            <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-[11px] pointer-events-none"></i>
-                        </div>
-
-                        {/* 🟢 REDESIGNED: Date From */}
-                        <div className="relative pt-2 sm:pt-0">
-                            <span className="absolute left-3 top-[-8px] z-10 bg-white px-1.5 text-[10px] font-bold text-indigo-500 uppercase tracking-wider rounded">From</span>
-                            <input
-                                type="date"
-                                value={dateFrom}
-                                onChange={(e) => handleFilterChange('date_from', e.target.value)}
-                                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-[13.5px] font-medium text-gray-600 outline-none cursor-pointer focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all"
-                            />
-                        </div>
-
-                        {/* 🟢 REDESIGNED: Date To */}
-                        <div className="relative pt-2 sm:pt-0">
-                            <span className="absolute left-3 top-[-8px] z-10 bg-white px-1.5 text-[10px] font-bold text-indigo-500 uppercase tracking-wider rounded">To</span>
-                            <input
-                                type="date"
-                                value={dateTo}
-                                onChange={(e) => handleFilterChange('date_to', e.target.value)}
-                                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-[13.5px] font-medium text-gray-600 outline-none cursor-pointer focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all"
-                            />
-                        </div>
-
-                        {(searchTerm || accountId || typeFilter || dateFrom || dateTo) && (
-                            <div className="flex justify-end lg:col-span-1 pt-2 sm:pt-0">
-                                <button onClick={clearAllFilters} className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-[13px] font-bold text-rose-600 hover:bg-rose-100 transition-colors shadow-sm">
+                            {(searchTerm || accountId || typeFilter || dateFrom || dateTo) && (
+                                <button onClick={clearAllFilters} className="w-full lg:w-auto flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-[13px] font-bold text-rose-600 hover:bg-rose-100 shadow-sm transition-colors">
                                     <i className="fa-solid fa-xmark"></i> Clear
                                 </button>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
 
                     {/* Data Table */}
                     <div className="overflow-x-auto custom-table-scroll pb-2">
-                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1000px]">
+                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1100px]">
                             <thead className="bg-[#F8FAFC] border-b-2 border-[#E2E8F0]">
                                 <tr>
                                     <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-12">SL</th>
                                     <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Date</th>
                                     <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Account</th>
-                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-[35%]">Description & Ref</th>
+                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-[20%]">Context / Party</th>
+                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-[25%]">Description & Ref</th>
                                     <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Type</th>
                                     <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Amount (In/Out)</th>
                                     <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] no-print">Actions</th>
@@ -412,16 +373,37 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                                     {trx.account?.name || <span className="text-gray-400 italic">Deleted Account</span>}
                                                 </div>
                                             </td>
+
+                                            {/* 🟢 NEW: Context / Related Party Column */}
                                             <td className="px-6 py-4">
-                                                <div className="text-gray-900 font-bold whitespace-normal leading-snug">{trx.description}</div>
+                                                {trx.party_name ? (
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-[13.5px] font-bold text-gray-900 truncate max-w-[200px]">{trx.party_name}</span>
+                                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                                            <span className="text-[9px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded shadow-sm w-max">{trx.party_type}</span>
+                                                            <span className="text-[9px] font-black uppercase tracking-wider text-purple-600 bg-purple-50 border border-purple-100 px-2 py-0.5 rounded shadow-sm w-max">{trx.context_label}</span>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <span className="text-[12.5px] font-medium text-gray-400 italic">Direct Entry / System</span>
+                                                        {trx.context_label !== 'Manual Entry' && (
+                                                            <span className="text-[9px] font-black uppercase tracking-wider text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded shadow-sm w-max">{trx.context_label}</span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </td>
+
+                                            <td className="px-6 py-4">
+                                                <div className="text-gray-800 font-bold whitespace-normal leading-snug">{trx.description}</div>
                                                 {trx.reference_number && (
-                                                    <div className="text-[11px] font-bold text-gray-500 mt-1 flex items-center gap-1 bg-gray-100 border border-gray-200/60 w-max px-2 py-0.5 rounded-md">
+                                                    <div className="text-[10px] font-bold text-gray-500 mt-1.5 flex items-center gap-1 bg-gray-100 border border-gray-200/60 w-max px-2 py-1 rounded-md shadow-sm uppercase tracking-wider">
                                                         <i className="fa-solid fa-hashtag text-[9px] opacity-70"></i> Ref: {trx.reference_number}
                                                     </div>
                                                 )}
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider whitespace-nowrap border ${trx.type === 'credit' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'}`}>
+                                                <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest whitespace-nowrap border ${trx.type === 'credit' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'}`}>
                                                     {trx.type === 'credit' ? 'Deposit / In' : 'Withdrawal / Out'}
                                                 </span>
                                             </td>
@@ -449,7 +431,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                                             )}
                                                         </>
                                                     ) : (
-                                                        <span className="inline-flex items-center justify-center px-2 py-1 rounded-md bg-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider border border-gray-200 cursor-not-allowed shadow-sm" title="System generated transaction">
+                                                        <span className="inline-flex items-center justify-center px-2 py-1 rounded-md bg-gray-100 text-[9px] font-black text-gray-400 uppercase tracking-widest border border-gray-200 cursor-not-allowed shadow-sm" title="System generated transaction">
                                                             System
                                                         </span>
                                                     )}
@@ -459,7 +441,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="7" className="px-6 py-16 text-center text-gray-500">
+                                        <td colSpan="8" className="px-6 py-16 text-center text-gray-500">
                                             <div className="flex flex-col items-center justify-center">
                                                 <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400 shadow-sm border border-gray-200">
                                                     <i className="fa-solid fa-money-bill-transfer text-2xl"></i>
@@ -776,26 +758,41 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                 </div>
                             </div>
 
+                            {/* 🟢 NEW: Context Party in View Modal */}
+                            {selectedTrx.party_name && (
+                                <div className="bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100 flex items-center justify-between gap-4">
+                                    <div className="overflow-hidden">
+                                        <span className="block text-[11px] font-bold uppercase tracking-wider text-indigo-400 mb-1">Related To ({selectedTrx.party_type})</span>
+                                        <div className="font-black text-indigo-900 text-[16px] truncate">
+                                            {selectedTrx.party_name}
+                                        </div>
+                                    </div>
+                                    <span className="bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold px-3 py-1.5 rounded-lg text-[10.5px] uppercase tracking-wider whitespace-nowrap shadow-sm">
+                                        {selectedTrx.context_label}
+                                    </span>
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                 <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                    <span className="block text-[11.5px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Account</span>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Account</span>
                                     <div className="font-bold text-gray-900 flex items-center gap-2 text-[14px]">
                                         <i className="fa-solid fa-building-columns text-indigo-400"></i> {selectedTrx.account?.name || "N/A"}
                                     </div>
                                 </div>
                                 <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                    <span className="block text-[11.5px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Transaction Date</span>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Transaction Date</span>
                                     <div className="font-bold text-gray-900 flex items-center gap-2 text-[14px]">
                                         <i className="fa-regular fa-calendar-days text-indigo-400"></i> {selectedTrx.transaction_date}
                                     </div>
                                 </div>
                                 <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm col-span-2">
-                                    <span className="block text-[11.5px] font-bold uppercase tracking-wider text-gray-400 mb-2">Description & Notes</span>
+                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Description & Notes</span>
                                     <div className="text-gray-800 font-bold text-[15px]">{selectedTrx.description}</div>
                                 </div>
                                 {selectedTrx.reference_number && (
                                     <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200 col-span-2 flex justify-between items-center">
-                                        <span className="text-[11.5px] font-bold uppercase tracking-wider text-gray-500">Reference Number</span>
+                                        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Reference Number</span>
                                         <div className="font-bold text-gray-900 flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
                                             <i className="fa-solid fa-hashtag text-gray-400"></i> {selectedTrx.reference_number}
                                         </div>
