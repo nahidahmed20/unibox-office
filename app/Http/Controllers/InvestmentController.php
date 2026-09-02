@@ -9,6 +9,7 @@ use App\Models\AccountTransaction;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class InvestmentController extends Controller
 {
@@ -119,6 +120,12 @@ class InvestmentController extends Controller
 
         DB::transaction(function () use ($validated, $id) {
             $investment = Investment::findOrFail($id);
+            $returnedPrincipal = (float) InvestmentPayment::where('investment_id', $investment->id)->sum('principal_amount');
+            if ((float) $validated['amount'] < $returnedPrincipal) {
+                throw ValidationException::withMessages([
+                    'amount' => "Investment amount cannot be less than returned principal ({$returnedPrincipal} TK).",
+                ]);
+            }
 
             if ($investment->account_id != $validated['account_id'] || $investment->amount != $validated['amount']) {
                 
@@ -191,10 +198,24 @@ class InvestmentController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $id) {
-            $investment = Investment::findOrFail($id);
-            $totalPayable = $validated['principal_amount'] + $validated['profit_amount'];
+            $investment = Investment::lockForUpdate()->findOrFail($id);
+            $returnedPrincipal = (float) InvestmentPayment::where('investment_id', $id)->sum('principal_amount');
+            $duePrincipal = max((float) $investment->amount - $returnedPrincipal, 0);
+            $principal = (float) $validated['principal_amount'];
+            $profit = (float) $validated['profit_amount'];
+            $totalPayable = $principal + $profit;
 
-            if ($totalPayable <= 0) return;
+            if ($totalPayable <= 0) {
+                throw ValidationException::withMessages(['principal_amount' => 'Principal or profit amount is required.']);
+            }
+            if ($principal > $duePrincipal) {
+                throw ValidationException::withMessages(['principal_amount' => "Principal return cannot exceed due principal ({$duePrincipal} TK)."]);
+            }
+
+            $account = Account::lockForUpdate()->findOrFail($validated['account_id']);
+            if ((float) $account->current_balance < $totalPayable) {
+                throw ValidationException::withMessages(['account_id' => 'Selected account has insufficient balance.']);
+            }
 
             $payment = InvestmentPayment::create([
                 'investor_id'      => $investment->investor_id,
@@ -212,7 +233,6 @@ class InvestmentController extends Controller
                 $investment->update(['status' => 'fully_paid']);
             }
 
-            $account = Account::findOrFail($validated['account_id']);
             $account->decrement('current_balance', $totalPayable);
 
             AccountTransaction::create([

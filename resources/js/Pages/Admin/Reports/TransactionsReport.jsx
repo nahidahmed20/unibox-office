@@ -360,7 +360,7 @@ export default function TransactionsReport({ transactions = { data: [], links: [
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
                                     <span className="block text-[11.5px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Account</span>
                                     <div className="font-bold text-gray-900 flex items-center gap-2"><i className="fa-solid fa-building-columns text-indigo-400"></i> {selectedTrx.account?.name || "N/A"}</div>

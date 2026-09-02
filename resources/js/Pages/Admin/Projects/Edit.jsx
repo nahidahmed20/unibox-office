@@ -280,7 +280,7 @@ export default function Edit({ project, clients = [], managers = [] }) {
                                     </div>
                                 </div>
 
-                                <div className="lg:col-span-4 grid grid-cols-2 gap-4">
+                                <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Start Date</label>
                                         <input

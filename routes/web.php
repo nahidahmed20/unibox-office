@@ -112,6 +112,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('salaries', SalaryController::class)->names('admin.salaries');
     Route::resource('leaves', LeaveController::class)->names('admin.leaves');
     Route::get('/financial-reports', [ReportController::class, 'financialSummary'])->name('admin.reports.financial');
+    Route::get('/financial-position', [ReportController::class, 'financialPosition'])->name('admin.reports.position');
     Route::get('account/transactions', [ReportController::class, 'transactionsReport'])->name('admin.account.transactions');
     Route::get('reports/client-ledger', [ReportController::class, 'clientLedger'])->name('admin.reports.client-ledger');
     Route::get('/daybook', [ReportController::class, 'daybook'])->name('admin.reports.daybook');

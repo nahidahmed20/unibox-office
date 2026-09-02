@@ -24,4 +24,9 @@ class InvoicePayment extends Model
     {
         return $this->belongsTo(Account::class);
     }
+
+    public function advanceAllocations()
+    {
+        return $this->hasMany(InvoicePaymentAdvanceAllocation::class);
+    }
 }

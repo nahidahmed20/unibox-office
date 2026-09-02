@@ -16,10 +16,100 @@ use App\Models\Expense;
 use App\Models\Salary;
 use App\Models\Transaction;
 use App\Models\VendorPayment;
+use App\Models\Investment;
+use App\Models\InvestmentPayment;
+use App\Models\ClientAdvance;
+use App\Models\AdvanceBalance;
+use App\Models\Asset;
 use Carbon\Carbon;
 
 class ReportController extends Controller
 {
+    public function financialPosition()
+    {
+        $accounts = Account::where('is_active', true)
+            ->orderBy('name')->get(['id', 'name', 'current_balance'])
+            ->map(fn ($account) => [
+                'id' => $account->id,
+                'name' => $account->name,
+                'balance' => (float) $account->current_balance,
+            ]);
+
+        $investmentGross = (float) Investment::sum('amount');
+        $investmentReturned = (float) InvestmentPayment::sum('principal_amount');
+
+        $clientAdvances = ClientAdvance::with('client:id,name,company_name')
+            ->select('client_id', DB::raw('SUM(amount) total_received'), DB::raw('SUM(used_amount) total_used'))
+            ->groupBy('client_id')->get()->map(fn ($row) => [
+                'name' => $row->client?->name ?? 'Unknown Client',
+                'company' => $row->client?->company_name,
+                'received' => (float) $row->total_received,
+                'used' => (float) $row->total_used,
+                'balance' => max((float) $row->total_received - (float) $row->total_used, 0),
+            ])->values();
+
+        $vendorPositions = Vendor::withSum('projectExpenses as project_due', 'due_amount')
+            ->orderBy('name')->get()->map(fn ($vendor) => [
+                'name' => $vendor->name,
+                'company' => $vendor->company_name,
+                'advance' => (float) $vendor->wallet_balance,
+                'due' => max((float) $vendor->opening_balance + (float) ($vendor->project_due ?? 0), 0),
+            ]);
+
+        $clientDues = Client::query()->select('clients.id', 'clients.name', 'clients.company_name')
+            ->addSelect([
+                'invoiced' => DB::table('invoices')->whereColumn('client_id', 'clients.id')->whereNull('deleted_at')->selectRaw('COALESCE(SUM(grand_total),0)'),
+                'legacy_advance' => DB::table('invoices')->whereColumn('client_id', 'clients.id')->whereNull('deleted_at')->selectRaw('COALESCE(SUM(advance_used),0)'),
+                'paid' => DB::table('invoice_payments')->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')->whereColumn('invoices.client_id', 'clients.id')->whereNull('invoices.deleted_at')->selectRaw('COALESCE(SUM(invoice_payments.amount),0)'),
+            ])->get()->map(fn ($client) => [
+                'name' => $client->name,
+                'company' => $client->company_name,
+                'invoiced' => (float) $client->invoiced,
+                'paid' => (float) $client->paid + (float) $client->legacy_advance,
+                'due' => max((float) $client->invoiced - (float) $client->paid - (float) $client->legacy_advance, 0),
+            ])->filter(fn ($row) => $row['due'] > 0)->values();
+
+        $staffAdvances = AdvanceBalance::with('user:id,name')->get()->map(fn ($row) => [
+            'name' => $row->user?->name ?? 'Unknown Staff',
+            'given' => (float) $row->total_given,
+            'used' => (float) $row->total_used,
+            'returned' => (float) $row->total_returned,
+            'balance' => max((float) $row->total_given - (float) $row->total_used - (float) $row->total_returned, 0),
+        ])->filter(fn ($row) => $row['given'] > 0)->values();
+
+        $summary = [
+            'investment_gross' => $investmentGross,
+            'investment_returned' => $investmentReturned,
+            'investment_balance' => max($investmentGross - $investmentReturned, 0),
+            'account_balance' => $accounts->sum('balance'),
+            'client_advance' => $clientAdvances->sum('balance'),
+            'vendor_advance' => $vendorPositions->sum('advance'),
+            'client_due' => $clientDues->sum('due'),
+            'vendor_due' => $vendorPositions->sum('due'),
+            'asset_value' => (float) Asset::sum('purchase_price'),
+            'staff_advance' => $staffAdvances->sum('balance'),
+        ];
+
+        $alerts = collect();
+        $negativeAccounts = $accounts->filter(fn ($row) => $row['balance'] < 0);
+        if ($negativeAccounts->isNotEmpty()) {
+            $alerts->push(['level' => 'danger', 'message' => $negativeAccounts->count() . ' account(s) have a negative balance.']);
+        }
+        $overReturnedInvestments = Investment::withSum('payments as returned_principal', 'principal_amount')->get()
+            ->filter(fn ($row) => (float) ($row->returned_principal ?? 0) > (float) $row->amount);
+        if ($overReturnedInvestments->isNotEmpty()) {
+            $alerts->push(['level' => 'danger', 'message' => $overReturnedInvestments->count() . ' investment(s) have returned principal greater than the original amount.']);
+        }
+        $vendorConflicts = $vendorPositions->filter(fn ($row) => $row['advance'] > 0 && $row['due'] > 0);
+        if ($vendorConflicts->isNotEmpty()) {
+            $alerts->push(['level' => 'warning', 'message' => $vendorConflicts->count() . ' vendor(s) have both advance and payable balances; consider adjusting the wallet against due bills.']);
+        }
+
+        return Inertia::render('Admin/Reports/FinancialPosition', compact(
+            'summary', 'accounts', 'clientAdvances', 'vendorPositions', 'clientDues', 'staffAdvances', 'alerts'
+        ));
+    }
+
     public function financialSummary(Request $request)
     {
         $query = DB::table('projects')

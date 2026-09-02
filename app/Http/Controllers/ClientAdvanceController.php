@@ -78,7 +78,7 @@ class ClientAdvanceController extends Controller
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
             'account_id' => 'required|exists:accounts,id',
-            'amount' => 'required|numeric|min:0',
+            'amount' => 'required|numeric|min:0.01',
             'date' => 'required|date',
             'note' => 'nullable|string',
         ]);
@@ -115,7 +115,7 @@ class ClientAdvanceController extends Controller
         $request->validate([
             'client_id' => 'required|exists:clients,id',
             'account_id' => 'required|exists:accounts,id',
-            'amount' => 'required|numeric|min:0',
+            'amount' => 'required|numeric|min:0.01',
             'date' => 'required|date',
             'note' => 'nullable|string'
         ]);

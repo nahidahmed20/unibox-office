@@ -776,7 +776,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-5">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                 <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
                                     <span className="block text-[11.5px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Account</span>
                                     <div className="font-bold text-gray-900 flex items-center gap-2 text-[14px]">

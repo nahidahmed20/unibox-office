@@ -247,9 +247,9 @@ export default function AdminLayout({ children }) {
                                 {openMenus.crm && (
                                     <SubMenu>
                                         <li><Link href={route('admin.clients.index')} className={subItemClass(route().current('admin.clients.*'))}><i className="fa-solid fa-users-line text-[11px] opacity-80"></i> Clients</Link></li>
-                                        <li><Link href={route('admin.vendors.index')} className={subItemClass(route().current('admin.vendors.*'))}><i className="fa-solid fa-truck-field text-[11px] opacity-80"></i> Vendors</Link></li>
                                         <li><Link href={route('admin.projects.index')} className={subItemClass(route().current('admin.projects.*'))}><i className="fa-solid fa-rocket text-[11px] opacity-80"></i> Projects</Link></li>
                                         <li><Link href={route('admin.tasks.index')} className={subItemClass(route().current('admin.tasks.*'))}><i className="fa-solid fa-list-check text-[11px] opacity-80"></i> Tasks</Link></li>
+                                        <li><Link href={route('admin.vendors.index')} className={subItemClass(route().current('admin.vendors.*'))}><i className="fa-solid fa-truck-field text-[11px] opacity-80"></i> Vendors</Link></li>
                                     </SubMenu>
                                 )}
                             </li>
@@ -270,12 +270,12 @@ export default function AdminLayout({ children }) {
 
                                 {openMenus.finance && (
                                     <SubMenu>
-                                        <GroupLabel>Accounts & Banking</GroupLabel>
+                                        <GroupLabel>Cash, Bank & Capital</GroupLabel>
                                         <li><Link href={route('admin.accounts.index')} className={subItemClass(route().current('admin.accounts.*'))}><i className="fa-solid fa-building-columns text-[11px] opacity-80"></i> Accounts Balance</Link></li>
                                         <li><Link href={route('admin.transactions.index')} className={subItemClass(route().current('admin.transactions.*'))}><i className="fa-solid fa-money-bill-transfer text-[11px] opacity-80"></i> Transactions</Link></li>
                                         <li><Link href={route('admin.investments.index')} className={subItemClass(route().current('admin.investments.*'))}><i className="fa-solid fa-arrow-trend-up text-[11px] opacity-80"></i> Investments</Link></li>
 
-                                        <GroupLabel>Income & Receivables</GroupLabel>
+                                        <GroupLabel>Sales & Receivables</GroupLabel>
                                         <li><Link href={route('admin.invoices.index')} className={subItemClass(route().current('admin.invoices.*'))}><i className="fa-solid fa-file-invoice text-[11px] opacity-80"></i> Invoices</Link></li>
                                         <li><Link href={route('invoice-payments.index')} className={subItemClass(route().current('invoice-payments.*'))}><i className="fa-solid fa-hand-holding-dollar text-[11px] opacity-80"></i> Receive Payments</Link></li>
                                         <li><Link href={route('admin.client-advances.index')} className={subItemClass(route().current('admin.client-advances.*'))}><i className="fa-solid fa-sack-dollar text-[11px] opacity-80"></i> Client Advances</Link></li>
@@ -285,8 +285,8 @@ export default function AdminLayout({ children }) {
                                             <li><Link href={route('admin.project-expenses.index')} className={subItemClass(route().current('admin.project-expenses.*'))}><i className="fa-solid fa-file-invoice-dollar text-[11px] opacity-80"></i> Project Expenses</Link></li>
                                         )}
                                         <li><Link href={route('admin.expenses.index')} className={subItemClass(route().current('admin.expenses.*'))}><i className="fa-solid fa-receipt text-[11px] opacity-80"></i> Office Expenses</Link></li>
-                                        <li><Link href={route('admin.expense-categories.index')} className={subItemClass(route().current('admin.expense-categories.*'))}><i className="fa-solid fa-tags text-[11px] opacity-80"></i> Expense Categories</Link></li>
                                         <li><Link href={route('admin.advances.index')} className={subItemClass(route().current('admin.advances.*'))}><i className="fa-solid fa-handshake-angle text-[11px] opacity-80"></i> Staff Advances</Link></li>
+                                        <li><Link href={route('admin.expense-categories.index')} className={subItemClass(route().current('admin.expense-categories.*'))}><i className="fa-solid fa-tags text-[11px] opacity-80"></i> Expense Categories</Link></li>
                                     </SubMenu>
                                 )}
                             </li>
@@ -306,12 +306,12 @@ export default function AdminLayout({ children }) {
                                 </button>
                                 {openMenus.office && (
                                     <SubMenu>
-                                        <li><Link href={route('admin.assets.index')} className={subItemClass(route().current('admin.assets.*'))}><i className="fa-solid fa-boxes-stacked text-[11px] opacity-80"></i> Assets</Link></li>
                                         <li><Link href={route('admin.requisitions.index')} className={subItemClass(route().current('admin.requisitions.*'))}><i className="fa-solid fa-clipboard-list text-[11px] opacity-80"></i> Requisitions</Link></li>
-                                        <li><Link href={route('admin.notices.index')} className={subItemClass(route().current('admin.notices.*'))}><i className="fa-solid fa-bullhorn text-[11px] opacity-80"></i> Notices</Link></li>
+                                        <li><Link href={route('admin.assets.index')} className={subItemClass(route().current('admin.assets.*'))}><i className="fa-solid fa-boxes-stacked text-[11px] opacity-80"></i> Assets</Link></li>
 
                                         {/* 🟢 UPDATE: Added Delivery Challans Menu */}
                                         <li><Link href={route('admin.challans.index')} className={subItemClass(route().current('admin.challans.*'))}><i className="fa-solid fa-truck-fast text-[11px] opacity-80"></i> Delivery Challans</Link></li>
+                                        <li><Link href={route('admin.notices.index')} className={subItemClass(route().current('admin.notices.*'))}><i className="fa-solid fa-bullhorn text-[11px] opacity-80"></i> Notices</Link></li>
                                     </SubMenu>
                                 )}
                             </li>
@@ -331,12 +331,13 @@ export default function AdminLayout({ children }) {
                                 </button>
                                 {openMenus.hr && (
                                     <SubMenu>
-                                        <li><Link href={route('admin.departments.index')} className={subItemClass(route().current('admin.departments.*'))}><i className="fa-solid fa-building-user text-[11px] opacity-80"></i> Departments</Link></li>
-                                        <li><Link href={route('admin.designations.index')} className={subItemClass(route().current('admin.designations.*'))}><i className="fa-solid fa-user-tie text-[11px] opacity-80"></i> Designations</Link></li>
                                         <li><Link href={route('admin.employees.index')} className={subItemClass(route().current('admin.employees.*'))}><i className="fa-solid fa-id-badge text-[11px] opacity-80"></i> Employees</Link></li>
                                         <li><Link href={route('admin.attendances.index')} className={subItemClass(route().current('admin.attendances.*'))}><i className="fa-solid fa-clock-rotate-left text-[11px] opacity-80"></i> Attendance</Link></li>
                                         <li><Link href={route('admin.leaves.index')} className={subItemClass(route().current('admin.leaves.*'))}><i className="fa-solid fa-calendar-minus text-[11px] opacity-80"></i> Leaves</Link></li>
                                         <li><Link href={route('admin.salaries.index')} className={subItemClass(route().current('admin.salaries.*'))}><i className="fa-solid fa-money-check-dollar text-[11px] opacity-80"></i> Payroll</Link></li>
+                                        <GroupLabel>HR Configuration</GroupLabel>
+                                        <li><Link href={route('admin.departments.index')} className={subItemClass(route().current('admin.departments.*'))}><i className="fa-solid fa-building-user text-[11px] opacity-80"></i> Departments</Link></li>
+                                        <li><Link href={route('admin.designations.index')} className={subItemClass(route().current('admin.designations.*'))}><i className="fa-solid fa-user-tie text-[11px] opacity-80"></i> Designations</Link></li>
                                     </SubMenu>
                                 )}
                             </li>
@@ -356,8 +357,9 @@ export default function AdminLayout({ children }) {
                                 </button>
                                 {openMenus.report && (
                                     <SubMenu>
+                                        <li><Link href={route('admin.reports.position')} className={subItemClass(route().current('admin.reports.position'))}><i className="fa-solid fa-scale-balanced text-[11px] opacity-80"></i> Financial Position</Link></li>
                                         <li><Link href={route('admin.reports.daybook')} className={subItemClass(route().current('admin.reports.daybook'))}><i className="fa-solid fa-book-open text-[11px] opacity-80"></i> Daily Daybook</Link></li>
-                                        <li><Link href={route('admin.reports.financial')} className={subItemClass(route().current('admin.reports.financial'))}><i className="fa-solid fa-chart-area text-[11px] opacity-80"></i> Financial Report</Link></li>
+                                        <li><Link href={route('admin.reports.financial')} className={subItemClass(route().current('admin.reports.financial'))}><i className="fa-solid fa-chart-area text-[11px] opacity-80"></i> Profit & Performance</Link></li>
                                         <li><Link href={route('admin.account.transactions')} className={subItemClass(route().current('admin.account.transactions'))}><i className="fa-solid fa-money-check text-[11px] opacity-80"></i> Transaction Report</Link></li>
                                         <li><Link href={route('admin.reports.client-ledger')} className={subItemClass(route().current('admin.reports.client-ledger'))}><i className="fa-solid fa-book-journal-whills text-[11px] opacity-80"></i> Client Ledger</Link></li>
                                         <li><Link href={route('admin.client-dues')} className={subItemClass(route().current('admin.client-dues'))}><i className="fa-solid fa-file-invoice-dollar text-[11px] opacity-80"></i> Client Dues (পাওনা)</Link></li>
@@ -432,7 +434,8 @@ export default function AdminLayout({ children }) {
                         >
                             <div className="flex items-center gap-3">
                                 <i className="fa-solid fa-magnifying-glass text-[14px] text-gray-400 group-hover:text-[var(--accent)] transition-colors"></i>
-                                <span className="font-medium text-gray-500">Search projects, clients, invoices...</span>
+                                <span className="hidden min-[420px]:inline font-medium text-gray-500">Search projects, clients, invoices...</span>
+                                <span className="min-[420px]:hidden font-medium text-gray-500">Search...</span>
                             </div>
                             <div className="hidden sm:flex items-center gap-1 rounded-md bg-white border border-gray-200 px-2 py-0.5 text-[10.5px] font-bold text-gray-500 shadow-sm">
                                 <span>⌘</span><span>K</span>
@@ -609,7 +612,7 @@ export default function AdminLayout({ children }) {
                     </div>
                 )}
 
-                <main className="flex-1 p-4 sm:p-6 md:p-8">
+                <main className="admin-content min-w-0 flex-1 overflow-x-hidden p-3 sm:p-6 md:p-8">
                     {flash?.success && (
                         <div className="mb-6 flex items-center rounded-2xl border border-green-200 bg-green-50/80 p-4 text-[14px] font-bold text-green-700 shadow-sm animate-fade-in-down print:hidden backdrop-blur-sm">
                             <i className="fa-solid fa-circle-check mr-3 text-xl"></i>

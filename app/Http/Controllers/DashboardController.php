@@ -36,13 +36,12 @@ class DashboardController extends Controller
         $vendorAdvance = Vendor::sum('wallet_balance');
 
         // 🟢 FIXED: Total Investment (Total In - Total Returned)
-        $totalInvested = Investment::sum('amount');
-
-        // আপনার যদি ইনভেস্টমেন্ট ফেরত দেওয়ার আলাদা টেবিল থাকে (যেমন: investment_returns), তাহলে নিচের লাইনটি আনকমেন্ট করে ঠিক করে নিবেন:
-        // $totalInvestmentReturned = \App\Models\InvestmentReturn::sum('amount');
-        $totalInvestmentReturned = 0; // আপাতত 0 রাখলাম
-
-        $actualInvestmentBalance = $totalInvested - $totalInvestmentReturned;
+        $actualInvestmentBalance = Investment::withSum('payments as returned_principal', 'principal_amount')
+            ->get()
+            ->sum(fn ($investment) => max(
+                (float) $investment->amount - (float) ($investment->returned_principal ?? 0),
+                0
+            ));
 
 
         // Vendor & Project Expenses Data

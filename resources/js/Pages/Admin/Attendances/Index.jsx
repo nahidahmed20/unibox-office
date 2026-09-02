@@ -488,7 +488,7 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col items-center justify-center">
                                     <span className="text-[11.5px] font-bold uppercase tracking-wider text-gray-400 mb-1">Check In Time</span>
                                     <div className="text-[18px] font-extrabold text-blue-600 flex items-center gap-1.5">

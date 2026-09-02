@@ -116,7 +116,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
     const paymentList = payments.data || [];
 
     const { data, setData, post, delete: destroy, reset, processing, errors, clearErrors } = useForm({
-        id: "", invoice_id: "", account_id: "", amount: "", discount_amount: "", payment_date: "", note: "", _method: "post",
+        id: "", invoice_id: "", account_id: "", amount: "", advance_amount: "", account_payments: [], discount_amount: "", payment_date: "", note: "", _method: "post",
     });
 
     const invoiceOptions = useMemo(() => {
@@ -223,7 +223,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
     const openCreateModal = () => {
         clearErrors();
         setEditingPayment(null);
-        setData({ id: '', invoice_id: '', account_id: '', method: '', amount: 0, payment_date: new Date().toISOString().slice(0, 10), note: '' });
+        setData({ id: '', invoice_id: '', account_id: '', amount: '', advance_amount: '', account_payments: [], discount_amount: '', payment_date: new Date().toISOString().slice(0, 10), note: '', _method: 'post' });
         setEditMode(false);
         setShowModal(true);
     };
@@ -237,7 +237,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                 const discount = parseFloat(prevData.discount_amount) || 0;
                 newAmount = Math.max(due - discount, 0).toString();
             }
-            return { ...prevData, invoice_id: val, amount: newAmount };
+            return { ...prevData, invoice_id: val, amount: newAmount, advance_amount: '', account_payments: [] };
         });
     };
 
@@ -246,6 +246,10 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
         setData({ id: payment.id, invoice_id: payment.invoice_id, account_id: payment.account_id || "", amount: payment.amount, discount_amount: "", payment_date: payment.payment_date, note: payment.note || "", _method: "put" });
         setEditMode(true); setShowModal(true);
     };
+
+    const addAccountPayment = () => setData('account_payments', [...(data.account_payments || []), { account_id: '', amount: '' }]);
+    const updateAccountPayment = (index, field, value) => setData('account_payments', data.account_payments.map((row, i) => i === index ? { ...row, [field]: value } : row));
+    const removeAccountPayment = (index) => setData('account_payments', data.account_payments.filter((_, i) => i !== index));
 
     const openShowModal = (payment) => { setSelectedPayment(payment); setShowDetailsModal(true); };
 
@@ -492,7 +496,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
 
                                             <td className="px-6 py-4">
                                                 <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12.5px] font-bold text-gray-700 shadow-sm">
-                                                    <i className="fa-solid fa-building-columns text-indigo-400"></i> {payment.account?.name || "N/A"}
+                                                    <i className={`fa-solid ${payment.method === 'Client Advance' ? 'fa-wallet text-emerald-500' : 'fa-building-columns text-indigo-400'}`}></i> {payment.method === 'Client Advance' ? 'Client Advance' : (payment.account?.name || "N/A")}
                                                 </span>
                                             </td>
 
@@ -515,7 +519,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                                     <button onClick={() => handlePrintReceipt(payment)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors shadow-sm" title="Print Receipt">
                                                         <i className="fa-solid fa-print text-[13px]"></i>
                                                     </button>
-                                                    {hasPermission('edit_receive_payment') && (
+                                                    {hasPermission('edit_receive_payment') && payment.method !== 'Client Advance' && (
                                                         <button onClick={() => openEditModal(payment)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors shadow-sm" title="Edit">
                                                             <i className="fa-regular fa-pen-to-square text-[13px]"></i>
                                                         </button>
@@ -604,7 +608,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                         />
                                         {errors.invoice_id && <span className="mt-1.5 block text-[11px] text-red-500 font-bold">{errors.invoice_id}</span>}
                                     </div>
-                                    <div className="relative z-[50]">
+                                    {editMode && <div className="relative z-[50]">
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Deposit Account <span className="text-red-500">*</span></label>
                                         <SearchableSelect
                                             options={accounts}
@@ -616,7 +620,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                             getLabel={(acc) => `${acc.name} (Bal: ৳${parseFloat(acc.current_balance).toLocaleString()})`}
                                         />
                                         {errors.account_id && <span className="mt-1.5 block text-[11px] text-red-500 font-bold">{errors.account_id}</span>}
-                                    </div>
+                                    </div>}
                                 </div>
 
                                 {data.invoice_id && (() => {
@@ -633,8 +637,33 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                     );
                                 })()}
 
+                                {!editMode && data.invoice_id && (() => {
+                                    const selectedInvoice = invoiceOptions.find(i => String(i.id) === String(data.invoice_id));
+                                    const availableAdvance = Number(selectedInvoice?.available_advance || 0);
+                                    const accountTotal = (data.account_payments || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+                                    const total = Number(data.advance_amount || 0) + accountTotal;
+                                    return <div className="space-y-4 rounded-2xl border border-indigo-100 bg-indigo-50/30 p-5">
+                                        <div className="flex items-center justify-between">
+                                            <div><h4 className="font-extrabold text-gray-900">Payment Sources</h4><p className="text-xs text-gray-500 mt-1">Use advance only, accounts only, or combine both.</p></div>
+                                            <span className="rounded-lg bg-white border px-3 py-2 text-sm font-black text-indigo-700"><Taka />{total.toLocaleString('en-IN')}</span>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[12px] font-bold text-emerald-700 uppercase tracking-wider mb-2">Client Advance (Available: <Taka />{availableAdvance.toLocaleString('en-IN')})</label>
+                                            <input type="number" min="0" max={availableAdvance} step="0.01" value={data.advance_amount} onChange={e => setData('advance_amount', e.target.value)} placeholder="0.00" className="w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 font-bold text-emerald-700 outline-none focus:ring-4 focus:ring-emerald-500/10" />
+                                            {errors.advance_amount && <span className="mt-1 block text-xs font-bold text-red-500">{errors.advance_amount}</span>}
+                                        </div>
+                                        {(data.account_payments || []).map((row, index) => <div key={index} className="grid grid-cols-1 md:grid-cols-[1fr_180px_40px] gap-3 items-end">
+                                            <div><label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">Account {index + 1}</label><SearchableSelect options={accounts.filter(acc => !(data.account_payments || []).some((r, i) => i !== index && String(r.account_id) === String(acc.id)))} value={row.account_id} onChange={val => updateAccountPayment(index, 'account_id', val)} placeholder="Select Bank/Cash" getValue={acc => acc.id} getLabel={acc => `${acc.name} (Bal: ৳${Number(acc.current_balance).toLocaleString()})`} /></div>
+                                            <div><label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">Amount</label><input type="number" min="0.01" step="0.01" value={row.amount} onChange={e => updateAccountPayment(index, 'amount', e.target.value)} placeholder="0.00" className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 font-bold outline-none" /></div>
+                                            <button type="button" onClick={() => removeAccountPayment(index)} className="h-11 rounded-xl bg-red-50 text-red-500 hover:bg-red-100"><i className="fa-solid fa-trash"></i></button>
+                                        </div>)}
+                                        <button type="button" onClick={addAccountPayment} className="rounded-xl border border-dashed border-indigo-300 bg-white px-4 py-2.5 text-sm font-bold text-indigo-600 hover:bg-indigo-50"><i className="fa-solid fa-plus mr-2"></i>Add another account</button>
+                                        {errors.account_payments && <span className="block text-xs font-bold text-red-500">{errors.account_payments}</span>}
+                                    </div>;
+                                })()}
+
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-5 bg-gray-50 border border-gray-100 rounded-2xl">
-                                    <div>
+                                    {editMode && <div>
                                         <label className="block text-[12px] font-bold text-emerald-600 uppercase tracking-wider mb-2">Amount Received <span className="text-red-500">*</span></label>
                                         <div className="relative">
                                             <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 text-[16px]" />
@@ -647,7 +676,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                             />
                                         </div>
                                         {errors.amount && <span className="mt-1.5 block text-[11px] text-red-500 font-bold">{errors.amount}</span>}
-                                    </div>
+                                    </div>}
                                     <div>
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Discount (৳)</label>
                                         <input
@@ -742,7 +771,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                 <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex justify-between items-center">
                                     <span className="text-[11.5px] font-bold uppercase tracking-wider text-gray-400">Account Credited</span>
                                     <div className="text-gray-900 font-bold flex items-center gap-2">
-                                        <i className="fa-solid fa-building-columns text-indigo-500"></i> {selectedPayment.account?.name}
+                                        <i className={`fa-solid ${selectedPayment.method === 'Client Advance' ? 'fa-wallet text-emerald-500' : 'fa-building-columns text-indigo-500'}`}></i> {selectedPayment.method === 'Client Advance' ? 'Client Advance' : selectedPayment.account?.name}
                                     </div>
                                 </div>
 

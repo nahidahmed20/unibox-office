@@ -624,7 +624,7 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm col-span-2">
                                     <span className="block text-[11.5px] font-bold uppercase tracking-wider text-gray-400 mb-1">Client Name</span>
                                     <div className="text-[16px] font-extrabold text-gray-900">{clients.find(c => c.id == selectedAdvance.client_id)?.name || "N/A"}</div>

@@ -377,7 +377,7 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
                             <button onClick={() => setShowModal(false)} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-400 bg-gray-100 hover:bg-red-50 hover:text-red-500 transition-colors"><i className="fa-solid fa-xmark"></i></button>
                         </div>
                         <form onSubmit={handleSubmit} className="p-8 overflow-y-auto space-y-6">
-                            <div className="grid grid-cols-2 gap-5">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                 <div className="col-span-2 sm:col-span-1">
                                     <label className={labelCls}>Investor/Lender Name *</label>
                                     <input type="text" list="investors" value={data.investor_name} onChange={handleInvestorNameChange} className={inputCls} placeholder="Start typing name..." required />
@@ -390,7 +390,7 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
 
                                 <div className="col-span-2 sm:col-span-1">
                                     <label className={labelCls}>Person Type *</label>
-                                    <div className="grid grid-cols-3 gap-2">
+                                    <div className="grid grid-cols-1 min-[400px]:grid-cols-3 gap-2">
                                         {Object.entries(INVESTOR_TYPE_META).map(([value, meta]) => (
                                             <button key={value} type="button" onClick={() => setData('investor_type', value)} className={`rounded-xl border-2 px-2 py-2.5 text-center transition-all ${data.investor_type === value ? meta.chip : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
                                                 <span className="block text-[12px] font-bold">{meta.label}</span>
@@ -401,7 +401,7 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
                                 </div>
                                 <div className="col-span-2 sm:col-span-1">
                                     <label className={labelCls}>Investment Type *</label>
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-2">
                                         {Object.entries(INVESTMENT_TYPE_META).map(([value, meta]) => (
                                             <button key={value} type="button" onClick={() => setData('investment_type', value)} className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 px-2 py-2.5 text-center transition-all ${data.investment_type === value ? meta.chip : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
                                                 <i className={`fa-solid ${meta.icon} text-[13px]`}></i>
@@ -476,7 +476,7 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
                                     <label className={labelCls}>Pay From Account *</label>
                                     <Select options={accountOptions} onChange={s => returnForm.setData("account_id", s ? s.value : "")} placeholder="Search account..." isClearable styles={selectStyles} menuPortalTarget={document.body} />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className={labelCls}>Return Principal (৳) *</label>
                                         <div className="relative">

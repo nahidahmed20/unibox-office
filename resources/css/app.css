@@ -6,6 +6,111 @@
 
 body {
   font-family: 'Jost', sans-serif;
+  overflow-x: hidden;
+}
+
+/* Shared responsive behavior for every page rendered inside AdminLayout. */
+.admin-content,
+.admin-content > *,
+.admin-content [class*="max-w-"] {
+  min-width: 0;
+}
+
+.admin-content .overflow-x-auto,
+.admin-content .custom-table-scroll,
+.admin-content .table-responsive {
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.admin-content table {
+  max-width: none;
+}
+
+@media (max-width: 639px) {
+  .admin-content > div {
+    gap: 1rem;
+    padding-bottom: 1.5rem;
+    margin-top: 0;
+  }
+
+  .admin-content h1 {
+    font-size: 1.5rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .admin-content h2 {
+    font-size: 1.25rem !important;
+    line-height: 1.3 !important;
+  }
+
+  .admin-content .rounded-3xl {
+    border-radius: 1rem;
+  }
+
+  .admin-content .rounded-2xl {
+    border-radius: .875rem;
+  }
+
+  /* Page headings and toolbars wrap instead of pushing the viewport wide. */
+  .admin-content [class*="justify-between"] {
+    flex-wrap: wrap;
+    column-gap: .75rem;
+    row-gap: .75rem;
+  }
+
+  .admin-content [class*="whitespace-nowrap"]:not(table) {
+    max-width: 100%;
+  }
+
+  /* Every full-screen CRUD dialog remains usable on short/narrow phones. */
+  .admin-content > .fixed.inset-0,
+  .admin-content .fixed.inset-0.z-\[100\] {
+    align-items: flex-start;
+    padding: .75rem !important;
+    overflow-y: auto;
+  }
+
+  .admin-content > .fixed.inset-0 > div:not(.fixed),
+  .admin-content .fixed.inset-0.z-\[100\] > div:not(.fixed) {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 1.5rem);
+    margin: auto 0;
+  }
+
+  .admin-content .fixed.inset-0 [class~="p-8"] {
+    padding: 1rem !important;
+  }
+
+  .admin-content .fixed.inset-0 [class~="px-8"] {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  .admin-content .fixed.inset-0 [class~="py-6"] {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+
+  .admin-content input,
+  .admin-content select,
+  .admin-content textarea,
+  .admin-content button {
+    max-width: 100%;
+  }
+
+  .admin-content input,
+  .admin-content select,
+  .admin-content textarea {
+    font-size: 16px !important; /* Prevent iOS form zoom. */
+  }
+
+  .admin-content .swal2-popup {
+    width: calc(100vw - 1.5rem) !important;
+  }
 }
 .pagination-btn {
     width: 38px;

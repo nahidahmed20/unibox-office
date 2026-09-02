@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\InvoiceSetting;
 use App\Models\ProjectExpense;
 use App\Models\Vendor;
+use App\Models\Account;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -284,10 +285,31 @@ class InvoiceController extends Controller
 
     public function destroy(string $id)
     {
-        $invoice = Invoice::findOrFail($id);
+        $invoice = Invoice::with(['payments.transaction', 'payments.advanceAllocations.clientAdvance'])->findOrFail($id);
 
         DB::transaction(function () use ($invoice) {
-            $this->rollbackAdvancePayment($invoice);
+            foreach ($invoice->payments as $payment) {
+                if ($payment->method === 'Client Advance') {
+                    if ($payment->advanceAllocations->isNotEmpty()) {
+                        foreach ($payment->advanceAllocations as $allocation) {
+                            $advance = $allocation->clientAdvance;
+                            $advance->decrement('used_amount', $allocation->amount);
+                            $advance->update(['is_settled' => false]);
+                        }
+                    } else {
+                        $this->restoreClientAdvance($invoice->client_id, (float) $payment->amount);
+                    }
+                } elseif ($payment->account_id) {
+                    Account::whereKey($payment->account_id)->increment('current_balance', $payment->amount);
+                    $payment->transaction?->delete();
+                }
+            }
+
+            $legacyAdvance = (float) ($invoice->getRawOriginal('advance_used') ?? 0);
+            if ($legacyAdvance > 0) {
+                $this->restoreClientAdvance($invoice->client_id, $legacyAdvance);
+            }
+
             $invoice->payments()->delete();
             $invoice->items()->delete();
             $invoice->delete();
@@ -296,26 +318,18 @@ class InvoiceController extends Controller
         return redirect()->back()->with('success', 'Invoice deleted successfully.');
     }
 
-    private function rollbackAdvancePayment($invoice)
+    private function restoreClientAdvance(int $clientId, float $refundAmount): void
     {
-        $advancePayments = InvoicePayment::where('invoice_id', $invoice->id)->where('method', 'Client Advance')->get();
-
-        if ($advancePayments->count() > 0) {
-            $refundAmount = $advancePayments->sum('amount');
-            $advances = ClientAdvance::where('client_id', $invoice->client_id)->where('used_amount', '>', 0)->orderBy('id', 'desc')->get();
-
-            foreach ($advances as $advance) {
-                if ($refundAmount <= 0) break;
-                if ($advance->used_amount >= $refundAmount) {
-                    $newUsed = $advance->used_amount - $refundAmount;
-                    $advance->update(['used_amount' => $newUsed, 'is_settled'  => false ]);
-                    $refundAmount = 0;
-                } else {
-                    $refundAmount -= $advance->used_amount;
-                    $advance->update(['used_amount' => 0, 'is_settled'  => false]);
-                }
+        $advances = ClientAdvance::where('client_id', $clientId)
+            ->where('used_amount', '>', 0)->orderByDesc('date')->orderByDesc('id')->lockForUpdate()->get();
+        foreach ($advances as $advance) {
+            if ($refundAmount <= 0) break;
+            $restore = min($refundAmount, (float) $advance->used_amount);
+            if ($restore > 0) {
+                $advance->decrement('used_amount', $restore);
+                $advance->update(['is_settled' => false]);
+                $refundAmount -= $restore;
             }
-            InvoicePayment::where('invoice_id', $invoice->id)->where('method', 'Client Advance')->delete();
         }
     }
 

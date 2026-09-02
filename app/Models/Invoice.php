@@ -15,7 +15,8 @@ class Invoice extends Model {
     }
     public function getAdvanceUsedAttribute()
     {
-        return $this->payments()->where('method', 'Client Advance')->sum('amount') ?? 0;
+        return (float) ($this->getRawOriginal('advance_used') ?? 0)
+            + (float) ($this->payments()->where('method', 'Client Advance')->sum('amount') ?? 0);
     }
 
 }
