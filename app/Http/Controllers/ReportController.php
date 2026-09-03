@@ -19,7 +19,7 @@ use App\Models\VendorPayment;
 use App\Models\Investment;
 use App\Models\InvestmentPayment;
 use App\Models\ClientAdvance;
-use App\Models\AdvanceBalance;
+use App\Models\Advance;
 use App\Models\Asset;
 use Carbon\Carbon;
 
@@ -69,7 +69,9 @@ class ReportController extends Controller
                 'due' => max((float) $client->invoiced - (float) $client->paid - (float) $client->legacy_advance, 0),
             ])->filter(fn ($row) => $row['due'] > 0)->values();
 
-        $staffAdvances = AdvanceBalance::with('user:id,name')->get()->map(fn ($row) => [
+        $staffAdvances = Advance::with('user:id,name')
+            ->select('user_id', DB::raw('SUM(amount) total_given'), DB::raw('SUM(settled_amount) total_used'), DB::raw('SUM(returned_amount) total_returned'))
+            ->groupBy('user_id')->get()->map(fn ($row) => [
             'name' => $row->user?->name ?? 'Unknown Staff',
             'given' => (float) $row->total_given,
             'used' => (float) $row->total_used,
@@ -112,21 +114,31 @@ class ReportController extends Controller
 
     public function financialSummary(Request $request)
     {
+        $request->validate([
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+            'month' => ['nullable', 'date_format:Y-m'],
+        ]);
+
+        $applyPeriod = function ($query, string $column) use ($request) {
+            if ($request->filled('month')) {
+                [$year, $month] = explode('-', $request->month);
+                return $query->whereYear($column, $year)->whereMonth($column, $month);
+            }
+            if ($request->filled('start_date')) $query->whereDate($column, '>=', $request->start_date);
+            if ($request->filled('end_date')) $query->whereDate($column, '<=', $request->end_date);
+            if ($request->filled('year') && !$request->filled('start_date') && !$request->filled('end_date')) $query->whereYear($column, $request->year);
+            return $query;
+        };
+
         $query = DB::table('projects')
             ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
             ->leftJoin('project_expenses', 'projects.id', '=', 'project_expenses.project_id')
             ->whereNull('projects.deleted_at')
             ->whereNull('clients.deleted_at');
 
-        if ($request->filled('start_date')) {
-            $query->whereDate('projects.start_date', '>=', $request->start_date);
-        }
-        if ($request->filled('end_date')) {
-            $query->whereDate('projects.start_date', '<=', $request->end_date);
-        }
-        if ($request->filled('year') && !$request->filled('start_date') && !$request->filled('end_date')) {
-            $query->whereYear('projects.start_date', $request->year);
-        }
+        $applyPeriod($query, 'projects.start_date');
 
         $projectsData = $query->select(
                 'projects.id', 'projects.client_id', 'projects.title', 'projects.budget', 'projects.start_date', 'projects.status', 'clients.name as client_name',
@@ -153,13 +165,15 @@ class ReportController extends Controller
 
         if (!empty($clientIds)) {
             $invoiceStats = DB::table('invoices')->whereIn('client_id', $clientIds)->whereNull('deleted_at')
-                ->select('client_id', DB::raw('COUNT(id) as total_invoices'), DB::raw('SUM(grand_total) as total_billed'))
-                ->groupBy('client_id')->get()->keyBy('client_id');
+                ->select('client_id', DB::raw('COUNT(id) as total_invoices'), DB::raw('SUM(grand_total) as total_billed'));
+            $applyPeriod($invoiceStats, 'invoice_date');
+            $invoiceStats = $invoiceStats->groupBy('client_id')->get()->keyBy('client_id');
 
             $paymentStats = DB::table('invoice_payments')->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')
                 ->whereIn('invoices.client_id', $clientIds)->whereNull('invoices.deleted_at')
-                ->select('invoices.client_id', DB::raw('SUM(invoice_payments.amount) as total_paid'))
-                ->groupBy('invoices.client_id')->get()->keyBy('client_id');
+                ->select('invoices.client_id', DB::raw('SUM(invoice_payments.amount) as total_paid'));
+            $applyPeriod($paymentStats, 'invoice_payments.payment_date');
+            $paymentStats = $paymentStats->groupBy('invoices.client_id')->get()->keyBy('client_id');
 
             foreach ($clientsMap as $cName => &$data) {
                 $cId = $data['client_id'];
@@ -200,27 +214,87 @@ class ReportController extends Controller
         usort($monthlyData, function($a, $b) { return strcmp($b['sort_key'], $a['sort_key']); });
 
         // 🟢 NEW: Get Salaries and General Expenses for true Net Profit
-        $salaryQuery = DB::table('salaries')->where('status', 'paid');
         $expenseQuery = DB::table('expenses');
+        $revenueQuery = DB::table('invoices')->whereNull('deleted_at');
+        $receivedQuery = DB::table('invoice_payments');
+        $projectCostQuery = DB::table('project_expenses');
+        $financeCostQuery = DB::table('investment_payments');
+        $applyPeriod($expenseQuery, 'date');
+        $applyPeriod($revenueQuery, 'invoice_date');
+        $applyPeriod($receivedQuery, 'payment_date');
+        $applyPeriod($projectCostQuery, 'date');
+        $applyPeriod($financeCostQuery, 'payment_date');
 
-        if ($request->filled('start_date')) {
-            $salaryQuery->whereDate('payment_date', '>=', $request->start_date);
-            $expenseQuery->whereDate('date', '>=', $request->start_date);
-        }
-        if ($request->filled('end_date')) {
-            $salaryQuery->whereDate('payment_date', '<=', $request->end_date);
-            $expenseQuery->whereDate('date', '<=', $request->end_date);
-        }
-        if ($request->filled('year') && !$request->filled('start_date') && !$request->filled('end_date')) {
-            $salaryQuery->whereYear('payment_date', $request->year);
-            $expenseQuery->whereYear('date', $request->year);
-        }
+        $overallTotalBilled = (float) $revenueQuery->sum('grand_total');
+        $overallTotalPaid = (float) $receivedQuery->sum('amount');
+        $overallTotalProjectExpense = (float) $projectCostQuery->sum('total_bill');
+        // Salary is an expense in the month it is earned, even when some or all of
+        // it remains unpaid. Payments affect cash and salary due, not profit twice.
+        $salaryMonth = function ($salary) {
+            $value = trim((string) ($salary->month_year ?? ''));
+            if (preg_match('/^(0?[1-9]|1[0-2])[-\/]([0-9]{4})$/', $value, $match)) {
+                return Carbon::create((int) $match[2], (int) $match[1], 1)->startOfMonth();
+            }
+            if (preg_match('/^([0-9]{4})[-\/](0?[1-9]|1[0-2])$/', $value, $match)) {
+                return Carbon::create((int) $match[1], (int) $match[2], 1)->startOfMonth();
+            }
+            $fallback = $salary->payment_date ?? $salary->created_at ?? null;
+            if (preg_match('/^(0?[1-9]|1[0-2])$/', $value, $match) && $fallback) {
+                return Carbon::create((int) Carbon::parse($fallback)->year, (int) $match[1], 1)->startOfMonth();
+            }
+            if (preg_match('/^([A-Za-z]+)[-\/]([0-9]{2}|[0-9]{4})$/', $value, $match)) {
+                try {
+                    $format = strlen($match[2]) === 2 ? '!F-y' : '!F-Y';
+                    return Carbon::createFromFormat($format, $match[1] . '-' . $match[2])->startOfMonth();
+                } catch (\Throwable $exception) {
+                    // Continue to the reliable record-date fallback below.
+                }
+            }
+            return $fallback ? Carbon::parse($fallback)->startOfMonth() : null;
+        };
 
-        $totalSalaryPaid = (float) $salaryQuery->sum('net_pay');
+        $salaryRows = DB::table('salaries')->get(['month_year', 'net_pay', 'payment_date', 'created_at'])->filter(function ($salary) use ($request, $salaryMonth) {
+            $monthDate = $salaryMonth($salary);
+            if (!$monthDate) return false;
+            if ($request->filled('month')) return $monthDate->format('Y-m') === $request->month;
+            if ($request->filled('year') && !$request->filled('start_date') && !$request->filled('end_date')) return (int) $monthDate->year === (int) $request->year;
+            if ($request->filled('start_date') && $monthDate->copy()->endOfMonth()->lt(Carbon::parse($request->start_date))) return false;
+            if ($request->filled('end_date') && $monthDate->gt(Carbon::parse($request->end_date))) return false;
+            return true;
+        });
+        $totalSalaryPaid = (float) $salaryRows->sum('net_pay');
         $totalOfficeExpense = (float) $expenseQuery->sum('amount');
+        $totalFinanceCost = (float) $financeCostQuery->sum('profit_amount');
 
         // 🟢 True Net Profit Calculation: (Total Billed/Revenue) - (Project Costs + Salary + Office Expenses)
-        $trueNetProfit = $overallTotalBilled - ($overallTotalProjectExpense + $totalSalaryPaid + $totalOfficeExpense);
+        $trueNetProfit = $overallTotalBilled - ($overallTotalProjectExpense + $totalSalaryPaid + $totalOfficeExpense + $totalFinanceCost);
+
+        $monthlyProfitLoss = collect();
+        $addMonthly = function ($rows, string $dateColumn, string $amountColumn, string $bucket) use (&$monthlyProfitLoss) {
+            foreach ($rows as $row) {
+                $key = Carbon::parse($row->{$dateColumn})->format('Y-m');
+                if (!$monthlyProfitLoss->has($key)) {
+                    $monthlyProfitLoss->put($key, ['key' => $key, 'month' => Carbon::parse($row->{$dateColumn})->format('F Y'), 'revenue' => 0, 'received' => 0, 'project_cost' => 0, 'office_expense' => 0, 'salary_expense' => 0, 'finance_cost' => 0]);
+                }
+                $item = $monthlyProfitLoss->get($key);
+                $item[$bucket] += (float) $row->{$amountColumn};
+                $monthlyProfitLoss->put($key, $item);
+            }
+        };
+        $addMonthly((clone $revenueQuery)->get(['invoice_date', 'grand_total']), 'invoice_date', 'grand_total', 'revenue');
+        $addMonthly((clone $receivedQuery)->get(['payment_date', 'amount']), 'payment_date', 'amount', 'received');
+        $addMonthly((clone $projectCostQuery)->get(['date', 'total_bill']), 'date', 'total_bill', 'project_cost');
+        $addMonthly((clone $expenseQuery)->get(['date', 'amount']), 'date', 'amount', 'office_expense');
+        $addMonthly((clone $financeCostQuery)->get(['payment_date', 'profit_amount']), 'payment_date', 'profit_amount', 'finance_cost');
+        foreach ($salaryRows as $salary) {
+            $date = $salaryMonth($salary);
+            if ($date) $addMonthly([(object) ['date' => $date->toDateString(), 'amount' => $salary->net_pay]], 'date', 'amount', 'salary_expense');
+        }
+        $monthlyProfitLoss = $monthlyProfitLoss->map(function ($row) {
+            $row['total_expense'] = $row['project_cost'] + $row['office_expense'] + $row['salary_expense'] + $row['finance_cost'];
+            $row['profit_loss'] = $row['revenue'] - $row['total_expense'];
+            return $row;
+        })->sortByDesc('key')->values();
 
         $summary = [
             'total_revenue' => $overallTotalBilled, // Gross Revenue
@@ -228,14 +302,24 @@ class ReportController extends Controller
             'total_project_cost' => $overallTotalProjectExpense,
             'total_salary_expense' => $totalSalaryPaid,
             'total_office_expense' => $totalOfficeExpense,
+            'total_finance_cost' => $totalFinanceCost,
+            'gross_profit' => $overallTotalBilled - $overallTotalProjectExpense,
             'net_profit' => $trueNetProfit,
+            'account_balance' => (float) DB::table('accounts')->where('is_active', true)->sum('current_balance'),
+            'client_due' => max((float) DB::table('invoices')->whereNull('deleted_at')->sum('grand_total') - (float) DB::table('invoice_payments')->sum('amount') - (float) DB::table('invoices')->whereNull('deleted_at')->sum('advance_used'), 0),
+            'vendor_due' => (float) DB::table('project_expenses')->sum('due_amount'),
+            'client_advance' => (float) DB::table('client_advances')->selectRaw('COALESCE(SUM(amount - used_amount), 0) balance')->value('balance'),
+            'vendor_advance' => (float) DB::table('vendors')->sum('wallet_balance'),
+            'staff_advance' => max((float) DB::table('advances')->selectRaw('COALESCE(SUM(amount - settled_amount - returned_amount), 0) balance')->value('balance'), 0),
+            'salary_due' => (float) DB::table('salaries')->sum('due_amount'),
         ];
 
         return Inertia::render('Admin/Reports/FinancialReports', [
             'clientsReport' => array_values($clientsMap),
             'monthlyReport' => $monthlyData,
+            'monthlyProfitLoss' => $monthlyProfitLoss,
             'summary' => $summary,
-            'filters' => $request->only(['start_date', 'end_date', 'year'])
+            'filters' => $request->only(['start_date', 'end_date', 'year', 'month'])
         ]);
     }
 
