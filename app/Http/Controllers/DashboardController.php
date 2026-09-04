@@ -2,84 +2,138 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\{Account, Invoice, InvoicePayment, ProjectExpense, Expense, Investment, EmployeeProfile, Attendance, Project, Client, Task, Leave, Requisition, Notice, Transaction, Salary, Vendor}; // 🟢 Vendor Model Add kora hoyeche
+use App\Models\{Account, Invoice, InvoicePayment, ProjectExpense, Expense, Investment, InvestmentPayment, EmployeeProfile, Attendance, Project, Client, Task, Leave, Requisition, Notice, Transaction, Salary, Vendor, ClientAdvance, Advance, VendorPayment, Asset};
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
     public function index()
     {
+        $currentMonth = now()->month;
+        $currentYear = now()->year;
+
+        // ==========================================
+        // 1. TOTAL COMPANY FUNDS (কোম্পানির মোট নিজস্ব টাকা)
+        // ==========================================
+        $cashBalance = Account::where('type', 'cash')->where('is_active', true)->sum('current_balance');
+        $bankBalance = Account::whereIn('type', ['bank', 'mobile_banking'])->where('is_active', true)->sum('current_balance');
+        $totalAccountBalance = $cashBalance + $bankBalance;
+
+        // স্টাফদের কাছে পড়ে থাকা অ্যাডভান্স (সম্পদ)
+        $employeeAdvance = Advance::where('status', 'unsettled')->get()->sum(function ($adv) {
+            return max((float) $adv->amount - (float) $adv->settled_amount - (float) $adv->returned_amount, 0);
+        });
+
+        // ভেন্ডরদের ওয়ালেটে থাকা অ্যাডভান্স (সম্পদ)
+        $vendorAdvance = Vendor::sum('wallet_balance');
+
+        // কোম্পানির গ্র্যান্ড টোটাল ক্যাশ ফান্ড
+        $totalCompanyFunds = $totalAccountBalance + $employeeAdvance + $vendorAdvance;
+
+
+        // ==========================================
+        // 2. MONTHLY PERFORMANCE (STRICTLY CASH FLOW BASIS)
+        // ==========================================
+
+        // --- Income (Cash In - Payment Date অনুযায়ী) ---
+        $monthlyInvoiceIncome = InvoicePayment::whereMonth('payment_date', $currentMonth)
+            ->whereYear('payment_date', $currentYear)
+            ->sum('amount');
+
+        $monthlyClientAdvance = ClientAdvance::whereMonth('date', $currentMonth)
+            ->whereYear('date', $currentYear)
+            ->sum('amount');
+
+        $monthlyTotalIncome = $monthlyInvoiceIncome + $monthlyClientAdvance;
+
+        // --- Expenses (Cash Out - Payment Date অনুযায়ী) ---
+        $monthlyGeneralExpense = Expense::whereMonth('date', $currentMonth)
+            ->whereYear('date', $currentYear)
+            ->sum('amount');
+
+        $monthlySalaryPaid = Salary::where('status', 'paid')
+            ->whereMonth('payment_date', $currentMonth)
+            ->whereYear('payment_date', $currentYear)
+            ->sum('net_pay');
+
+        // 🟢 FIXED: Project Expenses (Only actual cash paid this month)
+        $directProjectPaid = ProjectExpense::whereNotNull('account_id')
+            ->whereMonth('date', $currentMonth)
+            ->whereYear('date', $currentYear)
+            ->sum('paid_amount');
+
+        $vendorBillPaid = VendorPayment::whereNotNull('account_id')
+            ->whereMonth('date', $currentMonth)
+            ->whereYear('date', $currentYear)
+            ->sum('pay_amount');
+
+        $monthlyProjectCostPaid = $directProjectPaid + $vendorBillPaid;
+
+        $monthlyTotalExpense = $monthlyGeneralExpense + $monthlySalaryPaid + $monthlyProjectCostPaid;
+
+        // --- Net Cash Flow (মান্থলি লাভ/ক্ষতি) ---
+        $monthlyNetProfit = $monthlyTotalIncome - $monthlyTotalExpense;
+
+
+        // ==========================================
+        // 3. RECEIVABLES & PAYABLES (পাওনা ও দেনা)
+        // ==========================================
         $totalInvoiced = Invoice::sum('grand_total');
         $totalPaid = InvoicePayment::sum('amount');
         $totalClientDue = max($totalInvoiced - $totalPaid, 0);
 
-        // Salaries Data
-        $monthlySalaryPaid = Salary::where('status', 'paid')
-            ->whereMonth('payment_date', now()->month)
-            ->whereYear('payment_date', now()->year)
-            ->sum('net_pay');
+        $vendorDue = ProjectExpense::whereNotNull('vendor_id')->sum('due_amount');
+
+        $clientAdvanceLiability = ClientAdvance::sum('amount') - ClientAdvance::sum('used_amount');
+
+
+        // ==========================================
+        // 4. OTHER ASSETS & INVESTMENTS
+        // ==========================================
+        $totalAssets = DB::table('assets')->sum('purchase_price');
+        $actualInvestmentBalance = Investment::withSum('payments as returned_principal', 'principal_amount')
+            ->get()
+            ->sum(fn ($investment) => max((float) $investment->amount - (float) ($investment->returned_principal ?? 0), 0));
 
         $unpaidSalaries = Salary::where('status', 'unpaid')->sum('net_pay');
 
-        // General Expenses Data
-        $monthlyExpenses = Expense::whereMonth('date', now()->month)
-            ->whereYear('date', now()->year)
-            ->sum('amount');
 
-        // Advances & Assets Data
-        $clientAdvance = DB::table('client_advances')->selectRaw('COALESCE(SUM(amount - used_amount), 0) as balance')->value('balance');
-        $employeeAdvance = DB::table('advances')->selectRaw('COALESCE(SUM(amount - settled_amount - returned_amount), 0) as balance')->value('balance');
-        $totalAssets = DB::table('assets')->sum('purchase_price');
-
-        // 🟢 FIXED: Vendor Advance (Vendor Wallet Balance)
-        $vendorAdvance = Vendor::sum('wallet_balance');
-
-        // 🟢 FIXED: Total Investment (Total In - Total Returned)
-        $actualInvestmentBalance = Investment::withSum('payments as returned_principal', 'principal_amount')
-            ->get()
-            ->sum(fn ($investment) => max(
-                (float) $investment->amount - (float) ($investment->returned_principal ?? 0),
-                0
-            ));
-
-
-        // Vendor & Project Expenses Data
-        $vendorPaid = ProjectExpense::whereNotNull('vendor_id')->sum('paid_amount');
-        $vendorDue = ProjectExpense::whereNotNull('vendor_id')->sum('due_amount');
-
-        $monthlyProjectExpense = ProjectExpense::whereMonth('date', now()->month)
-            ->whereYear('date', now()->year)
-            ->sum('total_bill');
-
-        // Available Balance Logic
-        $totalAccountBalance = Account::where('is_active', true)->sum('current_balance');
-        $availableBalance = $totalAccountBalance + $clientAdvance; // Cash/Bank + Client Advance
-
+        // Prepare stats array
         $stats = [
-            'totalBalance' => $totalAccountBalance,
-            'cashBalance' => Account::where('type', 'cash')->where('is_active', true)->sum('current_balance'),
-            'bankBalance' => Account::whereIn('type', ['bank', 'mobile_banking'])->where('is_active', true)->sum('current_balance'),
-
-            // Stats Added to array
-            'clientAdvance' => $clientAdvance,
-            'availableBalance' => $availableBalance,
+            // Fund Balances
+            'totalCompanyFunds' => $totalCompanyFunds,
+            'totalAccountBalance' => $totalAccountBalance,
+            'cashBalance' => $cashBalance,
+            'bankBalance' => $bankBalance,
             'employeeAdvance' => $employeeAdvance,
-            'vendorAdvance' => $vendorAdvance, // 🟢 Vendor Advance Added
-            'totalAssets' => $totalAssets,
-            'totalInvestment' => $actualInvestmentBalance, // 🟢 Actual Investment Added
+            'vendorAdvance' => $vendorAdvance,
 
-            'vendorPaid' => $vendorPaid,
-            'vendorDue' => $vendorDue,
-            'monthlyProjectExpense' => $monthlyProjectExpense,
+            // Monthly Review (Cash Flow)
+            'monthlyTotalIncome' => $monthlyTotalIncome,
+            'monthlyInvoiceIncome' => $monthlyInvoiceIncome,
+            'monthlyClientAdvance' => $monthlyClientAdvance,
 
-            'totalClientDue' => $totalClientDue,
-            'totalProjectDue' => ProjectExpense::sum('due_amount'),
-            'monthlyRevenue' => InvoicePayment::whereMonth('payment_date', now()->month)->whereYear('payment_date', now()->year)->sum('amount'),
-            'monthlyExpensesOnly' => $monthlyExpenses,
+            'monthlyTotalExpense' => $monthlyTotalExpense,
+            'monthlyGeneralExpense' => $monthlyGeneralExpense,
             'monthlySalaryPaid' => $monthlySalaryPaid,
+            'monthlyProjectExpense' => $monthlyProjectCostPaid, // Passing Cash Out value
+
+            'monthlyNetProfit' => $monthlyNetProfit,
+
+            // Dues & Liabilities
+            'totalClientDue' => $totalClientDue,
+            'vendorDue' => $vendorDue,
+            'clientAdvanceLiability' => max($clientAdvanceLiability, 0),
             'unpaidSalaries' => $unpaidSalaries,
 
+            // Assets & Investments
+            'totalAssets' => $totalAssets,
+            'totalInvestment' => $actualInvestmentBalance,
+
+            // Operational Stats
+            'monthlyRevenue' => Invoice::whereMonth('invoice_date', $currentMonth)->whereYear('invoice_date', $currentYear)->sum('grand_total'), // Billed this month
             'totalEmployees' => EmployeeProfile::count(),
             'presentToday' => Attendance::whereDate('date', today())->where('status', 'present')->count(),
             'activeProjects' => Project::where('status', 'in_progress')->count(),
@@ -90,7 +144,7 @@ class DashboardController extends Controller
             'pendingRequisitions' => Requisition::where('status', 'pending')->count(),
         ];
 
-        // Pending Receivables
+        // Recent Pending Invoices
         $recentPendingInvoices = Invoice::with(['client:id,name,company_name', 'items.project:id,title'])
             ->withSum('payments', 'amount')
             ->whereIn('status', ['unpaid', 'partially_paid', 'overdue'])
@@ -103,9 +157,9 @@ class DashboardController extends Controller
 
                 $projectNames = collect($invoice->items)->map(function($item) {
                     return $item->project ? $item->project->title : $item->item_name;
-                })->filter()->implode(', ');
+                });
 
-                $invoice->work_details = $projectNames ?: 'General Billing';
+                $invoice->work_details = $projectNames->filter()->implode(', ') ?: 'General Billing';
                 return $invoice;
             });
 

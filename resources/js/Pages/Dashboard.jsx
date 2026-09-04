@@ -39,8 +39,6 @@ const money = (n) => (
 );
 
 export default function Dashboard({ stats, recentPendingInvoices = [], recentNotices = [], recentTasks = [], recentTransactions = [] }) {
-    // Calculating Total Monthly General Spent (Office Expenses + Payroll)
-    const totalSpentThisMonth = (Number(stats.monthlyExpensesOnly) || 0) + (Number(stats.monthlySalaryPaid) || 0);
 
     return (
         <AdminLayout>
@@ -75,88 +73,105 @@ export default function Dashboard({ stats, recentPendingInvoices = [], recentNot
                     </div>
                 </div>
 
-                {/* --- Row 1 & 2: 8 Key Financials (Top Priority) --- */}
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {/* 🟢 NEW SECTION: Monthly True Cash Flow (This Month) */}
+                <div>
+                    <h3 className="text-[14px] font-black uppercase tracking-widest text-gray-400 mb-4 ml-1 flex items-center gap-2">
+                        <i className="fa-solid fa-chart-line text-emerald-400"></i> Monthly Cash Flow (This Month)
+                    </h3>
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                        <StatCard
+                            label="Total Cash In (Received)"
+                            value={money(stats.monthlyCashIn)}
+                            icon="fa-arrow-down-to-bracket"
+                            gradient="bg-gradient-to-br from-emerald-400 to-teal-500"
+                            note="Invoices collected + Client Adv"
+                            noteColor="text-emerald-700"
+                        />
+                        <StatCard
+                            label="Total Cash Out (Spent)"
+                            value={money(stats.monthlyCashOut)}
+                            icon="fa-arrow-right-from-bracket"
+                            gradient="bg-gradient-to-br from-rose-500 to-red-600"
+                            note="Proj Bills + Office + Salary Paid"
+                            noteColor="text-rose-700"
+                        />
+                        <StatCard
+                            label="Net Cash Flow (True Profit)"
+                            value={<>{stats.monthlyNetCashFlow < 0 ? '-' : ''}{money(Math.abs(stats.monthlyNetCashFlow))}</>}
+                            icon="fa-scale-balanced"
+                            gradient={stats.monthlyNetCashFlow >= 0 ? "bg-gradient-to-br from-purple-500 to-indigo-600" : "bg-gradient-to-br from-gray-500 to-gray-600"}
+                            note={stats.monthlyNetCashFlow >= 0 ? "You are profitable this month!" : "You are in deficit this month!"}
+                            noteColor={stats.monthlyNetCashFlow >= 0 ? "text-purple-600" : "text-gray-600"}
+                        />
+                    </div>
+                </div>
 
-                    {/* 1. Available Balance */}
-                    <StatCard
-                        label="Available Balance"
-                        value={money(stats.availableBalance)}
-                        icon="fa-wallet"
-                        gradient="bg-gradient-to-br from-indigo-500 to-blue-600"
-                        note={`Accounts: ৳ ${(Number(stats.totalBalance) || 0).toLocaleString()} | Cl. Adv: ৳ ${(Number(stats.clientAdvance) || 0).toLocaleString()}`}
-                        noteColor="text-indigo-600"
-                    />
+                {/* --- Row 1 & 2: 8 Key Financials (Current Standings) --- */}
+                <div>
+                    <h3 className="text-[14px] font-black uppercase tracking-widest text-gray-400 mb-4 ml-1 flex items-center gap-2">
+                        <i className="fa-solid fa-building-columns text-indigo-400"></i> Current Standing (Total Assets & Liabilities)
+                    </h3>
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                        {/* 1. Available Balance */}
+                        <StatCard
+                            label="Available Liquid Balance"
+                            value={money(stats.availableBalance)}
+                            icon="fa-wallet"
+                            gradient="bg-gradient-to-br from-blue-500 to-cyan-600"
+                            note={`Accounts: ৳ ${(Number(stats.totalBalance) || 0).toLocaleString()} | Cl. Adv: ৳ ${(Number(stats.clientAdvance) || 0).toLocaleString()}`}
+                            noteColor="text-blue-600"
+                        />
 
-                    {/* 2. Vendor Payables & Advance */}
-                    <StatCard
-                        label="Vendor Dues (Payables)"
-                        value={money(stats.vendorDue)}
-                        icon="fa-truck-field"
-                        gradient="bg-gradient-to-br from-rose-500 to-red-600"
-                        note={`Wallet Advance: ৳ ${(Number(stats.vendorAdvance) || 0).toLocaleString()} | Paid: ৳ ${(Number(stats.vendorPaid) || 0).toLocaleString()}`}
-                        noteColor="text-rose-500"
-                    />
+                        {/* 2. Vendor Payables & Advance */}
+                        <StatCard
+                            label="Vendor Dues (Payables)"
+                            value={money(stats.vendorDue)}
+                            icon="fa-truck-field"
+                            gradient="bg-gradient-to-br from-orange-500 to-red-500"
+                            note={`Wallet Advance: ৳ ${(Number(stats.vendorAdvance) || 0).toLocaleString()} | Paid: ৳ ${(Number(stats.vendorPaid) || 0).toLocaleString()}`}
+                            noteColor="text-orange-600"
+                        />
 
-                    {/* 3. Market Receivables */}
-                    <StatCard
-                        label="Market Receivable (Due)"
-                        value={money(stats.totalClientDue)}
-                        icon="fa-file-invoice-dollar"
-                        gradient="bg-gradient-to-br from-orange-400 to-amber-500"
-                        note={`${stats.unpaidInvoices} Invoices are currently unpaid`}
-                        noteColor="text-orange-600"
-                    />
+                        {/* 3. Market Receivables */}
+                        <StatCard
+                            label="Market Receivable (Due)"
+                            value={money(stats.totalClientDue)}
+                            icon="fa-file-invoice-dollar"
+                            gradient="bg-gradient-to-br from-amber-400 to-orange-400"
+                            note={`${stats.unpaidInvoices} Invoices are currently unpaid`}
+                            noteColor="text-amber-600"
+                        />
 
-                    {/* 4. Monthly Project Expense */}
-                    <StatCard
-                        label="Project Exp. (This Month)"
-                        value={money(stats.monthlyProjectExpense)}
-                        icon="fa-diagram-project"
-                        gradient="bg-gradient-to-br from-emerald-400 to-teal-500"
-                        note="Total billed on projects this month"
-                        noteColor="text-emerald-600"
-                    />
+                        {/* 4. Total Investments */}
+                        <StatCard
+                            label="Total Investment"
+                            value={money(stats.totalInvestment)}
+                            icon="fa-chart-line"
+                            gradient="bg-gradient-to-br from-purple-500 to-fuchsia-600"
+                            note="Total capital invested in company"
+                            noteColor="text-purple-600"
+                        />
 
-                    {/* 5. Total Investments */}
-                    <StatCard
-                        label="Total Investment"
-                        value={money(stats.totalInvestment)}
-                        icon="fa-chart-line"
-                        gradient="bg-gradient-to-br from-purple-500 to-indigo-600"
-                        note="Total capital invested in company"
-                        noteColor="text-purple-600"
-                    />
+                        {/* 5. Total Assets */}
+                        <StatCard
+                            label="Total Asset Value"
+                            value={money(stats.totalAssets)}
+                            icon="fa-couch"
+                            gradient="bg-gradient-to-br from-teal-400 to-emerald-500"
+                            note="Current valuation of company assets"
+                            noteColor="text-teal-700"
+                        />
 
-                    {/* 6. Total Assets */}
-                    <StatCard
-                        label="Total Asset Value"
-                        value={money(stats.totalAssets)}
-                        icon="fa-couch"
-                        gradient="bg-gradient-to-br from-cyan-400 to-emerald-500"
-                        note="Current valuation of company assets"
-                        noteColor="text-cyan-700"
-                    />
-
-                    {/* 7. Employee Advance */}
-                    <StatCard
-                        label="Employee Advance (Given)"
-                        value={money(stats.employeeAdvance)}
-                        icon="fa-user-tie"
-                        gradient="bg-gradient-to-br from-blue-400 to-cyan-500"
-                        note="Total unsettled staff advances"
-                        noteColor="text-blue-600"
-                    />
-
-                    {/* 8. Office Expenses */}
-                    <StatCard
-                        label="Office Spent (This Month)"
-                        value={money(totalSpentThisMonth)}
-                        icon="fa-arrow-right-from-bracket"
-                        gradient="bg-gradient-to-br from-fuchsia-500 to-pink-600"
-                        note={`Office Exp: ৳ ${(Number(stats.monthlyExpensesOnly) || 0).toLocaleString()} | Salary: ৳ ${(Number(stats.monthlySalaryPaid) || 0).toLocaleString()}`}
-                        noteColor="text-fuchsia-600"
-                    />
+                        {/* 6. Employee Advance */}
+                        <StatCard
+                            label="Employee Advance (Given)"
+                            value={money(stats.employeeAdvance)}
+                            icon="fa-user-tie"
+                            gradient="bg-gradient-to-br from-indigo-400 to-blue-500"
+                            note="Total unsettled staff advances"
+                            noteColor="text-indigo-600"
+                        />
+                    </div>
                 </div>
 
                 {/* --- Row 3: Operational Stats --- */}
