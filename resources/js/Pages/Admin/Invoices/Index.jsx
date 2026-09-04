@@ -2,14 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
-import Select from 'react-select'; // 🟢 Added React-Select for Searchable Dropdowns
+import Select from 'react-select';
 
-// 🟢 Custom Straight Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
 );
 
-export default function Index({ invoices = { data: [], links: [] }, clients = [], years = [], uninvoicedProjects = [], filters = {} }) {
+export default function Index({ invoices = { data: [], links: [] }, clients = [], years = [], totals = {}, uninvoicedProjects = [], filters = {} }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
     const permissions = auth?.permissions || [];
@@ -66,15 +65,15 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
     }, [invoiceNumber, projectName, dateFrom, dateTo]);
 
     const handleFilterChange = (field, value) => {
-    if (field === 'per_page') setPerPage(value);
-    if (field === 'client_id') setClientId(value);
-    if (field === 'status') setStatus(value);
-    if (field === 'year') setYear(value);
-    if (field === 'date_from') setDateFrom(value);
-    if (field === 'date_to') setDateTo(value);
+        if (field === 'per_page') setPerPage(value);
+        if (field === 'client_id') setClientId(value);
+        if (field === 'status') setStatus(value);
+        if (field === 'year') setYear(value);
+        if (field === 'date_from') setDateFrom(value);
+        if (field === 'date_to') setDateTo(value);
 
-    applyFilters({ [field]: value });
-};
+        applyFilters({ [field]: value });
+    };
 
     const clearAllFilters = () => {
         setInvoiceNumber(""); setClientId(""); setStatus(""); setProjectName(""); setYear(""); setDateFrom(""); setDateTo("");
@@ -125,7 +124,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
     const invList = invoices.data || [];
 
-    // 🟢 React-Select Styling
     const selectStyles = {
         control: (base, state) => ({
             ...base, minHeight: '38px', borderRadius: '0.5rem',
@@ -159,8 +157,8 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
             <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12 mt-2">
 
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                {/* 🟢 Header & TOP SUMMARY CARDS */}
+                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
                     <div>
                         <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-indigo-600">
                             <span className="h-1.5 w-1.5 rounded-full bg-indigo-600"></span> Finance & Revenue
@@ -168,9 +166,40 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                         <h1 className="text-[28px] font-extrabold text-gray-900 tracking-tight">Billing & Invoices</h1>
                         <p className="text-[14.5px] text-gray-500 mt-1.5 max-w-lg leading-relaxed">Manage client invoices, monitor dues, and record payments.</p>
                     </div>
+
+                    {/* 🟢 THE TOP SUMMARY CARDS */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full lg:w-auto">
+                        <div className="flex items-center gap-3.5 rounded-2xl border border-blue-200 bg-blue-50/50 px-5 py-3 shadow-sm">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600 shadow-sm border border-blue-200">
+                                <i className="fa-solid fa-file-invoice-dollar text-[14px]"></i>
+                            </div>
+                            <div>
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-blue-600/80">Total Billed</div>
+                                <div className="text-[18px] font-black text-blue-900 tabular-nums leading-none"><Taka />{(Number(totals.grand_total) || 0).toLocaleString('en-IN')}</div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3.5 rounded-2xl border border-emerald-200 bg-emerald-50/50 px-5 py-3 shadow-sm">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 shadow-sm border border-emerald-200">
+                                <i className="fa-solid fa-hand-holding-dollar text-[14px]"></i>
+                            </div>
+                            <div>
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600/80">Total Paid</div>
+                                <div className="text-[18px] font-black text-emerald-900 tabular-nums leading-none"><Taka />{(Number(totals.paid_amount) || 0).toLocaleString('en-IN')}</div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3.5 rounded-2xl border border-rose-200 bg-rose-50/50 px-5 py-3 shadow-sm">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600 shadow-sm border border-rose-200">
+                                <i className="fa-solid fa-scale-unbalanced text-[14px]"></i>
+                            </div>
+                            <div>
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-rose-600/80">Total Due</div>
+                                <div className="text-[18px] font-black text-rose-900 tabular-nums leading-none"><Taka />{(Number(totals.due_amount) || 0).toLocaleString('en-IN')}</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                {/* 🟢 Pending Billing Section */}
+                {/* Pending Billing Section */}
                 {uninvoicedProjects.length > 0 && hasPermission('create_invoice') && (
                     <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-2xl shadow-sm overflow-hidden no-print">
                         <div className="flex items-center justify-between px-6 py-4 border-b border-amber-100/80">
@@ -179,11 +208,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 <h2 className="text-[15px] font-bold text-amber-900">Pending for Billing</h2>
                                 <span className="bg-amber-500 text-white text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ml-1 shadow-sm">{uninvoicedProjects.length}</span>
                             </div>
-                            {uninvoicedProjects.length > 3 && (
-                                <div className="text-[11px] font-bold text-amber-600 flex items-center gap-1.5 animate-pulse bg-white/50 px-3 py-1 rounded-full border border-amber-200">
-                                    Scroll <i className="fa-solid fa-arrow-right-long"></i>
-                                </div>
-                            )}
                         </div>
 
                         <div className="flex overflow-x-auto gap-4 p-5 custom-amber-scroll snap-x pb-6">
@@ -208,7 +232,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                     </div>
                 )}
 
-                {/* 🟢 Main Data Card */}
+                {/* Main Data Card */}
                 <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col" id="printable-area">
                     <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 px-6 py-5 gap-4 bg-gray-50/40 no-print">
                         <div className="text-[16px] font-bold text-gray-900 flex items-center gap-2.5">
@@ -224,7 +248,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                         )}
                     </div>
 
-                    {/* 🟢 Modern Filter Toolbar */}
+                    {/* Modern Filter Toolbar */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100 no-print">
                         <div className="flex flex-wrap items-center gap-3">
 
@@ -274,7 +298,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                         </div>
                     </div>
 
-                    {/* 🟢 Searchable Selects & Date Filters */}
+                    {/* Searchable Selects & Date Filters */}
                     <div className="flex flex-wrap items-center gap-3 px-6 py-4 bg-gray-50/50 border-b border-gray-100 no-print">
 
                         {/* React-Select for Client */}
@@ -329,7 +353,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                         )}
                     </div>
 
-                    {/* 🟢 Modern Data Table */}
+                    {/* Modern Data Table */}
                     <div className="overflow-x-auto custom-table-scroll pb-2">
                         <table className="w-full text-left border-collapse whitespace-nowrap min-w-[1200px]">
                             <thead className="bg-[#F8FAFC] border-b-2 border-[#E2E8F0] print-bg">

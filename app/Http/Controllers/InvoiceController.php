@@ -55,8 +55,20 @@ class InvoiceController extends Controller
             $query->whereDate('invoice_date', '<=', $request->date_to);
         }
 
-        $perPage = $request->input('per_page') === 'all' ? ($query->count() > 0 ? $query->count() : 1) : min((int) $request->input('per_page', 10), 100000);
+        // 🟢 OVERALL TOTALS CALCULATION (For Top & Bottom view)
+        $allFiltered = clone $query;
+        $invoicesList = $allFiltered->get();
 
+        $totals = [
+            'grand_total' => $invoicesList->sum('grand_total'),
+            'paid_amount' => $invoicesList->sum('payments_sum_amount'),
+            'due_amount'  => $invoicesList->sum(function($inv) {
+                return max((float)$inv->grand_total - (float)$inv->payments_sum_amount, 0);
+            })
+        ];
+
+        // Pagination
+        $perPage = $request->input('per_page') === 'all' ? ($query->count() > 0 ? $query->count() : 1) : min((int) $request->input('per_page', 10), 100000);
         $invoices = $query->orderByDesc('invoice_date')->orderByDesc('id')->paginate($perPage)->withQueryString();
 
         $clients = Client::select('id', 'name', 'company_name')->orderBy('name')->get();
@@ -73,6 +85,7 @@ class InvoiceController extends Controller
             'invoices' => $invoices,
             'clients'  => $clients,
             'years'    => $years,
+            'totals'   => $totals, // 🟢 Passed to React
             'uninvoicedProjects' => $uninvoicedProjects,
             'filters'  => $request->only([
                 'invoice_number', 'client_id', 'status', 'project_name', 'year', 'date_from', 'date_to', 'per_page'

@@ -12,6 +12,7 @@ class InvoicePaymentController extends Controller
     public function index(Request $request)
     {
         $query = InvoicePayment::with(['invoice.client', 'invoice.items.project', 'account', 'advanceAllocations.clientAdvance']);
+
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(fn ($q) => $q
@@ -26,23 +27,30 @@ class InvoicePaymentController extends Controller
         if ($request->filled('year')) $query->whereYear('payment_date', $request->year);
         if ($request->filled('date_from')) $query->whereDate('payment_date', '>=', $request->date_from);
         if ($request->filled('date_to')) $query->whereDate('payment_date', '<=', $request->date_to);
+
+        // 🟢 ALREADY HAS EXACT TOTAL
         $totalAmount = (clone $query)->sum('amount');
         $thisMonthReceived = (clone $query)->whereMonth('payment_date', now()->month)->whereYear('payment_date', now()->year)->sum('amount');
+
         $count = (clone $query)->count();
         $perPage = $request->input('per_page') === 'all' ? max($count, 1) : min((int) $request->input('per_page', 10), 100000);
         $payments = $query->orderByDesc('payment_date')->orderByDesc('id')->paginate($perPage)->withQueryString();
+
         $invoices = Invoice::with('client')->withSum('payments', 'amount')->where('status', '!=', 'paid')->latest()->get()->map(function ($invoice) {
             $legacy = (float) ($invoice->getRawOriginal('advance_used') ?? 0);
             $invoice->due_amount = max((float) $invoice->grand_total - $legacy - (float) ($invoice->payments_sum_amount ?? 0), 0);
             $invoice->available_advance = (float) ClientAdvance::where('client_id', $invoice->client_id)->selectRaw('COALESCE(SUM(amount-used_amount),0) balance')->value('balance');
             return $invoice;
         });
+
         return Inertia::render('Admin/InvoicePayments/Index', [
-            'payments' => $payments, 'invoices' => $invoices,
+            'payments' => $payments,
+            'invoices' => $invoices,
             'accounts' => Account::where('is_active', true)->latest()->get(),
             'clients' => Client::select('id', 'name', 'company_name')->orderBy('name')->get(),
             'years' => InvoicePayment::selectRaw('DISTINCT YEAR(payment_date) year')->orderByDesc('year')->pluck('year'),
-            'totalAmount' => $totalAmount, 'thisMonthReceived' => $thisMonthReceived,
+            'totalAmount' => $totalAmount, // 🟢 Passed to React
+            'thisMonthReceived' => $thisMonthReceived,
             'filters' => $request->only(['search', 'per_page', 'client_id', 'account_id', 'year', 'date_from', 'date_to']),
         ]);
     }

@@ -153,7 +153,6 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
         return totals;
     }, { budget: 0, expense: 0, profit: 0 });
 
-    const Taka = () => <span style={{ fontFamily: 'Arial, sans-serif', fontWeight: 'bold' }} className="mr-1 opacity-70 text-[18px]">৳</span>;
     const fmt = (num) => Number(num || 0).toLocaleString('en-IN');
 
     return (
@@ -169,7 +168,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
 
             <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-12 mt-2 px-2">
 
-                {/* 🟢 Header & Auto-Triggering Date Filters */}
+                {/* Header & Date Filters */}
                 <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6">
                     <div>
                         <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-[var(--accent)]">
@@ -228,7 +227,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                     </div>
                 </div>
 
-                {/* 🟢 Top 4 Cards: Cash Flow Summary */}
+                {/* Top 4 Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                     {/* Card 1 */}
                     <div className="flex flex-col gap-2 rounded-3xl border border-blue-200 bg-blue-50/50 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
@@ -276,7 +275,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                             <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${Number(summary.net_cash_flow) >= 0 ? 'bg-purple-100' : 'bg-gray-200'}`}>
                                 <i className="fa-solid fa-chart-line text-[16px]"></i>
                             </div>
-                            <p className="text-[11.5px] font-bold uppercase tracking-wider opacity-80">Net Cash Flow <span className="normal-case opacity-80 font-medium">(নীট লাভ)</span></p>
+                            <p className="text-[11.5px] font-bold uppercase tracking-wider opacity-80">Net Cash Flow <span className="normal-case opacity-80 font-medium">(নীট ক্যাশ ফ্লো)</span></p>
                         </div>
                         <h3 className={`text-[26px] font-black m-0 tabular-nums tracking-tight relative z-10 ${Number(summary.net_cash_flow) >= 0 ? 'text-purple-800' : 'text-gray-800'}`}>
                             {Number(summary.net_cash_flow) > 0 ? '+' : ''}৳ {fmt(summary.net_cash_flow)}
@@ -285,9 +284,25 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                     </div>
                 </div>
 
-                {/* 🟢 NEW: 2 Market Due Cards (Receivables & Payables) */}
+                {/* 🟢 NET OPERATING PROFIT CARD (ইনভেস্টমেন্ট বাদে আসল লাভ) */}
+                <div className={`flex flex-col gap-2 rounded-3xl border p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden ${Number(summary.net_operating_profit) >= 0 ? 'border-teal-200 bg-teal-50/60' : 'border-red-200 bg-red-50/60'}`}>
+                    <i className="fa-solid fa-gem absolute -right-4 -bottom-4 text-[90px] opacity-10 text-teal-700"></i>
+                    <div className={`flex items-center gap-2.5 mb-1 relative z-10 ${Number(summary.net_operating_profit) >= 0 ? 'text-teal-700' : 'text-red-700'}`}>
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${Number(summary.net_operating_profit) >= 0 ? 'bg-teal-100' : 'bg-red-100'}`}>
+                            <i className="fa-solid fa-wallet text-[16px]"></i>
+                        </div>
+                        <p className="text-[12px] font-extrabold uppercase tracking-wider opacity-90">Net Operating Profit <span className="normal-case opacity-80 font-medium">(ইনভেস্টমেন্ট বাদে কোম্পানির আসল লাভ)</span></p>
+                    </div>
+                    <h3 className={`text-[32px] font-black m-0 tabular-nums tracking-tight relative z-10 ${Number(summary.net_operating_profit) >= 0 ? 'text-teal-900' : 'text-red-900'}`}>
+                        {Number(summary.net_operating_profit) > 0 ? '+' : ''}৳ {fmt(summary.net_operating_profit)}
+                    </h3>
+                    <p className={`text-[12.5px] font-bold relative z-10 ${Number(summary.net_operating_profit) >= 0 ? 'text-teal-700' : 'text-red-700'}`}>
+                        Total Cash In (৳ {fmt(summary.total_cash_in)}) minus Operational Cost [Projects + Office + Salaries] (৳ {fmt(summary.operational_cash_out)}). ইনভেস্টরদের প্রফিট শেয়ার বা রিটার্ন এখানে যুক্ত নেই।
+                    </p>
+                </div>
+
+                {/* Market Due Cards (Receivables & Payables) */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {/* Receivables Card */}
                     <div className="flex flex-col gap-2 rounded-3xl border border-amber-200 bg-amber-50/40 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
                         <i className="fa-solid fa-hand-holding-dollar absolute -right-4 -bottom-4 text-[80px] text-amber-100 opacity-60"></i>
                         <div className="flex items-center gap-2.5 text-amber-600 mb-1 relative z-10">
@@ -295,10 +310,9 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                             <p className="text-[11px] font-bold uppercase tracking-wider text-amber-600/90">Market Receivables <span className="normal-case opacity-80 font-medium">(পাওনা টাকা)</span></p>
                         </div>
                         <h3 className="text-[26px] font-black text-amber-800 m-0 tabular-nums tracking-tight relative z-10">৳ {fmt(summary.client_due)}</h3>
-                        <p className="text-[12px] text-amber-700 font-medium relative z-10">ক্লায়েন্টদের কাছে মোট যত টাকা এখনো পাওনা আছে (Unpaid Bills)।</p>
+                        <p className="text-[12px] text-amber-700 font-medium relative z-10">ক্লায়েন্টদের কাছে মোট যত টাকা এখনো পাওনা আছে (Unpaid Bills).</p>
                     </div>
 
-                    {/* Payables Card */}
                     <div className="flex flex-col gap-2 rounded-3xl border border-red-200 bg-red-50/40 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
                         <i className="fa-solid fa-money-check-dollar absolute -right-4 -bottom-4 text-[80px] text-red-100 opacity-60"></i>
                         <div className="flex items-center gap-2.5 text-red-600 mb-1 relative z-10">
@@ -313,7 +327,6 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                 {/* Tabs & Main Content */}
                 <div className="rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col mt-2">
 
-                    {/* Modern Pill-Style Tabs */}
                     <div className="bg-white px-6 pt-5 pb-1 border-b border-gray-100">
                         <div className="inline-flex p-1.5 space-x-1 bg-gray-100/80 border border-gray-200/60 rounded-xl w-max">
                             <button
@@ -337,7 +350,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                         </div>
                     </div>
 
-                    {/* 🟢 Tab 1: Cash Flow & Revenue Report */}
+                    {/* Tab 1: Cash Flow & Revenue Report */}
                     {activeTab === 'profit_loss' && (
                         <div className="overflow-x-auto custom-table-scroll">
                             <table id="monthly-profit-loss-table" className="w-full min-w-[1200px] text-left">
@@ -481,7 +494,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                         </div>
                     )}
 
-                    {/* 🟢 Tab 3: Monthly Project Report Section */}
+                    {/* Tab 3: Monthly Project Report Section */}
                     {activeTab === 'monthly' && (
                         <div className="animate-[fadeIn_0.2s_ease-out]">
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-4 bg-gray-50/50 border-b border-gray-100">

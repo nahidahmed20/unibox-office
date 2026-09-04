@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+import Select from 'react-select';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -29,7 +30,6 @@ function numberToWords(amount) {
     return parts.join(' ') + ' Taka Only';
 }
 
-// 🟢 Custom Straight Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
 );
@@ -183,9 +183,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
         link.click();
     };
 
-    const handlePrint = () => {
-        window.print();
-    };
+    const handlePrint = () => { window.print(); };
 
     const handlePrintReceipt = (payment) => {
         const client = payment.invoice?.client;
@@ -286,7 +284,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
 
             <div className="flex flex-col gap-8 max-w-[1600px] mx-auto pb-12 mt-2">
 
-                {/* Header */}
+                {/* Header & Top Summary Cards */}
                 <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
                     <div>
                         <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-[var(--accent)]">
@@ -296,24 +294,23 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                         <p className="text-[14.5px] text-gray-500 mt-1.5 max-w-lg leading-relaxed">Track received payments, bank deposits, and manage client balances.</p>
                     </div>
 
-                    {/* Top Summary Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full lg:w-auto">
-                        <div className="flex items-center gap-3.5 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-teal-600 shadow-sm">
-                                <i className="fa-solid fa-arrow-down-to-bracket text-[15px]"></i>
+                        <div className="flex items-center gap-3.5 rounded-2xl border border-teal-200 bg-teal-50/50 px-5 py-3 shadow-sm">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-600 shadow-sm border border-teal-200">
+                                <i className="fa-solid fa-arrow-down-to-bracket text-[14px]"></i>
                             </div>
                             <div>
-                                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Total Received</div>
-                                <div className="text-[18px] font-black text-gray-900 tabular-nums"><Taka />{parseFloat(totalAmount || 0).toLocaleString('en-IN')}</div>
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-teal-600/80">Total Received</div>
+                                <div className="text-[18px] font-black text-teal-900 tabular-nums leading-none"><Taka />{(Number(totalAmount) || 0).toLocaleString('en-IN')}</div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3.5 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 shadow-sm">
-                                <i className="fa-regular fa-calendar-check text-[15px]"></i>
+                        <div className="flex items-center gap-3.5 rounded-2xl border border-indigo-200 bg-indigo-50/50 px-5 py-3 shadow-sm">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 shadow-sm border border-indigo-200">
+                                <i className="fa-regular fa-calendar-check text-[14px]"></i>
                             </div>
                             <div>
-                                <div className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Received This Month</div>
-                                <div className="text-[18px] font-black text-gray-900 tabular-nums"><Taka />{parseFloat(thisMonthReceived || 0).toLocaleString('en-IN')}</div>
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-600/80">Received This Month</div>
+                                <div className="text-[18px] font-black text-indigo-900 tabular-nums leading-none"><Taka />{(Number(thisMonthReceived) || 0).toLocaleString('en-IN')}</div>
                             </div>
                         </div>
                     </div>
@@ -339,27 +336,14 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100 no-print">
                         <div className="flex flex-wrap items-center gap-3">
 
-                            {/* Premium Show Rows Dropdown */}
                             <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
-                                <span className="bg-gray-50/80 px-4 py-2.5 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
-                                    Show
-                                </span>
+                                <span className="bg-gray-50/80 px-4 py-2.5 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">Show</span>
                                 <div className="relative">
-                                    <select
-                                        value={perPage}
-                                        onChange={handlePerPageChange}
-                                        className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
-                                    >
-                                        <option value={10}>10 Rows</option>
-                                        <option value={25}>25 Rows</option>
-                                        <option value={50}>50 Rows</option>
-                                        <option value={100}>100 Rows</option>
-                                        <option value="all">All Data</option>
+                                    <select value={perPage} onChange={handlePerPageChange} className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]">
+                                        <option value={10}>10 Rows</option><option value={25}>25 Rows</option><option value={50}>50 Rows</option><option value={100}>100 Rows</option><option value="all">All Data</option>
                                     </select>
                                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-400">
-                                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                                        </svg>
+                                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                                     </div>
                                 </div>
                             </div>
@@ -374,55 +358,32 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                         </div>
 
                         <div className="flex flex-wrap items-center gap-3">
-                            {/* Client Filter */}
                             <select value={clientId} onChange={handleClientFilter} className="rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-gray-700 outline-none focus:border-indigo-500 cursor-pointer shadow-sm">
                                 <option value="">All Clients</option>
                                 {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
 
-                            {/* Account Filter */}
                             <select value={accountFilter} onChange={handleAccountFilter} className="rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-gray-700 outline-none focus:border-indigo-500 cursor-pointer shadow-sm">
                                 <option value="">All Accounts</option>
                                 {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                             </select>
 
-                            {/* 🟢 Date Range Filter (From & To) */}
                             <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-300 px-3 py-1.5 shadow-sm">
                                 <i className="fa-regular fa-calendar-days text-indigo-500 text-[13px]"></i>
-                                <input
-                                    type="date"
-                                    value={dateFrom}
-                                    onChange={(e) => handleDateChange('date_from', e.target.value)}
-                                    className="bg-transparent border-none text-[12.5px] p-0 outline-none cursor-pointer"
-                                    title="From Date"
-                                />
+                                <input type="date" value={dateFrom} onChange={(e) => handleDateChange('date_from', e.target.value)} className="bg-transparent border-none text-[12.5px] p-0 outline-none cursor-pointer" title="From Date" />
                                 <span className="text-gray-400">–</span>
-                                <input
-                                    type="date"
-                                    value={dateTo}
-                                    onChange={(e) => handleDateChange('date_to', e.target.value)}
-                                    className="bg-transparent border-none text-[12.5px] p-0 outline-none cursor-pointer"
-                                    title="To Date"
-                                />
+                                <input type="date" value={dateTo} onChange={(e) => handleDateChange('date_to', e.target.value)} className="bg-transparent border-none text-[12.5px] p-0 outline-none cursor-pointer" title="To Date" />
                             </div>
 
-                            {/* 🟢 Clear Filters Button (Shows only when filters are active) */}
                             {(clientId || accountFilter || dateFrom || dateTo || searchTerm) && (
                                 <button onClick={clearAllFilters} className="flex items-center gap-1.5 rounded-xl bg-rose-50 px-3.5 py-2.5 text-[13px] font-bold text-rose-600 hover:bg-rose-100 transition-colors border border-rose-100 shadow-sm">
                                     <i className="fa-solid fa-xmark"></i> Clear
                                 </button>
                             )}
 
-                            {/* Search Input */}
                             <div className="relative w-full sm:w-[200px]">
                                 <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
-                                <input
-                                    type="text"
-                                    placeholder="Search..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13px] outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white"
-                                />
+                                <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13px] outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white" />
                             </div>
                         </div>
                     </div>
@@ -438,7 +399,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                     <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Deposit Account</th>
                                     <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Payment Date</th>
                                     <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Received Amount</th>
-                                    <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] no-print">Actions</th>
+                                    <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] no-print border-l border-gray-100">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="text-[13.5px] text-gray-800 divide-y divide-gray-100">
@@ -509,7 +470,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                                 <Taka />{parseFloat(payment.amount).toLocaleString('en-IN')}
                                             </td>
 
-                                            <td className="px-6 py-4 text-right no-print">
+                                            <td className="px-6 py-4 text-right no-print border-l border-gray-100">
                                                 <div className="flex items-center justify-end gap-1.5">
                                                     {hasPermission('view_receive_payment') && (
                                                         <button onClick={() => openShowModal(payment)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors shadow-sm" title="View Details">

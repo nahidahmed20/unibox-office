@@ -39,6 +39,8 @@ const money = (n) => (
 );
 
 export default function Dashboard({ stats, recentPendingInvoices = [], recentNotices = [], recentTasks = [], recentTransactions = [] }) {
+    // Calculating Total Monthly General Spent (Office Expenses + Payroll)
+    const totalSpentThisMonth = (Number(stats.monthlyExpensesOnly) || 0) + (Number(stats.monthlySalaryPaid) || 0);
 
     return (
         <AdminLayout>
@@ -51,7 +53,7 @@ export default function Dashboard({ stats, recentPendingInvoices = [], recentNot
                 .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
             `}} />
 
-            <div className="mx-auto w-full max-w-[1600px] flex flex-col gap-8 pb-12 mt-2">
+            <div className="mx-auto w-full max-w-[1600px] flex flex-col gap-8 pb-12 mt-2 px-2">
 
                 {/* --- Page Header --- */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -73,105 +75,84 @@ export default function Dashboard({ stats, recentPendingInvoices = [], recentNot
                     </div>
                 </div>
 
-                {/* 🟢 NEW SECTION: Monthly True Cash Flow (This Month) */}
-                <div>
-                    <h3 className="text-[14px] font-black uppercase tracking-widest text-gray-400 mb-4 ml-1 flex items-center gap-2">
-                        <i className="fa-solid fa-chart-line text-emerald-400"></i> Monthly Cash Flow (This Month)
-                    </h3>
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-                        <StatCard
-                            label="Total Cash In (Received)"
-                            value={money(stats.monthlyCashIn)}
-                            icon="fa-arrow-down-to-bracket"
-                            gradient="bg-gradient-to-br from-emerald-400 to-teal-500"
-                            note="Invoices collected + Client Adv"
-                            noteColor="text-emerald-700"
-                        />
-                        <StatCard
-                            label="Total Cash Out (Spent)"
-                            value={money(stats.monthlyCashOut)}
-                            icon="fa-arrow-right-from-bracket"
-                            gradient="bg-gradient-to-br from-rose-500 to-red-600"
-                            note="Proj Bills + Office + Salary Paid"
-                            noteColor="text-rose-700"
-                        />
-                        <StatCard
-                            label="Net Cash Flow (True Profit)"
-                            value={<>{stats.monthlyNetCashFlow < 0 ? '-' : ''}{money(Math.abs(stats.monthlyNetCashFlow))}</>}
-                            icon="fa-scale-balanced"
-                            gradient={stats.monthlyNetCashFlow >= 0 ? "bg-gradient-to-br from-purple-500 to-indigo-600" : "bg-gradient-to-br from-gray-500 to-gray-600"}
-                            note={stats.monthlyNetCashFlow >= 0 ? "You are profitable this month!" : "You are in deficit this month!"}
-                            noteColor={stats.monthlyNetCashFlow >= 0 ? "text-purple-600" : "text-gray-600"}
-                        />
+                {/* 🟢 MASTER FINANCIAL BLOCK */}
+                <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden relative">
+                    <div className="absolute right-0 top-0 h-[300px] w-[300px] rounded-full bg-gradient-to-br from-indigo-100/50 to-purple-100/50 blur-3xl -z-10 translate-x-1/3 -translate-y-1/4"></div>
+                    <div className="p-6 md:p-8 flex flex-col xl:flex-row xl:items-start justify-between gap-8">
+
+                        {/* Net Worth & REVENUE OVERVIEW */}
+                        <div className="xl:w-1/3 border-b xl:border-b-0 xl:border-r border-gray-100 pb-6 xl:pb-0 xl:pr-6">
+                            <h3 className="text-[13px] font-black uppercase tracking-widest text-gray-400 mb-2 flex items-center gap-2">
+                                <i className="fa-solid fa-crown text-amber-500"></i> Overall Net Worth (নিজস্ব সম্পদ)
+                            </h3>
+                            <h1 className={`text-[42px] md:text-[54px] font-black tracking-tight tabular-nums leading-none ${stats.overallNetWorth >= 0 ? 'text-indigo-800' : 'text-red-600'}`}>
+                                {stats.overallNetWorth > 0 ? '+' : ''}৳ {(Number(stats.overallNetWorth) || 0).toLocaleString('en-IN')}
+                            </h1>
+
+                            {/* 🟢 NEW: Formula Breakdown (So you instantly know Due is included) */}
+                            <div className="flex flex-wrap items-center gap-1.5 mt-3.5 text-[11px] font-bold text-gray-500">
+                                <span className="text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded shadow-sm">ক্যাশ/সম্পদ</span>
+                                <span className="text-gray-400">+</span>
+                                <span className="text-blue-700 bg-blue-50 border border-blue-100 px-2 py-1 rounded shadow-sm">মোট বকেয়া (পাবো)</span>
+                                <span className="text-gray-400">-</span>
+                                <span className="text-rose-700 bg-rose-50 border border-rose-100 px-2 py-1 rounded shadow-sm">দেনা (দিতে হবে)</span>
+                            </div>
+
+                            {/* Revenue Overview (Billed vs Collected) */}
+                            <div className="flex gap-3 mt-6">
+                                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex-1">
+                                    <span className="block text-[10px] uppercase font-bold text-emerald-600 tracking-wider">বকেয়া বাদে আয় (Cash Rev)</span>
+                                    <span className="block text-[18px] font-black text-emerald-800 mt-0.5">৳ {(Number(stats.totalCollectedRevenue) || 0).toLocaleString('en-IN')}</span>
+                                </div>
+                                <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex-1">
+                                    <span className="block text-[10px] uppercase font-bold text-blue-600 tracking-wider">বকেয়া সহ আয় (Total Billed)</span>
+                                    <span className="block text-[18px] font-black text-blue-800 mt-0.5">৳ {(Number(stats.totalBilledRevenue) || 0).toLocaleString('en-IN')}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Receivables & Payables */}
+                        <div className="xl:w-2/3 flex flex-col sm:flex-row gap-5 h-full">
+                            <div className="flex-1 bg-gradient-to-br from-emerald-50 to-teal-50/50 border border-emerald-100 rounded-2xl p-6 relative overflow-hidden group">
+                                <i className="fa-solid fa-hand-holding-dollar absolute -right-4 -bottom-4 text-[70px] text-emerald-500/10 group-hover:scale-110 transition-transform"></i>
+                                <h4 className="text-[12px] font-bold uppercase tracking-widest text-emerald-600 mb-1">Total Receivables (মার্কেটে পাওনা)</h4>
+                                <h2 className="text-[32px] font-black text-emerald-800 tracking-tight tabular-nums relative z-10">
+                                    ৳ {(Number(stats.totalReceivables) || 0).toLocaleString('en-IN')}
+                                </h2>
+                                <p className="text-[12px] font-bold text-emerald-700/80 mt-2">
+                                    Client Dues: ৳ {Number(stats.totalClientDue).toLocaleString()} <br/>
+                                    Staff/Vendor Adv: ৳ {(Number(stats.employeeAdvance) + Number(stats.vendorAdvance)).toLocaleString()}
+                                </p>
+                            </div>
+
+                            <div className="flex-1 bg-gradient-to-br from-rose-50 to-red-50/50 border border-rose-100 rounded-2xl p-6 relative overflow-hidden group">
+                                <i className="fa-solid fa-money-check-dollar absolute -right-4 -bottom-4 text-[70px] text-rose-500/10 group-hover:scale-110 transition-transform"></i>
+                                <h4 className="text-[12px] font-bold uppercase tracking-widest text-rose-600 mb-1">Total Payables (মার্কেটে দেনা)</h4>
+                                <h2 className="text-[32px] font-black text-rose-800 tracking-tight tabular-nums relative z-10">
+                                    ৳ {(Number(stats.totalPayables) || 0).toLocaleString('en-IN')}
+                                </h2>
+                                <p className="text-[12px] font-bold text-rose-700/80 mt-2">
+                                    Vendor Due: ৳ {Number(stats.vendorDue).toLocaleString()} <br/>
+                                    Unpaid Salary & Others: ৳ {(Number(stats.unpaidSalaries) + Number(stats.clientAdvance)).toLocaleString()}
+                                </p>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
-                {/* --- Row 1 & 2: 8 Key Financials (Current Standings) --- */}
-                <div>
-                    <h3 className="text-[14px] font-black uppercase tracking-widest text-gray-400 mb-4 ml-1 flex items-center gap-2">
-                        <i className="fa-solid fa-building-columns text-indigo-400"></i> Current Standing (Total Assets & Liabilities)
-                    </h3>
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                        {/* 1. Available Balance */}
-                        <StatCard
-                            label="Available Liquid Balance"
-                            value={money(stats.availableBalance)}
-                            icon="fa-wallet"
-                            gradient="bg-gradient-to-br from-blue-500 to-cyan-600"
-                            note={`Accounts: ৳ ${(Number(stats.totalBalance) || 0).toLocaleString()} | Cl. Adv: ৳ ${(Number(stats.clientAdvance) || 0).toLocaleString()}`}
-                            noteColor="text-blue-600"
-                        />
+                {/* --- Row 1 & 2: 8 Key Financials --- */}
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                    <StatCard label="Available Liquid Cash" value={money(stats.totalBalance)} icon="fa-wallet" gradient="bg-gradient-to-br from-indigo-500 to-blue-600" note={`Cash: ৳ ${(Number(stats.cashBalance) || 0).toLocaleString()} | Bank: ৳ ${(Number(stats.bankBalance) || 0).toLocaleString()}`} noteColor="text-indigo-600"/>
 
-                        {/* 2. Vendor Payables & Advance */}
-                        <StatCard
-                            label="Vendor Dues (Payables)"
-                            value={money(stats.vendorDue)}
-                            icon="fa-truck-field"
-                            gradient="bg-gradient-to-br from-orange-500 to-red-500"
-                            note={`Wallet Advance: ৳ ${(Number(stats.vendorAdvance) || 0).toLocaleString()} | Paid: ৳ ${(Number(stats.vendorPaid) || 0).toLocaleString()}`}
-                            noteColor="text-orange-600"
-                        />
+                    <StatCard label="Cash In (This Month)" value={money(stats.monthlyCashIn)} icon="fa-arrow-down-to-bracket" gradient="bg-gradient-to-br from-emerald-400 to-teal-500" note="Invoices collected + Client Adv" noteColor="text-emerald-600"/>
+                    <StatCard label="Cash Out (This Month)" value={money(stats.monthlyCashOut)} icon="fa-arrow-right-from-bracket" gradient="bg-gradient-to-br from-rose-400 to-red-500" note="Project Bills + Office Exp + Salaries" noteColor="text-rose-600"/>
 
-                        {/* 3. Market Receivables */}
-                        <StatCard
-                            label="Market Receivable (Due)"
-                            value={money(stats.totalClientDue)}
-                            icon="fa-file-invoice-dollar"
-                            gradient="bg-gradient-to-br from-amber-400 to-orange-400"
-                            note={`${stats.unpaidInvoices} Invoices are currently unpaid`}
-                            noteColor="text-amber-600"
-                        />
-
-                        {/* 4. Total Investments */}
-                        <StatCard
-                            label="Total Investment"
-                            value={money(stats.totalInvestment)}
-                            icon="fa-chart-line"
-                            gradient="bg-gradient-to-br from-purple-500 to-fuchsia-600"
-                            note="Total capital invested in company"
-                            noteColor="text-purple-600"
-                        />
-
-                        {/* 5. Total Assets */}
-                        <StatCard
-                            label="Total Asset Value"
-                            value={money(stats.totalAssets)}
-                            icon="fa-couch"
-                            gradient="bg-gradient-to-br from-teal-400 to-emerald-500"
-                            note="Current valuation of company assets"
-                            noteColor="text-teal-700"
-                        />
-
-                        {/* 6. Employee Advance */}
-                        <StatCard
-                            label="Employee Advance (Given)"
-                            value={money(stats.employeeAdvance)}
-                            icon="fa-user-tie"
-                            gradient="bg-gradient-to-br from-indigo-400 to-blue-500"
-                            note="Total unsettled staff advances"
-                            noteColor="text-indigo-600"
-                        />
-                    </div>
+                    <StatCard label="Total Investment" value={money(stats.totalInvestment)} icon="fa-chart-line" gradient="bg-gradient-to-br from-purple-500 to-indigo-600" note="Total capital invested in company" noteColor="text-purple-600"/>
+                    <StatCard label="Total Asset Value" value={money(stats.totalAssets)} icon="fa-couch" gradient="bg-gradient-to-br from-cyan-400 to-emerald-500" note="Current valuation of company assets" noteColor="text-cyan-700"/>
+                    <StatCard label="Employee Advance" value={money(stats.employeeAdvance)} icon="fa-user-tie" gradient="bg-gradient-to-br from-blue-400 to-cyan-500" note="Total unsettled staff advances" noteColor="text-blue-600"/>
+                    <StatCard label="Office Spent (This Month)" value={money(totalSpentThisMonth)} icon="fa-calculator" gradient="bg-gradient-to-br from-fuchsia-500 to-pink-600" note={`Exp: ৳ ${(Number(stats.monthlyExpensesOnly) || 0).toLocaleString()} | Salary: ৳ ${(Number(stats.monthlySalaryPaid) || 0).toLocaleString()}`} noteColor="text-fuchsia-600"/>
+                    <StatCard label="Project Exp. (This Month)" value={money(stats.monthlyProjectExpense)} icon="fa-diagram-project" gradient="bg-gradient-to-br from-amber-400 to-orange-500" note="Total cash paid to projects this month" noteColor="text-amber-600"/>
                 </div>
 
                 {/* --- Row 3: Operational Stats --- */}
@@ -184,14 +165,14 @@ export default function Dashboard({ stats, recentPendingInvoices = [], recentNot
 
                     <Link href={route('admin.salaries.index')} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md hover:border-rose-200 transition-all group">
                         <i className="fa-solid fa-money-check-dollar text-rose-500 text-2xl mb-2.5 group-hover:scale-110 transition-transform"></i>
-                        <h4 className="text-[20px] font-black text-gray-800 tabular-nums">৳ {(Number(stats.unpaidSalaries)/1000).toFixed(1)}k</h4>
+                        <h4 className="text-[18px] font-black text-gray-800 tabular-nums">৳ {(Number(stats.unpaidSalaries) || 0).toLocaleString('en-IN')}</h4>
                         <p className="text-[11px] font-bold uppercase text-rose-500 mt-1">Unpaid Salaries</p>
                     </Link>
 
                     <Link href={route('admin.invoices.index')} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md hover:border-emerald-200 transition-all group">
-                        <i className="fa-solid fa-arrow-down-to-bracket text-emerald-500 text-2xl mb-2.5 group-hover:scale-110 transition-transform"></i>
-                        <h4 className="text-[20px] font-black text-gray-800 tabular-nums">৳ {(Number(stats.monthlyRevenue)/1000).toFixed(1)}k</h4>
-                        <p className="text-[11px] font-bold uppercase text-gray-500 mt-1">Revenue This Month</p>
+                        <i className="fa-solid fa-file-invoice text-emerald-500 text-2xl mb-2.5 group-hover:scale-110 transition-transform"></i>
+                        <h4 className="text-[18px] font-black text-gray-800 tabular-nums">৳ {(Number(stats.monthlyRevenue) || 0).toLocaleString('en-IN')}</h4>
+                        <p className="text-[11px] font-bold uppercase text-gray-500 mt-1">Billed This Month</p>
                     </Link>
 
                     <Link href={route('admin.tasks.index')} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md hover:border-amber-200 transition-all group">
@@ -226,8 +207,8 @@ export default function Dashboard({ stats, recentPendingInvoices = [], recentNot
                     <div className="flex flex-col rounded-3xl border border-gray-100 bg-white shadow-sm overflow-hidden">
                         <div className="flex items-center justify-between border-b border-gray-50 px-6 py-5 bg-gradient-to-r from-gray-50/50 to-white">
                             <h3 className="text-[16px] font-extrabold text-gray-900 flex items-center gap-2.5">
-                                <div className="h-8 w-8 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center"><i className="fa-solid fa-file-invoice-dollar"></i></div>
-                                Pending Receivables
+                                <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-500 flex items-center justify-center"><i className="fa-solid fa-file-invoice-dollar"></i></div>
+                                Pending Receivables List
                             </h3>
                             <Link href={route('admin.invoices.index')} className="text-[12.5px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors">
                                 View All &rarr;
@@ -282,7 +263,7 @@ export default function Dashboard({ stats, recentPendingInvoices = [], recentNot
                     <div className="flex flex-col rounded-3xl border border-gray-100 bg-white shadow-sm overflow-hidden">
                         <div className="flex items-center justify-between border-b border-gray-50 px-6 py-5 bg-gradient-to-r from-gray-50/50 to-white">
                             <h3 className="text-[16px] font-extrabold text-gray-900 flex items-center gap-2.5">
-                                <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-500 flex items-center justify-center"><i className="fa-solid fa-money-bill-transfer"></i></div>
+                                <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center"><i className="fa-solid fa-money-bill-transfer"></i></div>
                                 Recent Transactions
                             </h3>
                             <Link href={route('admin.transactions.index')} className="text-[12.5px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors">

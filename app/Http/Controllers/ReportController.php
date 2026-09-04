@@ -18,6 +18,7 @@ use App\Models\Investment;
 use App\Models\InvestmentPayment;
 use App\Models\ClientAdvance;
 use App\Models\AdvanceBalance;
+use App\Models\VendorPayment;
 use App\Models\Asset;
 use Carbon\Carbon;
 
@@ -78,6 +79,12 @@ class ReportController extends Controller
             'balance' => max((float) $row->total_given - (float) $row->total_used - (float) $row->total_returned, 0),
         ])->filter(fn ($row) => $row['balance'] > 0)->values();
 
+        // 🟢 FIXED: Fetching Unpaid Salaries to include as a Liability
+        $unpaidSalaries = Salary::whereIn('status', ['unpaid', 'partially_paid'])->sum('due_amount');
+        if ($unpaidSalaries == 0) {
+            $unpaidSalaries = Salary::whereIn('status', ['unpaid', 'partially_paid'])->sum('net_pay');
+        }
+
         $summary = [
             'investment_gross' => $investmentGross,
             'investment_returned' => $investmentReturned,
@@ -87,6 +94,7 @@ class ReportController extends Controller
             'vendor_advance' => $vendorPositions->sum('advance'),
             'client_due' => $clientDues->sum('due'),
             'vendor_due' => $vendorPositions->sum('due'),
+            'unpaid_salaries' => (float) $unpaidSalaries, // 🟢 FIXED: Added to summary
             'asset_value' => (float) Asset::sum('purchase_price'),
             'staff_advance' => $staffAdvances->sum('balance'),
         ];
@@ -114,6 +122,9 @@ class ReportController extends Controller
     // ==========================================
     // 2. FINANCIAL SUMMARY (CASH FLOW & ACCRUAL)
     // ==========================================
+    // ==========================================
+    // 2. FINANCIAL SUMMARY (CASH FLOW & ACCRUAL)
+    // ==========================================
     public function financialSummary(Request $request)
     {
         $request->validate([
@@ -135,8 +146,17 @@ class ReportController extends Controller
         };
 
         // VALID INVOICES ONLY
+        // $validInvoiceIds = DB::table('invoice_items')
+        //     ->whereNotNull('project_id')
+        //     ->pluck('invoice_id')
+        //     ->unique()
+        //     ->toArray();
+
         $validInvoiceIds = DB::table('invoice_items')
             ->whereNotNull('project_id')
+            ->whereIn('project_id', function($subquery) {
+                $subquery->select('project_id')->from('project_expenses');
+            })
             ->pluck('invoice_id')
             ->unique()
             ->toArray();
@@ -225,10 +245,7 @@ class ReportController extends Controller
 
         $clientAdvQuery = DB::table('client_advances');
         $expenseQuery = DB::table('expenses');
-
-        // 🟢 FIXED: Salary using exactly 'status = paid' and 'net_pay'
         $salaryQuery = DB::table('salaries')->where('status', 'paid');
-
         $projectCostQuery = DB::table('project_expenses');
         $financeCostQuery = DB::table('investment_payments');
 
@@ -245,19 +262,15 @@ class ReportController extends Controller
         $overallTotalBilled = (float) $revenueQuery->sum('grand_total');
         $totalInvoiceReceived = (float) $receivedQuery->sum('invoice_payments.amount');
 
-        // Accurate Unused Client Advance
         $totalClientAdvanceReceived = (float) $clientAdvQuery->sum('amount') - (float) $clientAdvQuery->sum('used_amount');
         $totalCashIn = $totalInvoiceReceived + $totalClientAdvanceReceived;
 
         $totalProjectExpensePaid = (float) $projectCostQuery->sum('paid_amount');
         $totalOfficeExpense = (float) $expenseQuery->sum('amount');
-
-        // 🟢 FIXED: Using net_pay for Salary
         $totalSalaryPaid = (float) $salaryQuery->sum('net_pay');
-
         $totalFinanceCost = (float) $financeCostQuery->sum('profit_amount');
-
         $totalCashOut = $totalProjectExpensePaid + $totalOfficeExpense + $totalSalaryPaid + $totalFinanceCost;
+
         $netCashFlow = $totalCashIn - $totalCashOut;
 
         // ------------------------------------------
@@ -276,7 +289,6 @@ class ReportController extends Controller
             }
         };
 
-        // Add to buckets
         $addMonthly((clone $revenueQuery)->get(['invoice_date', 'grand_total']), 'invoice_date', 'grand_total', 'billed_revenue');
         $addMonthly((clone $receivedQuery)->get(['invoice_payments.payment_date as ref_date', 'invoice_payments.amount']), 'ref_date', 'amount', 'cash_in');
 
@@ -288,8 +300,6 @@ class ReportController extends Controller
 
         $addMonthly((clone $projectCostQuery)->get(['date', 'paid_amount']), 'date', 'paid_amount', 'project_cost');
         $addMonthly((clone $expenseQuery)->get(['date', 'amount']), 'date', 'amount', 'office_expense');
-
-        // 🟢 FIXED: Using net_pay for Salary Bucket
         $addMonthly((clone $salaryQuery)->get(['payment_date', 'net_pay']), 'payment_date', 'net_pay', 'salary_expense');
 
         $monthlyProfitLoss = $monthlyProfitLoss->map(function ($row) {
@@ -299,12 +309,23 @@ class ReportController extends Controller
         })->sortByDesc('key')->values();
 
         // ------------------------------------------
-        // D. CURRENT ASSETS (LIQUID FUNDS)
+        // D. CURRENT ASSETS & SUMMARY
         // ------------------------------------------
         $accountBalance = (float) DB::table('accounts')->where('is_active', true)->sum('current_balance');
         $staffAdvance = max((float) DB::table('advance_balances')->selectRaw('COALESCE(SUM(total_given - total_used - total_returned), 0) balance')->value('balance'), 0);
         $vendorAdvance = (float) DB::table('vendors')->sum('wallet_balance');
         $totalLiquidFunds = $accountBalance + $staffAdvance + $vendorAdvance;
+
+        // Investment and profit payment breakdown
+        $totalInvestmentGross = (float) Investment::sum('amount');
+        $totalInvestmentReturned = (float) InvestmentPayment::sum('principal_amount');
+        $totalInvestmentProfitPaid = (float) $financeCostQuery->sum('profit_amount');
+
+        // Operational cash out (excluding investor returns/profits)
+        $operationalCashOut = $totalProjectExpensePaid + $totalOfficeExpense + $totalSalaryPaid;
+
+        // 🟢 True Net Operating Profit (Excluding Investment/Investor payouts)
+        $netOperatingProfit = $totalCashIn - $operationalCashOut;
 
         $summary = [
             'total_liquid_funds' => $totalLiquidFunds,
@@ -317,11 +338,16 @@ class ReportController extends Controller
             'total_client_advance' => $totalClientAdvanceReceived,
 
             'total_cash_out' => $totalCashOut,
+            'operational_cash_out' => $operationalCashOut,
+
             'total_project_paid' => $totalProjectExpensePaid,
             'total_office_expense' => $totalOfficeExpense,
             'total_salary_paid' => $totalSalaryPaid,
+            'total_finance_cost' => $totalInvestmentProfitPaid,
 
             'net_cash_flow' => $netCashFlow,
+            'net_operating_profit' => $netOperatingProfit,
+
             'total_billed_revenue' => $overallTotalBilled,
 
             'client_due' => max(
