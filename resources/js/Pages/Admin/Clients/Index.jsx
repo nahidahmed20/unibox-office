@@ -13,6 +13,10 @@ const COMPANY = {
     address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
 };
 
+const Taka = ({ className = "text-[14px]" }) => (
+    <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
+);
+
 export default function Index({ clients = { data: [], links: [] } }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
@@ -30,7 +34,7 @@ export default function Index({ clients = { data: [], links: [] } }) {
         return new URLSearchParams(window.location.search).get('search') || '';
     });
     const [perPage, setPerPage] = useState(() => {
-        return Number(new URLSearchParams(window.location.search).get("per_page")) || 25;
+        return new URLSearchParams(window.location.search).get("per_page") || 25;
     });
 
     const isFirstRender = useRef(true);
@@ -216,9 +220,9 @@ export default function Index({ clients = { data: [], links: [] } }) {
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select 
-                                        value={perPage} 
-                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                    <select
+                                        value={perPage}
+                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
                                         className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
                                     >
                                         <option value={10}>10 Rows</option>
@@ -309,7 +313,7 @@ export default function Index({ clients = { data: [], links: [] } }) {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="grid grid-cols-2 gap-1.5 w-[220px] financial-grid">
+                                                <div className="grid grid-cols-2 gap-1.5 w-[220px]">
                                                     <div className="flex flex-col bg-gray-50/80 border border-gray-100 px-2.5 py-1.5 rounded-lg">
                                                         <span className="text-[9.5px] uppercase font-bold text-gray-400">Billed</span>
                                                         <span className="text-[12px] font-bold text-gray-700 tabular-nums">৳ {Number(client.total_invoiced || 0).toLocaleString('en-IN')}</span>
@@ -318,14 +322,14 @@ export default function Index({ clients = { data: [], links: [] } }) {
                                                         <span className="text-[9.5px] uppercase font-bold text-emerald-500">Paid</span>
                                                         <span className="text-[12px] font-bold text-emerald-700 tabular-nums">৳ {Number(client.total_paid || 0).toLocaleString('en-IN')}</span>
                                                     </div>
-                                                    <div className={`flex flex-col px-2.5 py-1.5 rounded-lg border ${client.net_due > 0 ? 'bg-rose-50/50 border-rose-100' : 'bg-gray-50/80 border-gray-100'}`}>
+                                                    {/* <div className={`flex flex-col px-2.5 py-1.5 rounded-lg border ${client.net_due > 0 ? 'bg-rose-50/50 border-rose-100' : 'bg-gray-50/80 border-gray-100'}`}>
                                                         <span className={`text-[9.5px] uppercase font-bold ${client.net_due > 0 ? 'text-rose-500' : 'text-gray-400'}`}>Due</span>
                                                         <span className={`text-[12px] font-bold tabular-nums ${client.net_due > 0 ? 'text-rose-700' : 'text-gray-700'}`}>৳ {Number(client.net_due || 0).toLocaleString('en-IN')}</span>
-                                                    </div>
-                                                    <div className={`flex flex-col px-2.5 py-1.5 rounded-lg border ${client.advance_balance > 0 ? 'bg-purple-50/50 border-purple-100' : 'bg-gray-50/80 border-gray-100'}`}>
+                                                    </div> */}
+                                                    {/* <div className={`flex flex-col px-2.5 py-1.5 rounded-lg border ${client.advance_balance > 0 ? 'bg-purple-50/50 border-purple-100' : 'bg-gray-50/80 border-gray-100'}`}>
                                                         <span className={`text-[9.5px] uppercase font-bold ${client.advance_balance > 0 ? 'text-purple-500' : 'text-gray-400'}`}>Adv Bal</span>
                                                         <span className={`text-[12px] font-bold tabular-nums ${client.advance_balance > 0 ? 'text-purple-700' : 'text-gray-700'}`}>৳ {Number(client.advance_balance || 0).toLocaleString('en-IN')}</span>
-                                                    </div>
+                                                    </div> */}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
@@ -400,12 +404,11 @@ export default function Index({ clients = { data: [], links: [] } }) {
                 </div>
             </div>
 
-            {/* --- STUNNING VIEW DETAILS MODAL --- */}
+            {/* --- VIEW DETAILS MODAL --- */}
             {showViewModal && selectedClient && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6">
                     <div className="w-full max-w-2xl bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
 
-                        {/* 🟢 Premium Profile Header with Background */}
                         <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 px-8 py-8 shrink-0">
                             <button onClick={() => setShowViewModal(false)} className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white h-8 w-8 rounded-full flex items-center justify-center transition-colors backdrop-blur-md">
                                 <i className="fa-solid fa-xmark text-sm"></i>
@@ -425,10 +428,7 @@ export default function Index({ clients = { data: [], links: [] } }) {
                             </div>
                         </div>
 
-                        {/* Modal Body */}
                         <div className="p-6 md:p-8 overflow-y-auto custom-table-scroll space-y-6">
-
-                            {/* Action Buttons */}
                             <div className="flex justify-center sm:justify-start gap-3 -mt-2 mb-2">
                                 {selectedClient.phone && (
                                     <a href={`tel:${selectedClient.phone}`} className="flex items-center gap-2 rounded-xl bg-emerald-50 text-emerald-700 px-4 py-2 text-[13px] font-bold hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-sm">
@@ -445,7 +445,6 @@ export default function Index({ clients = { data: [], links: [] } }) {
                                 </Link>
                             </div>
 
-                            {/* Contact Details Grid */}
                             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
                                 <h4 className="text-[13px] font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-100 pb-3">
                                     <i className="fa-solid fa-address-book text-indigo-500"></i> Contact Information
@@ -476,7 +475,6 @@ export default function Index({ clients = { data: [], links: [] } }) {
                                 </div>
                             </div>
 
-                            {/* --- FINANCIAL OVERVIEW --- */}
                             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
                                 <h4 className="text-[13px] font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-100 pb-3">
                                     <i className="fa-solid fa-chart-pie text-emerald-500"></i> Financial Overview
@@ -510,7 +508,6 @@ export default function Index({ clients = { data: [], links: [] } }) {
                             </div>
                         </div>
 
-                        {/* Modal Footer */}
                         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end shrink-0">
                             <button onClick={() => setShowViewModal(false)} className="rounded-xl bg-gray-900 px-8 py-3 text-[14px] font-bold text-white transition-colors hover:bg-gray-800 shadow-md">
                                 Close Profile
@@ -524,8 +521,6 @@ export default function Index({ clients = { data: [], links: [] } }) {
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6">
                     <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-
-                        {/* Modal Header */}
                         <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white shrink-0">
                             <h3 className="text-[18px] font-extrabold text-gray-900 flex items-center gap-2">
                                 {editMode ? (
@@ -539,10 +534,8 @@ export default function Index({ clients = { data: [], links: [] } }) {
                             </button>
                         </div>
 
-                        {/* Modal Form */}
                         <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden h-full">
                             <div className="p-8 overflow-y-auto custom-table-scroll space-y-6">
-
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Client Full Name <span className="text-red-500">*</span></label>
@@ -633,7 +626,6 @@ export default function Index({ clients = { data: [], links: [] } }) {
                                 </div>
                             </div>
 
-                            {/* Form Footer */}
                             <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0 rounded-b-3xl">
                                 <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
                                     Cancel

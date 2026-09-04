@@ -16,18 +16,19 @@ class ClientController extends Controller
             ->addSelect([
                 'total_invoiced' => DB::table('invoices')
                     ->whereColumn('client_id', 'clients.id')
-                    ->whereNull('deleted_at') 
+                    ->whereNull('deleted_at')
                     ->selectRaw('COALESCE(SUM(grand_total), 0)'),
-                    
+
                 'total_paid' => DB::table('invoice_payments')
                     ->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')
                     ->whereColumn('invoices.client_id', 'clients.id')
                     ->whereNull('invoices.deleted_at')
                     ->selectRaw('COALESCE(SUM(invoice_payments.amount), 0)'),
-                    
+
+                // 🟢 FIXED: Advance balance now correctly calculates (Amount - Used Amount)
                 'advance_balance' => DB::table('client_advances')
                     ->whereColumn('client_id', 'clients.id')
-                    ->selectRaw('COALESCE(SUM(amount), 0)')
+                    ->selectRaw('COALESCE(SUM(amount - used_amount), 0)')
             ]);
 
         if ($request->filled('search')) {
@@ -43,24 +44,26 @@ class ClientController extends Controller
             $totalCount = $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = min((int) $request->input('per_page', 10), 100000); 
+            $perPage = min((int) $request->input('per_page', 10), 100000);
         }
 
-        $clients = $query->latest('clients.created_at')->paginate($perPage)->withQueryString(); 
+        $clients = $query->latest('clients.created_at')->paginate($perPage)->withQueryString();
 
         $clients->getCollection()->transform(function ($client) {
             $invoiced = (float) $client->total_invoiced;
             $paid = (float) $client->total_paid;
-            
+
             $client->total_invoiced = $invoiced;
             $client->total_paid = $paid;
             $client->advance_balance = (float) $client->advance_balance;
-            
+
             // Calculate Due
             $client->net_due = max(0, $invoiced - $paid);
-            
+
             return $client;
         });
+
+        
 
         return Inertia::render('Admin/Clients/Index', [
             'clients' => $clients
@@ -86,7 +89,7 @@ class ClientController extends Controller
     public function show(Client $client)
     {
         $client->append(['financial_summary', 'project_stats']);
-        
+
         $client->load(['projects' => function($q) {
             $q->latest()->take(5);
         }, 'invoices.items']);

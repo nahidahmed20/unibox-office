@@ -4,11 +4,6 @@ import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
 
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-
 const COMPANY = {
     name: 'UNIBOX',
     tagline: "Let's Create Together",
@@ -63,7 +58,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
     });
 
     const walletForm = useForm({
-        account_id: '', amount: '', description: ''
+        account_id: '', amount: '', profit_amount: '', description: ''
     });
 
     const fetchPayments = (vendorId, page = 1) => {
@@ -74,7 +69,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
             .finally(() => setPaymentsLoading(false));
     };
 
-    // --- Live Search & Pagination ---
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -93,7 +87,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         return () => clearTimeout(delayDebounceFn);
     }, [searchTerm, perPage]);
 
-    // --- Export Functions ---
     const handleCopy = () => {
         if (!vendors.data || !vendors.data.length) return Swal.fire("Empty!", "No data to copy", "warning");
         const text = vendors.data
@@ -146,7 +139,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
     };
 
-    // --- Modals Logic ---
     const openCreateModal = () => {
         clearErrors(); setData({ id: '', name: '', company_name: '', phone: '', address: '', opening_balance: 0 }); setEditMode(false); setShowModal(true);
     };
@@ -173,12 +165,65 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         setPaymentToVoid(payment); voidForm.reset(); voidForm.clearErrors(); setShowVoidModal(true);
     };
 
+    const handleUndoAdvance = (vendorId) => {
+        Swal.fire({
+            title: 'Undo Last Advance?',
+            text: 'আপনি কি নিশ্চিত যে সর্বশেষ দেওয়া অ্যাডভান্সটি বাতিল করবেন? এটি ডাটাবেজ থেকে এন্ট্রি মুছে ফেলবে এবং ব্যাংকে টাকা ফেরত আনবে।',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Undo It',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                router.post(route('admin.vendors.add-advance', vendorId), { undo_last: true }, {
+                    preserveScroll: true,
+                    onSuccess: () => Swal.fire({ icon: "success", title: "Undone!", text: "সর্বশেষ অ্যাডভান্স বাতিল হয়েছে।", timer: 1500, showConfirmButton: false }),
+                    onError: (err) => { if (err.error) Swal.fire("Error", err.error, "error"); }
+                });
+            }
+        });
+    };
+
     const handleVoidSubmit = (e) => {
         e.preventDefault();
         voidForm.post(route('admin.vendors.payments.void', paymentToVoid.id), {
             preserveScroll: true,
             onSuccess: () => { setShowVoidModal(false); setPaymentToVoid(null); fetchPayments(selectedVendor.id, paymentsData.current_page); Swal.fire({ icon: "success", title: "পেমেন্ট ভয়েড হয়েছে!", timer: 1500, showConfirmButton: false }); },
             onError: (err) => { if (err.error) Swal.fire("Error", err.error, "error"); }
+        });
+    };
+
+    // 🟢 NEW: Enhanced Delete Logic (Blocks deletion if vendor has dues or balance)
+    const handleDeleteClick = (vendor) => {
+        if (Number(vendor.total_due) > 0 || Number(vendor.wallet_balance) > 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Action Denied!',
+                text: 'এই ভেন্ডরের নামে বকেয়া (Due) বা ওয়ালেট ব্যালেন্স (Advance) রয়েছে। হিসাব শূন্য (0) না করা পর্যন্ত ডিলিট করা যাবে না।',
+                confirmButtonColor: '#3b82f6'
+            });
+            return;
+        }
+
+        Swal.fire({
+            title: 'Are you sure?',
+            text: 'This vendor will be deleted permanently!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Delete It',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                destroy(route('admin.vendors.destroy', vendor.id), {
+                    preserveScroll: true,
+                    onSuccess: () => Swal.fire({ icon: "success", title: "Deleted!", text: "Vendor removed successfully.", timer: 1500, showConfirmButton: false }),
+                    onError: (err) => { if (err.error) Swal.fire("Error", err.error, "error"); }
+                });
+            }
         });
     };
 
@@ -226,21 +271,8 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         });
     };
 
-    const handleDelete = (id) => {
-        Swal.fire({ title: 'Are you sure?', text: 'This vendor will be deleted permanently!', icon: 'warning', showCancelButton: true, confirmButtonText: 'Yes, Delete It', cancelButtonText: 'Cancel', confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b' }).then((result) => {
-            if (result.isConfirmed) destroy(route('admin.vendors.destroy', id), { preserveScroll: true, onSuccess: () => Swal.fire({ icon: "success", title: "Deleted!", text: "Vendor removed successfully.", timer: 1500, showConfirmButton: false }) });
-        });
-    };
-
-    // Derived Totals for Summary Cards
     const listedTotalDue = (vendors.data || []).reduce((acc, curr) => acc + Number(curr.total_due || 0), 0);
     const listedTotalWallet = (vendors.data || []).reduce((acc, curr) => acc + Number(curr.wallet_balance || 0), 0);
-
-    const selectStyles = {
-        control: (provided, state) => ({ ...provided, minHeight: "44px", borderRadius: "0.75rem", border: state.isFocused ? "1px solid var(--accent)" : "1px solid #d1d5db", boxShadow: state.isFocused ? "0 0 0 3px rgba(200, 155, 60, 0.15)" : "none", "&:hover": { borderColor: state.isFocused ? "var(--accent)" : "#9ca3af" }, fontSize: "14px", background: "#fff", cursor: "pointer" }),
-        option: (provided, state) => ({ ...provided, fontSize: "14px", backgroundColor: state.isSelected ? "var(--accent)" : state.isFocused ? "var(--accent-bg)" : "#fff", color: state.isSelected ? "#fff" : "#111827", cursor: "pointer" }),
-        menuPortal: base => ({ ...base, zIndex: 9999 }), menu: (base) => ({ ...base, borderRadius: "0.75rem", overflow: "hidden", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" })
-    };
 
     return (
         <AdminLayout>
@@ -335,7 +367,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                     </div>
 
                     {/* Toolbar */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100 no-print">
                         <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
                             <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
                                 <span className="bg-gray-50/80 px-4 py-2.5 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
@@ -365,13 +397,13 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
 
                             {/* Export Buttons */}
                             <div className="flex items-center gap-2">
-                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 shadow-sm">
+                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-300 shadow-sm">
                                     <i className="fas fa-copy text-blue-500"></i> Copy
                                 </button>
                                 <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-all hover:bg-emerald-100 shadow-sm">
                                     <i className="fas fa-file-csv"></i> CSV
                                 </button>
-                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 shadow-sm">
+                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-300 shadow-sm">
                                     <i className="fas fa-print text-gray-500"></i> Print
                                 </button>
                             </div>
@@ -400,7 +432,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                     <th className="px-6 py-4.5">Contact & Location</th>
                                     <th className="px-6 py-4.5 text-right bg-rose-50/40">Total Payables (Due)</th>
                                     <th className="px-6 py-4.5 text-right bg-purple-50/40 border-r border-gray-100">Wallet (Advance)</th>
-                                    <th className="px-6 py-4.5 text-center no-print w-48">Actions</th>
+                                    <th className="px-6 py-4.5 text-center no-print w-64">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="text-[13.5px] text-gray-800 divide-y divide-gray-100">
@@ -467,27 +499,33 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                                         </button>
                                                     )}
                                                     {hasPermission('add_advance_vendor') && (
-                                                        <button onClick={() => openWalletModal(vendor, 'deposit')} className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-500 hover:text-white border border-indigo-200 hover:border-indigo-500 transition-all shadow-sm" title="Add to Wallet">
-                                                            <i className="fa-solid fa-plus text-[12.5px]"></i>
-                                                        </button>
+                                                        <>
+                                                            <button onClick={() => openWalletModal(vendor, 'deposit')} className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-500 hover:text-white border border-indigo-200 hover:border-indigo-500 transition-all shadow-sm" title="Add to Wallet">
+                                                                <i className="fa-solid fa-plus text-[12.5px]"></i>
+                                                            </button>
+                                                            <button onClick={() => handleUndoAdvance(vendor.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-rose-500 hover:text-white border border-gray-200 hover:border-rose-500 transition-all shadow-sm" title="Undo Last Advance (ভুল সংশোধন)">
+                                                                <i className="fa-solid fa-rotate-left text-[12.5px]"></i>
+                                                            </button>
+                                                        </>
                                                     )}
                                                     {hasPermission('return_advance_vendor') && (
-                                                        <button onClick={() => openWalletModal(vendor, 'withdraw')} className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white border border-rose-200 hover:border-rose-500 transition-all shadow-sm" title="Refund from Wallet">
+                                                        <button onClick={() => openWalletModal(vendor, 'withdraw')} className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white border border-emerald-200 hover:border-emerald-500 transition-all shadow-sm" title="Refund from Wallet">
                                                             <i className="fa-solid fa-minus text-[12.5px]"></i>
                                                         </button>
                                                     )}
                                                     {hasPermission('view_vendors') && (
-                                                        <button onClick={() => openViewModal(vendor)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white border border-emerald-200 hover:border-emerald-500 transition-all shadow-sm" title="View Profile">
+                                                        <Link href={route('admin.vendors.show', vendor.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white border border-blue-200 hover:border-blue-500 transition-all shadow-sm" title="View Full Profile & Transactions">
                                                             <i className="fa-regular fa-address-card text-[13px]"></i>
-                                                        </button>
+                                                        </Link>
                                                     )}
                                                     {hasPermission('edit_vendor') && (
                                                         <button onClick={() => openEditModal(vendor)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 transition-all shadow-sm" title="Edit Vendor">
                                                             <i className="fa-regular fa-pen-to-square text-[13px]"></i>
                                                         </button>
                                                     )}
+                                                    {/* 🟢 NEW: DELETE VENDOR BUTTON */}
                                                     {hasPermission('delete_vendor') && (
-                                                        <button onClick={() => handleDelete(vendor.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200 hover:border-red-500 transition-all shadow-sm" title="Delete Vendor">
+                                                        <button onClick={() => handleDeleteClick(vendor)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600 hover:bg-red-500 hover:text-white border border-red-200 hover:border-red-500 transition-all shadow-sm" title="Delete Vendor">
                                                             <i className="fa-regular fa-trash-can text-[13px]"></i>
                                                         </button>
                                                     )}
@@ -541,207 +579,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                 </div>
             </div>
 
-            {/* --- VIEW PROFILE MODAL (STUNNING DESIGN) --- */}
-            {showViewModal && selectedVendor && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6">
-                    <div className="w-full max-w-5xl bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-
-                        {/* 🟢 Premium Profile Header */}
-                        <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 px-8 py-8 shrink-0 overflow-hidden">
-                            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-white opacity-10 translate-x-10 -translate-y-10"></div>
-                            <div className="absolute left-0 bottom-0 h-24 w-24 rounded-full bg-black opacity-10 -translate-x-5 translate-y-5"></div>
-
-                            <button onClick={() => setShowViewModal(false)} className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white h-8 w-8 rounded-full flex items-center justify-center transition-colors backdrop-blur-md z-20">
-                                <i className="fa-solid fa-xmark text-sm"></i>
-                            </button>
-
-                            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 relative z-10 text-center sm:text-left">
-                                <div className="h-20 w-20 shrink-0 rounded-2xl bg-white flex items-center justify-center text-indigo-600 text-3xl font-black shadow-lg ring-4 ring-white/20 uppercase">
-                                    {selectedVendor.name.charAt(0)}
-                                </div>
-                                <div className="text-white mt-1">
-                                    <h2 className="text-[24px] font-black tracking-tight">{selectedVendor.name}</h2>
-                                    {selectedVendor.company_name && (
-                                        <div className="text-[14px] text-indigo-100 font-medium mt-0.5 flex items-center justify-center sm:justify-start gap-1.5">
-                                            <i className="fa-regular fa-building"></i> {selectedVendor.company_name}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Modal Body */}
-                        <div className="p-6 md:p-8 overflow-y-auto custom-table-scroll space-y-6 bg-gray-50/50">
-
-                            {/* Two Column Layout for Desktop */}
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                                {/* Left Column: Info & Financials */}
-                                <div className="lg:col-span-1 space-y-6">
-                                    {/* Contact Details */}
-                                    <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                                        <h4 className="text-[13px] font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-100 pb-3">
-                                            <i className="fa-solid fa-address-book text-indigo-500"></i> Contact Info
-                                        </h4>
-                                        <div className="flex flex-col gap-4">
-                                            <div>
-                                                <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Phone Number</span>
-                                                <div className="font-bold text-gray-800 text-[15px] flex items-center justify-between">
-                                                    {selectedVendor.phone || "N/A"}
-                                                    {selectedVendor.phone && (
-                                                        <a href={`tel:${selectedVendor.phone}`} className="h-7 w-7 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 transition-colors">
-                                                            <i className="fa-solid fa-phone text-[10px]"></i>
-                                                        </a>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Physical Address</span>
-                                                <div className="text-gray-700 text-[13.5px] leading-relaxed bg-gray-50 p-3.5 rounded-xl border border-gray-100">
-                                                    {selectedVendor.address || <span className="italic text-gray-400">No address provided.</span>}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Financial Overview */}
-                                    <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                                        <h4 className="text-[13px] font-bold text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-100 pb-3">
-                                            <i className="fa-solid fa-chart-pie text-emerald-500"></i> Account Balances
-                                        </h4>
-                                        <div className="flex flex-col gap-4">
-                                            <div className={`${selectedVendor.total_due > 0 ? 'bg-rose-50 border-rose-200 shadow-sm' : 'bg-gray-50 border-gray-200'} border p-5 rounded-xl text-center`}>
-                                                <span className={`block text-[11px] uppercase font-bold tracking-wider ${selectedVendor.total_due > 0 ? 'text-rose-600' : 'text-gray-500'} mb-1.5`}>Total Payables (Due)</span>
-                                                <span className={`block text-[22px] font-black tabular-nums ${selectedVendor.total_due > 0 ? 'text-rose-800' : 'text-gray-700'}`}>
-                                                    ৳ {Number(selectedVendor.total_due || 0).toLocaleString('en-IN')}
-                                                </span>
-                                            </div>
-                                            <div className="bg-purple-50/50 border border-purple-200 p-5 rounded-xl text-center shadow-sm">
-                                                <span className="block text-[11px] uppercase font-bold tracking-wider text-purple-600 mb-1.5">Wallet Balance (Adv)</span>
-                                                <span className="block text-[22px] font-black tabular-nums text-purple-800">
-                                                    ৳ {Number(selectedVendor.wallet_balance || 0).toLocaleString('en-IN')}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Right Column: Payment History */}
-                                <div className="lg:col-span-2">
-                                    <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm h-full flex flex-col">
-                                        <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
-                                            <h4 className="text-[14px] font-bold text-gray-800 flex items-center gap-2">
-                                                <i className="fa-solid fa-clock-rotate-left text-[var(--accent)]"></i> Payment History
-                                            </h4>
-                                            {paymentsLoading && <i className="fa-solid fa-spinner fa-spin text-gray-400"></i>}
-                                        </div>
-
-                                        {(!paymentsData.data || paymentsData.data.length === 0) ? (
-                                            <div className="flex-1 flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-                                                <i className="fa-solid fa-receipt text-4xl text-gray-300 mb-3 block"></i>
-                                                <p className="text-[14px] font-bold text-gray-600">No payment records found.</p>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <div className="flex-1 rounded-xl border border-gray-200 bg-white max-h-[450px] overflow-y-auto custom-table-scroll divide-y divide-gray-100">
-                                                    {paymentsData.data.map((payment) => (
-                                                        <div key={payment.id} className={`p-5 transition-colors ${payment.status === 'voided' ? 'bg-red-50/30' : 'hover:bg-gray-50/50'}`}>
-                                                            <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-
-                                                                <div className="flex-1 space-y-2">
-                                                                    <div className="flex items-center gap-2.5">
-                                                                        <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border border-emerald-200 shadow-sm">PAID</span>
-                                                                        <span className="font-black text-gray-900 text-[18px] tabular-nums">৳ {Number(payment.pay_amount).toLocaleString('en-IN')}</span>
-                                                                        {payment.status === 'voided' && (
-                                                                            <span className="rounded bg-red-100 border border-red-200 px-2 py-0.5 text-[10px] font-bold text-red-600 uppercase ml-2">Voided</span>
-                                                                        )}
-                                                                    </div>
-
-                                                                    <div className="text-[12.5px] font-bold text-gray-500 flex flex-wrap items-center gap-x-3 gap-y-1">
-                                                                        <span className="flex items-center gap-1.5"><i className="fa-regular fa-calendar text-gray-400"></i> {payment.date}</span>
-                                                                        <span className="text-gray-300">|</span>
-                                                                        <span className="flex items-center gap-1.5 text-indigo-600"><i className="fa-solid fa-building-columns"></i> {payment.payment_source === 'account' ? (payment.account?.name || 'Account') : 'Employee Advance'}</span>
-                                                                    </div>
-
-                                                                    {payment.details && payment.details.length > 0 && (
-                                                                        <div className="text-[12px] text-gray-600 bg-gray-50 p-2.5 rounded-lg border border-gray-100 mt-2 font-medium">
-                                                                            <span className="text-gray-400 font-bold mr-1.5"><i className="fa-solid fa-list-check"></i> Settled:</span>
-                                                                            {payment.details.map(d => d.expense?.title).filter(Boolean).join(', ')}
-                                                                        </div>
-                                                                    )}
-
-                                                                    {payment.wallet_credit_amount > 0 && (
-                                                                        <div className="text-[12px] font-bold text-purple-700 mt-2 flex items-center gap-1.5 bg-purple-50 p-2 w-fit rounded-lg border border-purple-100 shadow-sm">
-                                                                            <i className="fa-solid fa-arrow-turn-down"></i> Sent to Wallet: ৳ {Number(payment.wallet_credit_amount).toLocaleString('en-IN')}
-                                                                        </div>
-                                                                    )}
-
-                                                                    {payment.status === 'voided' && payment.void_reason && (
-                                                                        <div className="text-[12px] italic text-red-600 mt-2 bg-red-50 p-3 rounded-lg border border-red-100 font-medium">
-                                                                            <strong><i className="fa-solid fa-circle-info mr-1.5"></i> Void Reason:</strong> {payment.void_reason}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-
-                                                                {/* Void Action */}
-                                                                {payment.status !== 'voided' && hasPermission('void_vendor_payment') && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => openVoidModal(payment)}
-                                                                        className="shrink-0 rounded-lg border border-red-200 bg-white px-3.5 py-2 text-[12px] font-bold text-red-600 transition-all hover:bg-red-50 shadow-sm hover:shadow"
-                                                                        title="Void this payment"
-                                                                    >
-                                                                        <i className="fa-solid fa-rotate-left mr-1.5"></i> Void
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-
-                                                {/* Pagination for history */}
-                                                {paymentsData.last_page > 1 && (
-                                                    <div className="flex items-center justify-between border-t border-gray-100 pt-5 mt-4">
-                                                        <span className="text-[13px] font-bold text-gray-500">
-                                                            Page {paymentsData.current_page} of {paymentsData.last_page}
-                                                        </span>
-                                                        <div className="flex gap-2">
-                                                            <button
-                                                                type="button"
-                                                                disabled={paymentsData.current_page <= 1}
-                                                                onClick={() => fetchPayments(selectedVendor.id, paymentsData.current_page - 1)}
-                                                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
-                                                            >
-                                                                <i className="fa-solid fa-chevron-left text-[12px]"></i>
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                disabled={paymentsData.current_page >= paymentsData.last_page}
-                                                                onClick={() => fetchPayments(selectedVendor.id, paymentsData.current_page + 1)}
-                                                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
-                                                            >
-                                                                <i className="fa-solid fa-chevron-right text-[12px]"></i>
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Modal Footer */}
-                        <div className="px-6 py-4 border-t border-gray-200 bg-white flex justify-end shrink-0">
-                            <button onClick={() => setShowViewModal(false)} className="rounded-xl bg-gray-900 px-8 py-3 text-[14px] font-bold text-white transition-colors hover:bg-gray-800 shadow-md">
-                                Close Profile
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             {/* --- CREATE / EDIT FORM MODAL --- */}
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6">
@@ -761,7 +598,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
 
                         <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden h-full">
                             <div className="p-8 overflow-y-auto custom-table-scroll space-y-6">
-
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Vendor Name <span className="text-red-500">*</span></label>
@@ -839,12 +675,11 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                 </div>
             )}
 
-            {/* --- PAY VENDOR MODAL (Multi-bill Selection) --- */}
+            {/* --- PAY VENDOR MODAL --- */}
             {showPayModal && selectedVendor && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6">
                     <div className="w-full max-w-3xl bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
 
-                        {/* Header */}
                         <div className="flex items-center justify-between px-8 py-5 border-b border-gray-200 bg-white shrink-0">
                             <div>
                                 <h3 className="text-[18px] font-extrabold text-gray-900 flex items-center gap-2">
@@ -860,7 +695,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                         <form onSubmit={handlePaySubmit} className="flex flex-col overflow-hidden h-full">
                             <div className="p-8 overflow-y-auto custom-table-scroll space-y-6">
 
-                                {/* Multi-bill checkbox list */}
                                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
                                     <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
                                         <h4 className="text-[14px] font-bold text-gray-800 flex items-center gap-2">
@@ -908,9 +742,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                     {payForm.errors.project_expense_ids && <span className="mt-2 block text-[12px] font-bold text-red-500">{payForm.errors.project_expense_ids}</span>}
                                 </div>
 
-                                {/* Payment Form Area */}
                                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                                    {/* Payment Source Radios */}
                                     <div className="mb-6 border-b border-gray-100 pb-6">
                                         <label className="block text-[12px] font-bold text-gray-500 uppercase tracking-wider mb-3">Payment Source <span className="text-red-500">*</span></label>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -925,7 +757,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                         </div>
                                     </div>
 
-                                    {/* Conditional Source Dropdowns */}
                                     <div className="mb-6">
                                         {payForm.data.payment_source === 'account' ? (
                                             <>
@@ -954,7 +785,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                         )}
                                     </div>
 
-                                    {/* Amount & Date fields */}
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-6">
                                         <div>
                                             <label className="block text-[12px] font-bold text-emerald-600 uppercase tracking-wider mb-2">Pay Amount (৳) <span className="text-red-500">*</span></label>
@@ -972,7 +802,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                         </div>
                                     </div>
 
-                                    {/* Total Calc box */}
                                     <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50 flex justify-between items-center shadow-sm">
                                         <span className="font-bold text-indigo-800 text-[14px] flex items-center gap-2">
                                             <i className="fa-solid fa-calculator text-[18px]"></i> Total Cleared (Pay + Adjust):
@@ -991,7 +820,6 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                 </div>
                             </div>
 
-                            {/* Footer */}
                             <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0 rounded-b-3xl">
                                 <button type="button" onClick={() => setShowPayModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-3 text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
                                     Cancel
@@ -1005,13 +833,13 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                 </div>
             )}
 
-            {/* --- VENDOR WALLET MODAL (Deposit & Withdraw) --- */}
+            {/* --- VENDOR WALLET MODAL (Deposit & Withdraw with Profit Input) --- */}
             {showWalletModal && selectedVendor && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6">
                     <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
 
-                        <div className={`flex items-center justify-between px-8 py-5 border-b border-gray-100 shrink-0 ${walletAction === 'deposit' ? 'bg-gradient-to-r from-indigo-50 to-white' : 'bg-gradient-to-r from-rose-50 to-white'}`}>
-                            <h3 className={`text-[18px] font-extrabold flex items-center gap-2 ${walletAction === 'deposit' ? 'text-indigo-700' : 'text-rose-700'}`}>
+                        <div className={`flex items-center justify-between px-8 py-5 border-b border-gray-100 shrink-0 ${walletAction === 'deposit' ? 'bg-gradient-to-r from-indigo-50 to-white' : 'bg-gradient-to-r from-emerald-50 to-white'}`}>
+                            <h3 className={`text-[18px] font-extrabold flex items-center gap-2 ${walletAction === 'deposit' ? 'text-indigo-700' : 'text-emerald-700'}`}>
                                 {walletAction === 'deposit' ? <i className="fa-solid fa-wallet"></i> : <i className="fa-solid fa-hand-holding-dollar"></i>}
                                 {walletAction === 'deposit' ? 'Add Advance to Wallet' : 'Receive Refund from Wallet'}
                             </h3>
@@ -1041,13 +869,26 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                     {walletForm.errors.account_id && <span className="mt-1.5 block text-[12px] font-bold text-red-500">{walletForm.errors.account_id}</span>}
                                 </div>
 
-                                <div>
-                                    <label className={`block text-[12px] font-bold uppercase tracking-wider mb-2 ${walletAction === 'deposit' ? 'text-indigo-600' : 'text-rose-600'}`}>Amount (৳) <span className="text-red-500">*</span></label>
-                                    <div className="relative">
-                                        <i className="fa-solid fa-bangladeshi-taka-sign absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                        <input type="number" step="0.01" min="1" value={walletForm.data.amount} onChange={e => walletForm.setData("amount", e.target.value)} placeholder="0.00" className={`w-full rounded-xl border px-4 pl-9 py-3 text-[16px] font-black outline-none transition-shadow shadow-sm ${walletAction === 'deposit' ? 'border-indigo-300 bg-indigo-50 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-indigo-900' : 'border-rose-300 bg-rose-50 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 text-rose-900'}`} required />
+                                <div className="grid grid-cols-1 gap-5">
+                                    <div>
+                                        <label className={`block text-[12px] font-bold uppercase tracking-wider mb-2 ${walletAction === 'deposit' ? 'text-indigo-600' : 'text-emerald-600'}`}>Amount (৳) <span className="text-red-500">*</span></label>
+                                        <div className="relative">
+                                            <i className="fa-solid fa-bangladeshi-taka-sign absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                            <input type="number" step="0.01" min="1" value={walletForm.data.amount} onChange={e => walletForm.setData("amount", e.target.value)} placeholder="0.00" className={`w-full rounded-xl border px-4 pl-9 py-3 text-[16px] font-black outline-none transition-shadow shadow-sm ${walletAction === 'deposit' ? 'border-indigo-300 bg-indigo-50 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-indigo-900' : 'border-emerald-300 bg-emerald-50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 text-emerald-900'}`} required />
+                                        </div>
+                                        {walletForm.errors.amount && <span className="mt-1.5 block text-[12px] font-bold text-red-500">{walletForm.errors.amount}</span>}
                                     </div>
-                                    {walletForm.errors.amount && <span className="mt-1.5 block text-[12px] font-bold text-red-500">{walletForm.errors.amount}</span>}
+
+                                    {walletAction === 'withdraw' && (
+                                        <div>
+                                            <label className="block text-[12px] font-bold text-purple-600 uppercase tracking-wider mb-2">Extra Profit / Commission (৳)</label>
+                                            <div className="relative">
+                                                <i className="fa-solid fa-arrow-trend-up absolute left-4 top-1/2 -translate-y-1/2 text-purple-400"></i>
+                                                <input type="number" step="0.01" min="0" value={walletForm.data.profit_amount} onChange={e => walletForm.setData("profit_amount", e.target.value)} placeholder="0.00" className="w-full rounded-xl border border-purple-300 bg-purple-50 px-4 pl-9 py-3 text-[16px] font-black outline-none transition-shadow shadow-sm focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 text-purple-900" />
+                                            </div>
+                                            <p className="text-[11.5px] text-gray-500 mt-1.5 font-bold">ভেন্ডর যদি মূল অ্যাডভান্সের চেয়ে বেশি (লাভ) ফেরত দেয়, তবে তা এখানে লিখুন।</p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div>
@@ -1060,7 +901,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                 <button type="button" onClick={() => setShowWalletModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={walletForm.processing} className={`rounded-xl px-8 py-2.5 text-[14px] font-bold text-white transition-all shadow-md disabled:opacity-70 flex items-center gap-2 ${walletAction === 'deposit' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-rose-600 hover:bg-rose-700'}`}>
+                                <button type="submit" disabled={walletForm.processing} className={`rounded-xl px-8 py-2.5 text-[14px] font-bold text-white transition-all shadow-md disabled:opacity-70 flex items-center gap-2 ${walletAction === 'deposit' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
                                     {walletForm.processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-check"></i> Confirm</>}
                                 </button>
                             </div>

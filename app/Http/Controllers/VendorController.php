@@ -232,8 +232,49 @@ class VendorController extends Controller
         }
     }
 
+    public function show($id)
+    {
+        $vendor = Vendor::findOrFail($id);
+        $vendor->append('total_due');
+
+        // ভেন্ডরের সব পেমেন্ট হিস্টরি
+        $payments = VendorPayment::with(['account', 'details.expense'])
+            ->where('vendor_id', $vendor->id)
+            ->latest('date')
+            ->latest('id')
+            ->get();
+
+        // ভেন্ডরের ওয়ালেটের লেনদেন (Advance/Refund)
+        $ledgers = \App\Models\VendorLedger::where('vendor_id', $vendor->id)
+            ->latest()
+            ->get();
+
+        // ভেন্ডরের সব প্রজেক্ট বিল
+        $bills = ProjectExpense::where('vendor_id', $vendor->id)
+            ->latest('date')
+            ->get();
+
+        $stats = [
+            'totalBilled' => $bills->sum('total_bill'),
+            'totalPaid' => $bills->sum('paid_amount'),
+        ];
+
+        return Inertia::render('Admin/Vendors/Show', [
+            'vendor' => $vendor,
+            'payments' => $payments,
+            'ledgers' => $ledgers,
+            'bills' => $bills,
+            'stats' => $stats
+        ]);
+    }
+  
     public function addAdvance(Request $request, $id)
     {
+        // 🟢 Check if this is an UNDO request (Mistake Correction)
+        if ($request->has('undo_last') && $request->undo_last == true) {
+            return $this->processUndoLastAdvance($id);
+        }
+
         $request->validate([
             'account_id'  => 'required|exists:accounts,id',
             'amount'      => 'required|numeric|min:1',
@@ -280,12 +321,58 @@ class VendorController extends Controller
         }
     }
 
+    // 🟢 PRIVATE FUNCTION: Logic for Undoing the last mistake perfectly
+    private function processUndoLastAdvance($vendorId)
+    {
+        try {
+            DB::beginTransaction();
+            $vendor = Vendor::findOrFail($vendorId);
+
+            // Find the last advance (credit) ledger entry
+            $lastLedger = VendorLedger::where('vendor_id', $vendor->id)
+                ->where('type', 'credit')
+                ->latest()
+                ->first();
+
+            if (!$lastLedger) {
+                throw new \Exception('বাতিল করার মতো কোনো অ্যাডভান্স রেকর্ড পাওয়া যায়নি।');
+            }
+
+            // Find matching transaction to safely delete it without inflating reports
+            $transaction = Transaction::where('transactionable_type', Vendor::class)
+                ->where('transactionable_id', $vendor->id)
+                ->where('amount', $lastLedger->amount)
+                ->where('type', 'debit')
+                ->latest()
+                ->first();
+
+            if ($transaction) {
+                $account = Account::find($transaction->account_id);
+                if ($account) {
+                    $account->increment('current_balance', $transaction->amount); // Restore money
+                }
+                $transaction->delete(); // Permanently remove mistake
+            }
+
+            $vendor->decrement('wallet_balance', $lastLedger->amount); // Revert vendor wallet
+            $lastLedger->delete(); // Remove ledger log
+
+            DB::commit();
+            return redirect()->back()->with('success', 'সর্বশেষ অ্যাডভান্সটি সম্পূর্ণ বাতিল (Undo) করা হয়েছে।');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
+    // 🟢 UPDATED: Handles both Wallet Refund AND Extra Profit together
     public function receiveRefund(Request $request, $id)
     {
         $request->validate([
-            'account_id'  => 'required|exists:accounts,id',
-            'amount'      => 'required|numeric|min:1',
-            'description' => 'nullable|string'
+            'account_id'    => 'required|exists:accounts,id',
+            'amount'        => 'required|numeric|min:1', // Actual refund from wallet
+            'profit_amount' => 'nullable|numeric|min:0', // Extra profit/commission
+            'description'   => 'nullable|string'
         ]);
 
         try {
@@ -298,28 +385,42 @@ class VendorController extends Controller
                 throw new \Exception('ভেন্ডরের ওয়ালেটে পর্যাপ্ত ব্যালেন্স নেই!');
             }
 
-            $vendor->decrement('wallet_balance', $request->amount);
-            $account->increment('current_balance', $request->amount);
+            $profit = $request->profit_amount ?: 0;
+            $totalReceived = $request->amount + $profit;
 
+            // Deduct ONLY the principal amount from vendor's wallet
+            $vendor->decrement('wallet_balance', $request->amount);
+
+            // Add the TOTAL (Principal + Profit) to your bank account
+            $account->increment('current_balance', $totalReceived);
+
+            $desc = "Refund received from vendor {$vendor->name}.";
+            if ($profit > 0) {
+                $desc .= " (Including extra Profit: ৳{$profit}).";
+            }
+            $desc .= " " . $request->description;
+
+            // Create ONE transaction for the full amount so accounts match perfectly
             Transaction::create([
                 'account_id'           => $account->id,
                 'type'                 => 'credit',
-                'amount'               => $request->amount,
+                'amount'               => $totalReceived,
                 'transaction_date'     => now()->toDateString(),
-                'description'          => "Refund received from vendor {$vendor->name}. " . $request->description,
+                'description'          => trim($desc),
                 'transactionable_id'   => $vendor->id,
                 'transactionable_type' => Vendor::class,
             ]);
 
+            // Only register the principal deduction in vendor ledger
             VendorLedger::create([
                 'vendor_id'   => $vendor->id,
                 'type'        => 'debit',
                 'amount'      => $request->amount,
-                'description' => "Refund received to {$account->name}. " . $request->description
+                'description' => "Refund deducted from wallet to {$account->name}. " . $request->description
             ]);
 
             DB::commit();
-            return redirect()->back()->with('success', 'Refund received successfully.');
+            return redirect()->back()->with('success', 'Refund ' . ($profit > 0 ? '& Profit ' : '') . 'received successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -449,8 +550,17 @@ class VendorController extends Controller
     public function destroy(string $id)
     {
         $vendor = Vendor::findOrFail($id);
+
+        $totalDue = ProjectExpense::where('vendor_id', $vendor->id)->sum('due_amount');
+
+        if ($totalDue > 0 || $vendor->wallet_balance > 0) {
+            return redirect()->back()->withErrors(['error' => 'এই ভেন্ডরের নামে বকেয়া বা অ্যাডভান্স থাকায় ডিলিট করা সম্ভব নয়।']);
+        }
+
         $vendor->delete();
 
-        return redirect()->back();
+        return redirect()->back()->with('success', 'ভেন্ডর সফলভাবে ডিলিট হয়েছে।');
     }
 }
+
+
