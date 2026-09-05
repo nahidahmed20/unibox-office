@@ -385,10 +385,10 @@ class ReportController extends Controller
             $query->where('account_id', $request->account_id);
         }
         if ($request->filled('from')) {
-            $query->whereDate('transaction_date', '>=', $request->from);
+            $query->whereDate('created_at', '>=', $request->from);
         }
         if ($request->filled('to')) {
-            $query->whereDate('transaction_date', '<=', $request->to);
+            $query->whereDate('created_at', '<=', $request->to);
         }
 
         $perPage = $request->input('per_page', 25);
@@ -397,7 +397,7 @@ class ReportController extends Controller
             $perPage = $totalCount > 0 ? $totalCount : 1;
         }
 
-        $transactions = $query->latest('transaction_date')->latest('id')->paginate($perPage)->withQueryString();
+        $transactions = $query->latest('created_at')->latest('id')->paginate($perPage)->withQueryString();
 
         return Inertia::render('Admin/Reports/TransactionsReport', [
             'transactions' => $transactions,
@@ -622,21 +622,21 @@ class ReportController extends Controller
 
         foreach ($accounts as $acc) {
             $inflowsAfter = $transactionModel::where('account_id', $acc->id)
-                ->whereDate('transaction_date', '>', $date)
+                ->whereDate('created_at', '>', $date)
                 ->where('type', 'credit')->sum('amount');
 
             $outflowsAfter = $transactionModel::where('account_id', $acc->id)
-                ->whereDate('transaction_date', '>', $date)
+                ->whereDate('created_at', '>', $date)
                 ->where('type', 'debit')->sum('amount');
 
             $closingBalance = $acc->current_balance - $inflowsAfter + $outflowsAfter;
 
             $inflowToday = $transactionModel::where('account_id', $acc->id)
-                ->whereDate('transaction_date', $date)
+                ->whereDate('created_at', $date)
                 ->where('type', 'credit')->sum('amount');
 
             $outflowToday = $transactionModel::where('account_id', $acc->id)
-                ->whereDate('transaction_date', $date)
+                ->whereDate('created_at', $date)
                 ->where('type', 'debit')->sum('amount');
 
             $openingBalance = $closingBalance - $inflowToday + $outflowToday;
@@ -661,7 +661,7 @@ class ReportController extends Controller
         $vendorPayments = VendorPayment::with('vendor')->whereDate('date', $date)->get();
         $salaries = Salary::with('user')->where('status', 'paid')->whereDate('payment_date', $date)->get();
         $invoicePayments = InvoicePayment::with('invoice.client')->whereDate('payment_date', $date)->get();
-        $transactions = $transactionModel::with('account')->whereDate('transaction_date', $date)->latest('id')->get();
+        $transactions = $transactionModel::with('account')->whereDate('created_at', $date)->latest('id')->get();
 
         $totalMarketReceivable = DB::table('invoices')->whereNull('deleted_at')->sum('grand_total')
                                  - DB::table('invoice_payments')->sum('amount');
