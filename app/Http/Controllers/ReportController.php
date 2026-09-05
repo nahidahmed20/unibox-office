@@ -146,20 +146,20 @@ class ReportController extends Controller
         };
 
         // VALID INVOICES ONLY
-        // $validInvoiceIds = DB::table('invoice_items')
-        //     ->whereNotNull('project_id')
-        //     ->pluck('invoice_id')
-        //     ->unique()
-        //     ->toArray();
-
         $validInvoiceIds = DB::table('invoice_items')
             ->whereNotNull('project_id')
-            ->whereIn('project_id', function($subquery) {
-                $subquery->select('project_id')->from('project_expenses');
-            })
             ->pluck('invoice_id')
             ->unique()
             ->toArray();
+
+        // $validInvoiceIds = DB::table('invoice_items')
+        //     ->whereNotNull('project_id')
+        //     ->whereIn('project_id', function($subquery) {
+        //         $subquery->select('project_id')->from('project_expenses');
+        //     })
+        //     ->pluck('invoice_id')
+        //     ->unique()
+        //     ->toArray();
 
         // ------------------------------------------
         // A. ACCRUAL REPORT DATA (PROJECT WISE)
