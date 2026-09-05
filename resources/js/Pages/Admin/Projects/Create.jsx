@@ -20,8 +20,9 @@ const daysUntil = (dateStr) => {
 };
 
 export default function Create({ clients = [], managers = [] }) {
+    // 🟢 ADDED: unit_price inside emptyProject
     const emptyProject = {
-        title: "", description: "", quantity: "", unit_type: "piece",
+        title: "", description: "", quantity: "", unit_type: "piece", unit_price: "",
         start_date: "", deadline: "", budget: "", status: "planning",
         priority: "medium", progress: 0, repo_link: "", live_url: ""
     };
@@ -68,9 +69,21 @@ export default function Create({ clients = [], managers = [] }) {
         setData("projects", updated);
     };
 
+    // 🟢 UPDATED: Auto Calculate Budget Logic
     const updateProjectField = (index, field, value) => {
         const updated = [...data.projects];
         updated[index][field] = value;
+
+        // Auto-calculate budget if quantity or unit_price is changed
+        if (field === 'quantity' || field === 'unit_price') {
+            const qty = parseFloat(updated[index].quantity) || 0;
+            const price = parseFloat(updated[index].unit_price) || 0;
+            if (qty > 0 && price > 0) {
+                // You can remove .toFixed(2) if you don't want decimals
+                updated[index].budget = (qty * price).toString();
+            }
+        }
+
         setData("projects", updated);
     };
 
@@ -292,7 +305,7 @@ export default function Create({ clients = [], managers = [] }) {
                                                     </div>
                                                 </div>
 
-                                                {/* Quantity & Unit */}
+                                                {/* 🟢 Quantity & Unit */}
                                                 <div className="lg:col-span-4">
                                                     <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Quantity / Size</label>
                                                     <div className="flex bg-white rounded-xl border border-gray-300 overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all shadow-sm">
@@ -308,17 +321,33 @@ export default function Create({ clients = [], managers = [] }) {
                                                             onChange={e => updateProjectField(index, "unit_type", e.target.value)}
                                                             className="w-[100px] bg-gray-50 px-2 py-3.5 text-[13.5px] font-bold text-gray-700 outline-none border-none cursor-pointer appearance-none text-center hover:bg-gray-100 transition-colors"
                                                         >
-                                                            <option value="piece">Pcs</option><option value="kg">Kg</option><option value="set">Set</option><option value="box">Box</option>
+                                                            <option value="piece">Pcs</option><option value="kg">Kg</option><option value="set">Set</option><option value="box">Box</option><option value="sqft">SqFt</option>
                                                         </select>
                                                     </div>
                                                 </div>
 
-                                                {/* Budget */}
+                                                {/* 🟢 Unit Price */}
+                                                <div className="lg:col-span-4">
+                                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Unit Price (TK)</label>
+                                                    <div className="relative">
+                                                        <div className="absolute left-0 top-0 bottom-0 w-12 flex items-center justify-center bg-gray-50 border-r border-gray-200 rounded-l-xl z-10">
+                                                            <span className="text-gray-500 font-bold text-[17px]" style={{ fontFamily: 'Arial, sans-serif' }}>৳</span>
+                                                        </div>
+                                                        <input
+                                                            type="number" min="0" step="0.01"
+                                                            value={proj.unit_price}
+                                                            onChange={e => updateProjectField(index, "unit_price", e.target.value)}
+                                                            placeholder="0.00"
+                                                            className="w-full rounded-xl border border-gray-300 bg-white pl-14 pr-4 py-3.5 text-[15px] font-bold text-gray-900 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm relative z-0"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* 🟢 Total Budget */}
                                                 <div className="lg:col-span-4">
                                                     <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Total Budget (TK)</label>
                                                     <div className="relative">
                                                         <div className="absolute left-0 top-0 bottom-0 w-12 flex items-center justify-center bg-emerald-50 border-r border-emerald-200 rounded-l-xl z-10">
-                                                            {/* 🟢 Taka sign font and size fixed here */}
                                                             <span className="text-emerald-600 font-bold text-[17px]" style={{ fontFamily: 'Arial, sans-serif' }}>৳</span>
                                                         </div>
                                                         <input
@@ -326,21 +355,20 @@ export default function Create({ clients = [], managers = [] }) {
                                                             value={proj.budget}
                                                             onChange={e => updateProjectField(index, "budget", e.target.value)}
                                                             placeholder="0.00"
-                                                            /* 🟢 Changed pl-15 to pl-14 */
                                                             className="w-full rounded-xl border border-gray-300 bg-white pl-14 pr-4 py-3.5 text-[15px] font-black text-emerald-700 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm relative z-0"
                                                         />
                                                     </div>
                                                 </div>
 
-                                                {/* Dates */}
-                                                <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                {/* 🟢 Dates (Moved to new row for clean layout) */}
+                                                <div className="md:col-span-2 lg:col-span-12 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6 mt-1">
                                                     <div>
                                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Start Date</label>
                                                         <input
                                                             type="date"
                                                             value={proj.start_date}
                                                             onChange={e => updateProjectField(index, "start_date", e.target.value)}
-                                                            className="w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-[14px] font-bold text-gray-700 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer"
+                                                            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-[14px] font-bold text-gray-700 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer"
                                                         />
                                                     </div>
                                                     <div>
@@ -350,13 +378,13 @@ export default function Create({ clients = [], managers = [] }) {
                                                             value={proj.deadline}
                                                             onChange={e => updateProjectField(index, "deadline", e.target.value)}
                                                             required
-                                                            className="w-full rounded-xl border border-rose-200 bg-rose-50/50 hover:bg-rose-100 focus:bg-white px-3 py-3 text-[14px] font-bold text-rose-700 outline-none transition-shadow focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 shadow-sm cursor-pointer"
+                                                            className="w-full rounded-xl border border-rose-200 bg-rose-50/50 hover:bg-rose-100 focus:bg-white px-4 py-3.5 text-[14px] font-bold text-rose-700 outline-none transition-shadow focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 shadow-sm cursor-pointer"
                                                         />
                                                     </div>
                                                 </div>
 
                                                 {/* Description */}
-                                                <div className="md:col-span-2 lg:col-span-12 mt-2">
+                                                <div className="md:col-span-2 lg:col-span-12 mt-1">
                                                     <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Project Scope / Details</label>
                                                     <textarea
                                                         value={proj.description}

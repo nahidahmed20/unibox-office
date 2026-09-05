@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, useForm, Link } from '@inertiajs/react';
 import Swal from 'sweetalert2';
@@ -25,6 +25,19 @@ export default function Create({ projects = [], categories = [], accounts = [], 
     const [showAddVendorForm, setShowAddVendorForm] = useState(false);
     const [newVendor, setNewVendor] = useState({ name: '', company_name: '', phone: '' });
     const [creatingVendor, setCreatingVendor] = useState(false);
+
+    // 🟢 Magic Fix: AdminLayout-এর সমস্যার কারণে Sticky কাজ না করলে, এই কোডটি অটোমেটিক তা ঠিক করে দেবে
+    useEffect(() => {
+        let parent = document.querySelector('.sticky-summary-box')?.parentElement;
+        while (parent && parent.tagName !== 'BODY') {
+            const style = window.getComputedStyle(parent);
+            if (style.overflow === 'hidden' || style.overflowX === 'hidden') {
+                parent.style.setProperty('overflow-x', 'clip', 'important');
+                if(style.overflowY === 'hidden') parent.style.setProperty('overflow-y', 'visible', 'important');
+            }
+            parent = parent.parentElement;
+        }
+    }, []);
 
     // 🟢 Calculations for Auto-Split
     const bill = parseFloat(data.total_bill) || 0;
@@ -61,6 +74,16 @@ export default function Create({ projects = [], categories = [], accounts = [], 
         option: (base, state) => ({ ...base, backgroundColor: state.isSelected ? 'var(--accent)' : state.isFocused ? '#f1f5f9' : 'white', color: state.isSelected ? 'white' : '#334155', cursor: 'pointer' }),
         menuPortal: (base) => ({ ...base, zIndex: 9999 })
     };
+
+    const darkSelectStyles = {
+        ...selectStyles,
+        control: (base, state) => ({ ...selectStyles.control(base, state), backgroundColor: '#1f2937', borderColor: '#374151', color: 'white' }),
+        singleValue: (base) => ({ ...base, color: 'white' }),
+        input: (base) => ({ ...base, color: 'white' }),
+        menu: (base) => ({ ...base, backgroundColor: '#1f2937', border: '1px solid #374151', zIndex: 9999 }),
+        option: (base, state) => ({ ...base, backgroundColor: state.isSelected ? 'var(--accent)' : state.isFocused ? '#374151' : '#1f2937', color: 'white' }),
+    };
+
     const selectMenuPortalTarget = typeof document !== 'undefined' ? document.body : null;
 
     const handleCreateVendor = async () => {
@@ -112,10 +135,11 @@ export default function Create({ projects = [], categories = [], accounts = [], 
                 </div>
 
                 <form onSubmit={handleSubmit} >
-                    <div className="flex flex-col lg:flex-row gap-6">
+                    {/* 🟢 relative ব্যবহার করা হয়েছে এবং items-start সরানো হয়েছে */}
+                    <div className="flex flex-col lg:flex-row gap-6 relative">
 
                         {/* Left Column: Main Details */}
-                        <div className="flex-1 space-y-6">
+                        <div className="flex-1 space-y-6 w-full">
                             <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                                 <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50"><h2 className="text-[16px] font-bold text-gray-900"><i className="fa-solid fa-circle-info text-indigo-500 mr-2"></i>Basic Information</h2></div>
                                 <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -155,7 +179,6 @@ export default function Create({ projects = [], categories = [], accounts = [], 
                                             <Select options={vendorOptions} value={vendorOptions.find(o => o.value === data.vendor_id) || null} onChange={opt => setData('vendor_id', opt ? opt.value : '')} placeholder="Search and select vendor..." isClearable styles={selectStyles} menuPortalTarget={selectMenuPortalTarget} />
                                         )}
 
-                                        {/* Show Wallet Balance Notification if vendor has balance */}
                                         {vendorWallet > 0 && (
                                             <div className="mt-3 p-3 bg-purple-50 border border-purple-100 rounded-xl flex items-start gap-2.5">
                                                 <i className="fa-solid fa-wallet text-purple-500 mt-0.5"></i>
@@ -217,12 +240,11 @@ export default function Create({ projects = [], categories = [], accounts = [], 
                                     </div>
                                 </section>
                             )}
-
                         </div>
 
-                        {/* Right Column: Financials & Submit */}
-                        <div className="w-full lg:w-[380px] shrink-0 space-y-6">
-                            <section className="bg-gray-900 rounded-2xl shadow-lg border border-gray-800 p-6 text-white sticky top-24">
+                        {/* 🟢 Right Column - Directly set to Sticky (self-start অ্যাড করা হয়েছে) */}
+                        <div className="w-full lg:w-[380px] shrink-0 sticky top-24 self-start space-y-6 sticky-summary-box">
+                            <section className="bg-gray-900 rounded-2xl shadow-lg border border-gray-800 p-6 text-white">
                                 <h3 className="text-[13px] font-bold text-gray-400 uppercase tracking-widest mb-5">Financial Summary</h3>
                                 <div className="space-y-5">
                                     <div>
@@ -274,7 +296,7 @@ export default function Create({ projects = [], categories = [], accounts = [], 
                                             ) : (
                                                 <div>
                                                     <p className="text-[12px] text-gray-300 mb-2">Select an account to return the excess cash:</p>
-                                                    <Select options={returnAccountOptions} value={returnAccountOptions.find(o => o.value === data.return_account_id) || null} onChange={opt => setData('return_account_id', opt ? opt.value : '')} placeholder="Select Return Cash Box..." isClearable styles={selectStyles} menuPortalTarget={selectMenuPortalTarget} />
+                                                    <Select options={returnAccountOptions} value={returnAccountOptions.find(o => o.value === data.return_account_id) || null} onChange={opt => setData('return_account_id', opt ? opt.value : '')} placeholder="Select Return Cash Box..." isClearable styles={darkSelectStyles} menuPortalTarget={selectMenuPortalTarget} />
                                                 </div>
                                             )}
                                         </div>
@@ -282,14 +304,16 @@ export default function Create({ projects = [], categories = [], accounts = [], 
                                 </div>
                             </section>
                         </div>
+
                     </div>
 
+                    {/* Fixed Bottom Action Bar */}
                     <div className="fixed bottom-0 left-0 md:left-[270px] right-0 z-[999] bg-white border-t border-gray-200 shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center gap-4">
-                            <div className="hidden sm:block text-[13px] text-gray-500">Ensure all details are correct before saving.</div>
+                            <div className="hidden sm:block text-[13px] font-medium text-gray-500">Ensure all details are correct before saving.</div>
                             <div className="flex gap-3 w-full sm:w-auto">
-                                <Link href={route('admin.project-expenses.index')} className="px-6 py-3 rounded-xl border border-gray-300 font-bold text-[14.5px] hover:bg-gray-50">Cancel</Link>
-                                <button type="submit" disabled={processing} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold text-[14.5px] hover:bg-indigo-700 shadow-md flex items-center gap-2">
+                                <Link href={route('admin.project-expenses.index')} className="flex-1 sm:flex-none text-center px-6 py-3 rounded-xl border border-gray-300 font-bold text-[14.5px] text-gray-700 hover:bg-gray-50 transition-colors shadow-sm">Cancel</Link>
+                                <button type="submit" disabled={processing} className="flex-1 sm:flex-none justify-center bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold text-[14.5px] hover:bg-indigo-700 shadow-md flex items-center gap-2 transition-colors disabled:opacity-70">
                                     {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-save"></i> Save Expense</>}
                                 </button>
                             </div>

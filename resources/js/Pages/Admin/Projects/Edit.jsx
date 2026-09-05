@@ -20,6 +20,7 @@ const daysUntil = (dateStr) => {
 };
 
 export default function Edit({ project, clients = [], managers = [] }) {
+    // 🟢 ADDED: unit_price in initial state
     const { data, setData, put, processing, errors } = useForm({
         client_id: project.client_id || "",
         project_manager_id: project.project_manager_id || "",
@@ -27,6 +28,7 @@ export default function Edit({ project, clients = [], managers = [] }) {
         description: project.description || "",
         quantity: project.quantity || "",
         unit_type: project.unit_type || "piece",
+        unit_price: project.unit_price || "",
         start_date: project.start_date ? project.start_date.split('T')[0] : "",
         deadline: project.deadline ? project.deadline.split('T')[0] : "",
         budget: project.budget || "",
@@ -244,13 +246,23 @@ export default function Edit({ project, clients = [], managers = [] }) {
                                     </div>
                                 </div>
 
+                                {/* 🟢 Quantity & Unit */}
                                 <div className="lg:col-span-4">
                                     <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Quantity / Size</label>
                                     <div className="flex bg-white rounded-xl border border-gray-300 overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all shadow-sm">
                                         <input
                                             type="number" min="0" step="any"
                                             value={data.quantity}
-                                            onChange={e => setData("quantity", e.target.value)}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setData(prev => {
+                                                    const updated = { ...prev, quantity: val };
+                                                    const p = parseFloat(prev.unit_price) || 0;
+                                                    const q = parseFloat(val) || 0;
+                                                    if (q > 0 && p > 0) updated.budget = (q * p).toString();
+                                                    return updated;
+                                                });
+                                            }}
                                             placeholder="0"
                                             className="w-full bg-transparent px-4 py-3.5 text-[15px] font-bold text-gray-900 outline-none border-none border-r border-gray-200"
                                         />
@@ -259,11 +271,42 @@ export default function Edit({ project, clients = [], managers = [] }) {
                                             onChange={e => setData("unit_type", e.target.value)}
                                             className="w-[100px] bg-gray-50 px-2 py-3.5 text-[13.5px] font-bold text-gray-700 outline-none border-none cursor-pointer appearance-none text-center hover:bg-gray-100 transition-colors"
                                         >
-                                            <option value="piece">Pcs</option><option value="kg">Kg</option><option value="set">Set</option><option value="box">Box</option>
+                                            <option value="piece">Pcs</option>
+                                            <option value="kg">Kg</option>
+                                            <option value="set">Set</option>
+                                            <option value="box">Box</option>
+                                            <option value="sqft">SqFt</option>
                                         </select>
                                     </div>
                                 </div>
 
+                                {/* 🟢 Unit Price */}
+                                <div className="lg:col-span-4">
+                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Unit Price (TK)</label>
+                                    <div className="relative">
+                                        <div className="absolute left-0 top-0 bottom-0 w-12 flex items-center justify-center bg-gray-50 border-r border-gray-200 rounded-l-xl z-10">
+                                            <span className="text-gray-500 font-bold text-[17px]" style={{ fontFamily: 'Arial, sans-serif' }}>৳</span>
+                                        </div>
+                                        <input
+                                            type="number" min="0" step="0.01"
+                                            value={data.unit_price}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setData(prev => {
+                                                    const updated = { ...prev, unit_price: val };
+                                                    const p = parseFloat(val) || 0;
+                                                    const q = parseFloat(prev.quantity) || 0;
+                                                    if (q > 0 && p > 0) updated.budget = (q * p).toString();
+                                                    return updated;
+                                                });
+                                            }}
+                                            placeholder="0.00"
+                                            className="w-full rounded-xl border border-gray-300 bg-white pl-14 pr-4 py-3.5 text-[15px] font-bold text-gray-900 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm relative z-0"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* 🟢 Total Budget */}
                                 <div className="lg:col-span-4">
                                     <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Total Budget (TK)</label>
                                     <div className="relative">
@@ -280,7 +323,8 @@ export default function Edit({ project, clients = [], managers = [] }) {
                                     </div>
                                 </div>
 
-                                <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {/* 🟢 Dates */}
+                                <div className="md:col-span-2 lg:col-span-12 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6 mt-1">
                                     <div>
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Start Date</label>
                                         <input
@@ -297,12 +341,13 @@ export default function Edit({ project, clients = [], managers = [] }) {
                                             value={data.deadline}
                                             onChange={e => setData("deadline", e.target.value)}
                                             required
-                                            className="w-full rounded-xl border border-rose-200 bg-rose-50/50 hover:bg-rose-100 focus:bg-white px-3 py-3.5 text-[14px] font-bold text-rose-700 outline-none transition-shadow focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 shadow-sm cursor-pointer"
+                                            className="w-full rounded-xl border border-rose-200 bg-rose-50/50 hover:bg-rose-100 focus:bg-white px-4 py-3.5 text-[14px] font-bold text-rose-700 outline-none transition-shadow focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 shadow-sm cursor-pointer"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="md:col-span-2 lg:col-span-12 mt-2">
+                                {/* Description */}
+                                <div className="md:col-span-2 lg:col-span-12 mt-1">
                                     <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Project Scope / Details</label>
                                     <textarea
                                         value={data.description}
@@ -313,7 +358,7 @@ export default function Edit({ project, clients = [], managers = [] }) {
                                     ></textarea>
                                 </div>
 
-                                {/* 🟢 Status & Progress Block (Modern UI) */}
+                                {/* Status & Progress Block */}
                                 <div className="md:col-span-2 lg:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-gray-100 pt-8 mt-2">
                                     <div className="bg-gray-50/80 p-5 rounded-2xl border border-gray-200 shadow-sm">
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-3">Current Status <span className="text-rose-500">*</span></label>
