@@ -54,7 +54,7 @@ export default function Index({ roles = { data: [], links: [] }, permissions = [
         const delayDebounceFn = setTimeout(() => {
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
-            if (perPage !== 25) params.per_page = perPage;
+            params.per_page = perPage;
 
             router.get(
                 route('admin.roles.index'),

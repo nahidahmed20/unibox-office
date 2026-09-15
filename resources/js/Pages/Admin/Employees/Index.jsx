@@ -82,7 +82,7 @@ export default function Index({ employees = {}, users = [], departments = [], de
         const delay = setTimeout(() => {
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
-            if (perPage !== 10) params.per_page = perPage;
+            params.per_page = perPage;
 
             router.get(route("admin.employees.index"), params, {
                 preserveState: true,

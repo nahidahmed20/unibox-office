@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 
-export default function Index({ project_expenses = { data: [], links: [] }, projects = [], categories = [], totals = null }) {
+export default function Index({ project_expenses = { data: [], links: [] }, projects = [], categories = [], vendors = [], totals = null, filters = {} }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
     const permissions = auth?.permissions || [];
@@ -13,32 +13,32 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedExpense, setSelectedExpense] = useState(null);
 
-    // Toolbar Filters
-    const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get('search') || '');
-    const [perPage, setPerPage] = useState(() => {
-        const queryVal = new URLSearchParams(window.location.search).get("per_page");
-        return queryVal === "all" ? "all" : (Number(queryVal) || 25);
-    });
-    const [projectFilter, setProjectFilter] = useState(() => new URLSearchParams(window.location.search).get('project_id') || '');
-    const [projectFilterSearch, setProjectFilterSearch] = useState("");
-    const [showProjectFilterDropdown, setShowProjectFilterDropdown] = useState(false);
+    const [searchTerm, setSearchTerm] = useState(filters.search || '');
+    const [clientFilter, setClientFilter] = useState(filters.client_id || '');
+    const [projectFilter, setProjectFilter] = useState(filters.project_id || '');
+    const [vendorFilter, setVendorFilter] = useState(filters.vendor_id || '');
+    const [perPage, setPerPage] = useState(filters.per_page === "all" ? "all" : (Number(filters.per_page) || 25));
 
     const isFirstRender = useRef(true);
-    const filterRef = useRef(null);
 
-    const [yearFilter, setYearFilter] = useState(() => new URLSearchParams(window.location.search).get('year') || '');
-    const [dateFrom, setDateFrom] = useState(() => new URLSearchParams(window.location.search).get('date_from') || '');
-    const [dateTo, setDateTo] = useState(() => new URLSearchParams(window.location.search).get('date_to') || '');
+    const [yearFilter, setYearFilter] = useState(filters.year || '');
+    const [dateFrom, setDateFrom] = useState(filters.date_from || '');
+    const [dateTo, setDateTo] = useState(filters.date_to || '');
     const currentYear = new Date().getFullYear();
     const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - i);
 
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (filterRef.current && !filterRef.current.contains(event.target)) setShowProjectFilterDropdown(false);
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+    const uniqueClients = useMemo(() => {
+        const clientsMap = new Map();
+        projects.forEach(p => {
+            if (p.client) clientsMap.set(p.client.id, p.client);
+        });
+        return Array.from(clientsMap.values());
+    }, [projects]);
+
+    const filteredProjectsList = useMemo(() => {
+        if (!clientFilter) return projects;
+        return projects.filter(p => p.client_id == clientFilter);
+    }, [projects, clientFilter]);
 
     // --- Live Search & Pagination ---
     useEffect(() => {
@@ -46,8 +46,10 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         const delayDebounceFn = setTimeout(() => {
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
-            if (perPage !== 25) params.per_page = perPage;
+            if (clientFilter) params.client_id = clientFilter;
             if (projectFilter) params.project_id = projectFilter;
+            if (vendorFilter) params.vendor_id = vendorFilter;
+            params.per_page = perPage;
             if (yearFilter) params.year = yearFilter;
             if (dateFrom) params.date_from = dateFrom;
             if (dateTo) params.date_to = dateTo;
@@ -55,13 +57,28 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             router.get(route('admin.project-expenses.index'), params, { preserveState: true, replace: true, preserveScroll: true });
         }, 400);
         return () => clearTimeout(delayDebounceFn);
-    }, [searchTerm, perPage, projectFilter, yearFilter, dateFrom, dateTo]);
+    }, [searchTerm, clientFilter, projectFilter, vendorFilter, perPage, yearFilter, dateFrom, dateTo]);
+
+    const handleClientChange = (e) => {
+        setClientFilter(e.target.value);
+        setProjectFilter('');
+    };
+
+    const clearAllFilters = () => {
+        setSearchTerm("");
+        setClientFilter("");
+        setProjectFilter("");
+        setVendorFilter("");
+        setYearFilter("");
+        setDateFrom("");
+        setDateTo("");
+    };
 
     const expList = project_expenses.data || project_expenses || [];
 
     const handleCopy = () => {
         if (!expList.length) return Swal.fire("Empty!", "No data to copy", "warning");
-        const text = expList.map((e) => `${e.date}\t${e.project?.client?.name || 'N/A'}\t${e.title}\t${e.vendor?.name || "N/A"}\t${e.total_bill}\t${e.paid_amount}\t${e.payment_status?.toUpperCase()}`).join("\n");
+        const text = expList.map((e) => `${e.date}\t${e.project?.client?.name || 'N/A'}\t${e.title}\t${e.payee_name || e.vendor?.name || "N/A"}\t${e.total_bill}\t${e.paid_amount}\t${e.payment_status?.toUpperCase()}`).join("\n");
         navigator.clipboard.writeText("Date\tClient\tTitle\tVendor\tTotal Bill\tPaid\tStatus\n" + text);
         Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
     };
@@ -69,7 +86,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
     const handleExportCSV = () => {
         if (!expList.length) return Swal.fire("Empty!", "No data to export", "warning");
         const headers = ["Date,Client,Project,Expense Title,Vendor,Account/Source,Total Bill,Paid,Due,Status\n"];
-        const rows = expList.map(e => `"${e.date}","${e.project?.client?.name || ''}","${e.project?.title || ''}","${e.title}","${e.vendor?.name || ''}","${e.account_id ? e.account?.name : (e.advance_user_id ? 'Advance' : 'Wallet')}","${e.total_bill}","${e.paid_amount}","${e.due_amount}","${e.payment_status}"`);
+        const rows = expList.map(e => `"${e.date}","${e.project?.client?.name || ''}","${e.project?.title || ''}","${e.title}","${e.payee_name || e.vendor?.name || ''}","${e.account_id ? e.account?.name : (e.advance_user_id ? 'Advance' : 'Wallet')}","${e.total_bill}","${e.paid_amount}","${e.due_amount}","${e.payment_status}"`);
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -217,87 +234,105 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                             </div>
                             Vendor Bills & Expenses
                         </div>
-                        {hasPermission('create_project_expenses') && (
-                            <Link href={route('admin.project-expenses.create')} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-[13.5px] font-bold text-white transition-all hover:bg-indigo-700 shadow-sm hover:shadow-md">
-                                <i className="fa-solid fa-plus"></i> Log New Bill
-                            </Link>
-                        )}
+                        <div className="flex items-center gap-3">
+                            <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-300 shadow-sm">
+                                <i className="fas fa-copy text-blue-500"></i> Copy
+                            </button>
+                            <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-[13px] font-bold text-emerald-700 transition-all hover:bg-emerald-100 shadow-sm">
+                                <i className="fas fa-file-csv"></i> CSV
+                            </button>
+                            {hasPermission('create_project_expenses') && (
+                                <Link href={route('admin.project-expenses.create')} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-[13.5px] font-bold text-white transition-all hover:bg-indigo-700 shadow-sm hover:shadow-md ml-2">
+                                    <i className="fa-solid fa-plus"></i> Log New Bill
+                                </Link>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Toolbar */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100">
+                    {/* 🟢 NEW ADVANCED FILTER BAR */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 px-6 py-5 bg-white border-b border-gray-100">
 
-                        <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
-                            {/* Rows per page */}
-                            <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all z-20">
-                                <span className="bg-gray-50/80 px-4 py-2 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
-                                    Show
-                                </span>
-                                <div className="relative">
-                                    <select
-                                        value={perPage}
-                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
-                                        className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
-                                    >
-                                        <option value={10}>10 Rows</option>
-                                        <option value={25}>25 Rows</option>
-                                        <option value={50}>50 Rows</option>
-                                        <option value={100}>100 Rows</option>
-                                        <option value="all">All Data</option>
-                                    </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-400">
-                                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="h-8 w-px bg-gray-200 hidden md:block"></div>
-
-                            {/* Export Buttons */}
-                            <div className="flex items-center gap-2">
-                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-300 shadow-sm">
-                                    <i className="fas fa-copy text-blue-500"></i> Copy
-                                </button>
-                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-all hover:bg-emerald-100 shadow-sm">
-                                    <i className="fas fa-file-csv"></i> CSV
-                                </button>
-                            </div>
+                        {/* 1. Client Filter */}
+                        <div>
+                            <label className="block text-[11.5px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Filter by Client</label>
+                            <select value={clientFilter} onChange={handleClientChange} className="w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-[13px] font-bold text-gray-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer">
+                                <option value="">-- All Clients --</option>
+                                {uniqueClients.map(client => (
+                                    <option key={client.id} value={client.id}>{client.name} {client.company_name ? `(${client.company_name})` : ''}</option>
+                                ))}
+                            </select>
                         </div>
 
-                        {/* Filters & Search */}
-                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+                        {/* 2. Project Filter */}
+                        <div>
+                            <label className="block text-[11.5px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Filter by Project</label>
+                            <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-[13px] font-bold text-gray-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer">
+                                <option value="">-- All Projects --</option>
+                                {filteredProjectsList.map(p => (
+                                    <option key={p.id} value={p.id}>{p.title}</option>
+                                ))}
+                            </select>
+                        </div>
 
-                            {/* Date / Year Filter */}
-                            <div className="flex items-center gap-2">
-                                <div className="relative w-full sm:w-[120px]">
-                                    <select value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); if (e.target.value) { setDateFrom(""); setDateTo(""); } }} className="w-full appearance-none rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-[13.5px] font-bold text-gray-700 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm">
-                                        <option value="">All Years</option>
-                                        {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-                                    </select>
-                                </div>
-                                <span className="text-gray-300 hidden sm:block">|</span>
-                                <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setYearFilter(''); }} className="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-[13px] font-medium outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer" />
-                                <span className="text-gray-400 font-bold">–</span>
-                                <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setYearFilter(''); }} className="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-[13px] font-medium outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer" />
+                        {/* 3. Vendor Filter */}
+                        <div>
+                            <label className="block text-[11.5px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Filter by Vendor</label>
+                            <select value={vendorFilter} onChange={(e) => setVendorFilter(e.target.value)} className="w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-[13px] font-bold text-gray-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer">
+                                <option value="">-- All Vendors --</option>
+                                {vendors.map(v => (
+                                    <option key={v.id} value={v.id}>{v.name} {v.company_name ? `(${v.company_name})` : ''}</option>
+                                ))}
+                            </select>
+                        </div>
 
-                                {(dateFrom || dateTo || yearFilter) && (
-                                    <button onClick={() => { setDateFrom(""); setDateTo(""); setYearFilter(""); }} className="h-9 w-9 rounded-full bg-red-50 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
-                                        <i className="fa-solid fa-xmark text-sm"></i>
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Search */}
-                            <div className="relative w-full sm:w-[260px]">
-                                <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13.5px]"></i>
+                        {/* 4. Text Search */}
+                        <div>
+                            <label className="block text-[11.5px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Search Expense</label>
+                            <div className="relative">
+                                <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
                                 <input
                                     type="text"
-                                    placeholder="Client, Project, Vendor..."
+                                    placeholder="e.g. Leaflet, Transport..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13.5px] outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white"
+                                    className="w-full rounded-xl border border-gray-300 py-2.5 pl-9 pr-4 text-[13px] font-medium outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 bg-white shadow-sm"
                                 />
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Secondary Filters (Date, Rows, Clear) */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/50 border-b border-gray-100">
+                        {/* Date Filters */}
+                        <div className="flex flex-wrap items-center gap-2">
+                             <div className="relative w-full sm:w-[120px]">
+                                <select value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); if (e.target.value) { setDateFrom(""); setDateTo(""); } }} className="w-full appearance-none rounded-xl border border-gray-300 bg-white px-3 py-2 text-[12.5px] font-bold text-gray-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm">
+                                    <option value="">All Years</option>
+                                    {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                            </div>
+                            <span className="text-gray-300 hidden sm:block">|</span>
+                            <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setYearFilter(''); }} className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-[12.5px] font-medium outline-none shadow-sm cursor-pointer" />
+                            <span className="text-gray-400 font-bold">–</span>
+                            <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setYearFilter(''); }} className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-[12.5px] font-medium outline-none shadow-sm cursor-pointer" />
+
+                            {(dateFrom || dateTo || yearFilter || clientFilter || projectFilter || vendorFilter || searchTerm) && (
+                                <button onClick={clearAllFilters} className="ml-2 px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-500 hover:text-white transition-colors text-[12px] font-bold shadow-sm flex items-center gap-1.5">
+                                    <i className="fa-solid fa-rotate-left"></i> Reset
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Pagination Rows Selector */}
+                        <div className="flex items-center gap-2 text-[12.5px]">
+                            <span className="font-bold text-gray-500 uppercase tracking-wide">Show:</span>
+                            <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-[13px] font-bold text-gray-800 outline-none cursor-pointer shadow-sm">
+                                <option value={10}>10 Rows</option>
+                                <option value={25}>25 Rows</option>
+                                <option value={50}>50 Rows</option>
+                                <option value={100}>100 Rows</option>
+                                <option value="all">All Data</option>
+                            </select>
                         </div>
                     </div>
 
@@ -329,7 +364,6 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                     {exp.date}
                                                 </span>
                                             </td>
-
                                             <td className="px-6 py-4">
                                                 <div className="font-bold text-gray-900 text-[14px]">
                                                     {exp.project?.title || <span className="text-gray-400 italic">No Project</span>}
@@ -345,7 +379,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
                                             <td className="px-6 py-4">
                                                 <div className="font-bold text-gray-800 flex items-center gap-2">
-                                                    <i className="fa-solid fa-user-tie text-[12px] text-gray-400"></i> {exp.vendor?.name || <span className="italic text-gray-400">Unknown Vendor</span>}
+                                                    <i className="fa-solid fa-user-tie text-[12px] text-gray-400"></i> {exp.payee_name || exp.vendor?.name || <span className="italic text-gray-400">Payee not recorded</span>}
                                                 </div>
                                                 <div className="text-[11px] font-medium text-gray-500 mt-1 flex items-center gap-1.5">
                                                     {exp.account_id ? <><i className="fa-solid fa-building-columns text-blue-500"></i> {exp.account?.name}</>
@@ -418,8 +452,8 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                 <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
                                                     <i className="fa-solid fa-receipt text-2xl text-gray-400"></i>
                                                 </div>
-                                                <p className="text-[15px] font-bold text-gray-700">No project expenses found.</p>
-                                                <p className="text-[13px] text-gray-400 mt-1">Try adjusting your filters or search by client/project.</p>
+                                                <p className="text-[15px] font-bold text-gray-700">No matching expenses found.</p>
+                                                <p className="text-[13px] text-gray-400 mt-1">Try resetting your filters or adjusting your search.</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -504,7 +538,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                     <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Vendor / Payee</span>
                                     <div className="text-[15px] font-bold text-gray-900 flex items-start gap-2.5">
                                         <i className="fa-solid fa-user-tie text-blue-500 mt-0.5"></i>
-                                        <span className="leading-tight">{selectedExpense.vendor?.name || "N/A"}</span>
+                                        <span className="leading-tight">{selectedExpense.payee_name || selectedExpense.vendor?.name || "N/A"}</span>
                                     </div>
                                 </div>
                                 <div className="bg-gray-50/80 rounded-2xl p-5 border border-gray-100 flex flex-col justify-center">

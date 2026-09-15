@@ -69,9 +69,10 @@ class ExpenseController extends Controller
         // Filtered total amount
         $totalAmount = (clone $query)->sum('amount');
 
-        $perPage = $request->input('per_page') === 'all' ? max($query->count(), 1) : min((int) $request->input('per_page', 10), 100000);
+        $perPage = $request->input('per_page') === 'all' ? max($query->count(), 1) : \App\Support\Pagination::perPage($request, $query);
 
         $expenses = $query->latest()->paginate($perPage)->withQueryString();
+        $expenses = $query->orderBy('date', 'desc')->latest('id')->paginate($perPage)->withQueryString();
 
         $categories = ExpenseCategory::select('id', 'name')->orderBy('name')->get();
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->orderBy('name')->get();
@@ -107,6 +108,8 @@ class ExpenseController extends Controller
         try {
             DB::transaction(function () use ($validated) {
                 $insertData = collect($validated)->except(['pay_type'])->toArray();
+                if ($validated['pay_type'] === 'account') $insertData['advance_user_id'] = null;
+                if ($validated['pay_type'] === 'advance') $insertData['account_id'] = null;
                 $insertData['logged_by'] = auth()->id() ?? 1;
 
                 $expense = Expense::create($insertData);
@@ -181,7 +184,8 @@ class ExpenseController extends Controller
             'expense_category_id' => 'required|exists:expense_categories,id',
             'account_id'          => 'nullable|exists:accounts,id',
             'advance_user_id'     => 'nullable|exists:users,id', // 🟢 Using User ID like Project Expenses
-            'amount'              => 'required|numeric|min:0.01',
+            'amount'              => 'required|numeric|decimal:0,2|min:0.01',
+            'bank_charge' => 'nullable|numeric|decimal:0,2|min:0',
             'date'                => 'required|date',
             'description'         => 'nullable|string',
             'attachment'          => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
@@ -193,13 +197,16 @@ class ExpenseController extends Controller
     {
         if ($validated['pay_type'] === 'account' && empty($validated['account_id'])) return 'Please select a Bank/Cash Account.';
         if ($validated['pay_type'] === 'advance' && empty($validated['advance_user_id'])) return 'Please select an Advance User.';
+        if ($validated['pay_type'] !== 'account' && ($validated['bank_charge'] ?? 0) > 0) return 'Bank charge requires an account payment.';
         return null;
     }
 
     private function deductFromSource(array $validated, float $amount, Expense $expense): void
     {
         if ($validated['pay_type'] === 'account') {
-            $account = Account::findOrFail($validated['account_id']);
+            $charge = round((float) ($validated['bank_charge'] ?? 0), 2);
+            $amount = round($amount + $charge, 2);
+            $account = Account::whereKey($validated['account_id'])->lockForUpdate()->firstOrFail();
             if ($account->current_balance < $amount) throw new \Exception('Insufficient Account Balance');
             $account->decrement('current_balance', $amount);
 
@@ -207,11 +214,12 @@ class ExpenseController extends Controller
                 'account_id'       => $account->id,
                 'type'             => 'debit',
                 'amount'           => $amount,
+                'bank_charge' => $charge,
                 'transaction_date' => $validated['date'],
                 'description'      => 'Office Expense: ' . $validated['title'],
             ]);
         } elseif ($validated['pay_type'] === 'advance') {
-            $this->consumeAdvance($validated['advance_user_id'], $amount);
+            app(\App\Services\AdvanceSettlementService::class)->consume($expense, $validated['advance_user_id'], $amount);
         }
     }
 
@@ -220,37 +228,14 @@ class ExpenseController extends Controller
         if ($amount <= 0) return;
 
         if ($expense->account_id) {
-            Account::where('id', $expense->account_id)->increment('current_balance', $amount);
+            Account::where('id', $expense->account_id)->increment('current_balance', $amount + (float) ($expense->bank_charge ?? 0));
             if ($expense->transaction) $expense->transaction()->delete();
         } elseif ($expense->advance_user_id) {
-            $this->refundAdvance($expense->advance_user_id, $amount);
+            if (!app(\App\Services\AdvanceSettlementService::class)->refund($expense)) $this->refundAdvance($expense->advance_user_id, $amount);
         }
     }
 
     // 🟢 FIXED: Imported consumeAdvance from ProjectExpenseController
-    private function consumeAdvance(int $userId, float $amount): void
-    {
-        $remaining = $amount;
-        $advanceRecords = Advance::where('user_id', $userId)->where('status', 'unsettled')->orderBy('date')->lockForUpdate()->get();
-
-        foreach ($advanceRecords as $advance) {
-            if ($remaining <= 0) break;
-            $available = $advance->amount - $advance->settled_amount - $advance->returned_amount;
-            if ($available <= 0) continue;
-
-            $take = min($available, $remaining);
-            $advance->settled_amount += $take;
-            if (($advance->settled_amount + $advance->returned_amount) >= $advance->amount) {
-                $advance->status = 'settled';
-            }
-            $advance->save();
-            $remaining -= $take;
-        }
-
-        if ($remaining > 0.01) throw new \Exception('নির্বাচিত এমপ্লয়ির পর্যাপ্ত Advance ব্যালেন্স নেই।');
-        AdvanceBalance::where('user_id', $userId)->increment('total_used', $amount);
-    }
-
     // 🟢 FIXED: Imported refundAdvance from ProjectExpenseController
     private function refundAdvance(int $userId, float $amount): void
     {
@@ -259,7 +244,8 @@ class ExpenseController extends Controller
 
         foreach ($advanceRecords as $advance) {
             if ($remaining <= 0) break;
-            $refundable = min($advance->settled_amount, $remaining);
+            $reserved = \App\Models\AdvanceSettlement::where('advance_id', $advance->id)->sum('amount');
+            $refundable = min(max($advance->settled_amount - $reserved, 0), $remaining);
             $advance->settled_amount -= $refundable;
 
             if ($advance->status === 'settled' && ($advance->settled_amount + $advance->returned_amount) < $advance->amount) {
@@ -269,6 +255,7 @@ class ExpenseController extends Controller
             $remaining -= $refundable;
         }
 
+        if ($remaining > 0.009) throw new \Exception('Advance history cannot be safely reversed.');
         $actuallyRefunded = $amount - max($remaining, 0);
         if ($actuallyRefunded > 0) {
             AdvanceBalance::where('user_id', $userId)->decrement('total_used', $actuallyRefunded);

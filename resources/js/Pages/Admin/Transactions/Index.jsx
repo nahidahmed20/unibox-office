@@ -43,12 +43,12 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
 
     const isFirstRender = useRef(true);
 
-    const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
-        id: '', account_id: '', type: 'credit', amount: '', transaction_date: new Date().toISOString().split('T')[0], description: '', reference_number: ''
+    const { data, setData, post, put, reset, processing, errors, clearErrors } = useForm({
+        id: '', account_id: '', type: 'credit', amount: '', bank_charge: 0, transaction_date: new Date().toISOString().split('T')[0], description: '', reference_number: ''
     });
 
     const { data: transferData, setData: setTransferData, post: postTransfer, processing: transferProcessing, reset: resetTransfer, errors: transferErrors, clearErrors: clearTransferErrors } = useForm({
-        from_account_id: '', to_account_id: '', amount: '', transaction_date: new Date().toISOString().split('T')[0], description: '', reference_number: ''
+        from_account_id: '', to_account_id: '', amount: '', bank_charge: 0, transaction_date: new Date().toISOString().split('T')[0], description: '', reference_number: ''
     });
 
     const applyFilters = (overrides = {}) => {
@@ -140,7 +140,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
 
     const openCreateModal = () => {
         clearErrors();
-        setData({ id: '', account_id: '', type: 'credit', amount: '', transaction_date: new Date().toISOString().slice(0, 10), reference_number: '', description: '' });
+        setData({ id: '', account_id: '', type: 'credit', amount: '', bank_charge: 0, transaction_date: new Date().toISOString().slice(0, 10), reference_number: '', description: '' });
         setEditMode(false); setShowModal(true);
     };
 
@@ -150,7 +150,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
 
     const openEditModal = (trx) => {
         clearErrors();
-        setData({ id: trx.id, account_id: trx.account_id || '', type: trx.type || 'credit', amount: trx.amount || '', transaction_date: trx.transaction_date || '', description: trx.description || '', reference_number: trx.reference_number || '' });
+        setData({ id: trx.id, account_id: trx.account_id || '', type: trx.type || 'credit', amount: Number(trx.amount || 0) - Number(trx.bank_charge || 0), bank_charge: trx.bank_charge || 0, transaction_date: trx.transaction_date || '', description: trx.description || '', reference_number: trx.reference_number || '' });
         setEditMode(true); setShowModal(true);
     };
 
@@ -187,13 +187,32 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
         });
     };
 
+    // 🟢 UPDATED: Using router.delete for flawless reversing
     const handleDelete = (id) => {
-        Swal.fire({ title: 'Delete Transaction?', text: "This will reverse the amount in your account balance.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Yes, Delete It' }).then((result) => {
+        Swal.fire({
+            title: 'Delete Transaction?',
+            text: "This will reverse the amount in your account balance.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Yes, Delete It'
+        }).then((result) => {
             if (result.isConfirmed) {
-                destroy(route('admin.transactions.destroy', id), {
+                router.delete(route('admin.transactions.destroy', id), {
                     preserveScroll: true,
-                    onSuccess: () => Swal.fire({ icon: "success", title: "Deleted!", text: "Transaction removed and balance restored.", timer: 1500, showConfirmButton: false }),
-                    onError: (err) => Swal.fire({ icon: "error", title: "Error!", text: err.error || "Cannot delete system-generated transactions." })
+                    onSuccess: () => Swal.fire({
+                        icon: "success",
+                        title: "Deleted!",
+                        text: "Transaction removed and balance restored.",
+                        timer: 1500,
+                        showConfirmButton: false
+                    }),
+                    onError: (err) => Swal.fire({
+                        icon: "error",
+                        title: "Error!",
+                        text: err.error || "Cannot delete system-generated transactions."
+                    })
                 });
             }
         });
@@ -563,6 +582,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                             />
                                         </div>
                                         {transferErrors.amount && <p className="text-red-500 text-[11px] font-bold mt-1.5">{transferErrors.amount}</p>}
+                                        <label className="block text-sm font-bold mt-3">Bank charge (extra)<input type="number" min="0" step="0.01" value={transferData.bank_charge} onChange={e => setTransferData('bank_charge', e.target.value)} className="block mt-2 w-full rounded-xl border-gray-300" /></label>
                                     </div>
                                     <div>
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Date <span className="text-red-500">*</span></label>
@@ -645,7 +665,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                         <div className="flex bg-gray-100 p-1.5 rounded-xl shadow-inner border border-gray-200/60">
                                             <button
                                                 type="button"
-                                                onClick={() => setData('type', 'credit')}
+                                                onClick={() => setData(prev => ({...prev, type: 'credit', bank_charge: 0}))}
                                                 className={`flex-1 py-2 text-[13.5px] font-extrabold rounded-lg transition-all ${data.type === 'credit' ? 'bg-white text-emerald-600 shadow-sm border border-emerald-100' : 'text-gray-500 hover:text-gray-700'}`}
                                             >
                                                 Deposit (In)
@@ -674,6 +694,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                                 required
                                             />
                                         </div>
+                                            {data.type === 'debit' && <label className="block text-sm font-bold mt-3">Bank charge (extra)<input type="number" min="0" step="0.01" value={data.bank_charge} onChange={e => setData('bank_charge', e.target.value)} className="block mt-2 w-full rounded-xl border-gray-300" /><span className="block text-xs mt-2 text-gray-500">Total account debit: {(Number(data.amount || 0) + Number(data.bank_charge || 0)).toFixed(2)}</span></label>}
                                         {errors.amount && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.amount}</p>}
                                     </div>
                                 </div>

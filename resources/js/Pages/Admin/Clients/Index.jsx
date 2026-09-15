@@ -52,7 +52,7 @@ export default function Index({ clients = { data: [], links: [] } }) {
         const delayDebounceFn = setTimeout(() => {
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
-            if (perPage !== 25) params.per_page = perPage;
+            params.per_page = perPage;
 
             router.get(route('admin.clients.index'), params, {
                 preserveState: true,

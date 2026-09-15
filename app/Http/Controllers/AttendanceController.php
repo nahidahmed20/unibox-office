@@ -27,7 +27,7 @@ class AttendanceController extends Controller
             $totalCount = $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = min((int) $request->input('per_page', 25), 100000); // sanity cap
+            $perPage = \App\Support\Pagination::perPage($request, $query); // sanity cap
         }
 
         $attendances = $query->orderBy('date', 'desc')

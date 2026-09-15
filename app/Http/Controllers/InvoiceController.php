@@ -68,7 +68,7 @@ class InvoiceController extends Controller
         ];
 
         // Pagination
-        $perPage = $request->input('per_page') === 'all' ? ($query->count() > 0 ? $query->count() : 1) : min((int) $request->input('per_page', 10), 100000);
+        $perPage = $request->input('per_page') === 'all' ? ($query->count() > 0 ? $query->count() : 1) : \App\Support\Pagination::perPage($request, $query);
         $invoices = $query->orderByDesc('invoice_date')->orderByDesc('id')->paginate($perPage)->withQueryString();
 
         $clients = Client::select('id', 'name', 'company_name')->orderBy('name')->get();

@@ -35,7 +35,7 @@ export default function Index({ accounts = { data: [], links: [] }, summary = {}
         const delayDebounceFn = setTimeout(() => {
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
-            if (perPage !== 25) params.per_page = perPage;
+            params.per_page = perPage;
 
             router.get(
                 route('admin.accounts.index'),

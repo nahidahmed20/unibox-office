@@ -33,7 +33,7 @@ class TaskController extends Controller
             $totalCount = $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = min((int) $request->input('per_page', 10), 100000); // sanity cap
+            $perPage = \App\Support\Pagination::perPage($request, $query); // sanity cap
         }
 
         $tasks = $query->latest()->paginate($perPage)->withQueryString(); 

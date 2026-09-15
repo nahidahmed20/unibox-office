@@ -28,7 +28,8 @@ class Client extends Model {
 
     public function getAdvanceBalanceAttribute()
     {
-        return $this->clientAdvances()->where('is_settled', false)->sum('amount') ?? 0;
+        return max(0, (float) $this->clientAdvances()
+            ->selectRaw('COALESCE(SUM(amount - used_amount), 0) AS balance')->value('balance'));
     }
 
     // ৪. Current Due (মোট বকেয়া)

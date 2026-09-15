@@ -14,6 +14,8 @@ export default function Create({ projects = [], categories = [], accounts = [], 
         advance_user_id: '',
         title: '',
         vendor_id: '',
+        payee_name: '',
+        bank_charge: 0,
         total_bill: '',
         paid_amount: '',
         date: new Date().toISOString().slice(0, 10),
@@ -61,7 +63,7 @@ export default function Create({ projects = [], categories = [], accounts = [], 
     };
     const status = getStatus();
 
-    const projectOptions = useMemo(() => projects.filter(p => p.status !== 'completed').map(p => ({ value: p.id, label: `${p.title} ${p.client?.name ? `(${p.client.name})` : ''}` })), [projects]);
+    const projectOptions = useMemo(() => projects.filter(p => p.status !== 'completed').map(p => ({ value: p.id, label: `${p.title} ${p.client?.name ? `(${p.client.name}${p.client.company_name ? ` / ${p.client.company_name}` : ''})` : ''}` })), [projects]);
     const categoryOptions = useMemo(() => categories.map(c => ({ value: c.id, label: c.name })), [categories]);
     const vendorOptions = useMemo(() => vendorList.map(v => ({ value: v.id, label: `${v.name} ${v.company_name ? `(${v.company_name})` : ''}` })), [vendorList]);
     const accountOptions = useMemo(() => accounts.map(a => ({ value: a.id, label: `${a.name} (Bal: ${Number(a.current_balance).toLocaleString('en-IN')})` })), [accounts]);
@@ -161,8 +163,11 @@ export default function Create({ projects = [], categories = [], accounts = [], 
                                     <div className="md:col-span-2">
                                         <div className="flex items-center justify-between mb-2.5">
                                             <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider">Vendor / Payee <span className="text-gray-400 font-normal normal-case">(Optional)</span></label>
-                                            {!showAddVendorForm && <button type="button" onClick={() => setShowAddVendorForm(true)} className="text-[12px] font-bold text-indigo-600 hover:text-indigo-800"><i className="fa-solid fa-plus"></i> New Vendor</button>}
+                                            {!showAddVendorForm && <button type="button" onClick={() => { setNewVendor(prev => ({...prev, name: data.payee_name || prev.name})); setShowAddVendorForm(true); }} className="text-[12px] font-bold text-indigo-600 hover:text-indigo-800"><i className="fa-solid fa-plus"></i> New Vendor</button>}
                                         </div>
+<label className="block text-sm font-semibold mb-2">Payee name (vendor registration optional)
+                                            <input type="text" maxLength="255" value={data.payee_name} onChange={e => setData('payee_name', e.target.value)} placeholder="Who are you paying?" className="mt-2 w-full rounded-xl border-gray-200" />
+                                        </label>
                                         {showAddVendorForm ? (
                                             <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4">
                                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
@@ -207,7 +212,7 @@ export default function Create({ projects = [], categories = [], accounts = [], 
                             </section>
 
                             {/* 🟢 DYNAMIC PAYMENT SOURCE SECTION */}
-                            {cashDeduction > 0 && (
+                            {cashDeduction + Number(data.bank_charge || 0) > 0 && (
                                 <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden animate-[fadeIn_0.3s_ease-out]">
                                     <div className="px-6 py-4 border-b border-gray-100 bg-emerald-50/30 flex items-center justify-between">
                                         <h2 className="text-[16px] font-bold text-gray-900"><i className="fa-solid fa-wallet text-emerald-500 mr-2"></i>Payment Source</h2>
@@ -220,7 +225,7 @@ export default function Create({ projects = [], categories = [], accounts = [], 
                                                 <i className={`fa-solid fa-building-columns text-xl mb-2 block ${data.pay_type === 'account' ? 'text-emerald-600' : 'text-gray-400'}`}></i><span className={`block text-[14px] font-bold ${data.pay_type === 'account' ? 'text-emerald-800' : 'text-gray-600'}`}>Bank / Cash Box</span>
                                             </label>
                                             <label className={`flex-1 cursor-pointer rounded-xl border-2 p-4 text-center transition-all ${data.pay_type === 'advance' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-200'}`}>
-                                                <input type="radio" name="pay_type" className="sr-only" checked={data.pay_type === 'advance'} onChange={() => { setData('pay_type', 'advance'); setData('account_id', ''); }} />
+                                                <input type="radio" name="pay_type" className="sr-only" checked={data.pay_type === 'advance'} onChange={() => { setData('pay_type', 'advance'); setData('bank_charge', 0); setData('account_id', ''); }} />
                                                 <i className={`fa-solid fa-hand-holding-dollar text-xl mb-2 block ${data.pay_type === 'advance' ? 'text-blue-600' : 'text-gray-400'}`}></i><span className={`block text-[14px] font-bold ${data.pay_type === 'advance' ? 'text-blue-800' : 'text-gray-600'}`}>Employee Advance</span>
                                             </label>
                                         </div>
@@ -246,6 +251,11 @@ export default function Create({ projects = [], categories = [], accounts = [], 
                         <div className="w-full lg:w-[380px] shrink-0 sticky top-24 self-start space-y-6 sticky-summary-box">
                             <section className="bg-gray-900 rounded-2xl shadow-lg border border-gray-800 p-6 text-white">
                                 <h3 className="text-[13px] font-bold text-gray-400 uppercase tracking-widest mb-5">Financial Summary</h3>
+                                {data.pay_type === 'account' && <label className="block text-sm mb-4">Bank charge (extra)
+                                    <input type="number" min="0" step="0.01" value={data.bank_charge} onChange={e => setData('bank_charge', e.target.value)} className="mt-2 w-full rounded-xl bg-gray-800 border-gray-700 text-white" />
+                                    <span className="block text-xs mt-2">The payee receives the payment amount. This fee is an additional account debit.</span>
+                                </label>}
+                                {Object.keys(errors).length > 0 && <p role="alert" className="text-rose-300 text-sm mb-4">{Object.values(errors).join(' ')}</p>}
                                 <div className="space-y-5">
                                     <div>
                                         <label className="block text-[13px] font-medium text-gray-300 mb-2">Total Bill Amount <span className="text-rose-400">*</span></label>
@@ -269,10 +279,10 @@ export default function Create({ projects = [], categories = [], accounts = [], 
                                         </div>
                                     )}
 
-                                    {cashDeduction > 0 && (
+                                    {cashDeduction + Number(data.bank_charge || 0) > 0 && (
                                         <div className="flex justify-between items-center bg-indigo-900/40 p-3 rounded-xl border border-indigo-500/30">
                                             <span className="text-[13px] text-indigo-300">From Cash/Advance:</span>
-                                            <span className="text-[14px] font-bold text-indigo-400">৳{Number(cashDeduction).toLocaleString('en-IN')}</span>
+                                            <span className="text-[14px] font-bold text-indigo-400">৳{Number(cashDeduction + Number(data.bank_charge || 0)).toLocaleString('en-IN')}</span>
                                         </div>
                                     )}
 

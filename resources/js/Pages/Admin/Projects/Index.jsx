@@ -14,7 +14,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
     const [selectedProject, setSelectedProject] = useState(null);
 
     const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get("search") || "");
-    const [perPage, setPerPage] = useState(() => Number(new URLSearchParams(window.location.search).get("per_page")) || 25);
+    const [perPage, setPerPage] = useState(() => new URLSearchParams(window.location.search).get("per_page") || 25);
 
     const [filterClient, setFilterClient] = useState(() => new URLSearchParams(window.location.search).get("client_id") || "");
     const [showClientFilterDropdown, setShowClientFilterDropdown] = useState(false);
@@ -45,7 +45,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
         const delay = setTimeout(() => {
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
-            if (perPage !== 25) params.per_page = perPage;
+            params.per_page = perPage;
             if (filterClient) params.client_id = filterClient;
             if (filterStatus) params.status = filterStatus;
 

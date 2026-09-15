@@ -26,7 +26,7 @@ class ChallanController extends Controller
             $query->where('status', $request->status);
         }
 
-        $perPage = $request->input('per_page') === 'all' ? max($query->count(), 1) : min((int) $request->input('per_page', 10), 100000);
+        $perPage = $request->input('per_page') === 'all' ? max($query->count(), 1) : \App\Support\Pagination::perPage($request, $query);
         $challans = $query->orderByDesc('challan_date')->orderByDesc('id')->paginate($perPage)->withQueryString();
 
         $clients = Client::select('id', 'name', 'company_name')->orderBy('name')->get();

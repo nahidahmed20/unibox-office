@@ -38,7 +38,7 @@ class ProjectController extends Controller
             $totalCount = $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = min((int) $request->get('per_page', 10), 100000); 
+            $perPage = \App\Support\Pagination::perPage($request, $query); 
         }
 
         $projects = $query->latest('created_at')->paginate($perPage)->withQueryString(); 

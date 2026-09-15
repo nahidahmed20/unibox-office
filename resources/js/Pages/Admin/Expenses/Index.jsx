@@ -49,7 +49,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
         expense_category_id: "",
         account_id: "",
         advance_user_id: "",
-        amount: "",
+        amount: "", bank_charge: 0,
         date: new Date().toISOString().slice(0, 10),
         description: "",
         pay_type: "account",
@@ -166,7 +166,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
             expense_category_id: '',
             advance_user_id: '',
             account_id: '',
-            amount: '',
+            amount: '', bank_charge: 0,
             date: new Date().toISOString().slice(0, 10),
             pay_type: 'account',
             attachment: null,
@@ -184,7 +184,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
             expense_category_id: expense.expense_category_id || "",
             account_id: expense.account_id || "",
             advance_user_id: expense.advance_user_id || "",
-            amount: expense.amount || "",
+            amount: expense.amount || "", bank_charge: expense.bank_charge || 0,
             date: expense.date || "",
             description: expense.description || "",
             pay_type: expense.advance_user_id ? 'advance' : 'account',
@@ -686,7 +686,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                         </label>
 
                                         <label className={`flex-1 cursor-pointer rounded-2xl border-2 p-4 text-center transition-all ${data.pay_type === 'advance' ? 'border-emerald-500 bg-emerald-50/50 shadow-sm' : 'border-gray-200 bg-white hover:border-emerald-200'}`}>
-                                            <input type="radio" name="payType" className="sr-only" checked={data.pay_type === 'advance'} onChange={() => { setData('pay_type', 'advance'); setData('account_id', ''); }} />
+                                            <input type="radio" name="payType" className="sr-only" checked={data.pay_type === 'advance'} onChange={() => { setData(prev => ({...prev, pay_type: 'advance', bank_charge: 0})); setData('account_id', ''); }} />
                                             <i className={`fa-solid fa-hand-holding-dollar text-xl mb-1.5 block ${data.pay_type === 'advance' ? 'text-emerald-600' : 'text-gray-400'}`}></i>
                                             <span className={`block text-[13.5px] font-extrabold ${data.pay_type === 'advance' ? 'text-emerald-900' : 'text-gray-600'}`}>Advance Balance</span>
                                         </label>
@@ -738,6 +738,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                                 required
                                             />
                                         </div>
+                                            {data.pay_type === 'account' && <label className="block text-sm font-bold mt-3">Bank charge (extra)<input type="number" min="0" step="0.01" value={data.bank_charge} onChange={e => setData('bank_charge', e.target.value)} className="block mt-2 rounded-xl border-gray-300" /></label>}
                                         {errors.amount && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.amount}</p>}
                                     </div>
 

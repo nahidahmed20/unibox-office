@@ -34,7 +34,7 @@ class InvestmentController extends Controller
         $totalProfitPaid = InvestmentPayment::whereIn('investment_id', (clone $query)->pluck('id'))->sum('profit_amount');
         $totalCount = (clone $query)->count();
 
-        $perPage = $request->input('per_page') === 'all' ? ($totalCount > 0 ? $totalCount : 1) : min((int) $request->input('per_page', 10), 100000);
+        $perPage = $request->input('per_page') === 'all' ? ($totalCount > 0 ? $totalCount : 1) : \App\Support\Pagination::perPage($request, $query);
 
         $investments = $query->latest()->paginate($perPage)->through(function ($inv) {
             $inv->due_amount = max($inv->amount - ($inv->returned_principal ?? 0), 0);

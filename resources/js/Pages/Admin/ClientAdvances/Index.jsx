@@ -100,7 +100,7 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
         const delayDebounceFn = setTimeout(() => {
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
-            if (perPage !== 10) params.per_page = perPage;
+            params.per_page = perPage;
 
             router.get(route('admin.client-advances.index'), params, {
                 preserveState: true,

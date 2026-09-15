@@ -15,11 +15,7 @@ class DashboardController extends Controller
         $currentYear = now()->year;
 
         // 1. Valid Invoices Only
-        $validInvoiceIds = DB::table('invoice_items')
-            ->whereNotNull('project_id')
-            ->pluck('invoice_id')
-            ->unique()
-            ->toArray();
+        $validInvoiceIds = DB::table('invoices')->whereNull('deleted_at')->pluck('id')->toArray();
 
         // 2. Market Dues & Advances
         $totalInvoiced = Invoice::whereIn('id', $validInvoiceIds)->whereNull('deleted_at')->sum('grand_total');
@@ -31,8 +27,8 @@ class DashboardController extends Controller
         $vendorAdvance = Vendor::sum('wallet_balance');
         $totalAssets = Asset::sum('purchase_price');
 
-        $vendorDue = ProjectExpense::sum('due_amount');
-        $vendorPaid = ProjectExpense::sum('paid_amount') + VendorPayment::where('status', 'completed')->sum('pay_amount');
+        $vendorDue = ProjectExpense::sum('due_amount') + Vendor::sum('opening_balance');
+        $vendorPaid = ProjectExpense::sum('paid_amount');
 
         $actualInvestmentBalance = Investment::withSum('payments as returned_principal', 'principal_amount')
             ->get()
@@ -49,15 +45,13 @@ class DashboardController extends Controller
             ->whereNull('deleted_at')
             ->sum('grand_total');
 
-        $monthlySalaryPaid = Salary::where('status', 'paid')
-            ->whereMonth('payment_date', $currentMonth)
-            ->whereYear('payment_date', $currentYear)
-            ->sum('net_pay');
+        $monthlySalaryPaid = Transaction::where('transactionable_type', Salary::class)->where('type', 'debit')
+            ->whereMonth('transaction_date', $currentMonth)
+            ->whereYear('transaction_date', $currentYear)
+            ->selectRaw('COALESCE(SUM(amount - bank_charge), 0) total')->value('total');
 
         $unpaidSalaries = Salary::whereIn('status', ['unpaid', 'partially_paid'])->sum('due_amount');
-        if ($unpaidSalaries == 0) {
-            $unpaidSalaries = Salary::whereIn('status', ['unpaid', 'partially_paid'])->sum('net_pay');
-        }
+
 
         $totalPayables += $unpaidSalaries;
 
@@ -65,16 +59,18 @@ class DashboardController extends Controller
             ->whereYear('date', $currentYear)
             ->sum('amount');
 
-        $monthlyProjectCostPaid = ProjectExpense::whereMonth('date', $currentMonth)->whereYear('date', $currentYear)->sum('paid_amount')
-                                + VendorPayment::where('status', 'completed')->whereMonth('date', $currentMonth)->whereYear('date', $currentYear)->sum('pay_amount');
+        $monthlyProjectCostPaid = (float) Transaction::whereIn('transactionable_type', [ProjectExpense::class, VendorPayment::class])->whereMonth('transaction_date', $currentMonth)->whereYear('transaction_date', $currentYear)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN amount - bank_charge ELSE -amount + bank_charge END), 0) total")->value('total');
 
-        $monthlyCashIn = InvoicePayment::whereIn('invoice_id', $validInvoiceIds)->whereMonth('payment_date', $currentMonth)->whereYear('payment_date', $currentYear)->sum('amount')
+        $monthlyCashIn = InvoicePayment::whereNotNull('account_id')->whereIn('invoice_id', $validInvoiceIds)->whereMonth('payment_date', $currentMonth)->whereYear('payment_date', $currentYear)->sum('amount')
                        + ClientAdvance::whereMonth('date', $currentMonth)->whereYear('date', $currentYear)->sum('amount');
 
-        $monthlyCashOut = $monthlyProjectCostPaid + $monthlyExpenses + $monthlySalaryPaid;
+        $monthlyBankCharges = (float) Transaction::whereMonth('transaction_date', $currentMonth)->whereYear('transaction_date', $currentYear)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN bank_charge ELSE -bank_charge END), 0) total")->value('total');
+        $officeCashPaid = (float) Transaction::where('transactionable_type', Expense::class)->where('type', 'debit')->whereMonth('transaction_date', $currentMonth)->whereYear('transaction_date', $currentYear)->selectRaw('COALESCE(SUM(amount - bank_charge), 0) total')->value('total');
+        $monthlyFinanceCost = InvestmentPayment::whereMonth('payment_date', $currentMonth)->whereYear('payment_date', $currentYear)->sum('profit_amount');
+        $monthlyCashOut = $monthlyProjectCostPaid + $officeCashPaid + $monthlySalaryPaid + $monthlyBankCharges + $monthlyFinanceCost;
 
         $totalAccountBalance = Account::where('is_active', true)->sum('current_balance');
-        $availableBalance = $totalAccountBalance + $clientAdvance;
+        $availableBalance = $totalAccountBalance;
 
         $totalCompanyAssets = $totalAccountBalance + $totalAssets + $totalReceivables;
         $overallNetWorth = $totalCompanyAssets - $totalPayables;

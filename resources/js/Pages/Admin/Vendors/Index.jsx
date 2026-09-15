@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+import axios from 'axios';
 import Select from 'react-select';
 
 const COMPANY = {
@@ -45,7 +46,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
     const voidForm = useForm({ void_reason: '' });
 
     const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get('search') || '');
-    const [perPage, setPerPage] = useState(() => Number(new URLSearchParams(window.location.search).get("per_page")) || 25);
+    const [perPage, setPerPage] = useState(() => new URLSearchParams(window.location.search).get("per_page") || 25);
 
     const isFirstRender = useRef(true);
 
@@ -54,11 +55,11 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
     });
 
     const payForm = useForm({
-        project_expense_ids: [], payment_source: 'account', account_id: '', advance_user_id: '', adjustment_amount: '', pay_amount: '', date: new Date().toISOString().split('T')[0]
+        project_expense_ids: [], payment_source: 'account', account_id: '', advance_user_id: '', adjustment_amount: '', pay_amount: '', bank_charge: '', date: new Date().toISOString().split('T')[0]
     });
 
     const walletForm = useForm({
-        account_id: '', amount: '', profit_amount: '', description: ''
+        account_id: '', amount: '', profit_amount: '', description: '', bank_charge: '', date: new Date().toISOString().slice(0, 10)
     });
 
     const fetchPayments = (vendorId, page = 1) => {
@@ -77,7 +78,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         const delayDebounceFn = setTimeout(() => {
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
-            if (perPage !== 25) params.per_page = perPage;
+            params.per_page = perPage;
 
             router.get(route('admin.vendors.index'), params, {
                 preserveState: true, replace: true, preserveScroll: true
@@ -158,7 +159,11 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
     };
 
     const openWalletModal = (vendor, action) => {
-        setSelectedVendor(vendor); setWalletAction(action); walletForm.reset(); walletForm.clearErrors(); setShowWalletModal(true);
+        const today = new Date();
+        const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        setSelectedVendor(vendor); setWalletAction(action);
+        walletForm.setData({ account_id: '', amount: '', profit_amount: '', description: '', bank_charge: '', date: localDate });
+        walletForm.clearErrors(); setShowWalletModal(true);
     };
 
     const openVoidModal = (payment) => {
@@ -824,6 +829,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                 <button type="button" onClick={() => setShowPayModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-3 text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
                                     Cancel
                                 </button>
+                                {payForm.data.payment_source === 'account' && <label className="text-xs font-bold">Bank charge<input type="number" min="0" step="0.01" value={payForm.data.bank_charge || ''} onChange={e => payForm.setData('bank_charge', e.target.value)} className="w-24 block rounded-lg border-gray-300" /></label>}
                                 <button type="submit" disabled={payForm.processing} className="rounded-xl bg-emerald-600 px-8 py-3 text-[14px] font-bold text-white transition-colors hover:bg-emerald-700 shadow-md disabled:opacity-70 flex items-center gap-2">
                                     {payForm.processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-check"></i> Confirm Payment</>}
                                 </button>
@@ -833,76 +839,175 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                 </div>
             )}
 
-            {/* --- VENDOR WALLET MODAL (Deposit & Withdraw with Profit Input) --- */}
+            {/* --- 💎 PREMIUM VENDOR WALLET MODAL (Deposit & Withdraw) --- */}
             {showWalletModal && selectedVendor && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6">
-                    <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/70 backdrop-blur-md p-4 sm:p-6 overflow-y-auto">
+                    <div className="w-full max-w-xl bg-white rounded-3xl shadow-2xl flex flex-col my-auto max-h-[95vh] sm:max-h-[90vh] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
 
-                        <div className={`flex items-center justify-between px-8 py-5 border-b border-gray-100 shrink-0 ${walletAction === 'deposit' ? 'bg-gradient-to-r from-indigo-50 to-white' : 'bg-gradient-to-r from-emerald-50 to-white'}`}>
-                            <h3 className={`text-[18px] font-extrabold flex items-center gap-2 ${walletAction === 'deposit' ? 'text-indigo-700' : 'text-emerald-700'}`}>
-                                {walletAction === 'deposit' ? <i className="fa-solid fa-wallet"></i> : <i className="fa-solid fa-hand-holding-dollar"></i>}
-                                {walletAction === 'deposit' ? 'Add Advance to Wallet' : 'Receive Refund from Wallet'}
-                            </h3>
-                            <button onClick={() => setShowWalletModal(false)} className="text-gray-400 hover:text-red-500 bg-white border border-gray-200 hover:bg-red-50 h-8 w-8 rounded-full flex items-center justify-center transition-all shadow-sm">
+                        {/* Modal Header */}
+                        <div className={`flex items-center justify-between px-6 py-5 sm:px-8 sm:py-6 border-b border-gray-100 shrink-0 ${walletAction === 'deposit' ? 'bg-gradient-to-r from-indigo-50 to-white' : 'bg-gradient-to-r from-emerald-50 to-white'}`}>
+                            <div className="flex items-center gap-3">
+                                <div className={`flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl shadow-inner ${walletAction === 'deposit' ? 'bg-indigo-100 text-indigo-600 border border-indigo-200' : 'bg-emerald-100 text-emerald-600 border border-emerald-200'}`}>
+                                    <i className={`fa-solid text-lg sm:text-xl ${walletAction === 'deposit' ? 'fa-wallet' : 'fa-hand-holding-dollar'}`}></i>
+                                </div>
+                                <div>
+                                    <h3 className={`text-[18px] sm:text-[20px] font-black tracking-tight leading-tight ${walletAction === 'deposit' ? 'text-indigo-900' : 'text-emerald-900'}`}>
+                                        {walletAction === 'deposit' ? 'Add Advance to Wallet' : 'Refund from Wallet'}
+                                    </h3>
+                                    <p className="text-[12px] sm:text-[13px] font-medium text-gray-500 mt-0.5">
+                                        {walletAction === 'deposit' ? 'Log cash sent to vendor' : 'Log cash received back'}
+                                    </p>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowWalletModal(false)} className="text-gray-400 hover:text-red-500 bg-white border border-gray-200 hover:bg-red-50 h-9 w-9 rounded-full flex items-center justify-center transition-all shadow-sm">
                                 <i className="fa-solid fa-xmark text-sm"></i>
                             </button>
                         </div>
 
-                        <div className="px-8 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between text-[13.5px] shrink-0">
-                            <span className="font-bold text-gray-700 flex items-center gap-2"><i className="fa-solid fa-truck-field text-gray-400"></i> {selectedVendor.name}</span>
-                            <span className="font-black text-purple-700 bg-purple-100 px-3 py-1.5 rounded-lg border border-purple-200 tabular-nums">Bal: ৳ {Number(selectedVendor.wallet_balance || 0).toLocaleString('en-IN')}</span>
+                        {/* Vendor Info Bar */}
+                        <div className="px-6 py-4 sm:px-8 sm:py-4 bg-gray-50/80 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+                            <div className="flex items-center gap-2.5 text-[13.5px] sm:text-[14.5px] font-bold text-gray-800">
+                                <i className="fa-solid fa-truck-field text-indigo-400 text-lg"></i>
+                                <span className="truncate">{selectedVendor.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2 bg-purple-100 px-4 py-2 rounded-xl border border-purple-200 shadow-sm w-max">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-purple-600">Balance:</span>
+                                <span className="text-[14px] sm:text-[15px] font-black text-purple-800 tabular-nums">৳ {Number(selectedVendor.wallet_balance || 0).toLocaleString('en-IN')}</span>
+                            </div>
                         </div>
 
-                        <form onSubmit={handleWalletSubmit} className="flex flex-col overflow-hidden">
-                            <div className="p-8 overflow-y-auto custom-table-scroll flex flex-col gap-6">
-                                <div>
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">
-                                        {walletAction === 'deposit' ? 'Pay From Account' : 'Receive To Account'} <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <select value={walletForm.data.account_id} onChange={e => walletForm.setData("account_id", e.target.value)} className="w-full appearance-none bg-white rounded-xl border border-gray-300 px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 cursor-pointer shadow-sm" required>
-                                            <option value="">-- Choose Account --</option>
-                                            {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name} (Bal: ৳ {Number(acc.current_balance).toLocaleString('en-IN')})</option>)}
-                                        </select>
-                                        <i className="fa-solid fa-chevron-down text-[12px] text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-                                    </div>
-                                    {walletForm.errors.account_id && <span className="mt-1.5 block text-[12px] font-bold text-red-500">{walletForm.errors.account_id}</span>}
-                                </div>
+                        <form onSubmit={handleWalletSubmit} className="flex flex-col flex-1 overflow-hidden">
+                            <div className="p-5 sm:p-8 overflow-y-auto custom-table-scroll flex flex-col gap-5 sm:gap-6 bg-white">
 
-                                <div className="grid grid-cols-1 gap-5">
-                                    <div>
-                                        <label className={`block text-[12px] font-bold uppercase tracking-wider mb-2 ${walletAction === 'deposit' ? 'text-indigo-600' : 'text-emerald-600'}`}>Amount (৳) <span className="text-red-500">*</span></label>
+                                {Object.keys(walletForm.errors).length > 0 && (
+                                    <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-[13px] font-semibold text-red-700 shadow-sm flex items-start gap-2.5">
+                                        <i className="fa-solid fa-circle-exclamation mt-0.5"></i>
+                                        <div>{Object.values(walletForm.errors).join(' ')}</div>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
+                                    {/* Date Selection */}
+                                    <div className="sm:col-span-2 bg-gray-50 p-4 sm:p-5 rounded-2xl border border-gray-100">
+                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">
+                                            {walletAction === 'deposit' ? 'Date Paid to Vendor' : 'Date Refund Received'} <span className="text-red-500">*</span>
+                                        </label>
                                         <div className="relative">
-                                            <i className="fa-solid fa-bangladeshi-taka-sign absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                            <input type="number" step="0.01" min="1" value={walletForm.data.amount} onChange={e => walletForm.setData("amount", e.target.value)} placeholder="0.00" className={`w-full rounded-xl border px-4 pl-9 py-3 text-[16px] font-black outline-none transition-shadow shadow-sm ${walletAction === 'deposit' ? 'border-indigo-300 bg-indigo-50 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-indigo-900' : 'border-emerald-300 bg-emerald-50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 text-emerald-900'}`} required />
+                                            <input
+                                                type="date" required
+                                                value={walletForm.data.date}
+                                                onChange={e => walletForm.setData('date', e.target.value)}
+                                                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 shadow-sm cursor-pointer"
+                                            />
+                                        </div>
+                                        <p className="mt-2 text-[11.5px] font-medium text-gray-500 leading-relaxed">
+                                            {walletAction === 'deposit' ? 'Recording an earlier payment? Select the date you actually paid.' : 'Select the date you received the money back. Original advance date stays unchanged.'}
+                                        </p>
+                                    </div>
+
+                                    {/* Account Selection */}
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">
+                                            {walletAction === 'deposit' ? 'Pay From Account' : 'Receive To Account'} <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="relative">
+                                            <select
+                                                value={walletForm.data.account_id}
+                                                onChange={e => walletForm.setData("account_id", e.target.value)}
+                                                className="w-full appearance-none bg-white rounded-xl border border-gray-300 px-4 py-3.5 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 cursor-pointer shadow-sm"
+                                                required
+                                            >
+                                                <option value="">-- Choose Account --</option>
+                                                {accounts.map(acc => (
+                                                    <option key={acc.id} value={acc.id}>{acc.name} (Bal: ৳ {Number(acc.current_balance).toLocaleString('en-IN')})</option>
+                                                ))}
+                                            </select>
+                                            <i className="fa-solid fa-chevron-down text-[12px] text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                        </div>
+                                        {walletForm.errors.account_id && <span className="mt-1.5 block text-[12px] font-bold text-red-500">{walletForm.errors.account_id}</span>}
+                                    </div>
+
+                                    {/* Amount Input */}
+                                    <div>
+                                        <label className={`block text-[12px] font-bold uppercase tracking-wider mb-2 ${walletAction === 'deposit' ? 'text-indigo-600' : 'text-emerald-600'}`}>
+                                            Amount (৳) <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="relative">
+                                            <i className={`fa-solid fa-bangladeshi-taka-sign absolute left-4 top-1/2 -translate-y-1/2 text-[15px] ${walletAction === 'deposit' ? 'text-indigo-500' : 'text-emerald-500'}`}></i>
+                                            <input
+                                                type="number" step="0.01" min="1"
+                                                value={walletForm.data.amount}
+                                                onChange={e => walletForm.setData("amount", e.target.value)}
+                                                placeholder="0.00"
+                                                className={`w-full rounded-xl border pl-10 pr-4 py-3.5 text-[16px] sm:text-[18px] font-black outline-none transition-all shadow-sm ${walletAction === 'deposit' ? 'border-indigo-300 bg-indigo-50/50 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-indigo-900' : 'border-emerald-300 bg-emerald-50/50 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 text-emerald-900'}`}
+                                                required
+                                            />
                                         </div>
                                         {walletForm.errors.amount && <span className="mt-1.5 block text-[12px] font-bold text-red-500">{walletForm.errors.amount}</span>}
                                     </div>
 
-                                    {walletAction === 'withdraw' && (
+                                    {/* Bank Charge (Deposit Only) */}
+                                    {walletAction === 'deposit' && (
                                         <div>
-                                            <label className="block text-[12px] font-bold text-purple-600 uppercase tracking-wider mb-2">Extra Profit / Commission (৳)</label>
+                                            <label className="block text-[12px] font-bold text-rose-500 uppercase tracking-wider mb-2">
+                                                Bank Charge (৳)
+                                            </label>
                                             <div className="relative">
-                                                <i className="fa-solid fa-arrow-trend-up absolute left-4 top-1/2 -translate-y-1/2 text-purple-400"></i>
-                                                <input type="number" step="0.01" min="0" value={walletForm.data.profit_amount} onChange={e => walletForm.setData("profit_amount", e.target.value)} placeholder="0.00" className="w-full rounded-xl border border-purple-300 bg-purple-50 px-4 pl-9 py-3 text-[16px] font-black outline-none transition-shadow shadow-sm focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 text-purple-900" />
+                                                <i className="fa-solid fa-building-columns absolute left-4 top-1/2 -translate-y-1/2 text-rose-300 text-[13px]"></i>
+                                                <input
+                                                    type="number" min="0" step="0.01"
+                                                    value={walletForm.data.bank_charge}
+                                                    onChange={e => walletForm.setData('bank_charge', e.target.value)}
+                                                    placeholder="0.00"
+                                                    className="w-full rounded-xl border border-gray-300 bg-white pl-10 pr-4 py-3.5 text-[15px] font-bold text-rose-700 outline-none transition-shadow focus:border-rose-400 focus:ring-4 focus:ring-rose-500/10 shadow-sm"
+                                                />
                                             </div>
-                                            <p className="text-[11.5px] text-gray-500 mt-1.5 font-bold">ভেন্ডর যদি মূল অ্যাডভান্সের চেয়ে বেশি (লাভ) ফেরত দেয়, তবে তা এখানে লিখুন।</p>
                                         </div>
                                     )}
-                                </div>
 
-                                <div>
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Note / Description</label>
-                                    <input type="text" value={walletForm.data.description} onChange={e => walletForm.setData("description", e.target.value)} placeholder={walletAction === 'deposit' ? 'e.g., Advance for future work' : 'e.g., Refund for cancelled work'} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-[14px] font-medium text-gray-900 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm" />
+                                    {/* Profit / Commission (Withdraw Only) */}
+                                    {walletAction === 'withdraw' && (
+                                        <div className="sm:col-span-2 bg-purple-50/50 p-4 sm:p-5 rounded-2xl border border-purple-100">
+                                            <label className="block text-[12px] font-bold text-purple-700 uppercase tracking-wider mb-2">
+                                                Extra Profit / Commission (৳)
+                                            </label>
+                                            <div className="relative">
+                                                <i className="fa-solid fa-arrow-trend-up absolute left-4 top-1/2 -translate-y-1/2 text-purple-400"></i>
+                                                <input
+                                                    type="number" step="0.01" min="0"
+                                                    value={walletForm.data.profit_amount}
+                                                    onChange={e => walletForm.setData("profit_amount", e.target.value)}
+                                                    placeholder="0.00"
+                                                    className="w-full rounded-xl border border-purple-300 bg-white px-4 pl-10 py-3.5 text-[16px] font-black outline-none transition-shadow shadow-sm focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 text-purple-900"
+                                                />
+                                            </div>
+                                            <p className="text-[11.5px] text-purple-600/80 mt-2 font-semibold">
+                                                <i className="fa-solid fa-circle-info mr-1"></i> ভেন্ডর যদি মূল অ্যাডভান্সের চেয়ে বেশি (লাভ) ফেরত দেয়, তবে তা এখানে লিখুন।
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* Note / Description */}
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Note / Description</label>
+                                        <textarea
+                                            value={walletForm.data.description}
+                                            onChange={e => walletForm.setData("description", e.target.value)}
+                                            placeholder={walletAction === 'deposit' ? 'e.g., Advance for future work' : 'e.g., Refund for cancelled work'}
+                                            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-[14px] font-medium text-gray-900 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm resize-none"
+                                            rows="2"
+                                        ></textarea>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0 rounded-b-3xl">
-                                <button type="button" onClick={() => setShowWalletModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
+                            {/* Modal Footer */}
+                            <div className="px-6 py-4 sm:px-8 sm:py-5 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3 shrink-0 rounded-b-3xl">
+                                <button type="button" onClick={() => setShowWalletModal(false)} className="rounded-xl border border-gray-300 bg-white px-5 sm:px-6 py-2.5 text-[13.5px] sm:text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={walletForm.processing} className={`rounded-xl px-8 py-2.5 text-[14px] font-bold text-white transition-all shadow-md disabled:opacity-70 flex items-center gap-2 ${walletAction === 'deposit' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
-                                    {walletForm.processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-check"></i> Confirm</>}
+                                <button type="submit" disabled={walletForm.processing} className={`rounded-xl px-6 sm:px-8 py-2.5 text-[13.5px] sm:text-[14px] font-bold text-white transition-all shadow-md disabled:opacity-70 flex items-center gap-2 ${walletAction === 'deposit' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                                    {walletForm.processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-check"></i> Confirm Transaction</>}
                                 </button>
                             </div>
                         </form>
@@ -910,35 +1015,45 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                 </div>
             )}
 
-            {/* --- VOID PAYMENT CONFIRMATION MODAL --- */}
+            {/* --- 🚨 PREMIUM VOID PAYMENT CONFIRMATION MODAL --- */}
             {showVoidModal && paymentToVoid && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/70 backdrop-blur-sm p-4 md:p-6">
-                    <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-[fadeIn_0.2s_ease-out] scale-100">
-                        <div className="flex items-center justify-between px-6 py-5 border-b border-red-100 bg-red-50 shrink-0">
-                            <h3 className="text-[18px] font-black text-red-700 flex items-center gap-2">
-                                <i className="fa-solid fa-triangle-exclamation"></i> Void Payment
-                            </h3>
-                            <button onClick={() => setShowVoidModal(false)} className="text-red-400 hover:text-white transition-colors h-8 w-8 rounded-full bg-white hover:bg-red-500 border border-red-200 flex items-center justify-center shadow-sm">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/80 backdrop-blur-md p-4 sm:p-6 overflow-y-auto">
+                    <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl flex flex-col my-auto overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-red-100 bg-gradient-to-r from-red-50 to-white shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600 border border-red-200 shadow-inner">
+                                    <i className="fa-solid fa-triangle-exclamation text-lg"></i>
+                                </div>
+                                <h3 className="text-[18px] sm:text-[20px] font-black text-red-700 tracking-tight">
+                                    Void Payment
+                                </h3>
+                            </div>
+                            <button onClick={() => setShowVoidModal(false)} className="text-gray-400 hover:text-white transition-colors h-8 w-8 rounded-full bg-white hover:bg-red-500 border border-gray-200 flex items-center justify-center shadow-sm">
                                 <i className="fa-solid fa-xmark text-sm"></i>
                             </button>
                         </div>
 
                         <form onSubmit={handleVoidSubmit} className="flex flex-col overflow-hidden">
-                            <div className="p-6 overflow-y-auto custom-table-scroll space-y-6">
-                                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-[13.5px] text-amber-800 leading-relaxed shadow-sm font-semibold">
-                                    এই পেমেন্টটি ভয়েড করলে সংশ্লিষ্ট বিলের বকেয়া, অ্যাকাউন্ট ব্যালেন্স এবং ওয়ালেট সবকিছু আগের অবস্থায় ফিরে যাবে। এই কাজটি সরাসরি <span className="font-black text-red-600">UNDO</span> করা যাবে না।
+                            <div className="p-6 overflow-y-auto custom-table-scroll space-y-6 bg-white">
+
+                                <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-[13px] sm:text-[13.5px] text-red-900 leading-relaxed shadow-sm font-semibold flex gap-3 items-start">
+                                    <i className="fa-solid fa-circle-exclamation mt-0.5 text-red-500 text-lg shrink-0"></i>
+                                    <div>
+                                        এই পেমেন্টটি ভয়েড করলে সংশ্লিষ্ট বিলের বকেয়া, অ্যাকাউন্ট ব্যালেন্স এবং ওয়ালেট সবকিছু আগের অবস্থায় ফিরে যাবে। এই কাজটি সরাসরি <span className="font-black text-red-600 bg-red-100 px-1.5 py-0.5 rounded uppercase">Undo</span> করা যাবে না।
+                                    </div>
                                 </div>
 
-                                <div className="rounded-2xl bg-gray-50 border border-gray-200 p-5 text-[14px] text-gray-700 flex flex-col gap-3 shadow-inner">
-                                    <div className="flex justify-between items-center border-b border-gray-200 pb-3">
+                                <div className="rounded-2xl bg-gray-50 border border-gray-200 p-5 text-[14px] text-gray-700 flex flex-col gap-4 shadow-inner">
+                                    <div className="flex justify-between items-center border-b border-gray-200 pb-4">
                                         <span className="font-bold text-gray-500 uppercase tracking-wider text-[11px]">Payment Amount</span>
-                                        <span className="text-red-600 text-[18px] font-black bg-red-50 px-3 py-1 rounded-lg border border-red-100 tabular-nums shadow-sm">
+                                        <span className="text-red-600 text-[18px] sm:text-[22px] font-black bg-white px-3 py-1.5 rounded-xl border border-red-100 tabular-nums shadow-sm">
                                             ৳ {Number(paymentToVoid.pay_amount).toLocaleString('en-IN')}
                                         </span>
                                     </div>
-                                    <div className="flex justify-between items-center pt-1">
+                                    <div className="flex justify-between items-center">
                                         <span className="font-bold text-gray-500 uppercase tracking-wider text-[11px]">Payment Date</span>
-                                        <span className="font-bold bg-white px-3 py-1 rounded-lg border border-gray-200 shadow-sm">{paymentToVoid.date}</span>
+                                        <span className="font-bold bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm text-[13px]">{paymentToVoid.date}</span>
                                     </div>
                                 </div>
 
@@ -958,11 +1073,11 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                 </div>
                             </div>
 
-                            <div className="px-6 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0 rounded-b-3xl">
-                                <button type="button" onClick={() => setShowVoidModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
+                            <div className="px-6 py-5 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3 shrink-0 rounded-b-3xl">
+                                <button type="button" onClick={() => setShowVoidModal(false)} className="rounded-xl border border-gray-300 bg-white px-5 sm:px-6 py-2.5 text-[13.5px] sm:text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={voidForm.processing} className="rounded-xl bg-red-600 px-6 py-2.5 text-[14px] font-bold text-white transition-colors hover:bg-red-700 shadow-md disabled:opacity-70 flex items-center gap-2">
+                                <button type="submit" disabled={voidForm.processing} className="rounded-xl bg-red-600 px-5 sm:px-6 py-2.5 text-[13.5px] sm:text-[14px] font-bold text-white transition-colors hover:bg-red-700 shadow-md disabled:opacity-70 flex items-center gap-2">
                                     {voidForm.processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-rotate-left"></i> Confirm Void</>}
                                 </button>
                             </div>

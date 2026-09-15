@@ -33,7 +33,7 @@ class InvoicePaymentController extends Controller
         $thisMonthReceived = (clone $query)->whereMonth('payment_date', now()->month)->whereYear('payment_date', now()->year)->sum('amount');
 
         $count = (clone $query)->count();
-        $perPage = $request->input('per_page') === 'all' ? max($count, 1) : min((int) $request->input('per_page', 10), 100000);
+        $perPage = $request->input('per_page') === 'all' ? max($count, 1) : \App\Support\Pagination::perPage($request, $query);
         $payments = $query->orderByDesc('payment_date')->orderByDesc('id')->paginate($perPage)->withQueryString();
 
         $invoices = Invoice::with('client')->withSum('payments', 'amount')->where('status', '!=', 'paid')->latest()->get()->map(function ($invoice) {
@@ -48,7 +48,8 @@ class InvoicePaymentController extends Controller
             'invoices' => $invoices,
             'accounts' => Account::where('is_active', true)->latest()->get(),
             'clients' => Client::select('id', 'name', 'company_name')->orderBy('name')->get(),
-            'years' => InvoicePayment::selectRaw('DISTINCT YEAR(payment_date) year')->orderByDesc('year')->pluck('year'),
+            'years' => InvoicePayment::select('payment_date')->distinct()->pluck('payment_date')
+                ->map(fn ($date) => (int) substr($date, 0, 4))->unique()->sortDesc()->values(),
             'totalAmount' => $totalAmount, // 🟢 Passed to React
             'thisMonthReceived' => $thisMonthReceived,
             'filters' => $request->only(['search', 'per_page', 'client_id', 'account_id', 'year', 'date_from', 'date_to']),

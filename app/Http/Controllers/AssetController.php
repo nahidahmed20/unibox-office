@@ -31,7 +31,7 @@ class AssetController extends Controller
             $totalCount = $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = min((int) $request->input('per_page', 25), 100000);
+            $perPage = \App\Support\Pagination::perPage($request, $query);
         }
 
         $assets = $query->latest()->paginate($perPage)->withQueryString();

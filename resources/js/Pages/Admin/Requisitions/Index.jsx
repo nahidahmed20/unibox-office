@@ -58,7 +58,7 @@ export default function Index({ requisitions = { data: [], links: [] }, users = 
         const delayDebounceFn = setTimeout(() => {
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
-            if (perPage !== 25) params.per_page = perPage;
+            params.per_page = perPage;
 
             router.get(
                 route('admin.requisitions.index'),

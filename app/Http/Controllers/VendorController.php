@@ -35,7 +35,7 @@ class VendorController extends Controller
             $totalCount = $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = min((int) $request->input('per_page', 10), 100000);
+            $perPage = \App\Support\Pagination::perPage($request, $query);
         }
 
         $vendors = $query->latest()->paginate($perPage)->withQueryString();
@@ -79,17 +79,21 @@ class VendorController extends Controller
             'project_expense_ids'   => 'required|array|min:1',
             'project_expense_ids.*' => 'exists:project_expenses,id',
             'payment_source'        => 'required|in:account,advance',
-            'account_id'            => 'required_if:payment_source,account',
-            'advance_user_id'       => 'required_if:payment_source,advance',
-            'pay_amount'            => 'required|numeric|min:0',
-            'adjustment_amount'     => 'nullable|numeric|min:0',
+            'account_id'            => 'nullable|required_if:payment_source,account|exists:accounts,id',
+            'advance_user_id'       => 'nullable|required_if:payment_source,advance|exists:users,id',
+            'pay_amount'            => 'required|numeric|decimal:0,2|min:0',
+            'bank_charge' => 'nullable|numeric|decimal:0,2|min:0',
+            'adjustment_amount'     => 'nullable|numeric|decimal:0,2|min:0',
             'date'                  => 'required|date',
         ]);
 
         try {
             DB::beginTransaction();
 
-            $payAmount = $request->pay_amount ?: 0;
+            $vendor = Vendor::whereKey($vendor->id)->lockForUpdate()->firstOrFail();
+            $payAmount = round((float) $request->pay_amount, 2);
+            $charge = round((float) ($request->bank_charge ?? 0), 2);
+            if ($charge > 0 && ($request->payment_source !== 'account' || $payAmount <= 0)) throw new \Exception('Bank charge requires an account payment.');
             $adjustmentAmount = $request->adjustment_amount ?: 0;
 
             $totalClearing = $payAmount + $adjustmentAmount;
@@ -126,13 +130,6 @@ class VendorController extends Controller
                 $bill->due_amount  -= $clearedNow;
                 $bill->payment_status = $bill->due_amount <= 0 ? 'paid' : 'partial';
 
-                if ($request->payment_source === 'account') {
-                    $bill->account_id = $request->account_id;
-                } else {
-                    $bill->advance_user_id = $request->advance_user_id;
-                    $bill->advance_id = null;
-                }
-
                 $bill->save();
                 $appliedDetails[$bill->id] = $clearedNow;
                 $remainingClearing -= $clearedNow;
@@ -143,38 +140,11 @@ class VendorController extends Controller
             if ($payAmount > 0) {
                 if ($request->payment_source === 'account') {
                     $account = Account::findOrFail($request->account_id);
-                    if ($account->current_balance < $payAmount) {
+                    if ($account->current_balance < $payAmount + $charge) {
                         throw new \Exception('অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
                     }
                 } else {
-                    $userId = $request->advance_user_id;
-                    $advanceBalance = AdvanceBalance::where('user_id', $userId)->lockForUpdate()->firstOrFail();
-                    $availableAdvance = (float) $advanceBalance->total_given - (float) $advanceBalance->total_used - (float) $advanceBalance->total_returned;
-                    if ($payAmount > $availableAdvance) {
-                        throw new \Exception("Employee has only {$availableAdvance} TK advance available.");
-                    }
-                    $advanceBalance->increment('total_used', $payAmount);
-
-                    $settleRemaining = $payAmount;
-                    $unsettledAdvances = Advance::where('user_id', $userId)
-                                ->where('status', 'unsettled')
-                                ->orderBy('date', 'asc')->get();
-
-                    foreach ($unsettledAdvances as $adv) {
-                        if ($settleRemaining <= 0) break;
-                        $available = $adv->amount - ($adv->settled_amount + $adv->returned_amount);
-                        if ($available <= 0) continue;
-
-                        if ($settleRemaining >= $available) {
-                            $adv->settled_amount += $available;
-                            $adv->status = 'settled';
-                            $settleRemaining -= $available;
-                        } else {
-                            $adv->settled_amount += $settleRemaining;
-                            $settleRemaining = 0;
-                        }
-                        $adv->save();
-                    }
+                    // Advance allocation is recorded after creating the payment below.
                 }
             }
 
@@ -194,12 +164,15 @@ class VendorController extends Controller
                 'account_id'           => $request->payment_source === 'account' ? $request->account_id : null,
                 'advance_user_id'      => $request->payment_source === 'advance' ? $request->advance_user_id : null,
                 'pay_amount'           => $payAmount,
+                'bank_charge' => $charge,
                 'adjustment_amount'    => $adjustmentAmount,
                 'wallet_credit_amount' => $walletCredit,
                 'date'                 => $request->date,
                 'status'               => 'completed',
                 'created_by'           => auth()->id(),
             ]);
+
+            if ($request->payment_source === 'advance') app(\App\Services\AdvanceSettlementService::class)->consume($payment, $request->advance_user_id, $payAmount);
 
             foreach ($appliedDetails as $expenseId => $amount) {
                 $payment->details()->create([
@@ -210,12 +183,13 @@ class VendorController extends Controller
 
             if ($request->payment_source === 'account' && $payAmount > 0) {
                 $account = Account::findOrFail($request->account_id);
-                $account->decrement('current_balance', $payAmount);
+                $account->decrement('current_balance', $payAmount + $charge);
 
                 Transaction::create([
                     'account_id'           => $account->id,
                     'type'                 => 'debit',
-                    'amount'               => $payAmount,
+                    'amount'               => $payAmount + $charge,
+                    'bank_charge' => $charge,
                     'transaction_date'     => $request->date,
                     'description'          => 'Bill payment to vendor: ' . $vendor->name . ' (VP-' . $payment->id . ')',
                     'transactionable_id'   => $payment->id,
@@ -277,27 +251,32 @@ class VendorController extends Controller
 
         $request->validate([
             'account_id'  => 'required|exists:accounts,id',
-            'amount'      => 'required|numeric|min:1',
+            'amount'      => 'required|numeric|decimal:0,2|min:1',
+            'date' => 'required|date',
+            'bank_charge' => 'nullable|numeric|decimal:0,2|min:0',
             'description' => 'nullable|string'
         ]);
 
         try {
             DB::beginTransaction();
 
-            $vendor  = Vendor::findOrFail($id);
-            $account = Account::findOrFail($request->account_id);
+            $vendor  = Vendor::whereKey($id)->lockForUpdate()->firstOrFail();
+            $charge = round((float) ($request->bank_charge ?? 0), 2);
+            $debit = round($request->amount + $charge, 2);
+            $account = Account::whereKey($request->account_id)->lockForUpdate()->firstOrFail();
 
-            if ($account->current_balance < $request->amount) {
+            if ($account->current_balance < $debit) {
                 throw new \Exception('অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
             }
 
-            $account->decrement('current_balance', $request->amount);
+            $account->decrement('current_balance', $debit);
 
-            Transaction::create([
+            $transaction = Transaction::create([
                 'account_id'           => $account->id,
                 'type'                 => 'debit',
-                'amount'               => $request->amount,
-                'transaction_date'     => now()->toDateString(),
+                'amount'               => $debit,
+                'bank_charge' => $charge,
+                'transaction_date'     => $request->date,
                 'description'          => "Advance given to vendor {$vendor->name}. " . $request->description,
                 'transactionable_id'   => $vendor->id,
                 'transactionable_type' => Vendor::class,
@@ -307,6 +286,8 @@ class VendorController extends Controller
 
             VendorLedger::create([
                 'vendor_id'   => $vendor->id,
+                'date' => $request->date,
+                'transaction_id' => $transaction->id,
                 'type'        => 'credit',
                 'amount'      => $request->amount,
                 'description' => "Advance given from {$account->name}. " . $request->description
@@ -330,8 +311,8 @@ class VendorController extends Controller
 
             // Find the last advance (credit) ledger entry
             $lastLedger = VendorLedger::where('vendor_id', $vendor->id)
-                ->where('type', 'credit')
-                ->latest()
+                ->where('type', 'credit')->whereNotNull('transaction_id')
+                ->orderByDesc('id')
                 ->first();
 
             if (!$lastLedger) {
@@ -339,12 +320,8 @@ class VendorController extends Controller
             }
 
             // Find matching transaction to safely delete it without inflating reports
-            $transaction = Transaction::where('transactionable_type', Vendor::class)
-                ->where('transactionable_id', $vendor->id)
-                ->where('amount', $lastLedger->amount)
-                ->where('type', 'debit')
-                ->latest()
-                ->first();
+            if ($vendor->wallet_balance < $lastLedger->amount) throw new \Exception('This advance has already been used. Reverse its payments first.');
+            $transaction = Transaction::whereKey($lastLedger->transaction_id)->lockForUpdate()->firstOrFail();
 
             if ($transaction) {
                 $account = Account::find($transaction->account_id);
@@ -370,8 +347,9 @@ class VendorController extends Controller
     {
         $request->validate([
             'account_id'    => 'required|exists:accounts,id',
-            'amount'        => 'required|numeric|min:1', // Actual refund from wallet
-            'profit_amount' => 'nullable|numeric|min:0', // Extra profit/commission
+            'amount'        => 'required|numeric|decimal:0,2|min:1', // Actual refund from wallet
+            'profit_amount' => 'nullable|numeric|decimal:0,2|min:0', // Extra profit/commission
+            'date' => 'required|date',
             'description'   => 'nullable|string'
         ]);
 
@@ -405,7 +383,7 @@ class VendorController extends Controller
                 'account_id'           => $account->id,
                 'type'                 => 'credit',
                 'amount'               => $totalReceived,
-                'transaction_date'     => now()->toDateString(),
+                'transaction_date'     => $request->date,
                 'description'          => trim($desc),
                 'transactionable_id'   => $vendor->id,
                 'transactionable_type' => Vendor::class,
@@ -414,6 +392,7 @@ class VendorController extends Controller
             // Only register the principal deduction in vendor ledger
             VendorLedger::create([
                 'vendor_id'   => $vendor->id,
+                'date' => $request->date,
                 'type'        => 'debit',
                 'amount'      => $request->amount,
                 'description' => "Refund deducted from wallet to {$account->name}. " . $request->description
@@ -438,6 +417,10 @@ class VendorController extends Controller
 
         try {
             DB::beginTransaction();
+            $payment = VendorPayment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
+            if ($payment->status === 'voided') throw new \Exception('Payment is already voided.');
+            $vendor = Vendor::whereKey($payment->vendor_id)->lockForUpdate()->firstOrFail();
+            if ($vendor->wallet_balance < $payment->wallet_credit_amount) throw new \Exception('The excess advance has been used. Reverse its usage first.');
 
             foreach ($payment->details as $detail) {
                 $bill = ProjectExpense::lockForUpdate()->find($detail->project_expense_id);
@@ -446,26 +429,27 @@ class VendorController extends Controller
                 $bill->paid_amount -= $detail->amount;
                 $bill->due_amount  += $detail->amount;
                 $bill->payment_status = $bill->due_amount >= $bill->total_bill
-                    ? 'unpaid'
+                    ? 'due'
                     : ($bill->due_amount > 0 ? 'partial' : 'paid');
                 $bill->save();
             }
 
             if ($payment->payment_source === 'account') {
                 $account = Account::findOrFail($payment->account_id);
-                $account->increment('current_balance', $payment->pay_amount);
+                $account->increment('current_balance', $payment->pay_amount + $payment->bank_charge);
 
                 Transaction::create([
                     'account_id'           => $account->id,
                     'type'                 => 'credit',
-                    'amount'               => $payment->pay_amount,
+                    'amount'               => $payment->pay_amount + $payment->bank_charge,
+                    'bank_charge' => $payment->bank_charge,
                     'transaction_date'     => now()->toDateString(),
                     'description'          => 'Payment voided (VP-' . $payment->id . '): ' . $request->void_reason,
                     'transactionable_id'   => $payment->id,
                     'transactionable_type' => VendorPayment::class,
                 ]);
 
-            } else {
+            } elseif (!app(\App\Services\AdvanceSettlementService::class)->refund($payment)) {
                 $advanceBalance = AdvanceBalance::where('user_id', $payment->advance_user_id)->first();
                 $advanceBalance?->decrement('total_used', $payment->pay_amount);
 
@@ -476,12 +460,14 @@ class VendorController extends Controller
 
                 foreach ($advances as $adv) {
                     if ($settledBack <= 0) break;
-                    $undo = min($settledBack, $adv->settled_amount);
+                    $reserved = \App\Models\AdvanceSettlement::where('advance_id', $adv->id)->sum('amount');
+                    $undo = min($settledBack, max($adv->settled_amount - $reserved, 0));
                     $adv->settled_amount -= $undo;
                     $adv->status = 'unsettled';
                     $adv->save();
                     $settledBack -= $undo;
                 }
+                if ($settledBack > 0.009) throw new \Exception('Advance history cannot be safely reversed.');
             }
 
             if ($payment->wallet_credit_amount > 0) {

@@ -13,6 +13,7 @@ const cards = [
     ['vendor_advance', 'Vendor Advance', 'fa-hand-holding-dollar', 'amber', 'Unused money held in vendor wallets'],
     ['asset_value', 'Asset Value', 'fa-boxes-stacked', 'violet', 'Total purchase value of recorded assets'],
     ['staff_advance', 'Staff Advance', 'fa-user-clock', 'orange', 'Outstanding advance currently with staff'],
+    ['unpaid_salaries', 'Unpaid Salaries', 'fa-users-slash', 'rose', 'Pending staff salary payments'], // 🟢 Added Unpaid Salaries
 ];
 
 const themes = {
@@ -28,13 +29,13 @@ function Breakdown({ title, icon, rows, columns, empty = 'No records found' }) {
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-900 text-white"><i className={`fa-solid ${icon}`}></i></span>
             <h2 className="text-[16px] font-extrabold text-gray-900">{title}</h2>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto custom-table-scroll">
             <table className="w-full min-w-[520px] text-left text-[13px]">
                 <thead><tr className="bg-gray-50 text-[10.5px] font-black uppercase tracking-wider text-gray-500">
                     {columns.map(col => <th key={col.key} className={`px-5 py-3 ${col.number ? 'text-right' : ''}`}>{col.label}</th>)}
                 </tr></thead>
                 <tbody className="divide-y divide-gray-100">
-                    {rows.length ? rows.map((row, index) => <tr key={index} className="hover:bg-gray-50/70">
+                    {rows?.length ? rows.map((row, index) => <tr key={index} className="hover:bg-gray-50/70">
                         {columns.map(col => <td key={col.key} className={`px-5 py-3.5 ${col.number ? 'text-right font-bold tabular-nums' : 'font-semibold text-gray-800'} ${col.highlight || ''}`}>
                             {col.number ? money(row[col.key]) : <>{row[col.key]}{col.key === 'name' && row.company && <span className="ml-1 text-[11px] font-medium text-gray-400">({row.company})</span>}</>}
                         </td>)}
@@ -45,15 +46,22 @@ function Breakdown({ title, icon, rows, columns, empty = 'No records found' }) {
     </section>;
 }
 
-export default function FinancialPosition({ summary = {}, accounts = [], clientAdvances = [], vendorPositions = [], clientDues = [], staffAdvances = [], alerts = [] }) {
+export default function FinancialPosition({ summary = {}, accounts = [], clientAdvances = [], vendorPositions = [], clientDues = [], staffAdvances = [], alerts = [], unpaidSalariesDetails = [], activeInvestments = [] }) {
     return <AdminLayout>
         <Head title="Financial Position" />
+
+        <style dangerouslySetInnerHTML={{__html: `
+            .custom-table-scroll::-webkit-scrollbar { height: 6px; }
+            .custom-table-scroll::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
+            .custom-table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+        `}} />
+
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 pb-12">
-            <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between print:mb-6">
+            <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between print:mb-6 mt-2">
                 <div>
                     <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-indigo-600"><i className="fa-solid fa-chart-pie"></i> Consolidated Report</div>
                     <h1 className="text-[28px] font-extrabold tracking-tight text-gray-900">Financial Position</h1>
-                    <p className="mt-1 text-[13.5px] text-gray-500">A current snapshot of funds, advances, receivables, payables and assets.</p>
+                    <p className="mt-1 text-[13.5px] text-gray-500">A current snapshot of funds, advances, receivables, payables and liabilities.</p>
                 </div>
                 <button onClick={() => window.print()} className="print:hidden inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-5 py-3 text-[13px] font-bold text-white shadow-sm hover:bg-gray-800"><i className="fa-solid fa-print"></i> Print Report</button>
             </header>
@@ -72,12 +80,16 @@ export default function FinancialPosition({ summary = {}, accounts = [], clientA
                 </div>)}
             </div>
 
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 mt-4">
                 <Breakdown title="Bank & Account Balances" icon="fa-building-columns" rows={accounts} columns={[{ key: 'name', label: 'Account' }, { key: 'balance', label: 'Current Balance', number: true, highlight: 'text-blue-700' }]} />
                 <Breakdown title="Client Receivables" icon="fa-file-invoice-dollar" rows={clientDues} columns={[{ key: 'name', label: 'Client' }, { key: 'invoiced', label: 'Invoiced', number: true }, { key: 'paid', label: 'Settled', number: true }, { key: 'due', label: 'Due', number: true, highlight: 'text-emerald-700' }]} />
                 <Breakdown title="Available Client Advances" icon="fa-wallet" rows={clientAdvances.filter(row => row.balance > 0)} columns={[{ key: 'name', label: 'Client' }, { key: 'received', label: 'Received', number: true }, { key: 'used', label: 'Used', number: true }, { key: 'balance', label: 'Available', number: true, highlight: 'text-cyan-700' }]} />
                 <Breakdown title="Vendor Position" icon="fa-truck-field" rows={vendorPositions.filter(row => row.advance > 0 || row.due > 0)} columns={[{ key: 'name', label: 'Vendor' }, { key: 'advance', label: 'Advance', number: true, highlight: 'text-amber-700' }, { key: 'due', label: 'Payable', number: true, highlight: 'text-rose-700' }]} />
                 <Breakdown title="Outstanding Staff Advances" icon="fa-user-clock" rows={staffAdvances.filter(row => row.balance > 0)} columns={[{ key: 'name', label: 'Staff' }, { key: 'given', label: 'Given', number: true }, { key: 'used', label: 'Used', number: true }, { key: 'returned', label: 'Returned', number: true }, { key: 'balance', label: 'Outstanding', number: true, highlight: 'text-orange-700' }]} />
+
+                {/* 🟢 NEW TABLES ADDED */}
+                <Breakdown title="Unpaid Salaries Liability" icon="fa-users-slash" rows={unpaidSalariesDetails} columns={[{ key: 'name', label: 'Staff' }, { key: 'month', label: 'Month' }, { key: 'due', label: 'Pending Due', number: true, highlight: 'text-rose-700' }]} empty="All salaries paid." />
+                <Breakdown title="Active Investments Liability" icon="fa-arrow-trend-up" rows={activeInvestments} columns={[{ key: 'name', label: 'Investor Name' }, { key: 'gross', label: 'Gross', number: true }, { key: 'returned', label: 'Returned', number: true }, { key: 'balance', label: 'Balance Due', number: true, highlight: 'text-indigo-700' }]} empty="No active investments." />
             </div>
         </div>
     </AdminLayout>;

@@ -5,17 +5,7 @@ import Swal from 'sweetalert2';
 import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 
-const COMPANY = {
-    name: 'UNIBOX',
-    tagline: "Let's Create Together",
-    logo: typeof window !== 'undefined' ? `${window.location.origin}/images/logo.png` : '',
-    phone: '+8801627188836',
-    email: 'uniboxbd4u@gmail.com',
-    website: 'www.uniboxbd4u.com',
-    address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
-};
-
-export default function Index({ advances = [], filters = {}, accounts = [], employees = [], totalUnsettled = 0 }) {
+export default function Index({ advances = [], filters = {}, accounts = [], employees = [], totals = {} }) {
     const [showModal, setShowModal] = useState(false);
     const [showReturnModal, setShowReturnModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
@@ -30,56 +20,51 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
     const advanceList = Array.isArray(advances) ? advances : (advances.data || []);
 
-    const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get('search') || filters.search || '');
-    const [perPage, setPerPage] = useState(() => new URLSearchParams(window.location.search).get('per_page') || filters.per_page || '50');
+    // 🟢 Filter States
+    const [searchTerm, setSearchTerm] = useState(filters.search || '');
+    const [userFilter, setUserFilter] = useState(filters.user_id ? Number(filters.user_id) : '');
+    const [accountFilter, setAccountFilter] = useState(filters.account_id ? Number(filters.account_id) : '');
+    const [perPage, setPerPage] = useState(String(filters.per_page || '50'));
 
     const isFirstRender = useRef(true);
 
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
-        id: '',
-        account_id: '',
-        user_id: '',
-        amount: '',
-        date: new Date().toISOString().slice(0, 10),
-        purpose: 'Office Purpose',
-        status: 'unsettled',
-        notes: ''
+        id: '', account_id: '', user_id: '', amount: '', date: new Date().toISOString().slice(0, 10), purpose: 'Office Purpose', status: 'unsettled', notes: ''
     });
 
-    // 🟢 UPDATE: Added return_account_id to the form state
     const { data: returnData, setData: setReturnData, post: postReturn, processing: returnProcessing, reset: returnReset, errors: returnErrors, clearErrors: clearReturnErrors } = useForm({
-        return_amount: '',
-        return_account_id: ''
+        return_amount: '', return_account_id: ''
     });
 
+    // 🟢 Deep Search & Filter Trigger
     useEffect(() => {
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            return;
-        }
+        if (isFirstRender.current) { isFirstRender.current = false; return; }
         const delayDebounceFn = setTimeout(() => {
-            router.get(
-                route('admin.advances.index'),
-                { search: searchTerm, per_page: perPage },
-                { preserveState: true, replace: true, preserveScroll: true }
-            );
+            setExpandedRows({}); // Clear expansions on search
+            const params = {};
+            if (searchTerm) params.search = searchTerm;
+            if (userFilter) params.user_id = userFilter;
+            if (accountFilter) params.account_id = accountFilter;
+            if (perPage) params.per_page = perPage;
+
+            router.get(route('admin.advances.index'), params, { preserveState: true, replace: true, preserveScroll: true });
         }, 400);
         return () => clearTimeout(delayDebounceFn);
-    }, [searchTerm, perPage]);
+    }, [searchTerm, userFilter, accountFilter, perPage]);
+
+    const clearAllFilters = () => {
+        setSearchTerm("");
+        setUserFilter("");
+        setAccountFilter("");
+        setPerPage("50");
+    };
 
     const groupedAdvances = useMemo(() => {
         const map = new Map();
         advanceList.forEach((adv) => {
             const key = adv.user_id;
             if (!map.has(key)) {
-                map.set(key, {
-                    user_id: adv.user_id,
-                    user: adv.user,
-                    records: [],
-                    total_given: 0,
-                    total_expensed: 0,
-                    total_returned: 0,
-                });
+                map.set(key, { user_id: adv.user_id, user: adv.user, records: [], total_given: 0, total_expensed: 0, total_returned: 0 });
             }
             const group = map.get(key);
             group.records.push(adv);
@@ -88,24 +73,11 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
             group.total_returned += parseFloat(adv.returned_amount || 0);
         });
         return Array.from(map.values()).map((group) => ({
-            ...group,
-            total_due: group.total_given - group.total_expensed - group.total_returned,
+            ...group, total_due: group.total_given - group.total_expensed - group.total_returned,
         }));
     }, [advanceList]);
 
-    const grandTotals = useMemo(() => {
-        let given = 0; let expensed = 0; let returned = 0;
-        groupedAdvances.forEach(g => {
-            given += g.total_given;
-            expensed += g.total_expensed;
-            returned += g.total_returned;
-        });
-        return { given, expensed, returned, due: given - expensed - returned };
-    }, [groupedAdvances]);
-
-    const toggleExpand = (userId) => {
-        setExpandedRows((prev) => ({ ...prev, [userId]: !prev[userId] }));
-    };
+    const toggleExpand = (userId) => setExpandedRows((prev) => ({ ...prev, [userId]: !prev[userId] }));
 
     const formatTime = (dateTimeStr) => {
         if (!dateTimeStr) return '';
@@ -128,13 +100,11 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
             const expensed = parseFloat(adv.settled_amount || 0);
             const returned = parseFloat(adv.returned_amount || 0);
             const total = parseFloat(adv.amount || 0);
-            const due = total - expensed - returned;
-            return `"${idx + 1}","${adv.date}","${adv.account?.name || 'N/A'}","${adv.user?.name}","${adv.purpose}","${total}","${expensed}","${returned}","${due}","${adv.status}"`;
+            return `"${idx + 1}","${adv.date}","${adv.account?.name || 'N/A'}","${adv.user?.name}","${adv.purpose}","${total}","${expensed}","${returned}","${total - expensed - returned}","${adv.status}"`;
         });
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
-        link.href = url;
+        link.href = URL.createObjectURL(blob);
         link.setAttribute("download", `Advance_Report_${new Date().toISOString().slice(0,10)}.csv`);
         link.click();
     };
@@ -171,42 +141,27 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
     const openCreateModal = () => {
         clearErrors();
-        setData({
-            id: '', account_id: '', user_id: '', amount: '', settled_amount: 0, returned_amount: 0,
-            date: new Date().toISOString().slice(0, 10), purpose: 'Office Purpose', status: 'unsettled', notes: ''
-        });
+        setData({ id: '', account_id: '', user_id: '', amount: '', settled_amount: 0, returned_amount: 0, date: new Date().toISOString().slice(0, 10), purpose: 'Office Purpose', status: 'unsettled', notes: '' });
         setEditMode(false);
         setShowModal(true);
     };
 
     const openEditModal = (adv) => {
         clearErrors();
-        setData({
-            id: adv.id, account_id: adv.account_id || '', user_id: adv.user_id || '', amount: adv.amount,
-            date: adv.date, purpose: adv.purpose || 'Office Purpose', status: adv.status || 'unsettled', notes: adv.notes || ''
-        });
+        setData({ id: adv.id, account_id: adv.account_id || '', user_id: adv.user_id || '', amount: adv.amount, date: adv.date, purpose: adv.purpose || 'Office Purpose', status: adv.status || 'unsettled', notes: adv.notes || '' });
         setEditMode(true);
         setShowModal(true);
     };
 
-    // 🟢 UPDATE: Initialize modal with default return account
     const openReturnModal = (adv) => {
-        setSelectedAdvance(adv);
-        returnReset();
-        clearReturnErrors();
+        setSelectedAdvance(adv); returnReset(); clearReturnErrors();
         const totalSettled = parseFloat(adv.settled_amount || 0) + parseFloat(adv.returned_amount || 0);
         const due = parseFloat(adv.amount) - totalSettled;
-        setReturnData({
-            return_amount: due > 0 ? due : '',
-            return_account_id: adv.account_id || '' // Default to the original account
-        });
+        setReturnData({ return_amount: due > 0 ? due : '', return_account_id: adv.account_id || '' });
         setShowReturnModal(true);
     };
 
-    const openViewModal = (adv) => {
-        setSelectedAdvance(adv);
-        setShowViewModal(true);
-    };
+    const openViewModal = (adv) => { setSelectedAdvance(adv); setShowViewModal(true); };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -216,78 +171,61 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
         if (editMode) {
             put(route('admin.advances.update', data.id), {
                 preserveScroll: true,
-                onSuccess: () => {
-                    setShowModal(false);
-                    Swal.fire({ icon: 'success', title: 'Updated!', text: 'Advance record updated successfully.', timer: 1500, showConfirmButton: false });
-                }
+                onSuccess: () => { setShowModal(false); Swal.fire({ icon: 'success', title: 'Updated!', timer: 1500, showConfirmButton: false }); }
             });
         } else {
             post(route('admin.advances.store'), {
                 preserveScroll: true,
-                onSuccess: () => {
-                    reset();
-                    setShowModal(false);
-                    Swal.fire({ icon: 'success', title: 'Logged!', text: 'New advance payment logged.', timer: 1500, showConfirmButton: false });
-                }
+                onSuccess: () => { reset(); setShowModal(false); Swal.fire({ icon: 'success', title: 'Logged!', timer: 1500, showConfirmButton: false }); }
             });
         }
     };
 
     const handleReturnSubmit = (e) => {
         e.preventDefault();
-        // 🟢 Validate return account
-        if (!returnData.return_account_id) {
-            return Swal.fire("Required", "Please select which account the money is returning to.", "warning");
-        }
-
+        if (!returnData.return_account_id) return Swal.fire("Required", "Select return account.", "warning");
         postReturn(route('admin.advances.returnMoney', selectedAdvance.id), {
             preserveScroll: true,
-            onSuccess: () => {
-                setShowReturnModal(false);
-                Swal.fire({ icon: 'success', title: 'Refunded!', text: 'Cash returned to account successfully.', timer: 2000, showConfirmButton: false });
-            }
+            onSuccess: () => { setShowReturnModal(false); Swal.fire({ icon: 'success', title: 'Refunded!', timer: 2000, showConfirmButton: false }); }
         });
     };
 
     const handleDelete = (id) => {
         Swal.fire({
-            title: 'Delete this transaction?',
-            text: `Remaining money will be automatically refunded to the account!`,
-            icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#6b7280', confirmButtonText: 'Yes, Delete'
+            title: 'Delete this transaction?', text: `Remaining money will be refunded to the account!`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#6b7280', confirmButtonText: 'Yes, Delete'
         }).then((result) => {
             if (result.isConfirmed) {
                 destroy(route('admin.advances.destroy', id), {
-                    preserveScroll: true,
-                    onSuccess: () => Swal.fire({ icon: 'success', title: 'Deleted!', timer: 1500, showConfirmButton: false })
+                    preserveScroll: true, onSuccess: () => Swal.fire({ icon: 'success', title: 'Deleted!', timer: 1500, showConfirmButton: false })
                 });
             }
         });
     };
 
     const selectStyles = {
-        control: (provided, state) => ({
-            ...provided, minHeight: "44px", borderRadius: "0.75rem", border: state.isFocused ? "1px solid var(--accent)" : "1px solid #d1d5db", boxShadow: state.isFocused ? "0 0 0 3px rgba(200, 155, 60, 0.15)" : "none", "&:hover": { borderColor: state.isFocused ? "var(--accent)" : "#9ca3af" }, fontSize: "14px", background: "#fff", cursor: "pointer"
-        }),
-        option: (provided, state) => ({ ...provided, fontSize: "14px", backgroundColor: state.isSelected ? "var(--accent)" : state.isFocused ? "var(--accent-bg)" : "#fff", color: state.isSelected ? "#fff" : "#111827", cursor: "pointer" }),
-        menuPortal: base => ({ ...base, zIndex: 9999 }),
-        menu: (base) => ({ ...base, borderRadius: "0.75rem", overflow: "hidden", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" })
+        control: (provided, state) => ({ ...provided, minHeight: "44px", borderRadius: "0.75rem", border: state.isFocused ? "1px solid var(--accent)" : "1px solid #d1d5db", boxShadow: state.isFocused ? "0 0 0 3px rgba(200, 155, 60, 0.15)" : "none", fontSize: "13px", background: "#f8fafc", cursor: "pointer" }),
+        option: (provided, state) => ({ ...provided, fontSize: "13px", backgroundColor: state.isSelected ? "var(--accent)" : state.isFocused ? "var(--accent-bg)" : "#fff", color: state.isSelected ? "#fff" : "#111827", cursor: "pointer" }),
+        menuPortal: base => ({ ...base, zIndex: 9999 }), menu: (base) => ({ ...base, borderRadius: "0.75rem", overflow: "hidden", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" })
     };
+
+    const creatableOptions = [
+        { value: 'Office Work', label: 'Office Work' },
+        { value: 'Vehicle Maintenance', label: 'Vehicle Maintenance' },
+        { value: 'Staff Advance', label: 'Staff Advance' },
+        { value: 'Travel Expense', label: 'Travel Expense' },
+        { value: 'Utility Bill', label: 'Utility Bill' },
+        { value: 'Other', label: 'Other' },
+    ];
 
     return (
         <AdminLayout>
             <Head title="Advance Payments" />
-
             <style dangerouslySetInnerHTML={{__html: `
                 .custom-table-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
                 .custom-table-scroll::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
                 .custom-table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
                 .custom-table-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-                /* Mobile optimization for modals */
-                @media (max-width: 1024px) {
-                    .modal-scroll-container { overflow-y: auto !important; max-height: calc(95vh - 140px); }
-                    .modal-static-panel { flex-shrink: 0; }
-                }
+                @media (max-width: 1024px) { .modal-scroll-container { overflow-y: auto !important; max-height: calc(95vh - 140px); } }
             `}} />
 
             <div className="flex flex-col gap-8 w-full max-w-[1600px] mx-auto pb-12 px-4 sm:px-6 lg:px-8">
@@ -299,13 +237,11 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                             <span className="h-1.5 w-1.5 rounded-full bg-indigo-600"></span> Financial Management
                         </div>
                         <h1 className="text-[24px] sm:text-[28px] font-extrabold text-gray-900 tracking-tight">Advance Payments</h1>
-                        <p className="text-[13.5px] sm:text-[14.5px] text-gray-500 mt-1.5 max-w-lg leading-relaxed">
-                            Manage and track advance payments given to employees, track settlements, and handle refunds.
-                        </p>
+                        <p className="text-[13.5px] sm:text-[14.5px] text-gray-500 mt-1.5 max-w-lg leading-relaxed">Manage and track advance payments given to employees, track settlements, and handle refunds.</p>
                     </div>
                 </div>
 
-                {/* --- 🟢 4 PREMIUM SUMMARY CARDS --- */}
+                {/* 🟢 SUMMARY CARDS (Relies on Backend Totals) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
                     <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-all group">
                         <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-blue-50 opacity-50 transition-transform group-hover:scale-110"></div>
@@ -315,7 +251,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                             </div>
                             <div>
                                 <p className="mb-1 text-[11px] sm:text-[11.5px] font-bold uppercase tracking-wider text-gray-500">Total Given</p>
-                                <h3 className="text-[20px] sm:text-[24px] font-black text-gray-900 m-0 tabular-nums tracking-tight">৳ {Number(grandTotals.given).toLocaleString('en-IN')}</h3>
+                                <h3 className="text-[20px] sm:text-[24px] font-black text-gray-900 m-0 tabular-nums tracking-tight">৳ {Number(totals.total_given || 0).toLocaleString('en-IN')}</h3>
                             </div>
                         </div>
                     </div>
@@ -328,7 +264,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                             </div>
                             <div>
                                 <p className="mb-1 text-[11px] sm:text-[11.5px] font-bold uppercase tracking-wider text-emerald-600/90">Total Expensed</p>
-                                <h3 className="text-[20px] sm:text-[24px] font-black text-emerald-700 m-0 tabular-nums tracking-tight">৳ {Number(grandTotals.expensed).toLocaleString('en-IN')}</h3>
+                                <h3 className="text-[20px] sm:text-[24px] font-black text-emerald-700 m-0 tabular-nums tracking-tight">৳ {Number(totals.total_expensed || 0).toLocaleString('en-IN')}</h3>
                             </div>
                         </div>
                     </div>
@@ -341,7 +277,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                             </div>
                             <div>
                                 <p className="mb-1 text-[11px] sm:text-[11.5px] font-bold uppercase tracking-wider text-purple-600/90">Total Returned</p>
-                                <h3 className="text-[20px] sm:text-[24px] font-black text-purple-700 m-0 tabular-nums tracking-tight">৳ {Number(grandTotals.returned).toLocaleString('en-IN')}</h3>
+                                <h3 className="text-[20px] sm:text-[24px] font-black text-purple-700 m-0 tabular-nums tracking-tight">৳ {Number(totals.total_returned || 0).toLocaleString('en-IN')}</h3>
                             </div>
                         </div>
                     </div>
@@ -354,16 +290,14 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                             </div>
                             <div>
                                 <p className="mb-1 text-[11px] sm:text-[11.5px] font-bold uppercase tracking-wider text-rose-600/90">Total Due Amount</p>
-                                <h3 className="text-[20px] sm:text-[24px] font-black text-rose-700 m-0 tabular-nums tracking-tight">৳ {Number(totalUnsettled).toLocaleString('en-IN')}</h3>
+                                <h3 className="text-[20px] sm:text-[24px] font-black text-rose-700 m-0 tabular-nums tracking-tight">৳ {Number(totals.total_due || 0).toLocaleString('en-IN')}</h3>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Main Card Container */}
                 <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
 
-                    {/* Card Header & Actions */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 px-5 sm:px-6 py-4 sm:py-5 gap-4 bg-gray-50/40">
                         <div className="text-[15px] sm:text-[16px] font-bold text-gray-900 flex items-center gap-2.5">
                             <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
@@ -378,55 +312,97 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         )}
                     </div>
 
-                    {/* Toolbar Panel */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-5 sm:px-6 py-4 bg-white border-b border-gray-100">
-                        <div className="flex flex-wrap items-center justify-between sm:justify-start gap-4 text-[13.5px] text-gray-600 w-full lg:w-auto">
-                            <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
-                                <span className="bg-gray-50/80 px-3 sm:px-4 py-2.5 text-[12px] sm:text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
-                                    Show
-                                </span>
-                                <div className="relative">
+                    {/* --- 🟢 NEW PREMIUM TOOLBAR PANEL --- */}
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 px-5 sm:px-6 py-5 bg-white border-b border-gray-100">
+                        {/* 1. Search Bar */}
+                        <div className="relative w-full">
+                            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Search Text</label>
+                            <div className="absolute bottom-0 left-0 flex items-center pl-3 pb-3 pointer-events-none">
+                                <i className="fa-solid fa-magnifying-glass text-indigo-400 text-[13px]"></i>
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="Search here..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full rounded-xl border border-gray-200 bg-gray-50/50 py-2.5 pl-9 pr-10 text-[13px] text-gray-800 outline-none transition-all focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm placeholder:text-gray-400 font-medium h-[44px]"
+                            />
+                            {searchTerm && (
+                                <button onClick={() => setSearchTerm('')} className="absolute bottom-0 right-0 flex items-center pr-3 pb-3 text-gray-400 hover:text-rose-500 transition-colors" title="Clear">
+                                    <i className="fa-solid fa-circle-xmark text-[14px]"></i>
+                                </button>
+                            )}
+                        </div>
+
+                        {/* 2. Employee Dropdown Filter */}
+                        <div className="w-full">
+                            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Filter by Employee</label>
+                            <Select
+                                options={employees.map((e) => ({ value: e.id, label: e.name }))}
+                                value={employees.map((e) => ({ value: e.id, label: e.name })).find(opt => opt.value === userFilter) || null}
+                                onChange={(selected) => setUserFilter(selected ? selected.value : '')}
+                                placeholder="All Employees"
+                                isClearable
+                                styles={selectStyles}
+                            />
+                        </div>
+
+                        {/* 3. Account Dropdown Filter */}
+                        <div className="w-full">
+                            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Filter by Account</label>
+                            <Select
+                                options={accounts.map((a) => ({ value: a.id, label: a.name }))}
+                                value={accounts.map((a) => ({ value: a.id, label: a.name })).find(opt => opt.value === accountFilter) || null}
+                                onChange={(selected) => setAccountFilter(selected ? selected.value : '')}
+                                placeholder="All Accounts"
+                                isClearable
+                                styles={selectStyles}
+                            />
+                        </div>
+
+                        {/* 4. Show Rows & Actions */}
+                        <div className="w-full flex items-end justify-between gap-3">
+                            <div className="w-full">
+                                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Show Rows</label>
+                                <div className="relative w-full">
                                     <select
                                         value={perPage}
-                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
-                                        className="appearance-none bg-none [background-image:none] bg-transparent pl-3 sm:pl-4 pr-9 py-2.5 text-[13px] sm:text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[100px] sm:w-[115px]"
+                                        onChange={(e) => setPerPage(e.target.value)}
+                                        className="w-full appearance-none rounded-xl border border-gray-200 bg-gray-50/50 py-2.5 pl-4 pr-10 text-[13px] font-bold text-gray-800 outline-none cursor-pointer focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 h-[44px]"
                                     >
-                                        <option value={10}>10 Rows</option>
-                                        <option value={25}>25 Rows</option>
-                                        <option value={50}>50 Rows</option>
-                                        <option value={100}>100 Rows</option>
+                                        <option value="10">10 Rows</option>
+                                        <option value="25">25 Rows</option>
+                                        <option value="50">50 Rows</option>
+                                        <option value="100">100 Rows</option>
                                         <option value="all">All Data</option>
                                     </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 sm:px-3.5 text-gray-400">
-                                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                                        </svg>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-indigo-500">
+                                        <i className="fa-solid fa-chevron-down text-[12px]"></i>
                                     </div>
                                 </div>
                             </div>
-
-                            <div className="flex items-center gap-2">
-                                <button onClick={handleCopy} className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 sm:px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 shadow-sm" title="Copy">
-                                    <i className="fas fa-copy text-blue-500"></i> <span className="hidden sm:inline">Copy</span>
-                                </button>
-                                <button onClick={handleExportCSV} className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 sm:px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-all hover:bg-emerald-100 shadow-sm" title="CSV">
-                                    <i className="fas fa-file-csv"></i> <span className="hidden sm:inline">CSV</span>
-                                </button>
-                                <button onClick={handlePrint} className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 sm:px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 shadow-sm" title="Print">
-                                    <i className="fas fa-print text-gray-500"></i> <span className="hidden sm:inline">Print</span>
-                                </button>
-                            </div>
                         </div>
+                    </div>
 
-                        <div className="relative w-full lg:w-[320px]">
-                            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13.5px]"></i>
-                            <input
-                                type="text"
-                                placeholder="Search employee..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full rounded-xl border border-gray-300 py-3 pl-10 pr-4 text-[13.5px] outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white"
-                            />
+                    {/* Extra Toolbar Actions */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-5 py-3 bg-gray-50/40 border-b border-gray-100">
+                        <div>
+                            {(searchTerm || userFilter || accountFilter) && (
+                                <button onClick={clearAllFilters} className="text-[12px] font-bold text-rose-600 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                                    <i className="fa-solid fa-rotate-left"></i> Reset Filters
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                            <button onClick={handleCopy} className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-bold text-gray-700 transition-all hover:bg-gray-50 shadow-sm" title="Copy to clipboard">
+                                <i className="fa-regular fa-copy text-blue-500"></i> <span className="hidden sm:inline">Copy</span>
+                            </button>
+                            <button onClick={handleExportCSV} className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] font-bold text-emerald-700 transition-all hover:bg-emerald-100 shadow-sm" title="Export as CSV">
+                                <i className="fa-solid fa-file-csv"></i> <span className="hidden sm:inline">CSV</span>
+                            </button>
+                            <button onClick={handlePrint} className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-bold text-gray-700 transition-all hover:bg-gray-50 shadow-sm" title="Print document">
+                                <i className="fa-solid fa-print text-gray-500"></i> <span className="hidden sm:inline">Print</span>
+                            </button>
                         </div>
                     </div>
 
@@ -549,7 +525,6 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                     </td>
                                                 </tr>
 
-                                                {/* --- 🟢 EXPANDED SUB-TABLE --- */}
                                                 {isExpanded && hasMultiple && (
                                                     <tr>
                                                         <td colSpan="10" className="px-4 sm:px-8 py-4 sm:py-6 bg-slate-50/80 border-b border-gray-200 shadow-inner">
@@ -592,7 +567,6 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                                                     <td className="px-4 py-3.5 text-gray-600 font-medium">
                                                                                         {adv.purpose || '-'}
                                                                                     </td>
-
                                                                                     <td className="px-4 py-3.5 text-right font-black text-gray-900 tabular-nums">
                                                                                         ৳ {totalGiven.toLocaleString('en-IN')}
                                                                                     </td>
@@ -694,7 +668,6 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                             </span>
                         </div>
 
-                        {/* Modal Header */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-4 sm:px-8 sm:py-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white sm:pl-36 shrink-0 gap-4 sm:gap-0 relative">
                             <div className="sm:hidden mb-2">
                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${selectedAdvance.status === 'settled' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
@@ -710,7 +683,6 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                             </button>
                         </div>
 
-                        {/* Modal Body */}
                         <div className="p-5 sm:p-8 flex flex-col md:flex-row gap-5 sm:gap-8 bg-gray-50/50 overflow-y-auto brass-scroll">
                             <div className="flex-1 space-y-4 sm:space-y-6">
                                 <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
@@ -755,7 +727,6 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                 </div>
                             </div>
 
-                            {/* Right Side: Financial Box */}
                             <div className="w-full md:w-[300px] lg:w-[320px] shrink-0 bg-gray-900 rounded-3xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden flex flex-col justify-between">
                                 <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/5 blur-2xl pointer-events-none"></div>
                                 <div>
@@ -800,7 +771,6 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
                             <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto lg:overflow-hidden brass-scroll">
 
-                                {/* Left Side Form */}
                                 <div className="flex-1 p-5 sm:p-8 lg:overflow-y-auto brass-scroll bg-gray-50/30 space-y-5 sm:space-y-6">
                                     {errors.error && (
                                         <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 sm:p-4 text-[13px] sm:text-[13.5px] font-semibold text-red-700 shadow-sm">
@@ -918,7 +888,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                 </div>
                             </div>
 
-                            <div className="px-5 py-4 sm:px-8 sm:py-5 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3 shrink-0 lg:rounded-b-3xl">
+                            <div className="px-5 py-4 sm:px-8 sm:py-5 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3 shrink-0 lg:rounded-b-3xl">
                                 <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-5 sm:px-6 py-2.5 sm:py-3 text-[13.5px] sm:text-[14.5px] font-bold text-gray-700 transition-all hover:bg-gray-100 shadow-sm">
                                     Cancel
                                 </button>

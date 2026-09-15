@@ -24,12 +24,9 @@ use Carbon\Carbon;
 
 class ReportController extends Controller
 {
-    // ==========================================
-    // 1. FINANCIAL POSITION (NET WORTH / BALANCE SHEET)
-    // ==========================================
     public function financialPosition()
     {
-        $accounts = Account::where('is_active', true)
+        $accounts = \App\Models\Account::where('is_active', true)
             ->orderBy('name')->get(['id', 'name', 'current_balance'])
             ->map(fn ($account) => [
                 'id' => $account->id,
@@ -37,11 +34,21 @@ class ReportController extends Controller
                 'balance' => (float) $account->current_balance,
             ]);
 
-        $investmentGross = (float) Investment::sum('amount');
-        $investmentReturned = (float) InvestmentPayment::sum('principal_amount');
+        $investmentGross = (float) \App\Models\Investment::sum('amount');
+        $investmentReturned = (float) \App\Models\InvestmentPayment::sum('principal_amount');
 
-        $clientAdvances = ClientAdvance::with('client:id,name,company_name')
-            ->select('client_id', DB::raw('SUM(amount) total_received'), DB::raw('SUM(used_amount) total_used'))
+        // 🟢 Active Investments Details
+        $activeInvestments = \App\Models\Investment::withSum('payments as returned_principal', 'principal_amount')
+            ->get()
+            ->map(fn ($inv) => [
+                'name' => $inv->investor_name,
+                'gross' => (float) $inv->amount,
+                'returned' => (float) ($inv->returned_principal ?? 0),
+                'balance' => max((float) $inv->amount - (float) ($inv->returned_principal ?? 0), 0),
+            ])->filter(fn ($row) => $row['balance'] > 0)->values();
+
+        $clientAdvances = \App\Models\ClientAdvance::with('client:id,name,company_name')
+            ->select('client_id', \Illuminate\Support\Facades\DB::raw('SUM(amount) total_received'), \Illuminate\Support\Facades\DB::raw('SUM(used_amount) total_used'))
             ->groupBy('client_id')->get()->map(fn ($row) => [
                 'name' => $row->client?->name ?? 'Unknown Client',
                 'company' => $row->client?->company_name,
@@ -50,7 +57,7 @@ class ReportController extends Controller
                 'balance' => max((float) $row->total_received - (float) $row->total_used, 0),
             ])->values();
 
-        $vendorPositions = Vendor::withSum('projectExpenses as project_due', 'due_amount')
+        $vendorPositions = \App\Models\Vendor::withSum('projectExpenses as project_due', 'due_amount')
             ->orderBy('name')->get()->map(fn ($vendor) => [
                 'name' => $vendor->name,
                 'company' => $vendor->company_name,
@@ -58,11 +65,11 @@ class ReportController extends Controller
                 'due' => max((float) $vendor->opening_balance + (float) ($vendor->project_due ?? 0), 0),
             ]);
 
-        $clientDues = Client::query()->select('clients.id', 'clients.name', 'clients.company_name')
+        $clientDues = \App\Models\Client::query()->select('clients.id', 'clients.name', 'clients.company_name')
             ->addSelect([
-                'invoiced' => DB::table('invoices')->whereColumn('client_id', 'clients.id')->whereNull('deleted_at')->selectRaw('COALESCE(SUM(grand_total),0)'),
-                'legacy_advance' => DB::table('invoices')->whereColumn('client_id', 'clients.id')->whereNull('deleted_at')->selectRaw('COALESCE(SUM(advance_used),0)'),
-                'paid' => DB::table('invoice_payments')->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')->whereColumn('invoices.client_id', 'clients.id')->whereNull('invoices.deleted_at')->selectRaw('COALESCE(SUM(invoice_payments.amount),0)'),
+                'invoiced' => \Illuminate\Support\Facades\DB::table('invoices')->whereColumn('client_id', 'clients.id')->whereNull('deleted_at')->selectRaw('COALESCE(SUM(grand_total),0)'),
+                'legacy_advance' => \Illuminate\Support\Facades\DB::table('invoices')->whereColumn('client_id', 'clients.id')->whereNull('deleted_at')->selectRaw('COALESCE(SUM(advance_used),0)'),
+                'paid' => \Illuminate\Support\Facades\DB::table('invoice_payments')->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')->whereColumn('invoices.client_id', 'clients.id')->whereNull('invoices.deleted_at')->selectRaw('COALESCE(SUM(invoice_payments.amount),0)'),
             ])->get()->map(fn ($client) => [
                 'name' => $client->name,
                 'company' => $client->company_name,
@@ -71,7 +78,7 @@ class ReportController extends Controller
                 'due' => max((float) $client->invoiced - (float) $client->paid - (float) $client->legacy_advance, 0),
             ])->filter(fn ($row) => $row['due'] > 0)->values();
 
-        $staffAdvances = AdvanceBalance::with('user:id,name')->get()->map(fn ($row) => [
+        $staffAdvances = \App\Models\AdvanceBalance::with('user:id,name')->get()->map(fn ($row) => [
             'name' => $row->user?->name ?? 'Unknown Staff',
             'given' => (float) $row->total_given,
             'used' => (float) $row->total_used,
@@ -79,11 +86,17 @@ class ReportController extends Controller
             'balance' => max((float) $row->total_given - (float) $row->total_used - (float) $row->total_returned, 0),
         ])->filter(fn ($row) => $row['balance'] > 0)->values();
 
-        // 🟢 FIXED: Fetching Unpaid Salaries to include as a Liability
-        $unpaidSalaries = Salary::whereIn('status', ['unpaid', 'partially_paid'])->sum('due_amount');
-        if ($unpaidSalaries == 0) {
-            $unpaidSalaries = Salary::whereIn('status', ['unpaid', 'partially_paid'])->sum('net_pay');
-        }
+        // 🟢 Unpaid Salaries Details
+        $unpaidSalariesDetails = \App\Models\Salary::with('user:id,name')
+            ->whereIn('status', ['unpaid', 'partially_paid'])
+            ->get()
+            ->map(fn ($salary) => [
+                'name' => $salary->user?->name ?? 'Unknown Staff',
+                'month' => $salary->month_year,
+                'due' => (float) $salary->due_amount,
+            ])->values();
+
+        $unpaidSalariesTotal = $unpaidSalariesDetails->sum('due');
 
         $summary = [
             'investment_gross' => $investmentGross,
@@ -94,8 +107,8 @@ class ReportController extends Controller
             'vendor_advance' => $vendorPositions->sum('advance'),
             'client_due' => $clientDues->sum('due'),
             'vendor_due' => $vendorPositions->sum('due'),
-            'unpaid_salaries' => (float) $unpaidSalaries, // 🟢 FIXED: Added to summary
-            'asset_value' => (float) Asset::sum('purchase_price'),
+            'unpaid_salaries' => (float) $unpaidSalariesTotal,
+            'asset_value' => (float) \App\Models\Asset::sum('purchase_price'),
             'staff_advance' => $staffAdvances->sum('balance'),
         ];
 
@@ -104,7 +117,7 @@ class ReportController extends Controller
         if ($negativeAccounts->isNotEmpty()) {
             $alerts->push(['level' => 'danger', 'message' => $negativeAccounts->count() . ' account(s) have a negative balance.']);
         }
-        $overReturnedInvestments = Investment::withSum('payments as returned_principal', 'principal_amount')->get()
+        $overReturnedInvestments = \App\Models\Investment::withSum('payments as returned_principal', 'principal_amount')->get()
             ->filter(fn ($row) => (float) ($row->returned_principal ?? 0) > (float) $row->amount);
         if ($overReturnedInvestments->isNotEmpty()) {
             $alerts->push(['level' => 'danger', 'message' => $overReturnedInvestments->count() . ' investment(s) have returned principal greater than the original amount.']);
@@ -114,17 +127,12 @@ class ReportController extends Controller
             $alerts->push(['level' => 'warning', 'message' => $vendorConflicts->count() . ' vendor(s) have both advance and payable balances; consider adjusting the wallet against due bills.']);
         }
 
-        return Inertia::render('Admin/Reports/FinancialPosition', compact(
-            'summary', 'accounts', 'clientAdvances', 'vendorPositions', 'clientDues', 'staffAdvances', 'alerts'
+        return \Inertia\Inertia::render('Admin/Reports/FinancialPosition', compact(
+            'summary', 'accounts', 'clientAdvances', 'vendorPositions', 'clientDues', 'staffAdvances', 'alerts',
+            'unpaidSalariesDetails', 'activeInvestments'
         ));
     }
 
-    // ==========================================
-    // 2. FINANCIAL SUMMARY (CASH FLOW & ACCRUAL)
-    // ==========================================
-    // ==========================================
-    // 2. FINANCIAL SUMMARY (CASH FLOW & ACCRUAL)
-    // ==========================================
     public function financialSummary(Request $request)
     {
         $request->validate([
@@ -146,11 +154,7 @@ class ReportController extends Controller
         };
 
         // VALID INVOICES ONLY
-        $validInvoiceIds = DB::table('invoice_items')
-            ->whereNotNull('project_id')
-            ->pluck('invoice_id')
-            ->unique()
-            ->toArray();
+        $validInvoiceIds = DB::table('invoices')->whereNull('deleted_at')->pluck('id')->toArray();
 
         // $validInvoiceIds = DB::table('invoice_items')
         //     ->whereNotNull('project_id')
@@ -244,32 +248,36 @@ class ReportController extends Controller
             ->whereIn('invoices.id', $validInvoiceIds);
 
         $clientAdvQuery = DB::table('client_advances');
-        $expenseQuery = DB::table('expenses');
-        $salaryQuery = DB::table('salaries')->where('status', 'paid');
-        $projectCostQuery = DB::table('project_expenses');
+        $expenseQuery = DB::table('transactions')->where('transactionable_type', Expense::class)->where('type', 'debit');
+        $salaryQuery = DB::table('transactions')->where('transactionable_type', Salary::class)->where('type', 'debit');
+        $bankChargeQuery = DB::table('transactions');
+        $projectCostQuery = DB::table('transactions')->whereIn('transactionable_type', [ProjectExpense::class, VendorPayment::class]);
         $financeCostQuery = DB::table('investment_payments');
 
         // Apply Date Filters
         $applyPeriod($revenueQuery, 'invoice_date');
         $applyPeriod($receivedQuery, 'invoice_payments.payment_date');
         $applyPeriod($clientAdvQuery, 'date');
-        $applyPeriod($expenseQuery, 'date');
-        $applyPeriod($salaryQuery, 'payment_date');
-        $applyPeriod($projectCostQuery, 'date');
+        $applyPeriod($expenseQuery, 'transaction_date');
+        $applyPeriod($salaryQuery, 'transaction_date');
+        $applyPeriod($bankChargeQuery, 'transaction_date');
+        $applyPeriod($projectCostQuery, 'transaction_date');
         $applyPeriod($financeCostQuery, 'payment_date');
 
         // Totals Calculation
         $overallTotalBilled = (float) $revenueQuery->sum('grand_total');
+        $receivedQuery->whereNotNull('invoice_payments.account_id');
         $totalInvoiceReceived = (float) $receivedQuery->sum('invoice_payments.amount');
 
-        $totalClientAdvanceReceived = (float) $clientAdvQuery->sum('amount') - (float) $clientAdvQuery->sum('used_amount');
+        $totalClientAdvanceReceived = (float) $clientAdvQuery->sum('amount');
         $totalCashIn = $totalInvoiceReceived + $totalClientAdvanceReceived;
 
-        $totalProjectExpensePaid = (float) $projectCostQuery->sum('paid_amount');
-        $totalOfficeExpense = (float) $expenseQuery->sum('amount');
-        $totalSalaryPaid = (float) $salaryQuery->sum('net_pay');
+        $totalProjectExpensePaid = (float) (clone $projectCostQuery)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN amount - bank_charge ELSE -amount + bank_charge END), 0) total")->value('total');
+        $totalOfficeExpense = (float) (clone $expenseQuery)->selectRaw('COALESCE(SUM(amount - bank_charge), 0) total')->value('total');
+        $totalSalaryPaid = (float) (clone $salaryQuery)->selectRaw('COALESCE(SUM(amount - bank_charge), 0) total')->value('total');
+        $totalBankCharges = (float) (clone $bankChargeQuery)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN bank_charge ELSE -bank_charge END), 0) total")->value('total');
         $totalFinanceCost = (float) $financeCostQuery->sum('profit_amount');
-        $totalCashOut = $totalProjectExpensePaid + $totalOfficeExpense + $totalSalaryPaid + $totalFinanceCost;
+        $totalCashOut = $totalProjectExpensePaid + $totalOfficeExpense + $totalSalaryPaid + $totalFinanceCost + $totalBankCharges;
 
         $netCashFlow = $totalCashIn - $totalCashOut;
 
@@ -293,14 +301,16 @@ class ReportController extends Controller
         $addMonthly((clone $receivedQuery)->get(['invoice_payments.payment_date as ref_date', 'invoice_payments.amount']), 'ref_date', 'amount', 'cash_in');
 
         $clientAdvancesList = (clone $clientAdvQuery)->get(['date', 'amount', 'used_amount'])->map(function($item) {
-            $item->net_amount = max((float) $item->amount - (float) $item->used_amount, 0);
+            $item->net_amount = (float) $item->amount;
             return $item;
         });
         $addMonthly($clientAdvancesList, 'date', 'net_amount', 'cash_in');
 
-        $addMonthly((clone $projectCostQuery)->get(['date', 'paid_amount']), 'date', 'paid_amount', 'project_cost');
-        $addMonthly((clone $expenseQuery)->get(['date', 'amount']), 'date', 'amount', 'office_expense');
-        $addMonthly((clone $salaryQuery)->get(['payment_date', 'net_pay']), 'payment_date', 'net_pay', 'salary_expense');
+        $addMonthly((clone $projectCostQuery)->selectRaw("transaction_date, CASE WHEN type = 'debit' THEN amount - bank_charge ELSE -amount + bank_charge END AS principal")->get(), 'transaction_date', 'principal', 'project_cost');
+        $addMonthly((clone $expenseQuery)->selectRaw('transaction_date, amount - bank_charge AS principal')->get(), 'transaction_date', 'principal', 'office_expense');
+        $addMonthly((clone $salaryQuery)->selectRaw('transaction_date, amount - bank_charge AS principal')->get(), 'transaction_date', 'principal', 'salary_expense');
+        $addMonthly((clone $bankChargeQuery)->selectRaw("transaction_date, CASE WHEN type = 'debit' THEN bank_charge ELSE -bank_charge END AS charge")->get(), 'transaction_date', 'charge', 'cash_out');
+        $addMonthly((clone $financeCostQuery)->get(['payment_date', 'profit_amount']), 'payment_date', 'profit_amount', 'cash_out');
 
         $monthlyProfitLoss = $monthlyProfitLoss->map(function ($row) {
             $row['cash_out'] += $row['project_cost'] + $row['office_expense'] + $row['salary_expense'];
@@ -322,7 +332,7 @@ class ReportController extends Controller
         $totalInvestmentProfitPaid = (float) $financeCostQuery->sum('profit_amount');
 
         // Operational cash out (excluding investor returns/profits)
-        $operationalCashOut = $totalProjectExpensePaid + $totalOfficeExpense + $totalSalaryPaid;
+        $operationalCashOut = $totalProjectExpensePaid + $totalOfficeExpense + $totalSalaryPaid + $totalBankCharges;
 
         // 🟢 True Net Operating Profit (Excluding Investment/Investor payouts)
         $netOperatingProfit = $totalCashIn - $operationalCashOut;
@@ -344,6 +354,7 @@ class ReportController extends Controller
             'total_office_expense' => $totalOfficeExpense,
             'total_salary_paid' => $totalSalaryPaid,
             'total_finance_cost' => $totalInvestmentProfitPaid,
+            'total_bank_charges' => $totalBankCharges,
 
             'net_cash_flow' => $netCashFlow,
             'net_operating_profit' => $netOperatingProfit,
@@ -607,10 +618,10 @@ class ReportController extends Controller
 
     public function daybook(Request $request)
     {
-        $date = $request->input('date', Carbon::today()->toDateString());
-        $parsedDate = Carbon::parse($date);
+        $date = $request->input('date', \Carbon\Carbon::today()->toDateString());
+        $parsedDate = \Carbon\Carbon::parse($date);
 
-        $accounts = Account::all();
+        $accounts = \App\Models\Account::all();
         $accountSummary = [];
 
         $totalOpening = 0;
@@ -618,25 +629,25 @@ class ReportController extends Controller
         $totalOutflow = 0;
         $totalClosing = 0;
 
-        $transactionModel = class_exists(\App\Models\AccountTransaction::class) ? \App\Models\AccountTransaction::class : \App\Models\Transaction::class;
+        $transactionModel = \App\Models\Transaction::class;
 
         foreach ($accounts as $acc) {
             $inflowsAfter = $transactionModel::where('account_id', $acc->id)
-                ->whereDate('created_at', '>', $date)
+                ->whereDate('transaction_date', '>', $date)
                 ->where('type', 'credit')->sum('amount');
 
             $outflowsAfter = $transactionModel::where('account_id', $acc->id)
-                ->whereDate('created_at', '>', $date)
+                ->whereDate('transaction_date', '>', $date)
                 ->where('type', 'debit')->sum('amount');
 
             $closingBalance = $acc->current_balance - $inflowsAfter + $outflowsAfter;
 
             $inflowToday = $transactionModel::where('account_id', $acc->id)
-                ->whereDate('created_at', $date)
+                ->whereDate('transaction_date', $date)
                 ->where('type', 'credit')->sum('amount');
 
             $outflowToday = $transactionModel::where('account_id', $acc->id)
-                ->whereDate('created_at', $date)
+                ->whereDate('transaction_date', $date)
                 ->where('type', 'debit')->sum('amount');
 
             $openingBalance = $closingBalance - $inflowToday + $outflowToday;
@@ -649,6 +660,7 @@ class ReportController extends Controller
                 'inflow' => $inflowToday,
                 'outflow' => $outflowToday,
                 'closing' => $closingBalance,
+                'current_balance' => $acc->current_balance,
             ];
 
             $totalOpening += $openingBalance;
@@ -657,17 +669,77 @@ class ReportController extends Controller
             $totalClosing += $closingBalance;
         }
 
-        $expenses = Expense::whereDate('date', $date)->get();
-        $vendorPayments = VendorPayment::with('vendor')->whereDate('date', $date)->get();
-        $salaries = Salary::with('user')->where('status', 'paid')->whereDate('payment_date', $date)->get();
-        $invoicePayments = InvoicePayment::with('invoice.client')->whereDate('payment_date', $date)->get();
-        $transactions = $transactionModel::with('account')->whereDate('created_at', $date)->latest('id')->get();
+        $transactions = $transactionModel::with('account')
+            ->whereDate('transaction_date', $date)
+            ->latest('id')
+            ->get();
 
-        $totalMarketReceivable = DB::table('invoices')->whereNull('deleted_at')->sum('grand_total')
-                                 - DB::table('invoice_payments')->sum('amount');
-        $totalMarketPayable = DB::table('project_expenses')->sum('due_amount');
+        try {
+            $transactions->loadMorph('transactionable', [
+                \App\Models\Advance::class => ['user'],
+                \App\Models\ClientAdvance::class => ['client'],
+                \App\Models\VendorPayment::class => ['vendor'],
+                \App\Models\ProjectExpense::class => ['vendor', 'project'],
+                \App\Models\Salary::class => ['user'],
+                \App\Models\InvoicePayment::class => ['invoice.client'],
+            ]);
+        } catch (\Exception $e) {}
 
-        return Inertia::render('Admin/Reports/Daybook', [
+        $transactions->transform(function ($trx) {
+            $trx->party_name = null;
+            $trx->party_type = null;
+            $trx->context_label = 'Manual Entry / Fund Transfer';
+
+            if ($trx->transactionable) {
+                $type = class_basename($trx->transactionable_type);
+                switch ($type) {
+                    case 'Advance':
+                        $trx->party_name = $trx->transactionable->user->name ?? 'Unknown Employee';
+                        $trx->party_type = 'Employee';
+                        $trx->context_label = 'Staff Advance';
+                        break;
+                    case 'ClientAdvance':
+                        $trx->party_name = $trx->transactionable->client->name ?? 'Unknown Client';
+                        $trx->party_type = 'Client';
+                        $trx->context_label = 'Client Advance';
+                        break;
+                    case 'VendorPayment':
+                    case 'VendorLedger':
+                        $trx->party_name = $trx->transactionable->vendor->name ?? 'Unknown Vendor';
+                        $trx->party_type = 'Vendor';
+                        $trx->context_label = 'Vendor Bill / Advance';
+                        break;
+                    case 'ProjectExpense':
+                        $trx->party_name = $trx->transactionable->payee_name ?: ($trx->transactionable->vendor->name ?? 'General Payee');
+                        $trx->party_type = $trx->transactionable->vendor_id ? 'Vendor' : 'Payee';
+                        $trx->context_label = 'Project / Office Expense';
+                        break;
+                    case 'Salary':
+                        $trx->party_name = $trx->transactionable->user->name ?? 'Unknown Employee';
+                        $trx->party_type = 'Employee';
+                        $trx->context_label = 'Salary Payment';
+                        break;
+                    case 'InvoicePayment':
+                        $trx->party_name = $trx->transactionable->invoice->client->name ?? 'Unknown Client';
+                        $trx->party_type = 'Client';
+                        $trx->context_label = 'Invoice Collection';
+                        break;
+                    default:
+                        $trx->context_label = $type;
+                        break;
+                }
+            }
+            return $trx;
+        });
+
+        $inflows = $transactions->where('type', 'credit')->values();
+        $outflows = $transactions->where('type', 'debit')->values();
+
+        $totalMarketReceivable = \Illuminate\Support\Facades\DB::table('invoices')->whereNull('deleted_at')->sum('grand_total')
+                                 - \Illuminate\Support\Facades\DB::table('invoice_payments')->sum('amount');
+        $totalMarketPayable = \Illuminate\Support\Facades\DB::table('project_expenses')->sum('due_amount');
+
+        return \Inertia\Inertia::render('Admin/Reports/Daybook', [
             'selectedDate' => $date,
             'formattedDate' => $parsedDate->format('l, jS F Y'),
             'summary' => [
@@ -678,11 +750,9 @@ class ReportController extends Controller
             ],
             'accountSummary' => $accountSummary,
             'details' => [
-                'expenses' => $expenses,
-                'vendorPayments' => $vendorPayments,
-                'salaries' => $salaries,
-                'invoicePayments' => $invoicePayments,
                 'transactions' => $transactions,
+                'inflows'      => $inflows,
+                'outflows'     => $outflows,
             ],
             'marketSnapshot' => [
                 'receivable' => max($totalMarketReceivable, 0),

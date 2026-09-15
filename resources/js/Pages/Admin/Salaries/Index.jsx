@@ -4,25 +4,12 @@ import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
 
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
-
-const COMPANY = {
-    name: 'UNIBOX',
-    tagline: "Let's Create Together",
-    logo: typeof window !== 'undefined' ? `${window.location.origin}/images/logo.png` : '',
-    phone: '+8801627188836',
-    email: 'uniboxbd4u@gmail.com',
-    website: 'www.uniboxbd4u.com',
-    address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
-};
-
 // 🟢 Custom Straight Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
 );
 
-export default function Index({ salaries = { data: [], links: [] }, users = [], accounts = [] }) {
+export default function Index({ salaries = { data: [], links: [] }, users = [], accounts = [], totals = null }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
     const permissions = auth?.permissions || [];
@@ -30,10 +17,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
 
     const [showModal, setShowModal] = useState(false);
     const [editMode, setEditMode] = useState(false);
-    
-    // Payment Modal State
     const [showPaymentModal, setShowPaymentModal] = useState(false);
-    
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState(null);
 
@@ -48,49 +32,49 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
     const today = new Date();
     const defaultMonthYear = `${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
 
-    // Payslip Generator Form (Includes Payment Splits)
+    // Payslip Form
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
-        id: '', user_id: '', month_year: defaultMonthYear, basic_salary: 0, allowances: 0, bonus: 0, deductions: 0, net_pay: 0, status: 'unpaid', payment_date: new Date().toISOString().slice(0, 10),
-        payments: [{ account_id: '', amount: '' }]
+        id: '', user_id: '', month_year: defaultMonthYear, basic_salary: 0, allowances: 0, bonus: 0, deductions: 0, advance_deduction: 0, net_pay: 0, status: 'unpaid', payment_date: new Date().toISOString().slice(0, 10),
+        payments: [{ account_id: '', amount: '', bank_charge: '' }]
     });
 
-    // Pay Salary Form (For future installments)
+    // Payment Installment Form
     const paymentForm = useForm({
-        account_id: '', amount: '', date: new Date().toISOString().slice(0, 10), note: ''
+        account_id: '', amount: '', bank_charge: '', date: new Date().toISOString().slice(0, 10), note: ''
     });
 
-    // Auto-Fetch Basic Salary
+    // Handle Employee Selection
     const handleUserSelect = (selected) => {
         const userId = selected ? selected.value : "";
         if (!userId) {
-            setData(prev => ({ ...prev, user_id: "", basic_salary: 0, allowances: 0, bonus: 0, deductions: 0 }));
+            setData(prev => ({ ...prev, user_id: "", basic_salary: 0, allowances: 0, bonus: 0, deductions: 0, advance_deduction: 0 }));
             return;
         }
         const selectedUser = users.find(u => Number(u.id) === Number(userId));
         setData(prev => ({
             ...prev, user_id: userId,
             basic_salary: selectedUser?.employee_profile?.basic_salary || selectedUser?.basic_salary || 0,
-            allowances: 0, bonus: 0, deductions: 0
+            allowances: 0, bonus: 0, deductions: 0,
+            advance_deduction: 0
         }));
     };
 
-    // Auto Calculate Net Pay & Auto-fill Payment Amount
+    // Auto Calculate Net Pay
     useEffect(() => {
         const basic = parseFloat(data.basic_salary) || 0;
         const allow = parseFloat(data.allowances) || 0;
         const bns = parseFloat(data.bonus) || 0;
         const ded = parseFloat(data.deductions) || 0;
-        const net = (basic + allow + bns - ded).toFixed(2);
+        const net = (basic + allow + bns - ded - (Number(data.advance_deduction) || 0)).toFixed(2);
 
         setData(prev => {
             const newData = { ...prev, net_pay: net };
-            // Auto fill the first split if status is paid/partially_paid and only 1 split exists
             if (newData.payments.length === 1 && newData.status !== 'unpaid' && !editMode) {
-                newData.payments[0].amount = net;
+                newData.payments = [{ ...newData.payments[0], amount: net }];
             }
             return newData;
         });
-    }, [data.basic_salary, data.allowances, data.bonus, data.deductions, data.status]);
+    }, [data.basic_salary, data.allowances, data.bonus, data.deductions, data.advance_deduction, data.status]);
 
     // Live Search
     useEffect(() => {
@@ -99,18 +83,21 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
             const params = {};
             if (searchTerm.trim()) params.search = searchTerm;
             if (filterMonth.trim()) params.month = filterMonth;
-            if (perPage !== 25) params.per_page = perPage;
+            params.per_page = perPage;
             router.get(route('admin.salaries.index'), params, { preserveState: true, replace: true, preserveScroll: true });
         }, 400);
         return () => clearTimeout(delayDebounceFn);
     }, [searchTerm, filterMonth, perPage]);
 
     const recordList = salaries.data || (Array.isArray(salaries) ? salaries : []);
-    const totalPayroll = recordList.reduce((acc, curr) => acc + parseFloat(curr.net_pay || 0), 0);
-    const totalPaid = recordList.reduce((acc, curr) => acc + parseFloat(curr.paid_amount || 0), 0);
-    const totalUnpaid = recordList.reduce((acc, curr) => acc + parseFloat(curr.due_amount || 0), 0);
+    const totalPayroll = totals ? Number(totals.net_pay) : recordList.reduce((acc, curr) => acc + parseFloat(curr.net_pay || 0), 0);
+    const totalPaid = totals ? Number(totals.paid_amount) : recordList.reduce((acc, curr) => acc + parseFloat(curr.paid_amount || 0), 0);
+    const totalUnpaid = totals ? Number(totals.due_amount) : recordList.reduce((acc, curr) => acc + parseFloat(curr.due_amount || 0), 0);
 
-    const formatCurrency = (val) => `${parseFloat(val || 0).toLocaleString('en-IN')}`;
+    const selectedStaff = users.find(u => Number(u.id) === Number(data.user_id));
+    const editedSalary = recordList.find(s => s.id === data.id);
+    const availableAdvance = Number(selectedStaff?.advance_balance || 0) + (editMode && Number(editedSalary?.user_id) === Number(data.user_id) ? Number(editedSalary?.advance_deduction || 0) : 0);
+    const grossBeforeAdvance = Number(data.basic_salary) + Number(data.allowances) + Number(data.bonus) - Number(data.deductions);
 
     const handleInputFocus = (field) => { if (data[field] == 0) setData(field, ''); };
     const handleInputBlur = (field) => { if (data[field] === '') setData(field, 0); };
@@ -122,38 +109,39 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.setAttribute("download", `Payroll_Report_${new Date().toISOString().slice(0, 10)}.csv`); link.click();
     };
-
     const handlePrint = () => window.print();
 
-    // --- Modals ---
+    // Modals
     const openCreateModal = () => {
         clearErrors();
-        setData({ id: '', user_id: '', month_year: defaultMonthYear, basic_salary: 0, allowances: 0, bonus: 0, deductions: 0, net_pay: 0, status: 'unpaid', payment_date: new Date().toISOString().slice(0, 10), payments: [{ account_id: '', amount: '' }] });
+        setData({ id: '', user_id: '', month_year: defaultMonthYear, basic_salary: 0, allowances: 0, bonus: 0, deductions: 0, advance_deduction: 0, net_pay: 0, status: 'unpaid', payment_date: new Date().toISOString().slice(0, 10), payments: [{ account_id: '', amount: '', bank_charge: '' }] });
         setEditMode(false); setShowModal(true);
     };
 
     const openEditModal = (sal) => {
         clearErrors();
-        let formattedPayments = sal.transactions?.length > 0 
-            ? sal.transactions.map(t => ({ account_id: t.account_id, amount: t.amount }))
-            : [{ account_id: '', amount: sal.net_pay }];
-            
-        setData({ id: sal.id, user_id: sal.user_id || '', month_year: sal.month_year || defaultMonthYear, basic_salary: sal.basic_salary || 0, allowances: sal.allowances || 0, bonus: sal.bonus || 0, deductions: sal.deductions || 0, net_pay: sal.net_pay || 0, status: sal.status || 'unpaid', payment_date: sal.payment_date || new Date().toISOString().slice(0, 10), payments: formattedPayments });
+        let formattedPayments = sal.transactions?.length > 0
+            ? sal.transactions.filter(t => Number(t.bank_charge) === 0 || t.bank_charge === null).map(t => {
+                // Find matching bank charge transaction if any
+                const chargeTxn = sal.transactions.find(ct => Number(ct.bank_charge) > 0 && ct.account_id === t.account_id && ct.transaction_date === t.transaction_date && ct.id !== t.id);
+                return { account_id: t.account_id, amount: Number(t.amount), bank_charge: chargeTxn ? Number(chargeTxn.amount) : '' };
+            })
+            : [{ account_id: '', amount: sal.net_pay, bank_charge: '' }];
+
+        setData({ id: sal.id, user_id: sal.user_id || '', month_year: sal.month_year || defaultMonthYear, basic_salary: sal.basic_salary || 0, allowances: sal.allowances || 0, bonus: sal.bonus || 0, deductions: sal.deductions || 0, advance_deduction: sal.advance_deduction || 0, net_pay: sal.net_pay || 0, status: sal.status || 'unpaid', payment_date: sal.payment_date || new Date().toISOString().slice(0, 10), payments: formattedPayments });
         setEditMode(true); setShowModal(true);
     };
 
     const openPaymentModal = (sal) => {
         setSelectedRecord(sal);
-        paymentForm.reset();
-        paymentForm.clearErrors();
-        paymentForm.setData({ account_id: '', amount: sal.due_amount, date: new Date().toISOString().slice(0, 10), note: '' });
+        paymentForm.reset(); paymentForm.clearErrors();
+        paymentForm.setData({ account_id: '', amount: sal.due_amount, bank_charge: '', date: new Date().toISOString().slice(0, 10), note: '' });
         setShowPaymentModal(true);
     };
 
     const openViewModal = (record) => { setSelectedRecord(record); setShowViewModal(true); };
 
-    // --- Multi-Account Split Handlers ---
-    const addPaymentRow = () => setData('payments', [...data.payments, { account_id: '', amount: '' }]);
+    const addPaymentRow = () => setData('payments', [...data.payments, { account_id: '', amount: '', bank_charge: '' }]);
     const removePaymentRow = (index) => setData('payments', data.payments.filter((_, i) => i !== index));
     const handlePaymentChange = (index, field, value) => {
         const newPayments = [...data.payments];
@@ -161,7 +149,6 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
         setData('payments', newPayments);
     };
 
-    // --- Submit Logic ---
     const handleSubmit = (e) => {
         e.preventDefault();
         if (data.status !== 'unpaid') {
@@ -169,7 +156,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
             if (sumOfPayments > data.net_pay) {
                 return Swal.fire("Amount Exceeded!", `You cannot pay more than Net Pay (৳${data.net_pay}). Your splits total ৳${sumOfPayments}.`, "error");
             }
-            const emptyAccount = data.payments.find(p => !p.account_id);
+            const emptyAccount = data.payments.find(p => Number(p.amount) > 0 && !p.account_id);
             if (emptyAccount) return Swal.fire("Required", "Please select an account for all payment splits.", "warning");
         }
 
@@ -182,14 +169,9 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
 
     const handlePaymentSubmit = (e) => {
         e.preventDefault();
-        if (parseFloat(paymentForm.data.amount) > parseFloat(selectedRecord.due_amount)) {
-            return Swal.fire("Error", "Payment cannot exceed the due amount.", "error");
-        }
-        paymentForm.post(route('salaries.pay', selectedRecord.id), {
-            onSuccess: () => {
-                setShowPaymentModal(false);
-                Swal.fire({ icon: 'success', title: 'Payment Added!', timer: 1500, showConfirmButton: false, toast: true, position: 'top-end' });
-            }
+        if (parseFloat(paymentForm.data.amount) > parseFloat(selectedRecord.due_amount)) return Swal.fire("Error", "Payment cannot exceed the due amount.", "error");
+        paymentForm.post(route('admin.salaries.add-payment', selectedRecord.id), {
+            onSuccess: () => { setShowPaymentModal(false); Swal.fire({ icon: 'success', title: 'Payment Added!', timer: 1500, showConfirmButton: false, toast: true, position: 'top-end' }); }
         });
     };
 
@@ -204,16 +186,16 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
         return styles[status] || { bg: 'bg-gray-50', text: 'text-gray-600', label: status };
     };
 
-    const selectStyles = { 
-        control: (provided, state) => ({ ...provided, minHeight: "44px", borderRadius: "0.75rem", border: state.isFocused ? "1px solid var(--accent, #6366f1)" : "1px solid #d1d5db", boxShadow: state.isFocused ? "0 0 0 3px rgba(99, 102, 241, 0.1)" : "none", fontSize: "14px", background: "#fff", cursor: "pointer" }), 
-        option: (provided, state) => ({ ...provided, fontSize: "14px", backgroundColor: state.isSelected ? "var(--accent, #4f46e5)" : state.isFocused ? "#f8fafc" : "#fff", color: state.isSelected ? "#fff" : "#111827", cursor: "pointer" }), 
-        menuPortal: base => ({ ...base, zIndex: 9999 }) 
+    const selectStyles = {
+        control: (provided, state) => ({ ...provided, minHeight: "44px", borderRadius: "0.75rem", border: state.isFocused ? "1px solid var(--accent, #6366f1)" : "1px solid #d1d5db", boxShadow: state.isFocused ? "0 0 0 3px rgba(99, 102, 241, 0.1)" : "none", fontSize: "14px", background: "#fff", cursor: "pointer" }),
+        option: (provided, state) => ({ ...provided, fontSize: "14px", backgroundColor: state.isSelected ? "var(--accent, #4f46e5)" : state.isFocused ? "#f8fafc" : "#fff", color: state.isSelected ? "#fff" : "#111827", cursor: "pointer" }),
+        menuPortal: base => ({ ...base, zIndex: 9999 })
     };
 
     return (
         <AdminLayout>
             <Head title="Payroll Management" />
-            
+
             <style dangerouslySetInnerHTML={{__html: `
                 .custom-table-scroll::-webkit-scrollbar { height: 8px; }
                 .custom-table-scroll::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
@@ -268,7 +250,6 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
 
                     {/* Toolbar */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 border-b border-gray-100 no-print">
-                        
                         <div className="flex flex-wrap items-center gap-3">
                             <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
                                 <span className="bg-gray-50/80 px-4 py-2.5 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">Show</span>
@@ -313,6 +294,12 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                             <tbody className="text-[13.5px] text-[#202223] divide-y divide-gray-100">
                                 {recordList.length > 0 ? recordList.map((sal, index) => {
                                     const statusStyle = getStatusStyle(sal.status);
+                                    // Combine salary transactions with their bank charges for display
+                                    const displayTxns = sal.transactions?.filter(t => Number(t.bank_charge) === 0 || t.bank_charge === null).map(t => {
+                                        const chargeTxn = sal.transactions.find(ct => Number(ct.bank_charge) > 0 && ct.account_id === t.account_id && ct.transaction_date === t.transaction_date && ct.id !== t.id);
+                                        return { ...t, mapped_charge: chargeTxn ? Number(chargeTxn.amount) : 0 };
+                                    }) || [];
+
                                     return (
                                     <tr key={sal.id} className="hover:bg-slate-50/80 transition-colors group">
                                         <td className="px-6 py-4 font-medium text-gray-400 text-center">{salaries.from ? salaries.from + index : index + 1}</td>
@@ -339,17 +326,20 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                         <td className="px-6 py-4 text-center">
                                             <span className={`inline-flex px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${statusStyle.bg} ${statusStyle.text}`}>{statusStyle.label}</span>
                                         </td>
-                                        
+
                                         {/* Premium Split Details Display */}
                                         <td className="px-6 py-4">
-                                            {sal.transactions?.length > 0 ? (
+                                            {displayTxns.length > 0 ? (
                                                 <div className="flex flex-col gap-1.5">
-                                                    {sal.transactions.map(t => (
+                                                    {displayTxns.map(t => (
                                                         <div key={t.id} className="flex items-center justify-between gap-3 bg-white border border-gray-200/70 rounded-md px-2.5 py-1.5 min-w-[180px] shadow-sm">
                                                             <span className="flex items-center gap-1.5 text-[11px] font-bold text-gray-600 truncate max-w-[150px]" title={t.account?.name}>
                                                                 <i className="fa-solid fa-building-columns text-indigo-400"></i> {t.account?.name}
                                                             </span>
-                                                            <span className="text-[11.5px] font-black text-emerald-600 tabular-nums"><Taka className="text-[10px]"/>{Number(t.amount).toLocaleString('en-IN')}</span>
+                                                            <span className="text-[11.5px] font-black text-emerald-600 tabular-nums">
+                                                                <Taka className="text-[10px]"/>{Number(t.amount).toLocaleString('en-IN')}
+                                                                {t.mapped_charge > 0 && <span className="block text-gray-500 font-semibold mt-0.5 text-[9px]">Charge: {t.mapped_charge.toLocaleString('en-IN')}</span>}
+                                                            </span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -365,9 +355,9 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                                         <i className="fa-solid fa-hand-holding-dollar text-[13px]"></i>
                                                     </button>
                                                 )}
-                                                {hasPermission('view_salary') && <button onClick={() => openViewModal(sal)} className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors shadow-sm" title="View Payslip"><i className="fa-regular fa-file-lines text-[13px]"></i></button>}
-                                                {hasPermission('edit_salary') && <button onClick={() => openEditModal(sal)} className="h-8 w-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors shadow-sm" title="Edit"><i className="fa-regular fa-pen-to-square text-[13px]"></i></button>}
-                                                {hasPermission('delete_salary') && <button onClick={() => handleDelete(sal.id)} className="h-8 w-8 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors shadow-sm" title="Delete"><i className="fa-regular fa-trash-can text-[13px]"></i></button>}
+                                                {hasPermission('view_salary') && <button onClick={() => openViewModal(sal)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors shadow-sm" title="View Payslip"><i className="fa-regular fa-file-lines text-[13px]"></i></button>}
+                                                {hasPermission('edit_salary') && <button onClick={() => openEditModal(sal)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors shadow-sm" title="Edit"><i className="fa-regular fa-pen-to-square text-[13px]"></i></button>}
+                                                {hasPermission('delete_salary') && <button onClick={() => handleDelete(sal.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors shadow-sm" title="Delete"><i className="fa-regular fa-trash-can text-[13px]"></i></button>}
                                             </div>
                                         </td>
                                     </tr>
@@ -395,7 +385,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
             {/* --- 🟢 PAY SALARY MODAL (FOR INSTALLMENTS) --- */}
             {showPaymentModal && selectedRecord && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
-                    <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                    <div className="w-full max-w-xl bg-white rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
                         <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white shrink-0">
                             <div>
                                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-wider mb-1.5 border border-emerald-100">
@@ -421,7 +411,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
 
                                 <div className="relative z-[60]">
                                     <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Pay From Account <span className="text-red-500">*</span></label>
-                                    <Select 
+                                    <Select
                                         options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳ ${Number(a.current_balance).toLocaleString('en-IN')})` }))}
                                         value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳ ${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(paymentForm.data.account_id)) || null}
                                         onChange={e => paymentForm.setData('account_id', e ? e.value : "")}
@@ -430,33 +420,52 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                     {paymentForm.errors.account_id && <p className="text-rose-500 text-[11px] font-bold mt-1.5">{paymentForm.errors.account_id}</p>}
                                 </div>
 
-                                <div>
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Amount to Pay <span className="text-red-500">*</span></label>
-                                    <div className="relative">
-                                        <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 text-[16px]" />
-                                        <input 
-                                            type="number" step="0.01" min="1" max={selectedRecord.due_amount} 
-                                            value={paymentForm.data.amount} onChange={e => paymentForm.setData('amount', e.target.value)} 
-                                            className="w-full rounded-xl border border-emerald-200 bg-emerald-50/30 pl-10 pr-4 py-3 text-[16px] font-black text-emerald-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all shadow-sm" placeholder="0.00" required 
-                                        />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-[12px] font-bold text-emerald-600 uppercase tracking-wider mb-2">Amount to Pay <span className="text-red-500">*</span></label>
+                                        <div className="relative">
+                                            <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 text-[16px]" />
+                                            <input
+                                                type="number" step="0.01" min="1" max={selectedRecord.due_amount}
+                                                value={paymentForm.data.amount} onChange={e => paymentForm.setData('amount', e.target.value)}
+                                                className="w-full rounded-xl border border-emerald-200 bg-emerald-50 pl-10 pr-4 py-3 text-[16px] font-black text-emerald-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 transition-all shadow-sm" placeholder="0.00" required
+                                            />
+                                        </div>
+                                        {paymentForm.errors.amount && <p className="text-rose-500 text-[11px] font-bold mt-1.5">{paymentForm.errors.amount}</p>}
                                     </div>
-                                    {paymentForm.errors.amount && <p className="text-rose-500 text-[11px] font-bold mt-1.5">{paymentForm.errors.amount}</p>}
+                                    <div>
+                                        <label className="block text-[12px] font-bold text-gray-500 uppercase tracking-wider mb-2">Bank Charge (If Any)</label>
+                                        <div className="relative">
+                                            <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" />
+                                            <input
+                                                type="number" step="0.01" min="0"
+                                                value={paymentForm.data.bank_charge} onChange={e => paymentForm.setData('bank_charge', e.target.value)}
+                                                className="w-full rounded-xl border border-gray-300 pl-10 pr-4 py-3 text-[15px] font-bold text-gray-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm" placeholder="0.00"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div>
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Payment Date <span className="text-red-500">*</span></label>
-                                    <input type="date" value={paymentForm.data.date} onChange={e => paymentForm.setData('date', e.target.value)} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-[14px] font-bold outline-none focus:border-indigo-500 transition-all shadow-sm" required />
-                                </div>
-
-                                <div>
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Note (Optional)</label>
-                                    <input type="text" value={paymentForm.data.note} onChange={e => paymentForm.setData('note', e.target.value)} placeholder="e.g. Festival Advance" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-[14px] outline-none focus:border-indigo-500 transition-all shadow-sm" />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Payment Date <span className="text-red-500">*</span></label>
+                                        <input type="date" value={paymentForm.data.date} onChange={e => paymentForm.setData('date', e.target.value)} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-[14px] font-bold outline-none focus:border-indigo-500 transition-all shadow-sm" required />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Note (Optional)</label>
+                                        <input type="text" value={paymentForm.data.note} onChange={e => paymentForm.setData('note', e.target.value)} placeholder="e.g. Due cleared" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-[14px] outline-none focus:border-indigo-500 transition-all shadow-sm" />
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0 rounded-b-3xl">
-                                <button type="button" onClick={() => setShowPaymentModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-100">Cancel</button>
-                                <button type="submit" disabled={paymentForm.processing} className="rounded-xl bg-emerald-600 px-8 py-2.5 text-[14px] font-bold text-white shadow-md transition-all hover:bg-emerald-700 disabled:opacity-70 flex items-center gap-2"><i className="fa-solid fa-check"></i> Pay Now</button>
+                            <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-between items-center shrink-0 rounded-b-3xl">
+                                <div className="text-[12.5px] font-bold text-gray-500">
+                                    Total Deduction from Bank: <span className="text-gray-900 font-black">৳{(Number(paymentForm.data.amount || 0) + Number(paymentForm.data.bank_charge || 0)).toLocaleString('en-IN')}</span>
+                                </div>
+                                <div className="flex gap-3">
+                                    <button type="button" onClick={() => setShowPaymentModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-100">Cancel</button>
+                                    <button type="submit" disabled={paymentForm.processing} className="rounded-xl bg-emerald-600 px-8 py-2.5 text-[14px] font-bold text-white shadow-md transition-all hover:bg-emerald-700 disabled:opacity-70 flex items-center gap-2"><i className="fa-solid fa-check"></i> Pay Now</button>
+                                </div>
                             </div>
                         </form>
                     </div>
@@ -482,12 +491,13 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                 <p className="text-[12px] font-bold text-gray-500 mt-1 uppercase tracking-widest">Salary For: <span className="text-indigo-600">{selectedRecord.month_year}</span></p>
                                 <div className="mt-3"><span className={`inline-flex px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusStyle(selectedRecord.status).bg} ${getStatusStyle(selectedRecord.status).text}`}>{getStatusStyle(selectedRecord.status).label}</span></div>
                             </div>
-                            
+
                             <div className="space-y-1 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
                                 <div className="flex justify-between items-center py-2.5 border-b border-dashed border-gray-200"><span className="text-[12.5px] font-bold text-gray-500">Basic Salary</span><span className="text-[14.5px] font-black text-gray-800"><Taka />{parseFloat(selectedRecord.basic_salary).toLocaleString('en-IN')}</span></div>
                                 <div className="flex justify-between items-center py-2.5 border-b border-dashed border-gray-200"><span className="text-[12.5px] font-bold text-gray-500">Allowances</span><span className="text-[14.5px] font-black text-emerald-600">+ <Taka />{parseFloat(selectedRecord.allowances).toLocaleString('en-IN')}</span></div>
                                 <div className="flex justify-between items-center py-2.5 border-b border-dashed border-gray-200"><span className="text-[12.5px] font-bold text-gray-500">Bonus</span><span className="text-[14.5px] font-black text-emerald-600">+ <Taka />{parseFloat(selectedRecord.bonus).toLocaleString('en-IN')}</span></div>
-                                <div className="flex justify-between items-center py-2.5"><span className="text-[12.5px] font-bold text-gray-500">Deductions</span><span className="text-[14.5px] font-black text-rose-600">- <Taka />{parseFloat(selectedRecord.deductions).toLocaleString('en-IN')}</span></div>
+                                <div className="flex justify-between items-center py-2.5 border-b border-dashed border-gray-200"><span className="text-[12.5px] font-bold text-gray-500">Other Deductions</span><span className="text-[14.5px] font-black text-rose-600">- <Taka />{parseFloat(selectedRecord.deductions).toLocaleString('en-IN')}</span></div>
+                                <div className="flex justify-between items-center py-2.5"><span className="text-[12.5px] font-bold text-gray-500">Advance Deducted</span><span className="text-[14.5px] font-black text-rose-600">- <Taka />{parseFloat(selectedRecord.advance_deduction).toLocaleString('en-IN')}</span></div>
                             </div>
 
                             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-2xl flex justify-between items-center shadow-lg shadow-indigo-200 text-white relative overflow-hidden">
@@ -497,21 +507,26 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                             </div>
 
                             {/* Payment Transactions List */}
-                            {selectedRecord.transactions?.length > 0 && (
+                            {selectedRecord.transactions?.filter(t => Number(t.bank_charge) === 0 || t.bank_charge === null).length > 0 && (
                                 <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 flex flex-col gap-3">
                                     <div className="text-[12px] font-black text-emerald-800 uppercase tracking-wider border-b border-emerald-200/50 pb-3 flex items-center gap-2">
                                         <i className="fa-solid fa-money-check-dollar"></i> Payment History
                                     </div>
                                     <div className="flex flex-col gap-2.5 mt-1">
-                                        {selectedRecord.transactions.map(t => (
+                                        {selectedRecord.transactions.filter(t => Number(t.bank_charge) === 0 || t.bank_charge === null).map(t => {
+                                            const chargeTxn = selectedRecord.transactions.find(ct => Number(ct.bank_charge) > 0 && ct.account_id === t.account_id && ct.transaction_date === t.transaction_date && ct.id !== t.id);
+                                            return (
                                             <div key={t.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-emerald-100 shadow-sm">
                                                 <div className="flex flex-col">
                                                     <span className="font-bold text-gray-800 flex items-center gap-1.5 text-[12.5px]"><i className="fa-solid fa-building-columns text-indigo-400 text-[10px]"></i> {t.account?.name}</span>
                                                     <span className="text-[10px] text-gray-500 font-semibold mt-0.5"><i className="fa-regular fa-calendar mr-1"></i>{t.transaction_date}</span>
                                                 </div>
-                                                <span className="font-black text-emerald-700 tabular-nums text-[15px]"><Taka />{Number(t.amount).toLocaleString('en-IN')}</span>
+                                                <div className="text-right">
+                                                    <span className="block font-black text-emerald-700 tabular-nums text-[15px]"><Taka />{Number(t.amount).toLocaleString('en-IN')}</span>
+                                                    {chargeTxn && <span className="block text-[10px] font-bold text-gray-500 mt-0.5">Charge: {Number(chargeTxn.amount).toLocaleString('en-IN')}</span>}
+                                                </div>
                                             </div>
-                                        ))}
+                                        )})}
                                     </div>
                                     {selectedRecord.status === 'partially_paid' && (
                                         <div className="flex justify-between items-center pt-3 border-t border-emerald-200/50 mt-1">
@@ -530,191 +545,230 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                 </div>
             )}
 
-            {/* --- 🟢 ADD/EDIT PAYSLIP MODAL --- */}
+            {/* --- 🟢 ADD/EDIT PAYSLIP MODAL (Premium Design) --- */}
             {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
-                    <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-                        
-                        <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white shrink-0">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/70 backdrop-blur-md p-4 md:p-6 overflow-y-auto">
+                    <div className="w-full max-w-4xl bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+
+                        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-200 bg-white shrink-0 shadow-sm z-10">
                             <div>
-                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase tracking-wider mb-1.5">
-                                    <i className="fa-solid fa-file-invoice"></i> {editMode ? 'Update' : 'New Entry'}
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-bold uppercase tracking-wider mb-1.5 border border-indigo-100">
+                                    <i className={`fa-solid ${editMode ? 'fa-pen-to-square' : 'fa-file-invoice'}`}></i> {editMode ? 'Update Record' : 'New Payroll Entry'}
                                 </div>
-                                <h3 className="text-[20px] font-extrabold text-gray-900 tracking-tight">
-                                    {editMode ? "Modify Payslip Record" : "Generate New Payslip"}
+                                <h3 className="text-[22px] font-black text-gray-900 tracking-tight">
+                                    {editMode ? "Modify Employee Payslip" : "Generate Employee Payslip"}
                                 </h3>
                             </div>
-                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-red-500 bg-gray-100 hover:bg-red-50 h-9 w-9 rounded-full flex items-center justify-center transition-colors">
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-red-500 bg-gray-100 hover:bg-red-50 h-10 w-10 rounded-full flex items-center justify-center transition-colors">
                                 <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
 
                         <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden h-full">
-                            <div className="p-8 overflow-y-auto custom-table-scroll space-y-6">
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="relative z-[60]">
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Select Employee <span className="text-red-500">*</span></label>
-                                        <Select 
-                                            options={users.map((u) => ({ value: u.id, label: u.name }))} 
-                                            value={users.map((u) => ({ value: u.id, label: u.name })).find((opt) => Number(opt.value) === Number(data.user_id)) || null} 
-                                            onChange={handleUserSelect} 
-                                            isDisabled={editMode} 
+                            <div className="p-8 overflow-y-auto custom-table-scroll space-y-8">
+
+                                {/* Top Section: Basic Info */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm relative z-[60]">
+                                    <div>
+                                        <label className="block text-[12px] font-bold text-gray-500 uppercase tracking-wider mb-2">Select Employee <span className="text-red-500">*</span></label>
+                                        <Select
+                                            options={users.map((u) => ({ value: u.id, label: u.name }))}
+                                            value={users.map((u) => ({ value: u.id, label: u.name })).find((opt) => Number(opt.value) === Number(data.user_id)) || null}
+                                            onChange={handleUserSelect}
+                                            isDisabled={editMode}
                                             placeholder="-- Search Employee --"
                                             isSearchable isClearable
-                                            styles={selectStyles} 
-                                            menuPortalTarget={typeof document !== 'undefined' ? document.body : null} 
+                                            styles={selectStyles}
+                                            menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                                         />
                                         {errors.user_id && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.user_id}</p>}
                                     </div>
                                     <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Month-Year <span className="text-red-500">*</span></label>
-                                        <input type="text" value={data.month_year} onChange={e => setData('month_year', e.target.value)} className={`w-full rounded-xl border border-gray-300 px-4 py-3 text-[14px] font-bold outline-none transition-shadow ${editMode ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-900 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm'}`} disabled={editMode} />
+                                        <label className="block text-[12px] font-bold text-gray-500 uppercase tracking-wider mb-2">Month-Year <span className="text-red-500">*</span></label>
+                                        <input type="text" value={data.month_year} onChange={e => setData('month_year', e.target.value)} className={`w-full rounded-xl border border-gray-300 px-4 py-[11px] text-[14px] font-bold outline-none transition-shadow ${editMode ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-900 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm'}`} disabled={editMode} />
                                     </div>
                                 </div>
 
-                                <div className="bg-gray-50 border border-gray-100 p-6 rounded-2xl">
-                                    <h4 className="text-[12px] font-bold uppercase tracking-wider text-indigo-600 border-b border-gray-200 pb-2 mb-4">Salary Components</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Main Calculation Area */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    {/* Left: Earnings */}
+                                    <div className="space-y-5">
+                                        <h4 className="text-[13px] font-black uppercase tracking-wider text-emerald-600 border-b border-emerald-200 pb-2 flex items-center gap-2">
+                                            <i className="fa-solid fa-arrow-trend-up"></i> Earnings (+)
+                                        </h4>
                                         <div>
-                                            <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Basic Salary</label>
+                                            <label className="block text-[12px] font-bold text-gray-600 mb-1.5">Basic Salary</label>
                                             <div className="relative">
                                                 <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                                                <input 
-                                                    type="number" step="0.01" min="0"
-                                                    value={data.basic_salary} 
-                                                    onFocus={() => handleInputFocus('basic_salary')}
-                                                    onBlur={() => handleInputBlur('basic_salary')}
-                                                    onChange={e => setData('basic_salary', e.target.value)} 
-                                                    className="w-full rounded-xl border border-gray-300 bg-white pl-9 pr-4 py-3 text-[14.5px] font-bold text-gray-900 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm" 
-                                                />
+                                                <input type="number" step="0.01" min="0" value={data.basic_salary} onFocus={() => handleInputFocus('basic_salary')} onBlur={() => handleInputBlur('basic_salary')} onChange={e => setData('basic_salary', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white pl-9 pr-4 py-2.5 text-[14.5px] font-bold text-gray-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm" />
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="block text-[12px] font-bold text-emerald-600 uppercase tracking-wider mb-2">Allowances (+)</label>
+                                            <label className="block text-[12px] font-bold text-gray-600 mb-1.5">Allowances</label>
                                             <div className="relative">
                                                 <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400" />
-                                                <input 
-                                                    type="number" step="0.01" min="0"
-                                                    value={data.allowances} 
-                                                    onFocus={() => handleInputFocus('allowances')}
-                                                    onBlur={() => handleInputBlur('allowances')}
-                                                    onChange={e => setData('allowances', e.target.value)} 
-                                                    className="w-full rounded-xl border border-emerald-200 bg-emerald-50/50 pl-9 pr-4 py-3 text-[14.5px] font-bold text-emerald-700 outline-none transition-shadow focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm" 
-                                                />
+                                                <input type="number" step="0.01" min="0" value={data.allowances} onFocus={() => handleInputFocus('allowances')} onBlur={() => handleInputBlur('allowances')} onChange={e => setData('allowances', e.target.value)} className="w-full rounded-xl border border-emerald-200 bg-emerald-50/50 pl-9 pr-4 py-2.5 text-[14.5px] font-bold text-emerald-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm" />
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="block text-[12px] font-bold text-blue-600 uppercase tracking-wider mb-2">Bonus (+)</label>
+                                            <label className="block text-[12px] font-bold text-gray-600 mb-1.5">Bonus</label>
                                             <div className="relative">
                                                 <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400" />
-                                                <input 
-                                                    type="number" step="0.01" min="0"
-                                                    value={data.bonus} 
-                                                    onFocus={() => handleInputFocus('bonus')}
-                                                    onBlur={() => handleInputBlur('bonus')}
-                                                    onChange={e => setData('bonus', e.target.value)} 
-                                                    className="w-full rounded-xl border border-blue-200 bg-blue-50/50 pl-9 pr-4 py-3 text-[14.5px] font-bold text-blue-700 outline-none transition-shadow focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 shadow-sm" 
-                                                />
+                                                <input type="number" step="0.01" min="0" value={data.bonus} onFocus={() => handleInputFocus('bonus')} onBlur={() => handleInputBlur('bonus')} onChange={e => setData('bonus', e.target.value)} className="w-full rounded-xl border border-blue-200 bg-blue-50/50 pl-9 pr-4 py-2.5 text-[14.5px] font-bold text-blue-700 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 shadow-sm" />
                                             </div>
                                         </div>
+                                    </div>
+
+                                    {/* Right: Deductions */}
+                                    <div className="space-y-5">
+                                        <h4 className="text-[13px] font-black uppercase tracking-wider text-rose-600 border-b border-rose-200 pb-2 flex items-center gap-2">
+                                            <i className="fa-solid fa-arrow-trend-down"></i> Deductions (-)
+                                        </h4>
                                         <div>
-                                            <label className="block text-[12px] font-bold text-rose-600 uppercase tracking-wider mb-2">Deductions (-)</label>
+                                            <label className="block text-[12px] font-bold text-gray-600 mb-1.5">Other Deductions / Penalties</label>
                                             <div className="relative">
                                                 <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-rose-400" />
-                                                <input 
-                                                    type="number" step="0.01" min="0"
-                                                    value={data.deductions} 
-                                                    onFocus={() => handleInputFocus('deductions')}
-                                                    onBlur={() => handleInputBlur('deductions')}
-                                                    onChange={e => setData('deductions', e.target.value)} 
-                                                    className="w-full rounded-xl border border-rose-200 bg-rose-50/50 pl-9 pr-4 py-3 text-[14.5px] font-bold text-rose-700 outline-none transition-shadow focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 shadow-sm" 
-                                                />
+                                                <input type="number" step="0.01" min="0" value={data.deductions} onFocus={() => handleInputFocus('deductions')} onBlur={() => handleInputBlur('deductions')} onChange={e => setData('deductions', e.target.value)} className="w-full rounded-xl border border-rose-200 bg-rose-50/50 pl-9 pr-4 py-2.5 text-[14.5px] font-bold text-rose-700 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 shadow-sm" />
                                             </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-[12px] font-bold text-indigo-600 uppercase tracking-wider mb-2">Calculated Net Pay</label>
-                                        <div className="relative">
-                                            <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500 text-[18px]" />
-                                            <input type="text" value={data.net_pay} readOnly className="w-full rounded-xl border border-indigo-200 bg-indigo-50 pl-10 pr-4 py-3 text-[18px] font-black text-indigo-800 cursor-not-allowed shadow-inner" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Payment Status <span className="text-red-500">*</span></label>
-                                        <div className="relative">
-                                            <select value={data.status} onChange={e => setData('status', e.target.value)} className="w-full appearance-none bg-none [background-image:none] rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm">
-                                                <option value="unpaid">⏳ Unpaid (Keep as Due)</option>
-                                                <option value="paid">✅ Paid (Deduct from Accounts)</option>
-                                                <option value="partially_paid">⌛ Partially Paid (Installment)</option>
-                                            </select>
-                                            <i className="fa-solid fa-chevron-down text-[12px] text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* 🟢 PREMIUM MULTI-ACCOUNT PAYMENT SECTION */}
-                                {(data.status === 'paid' || data.status === 'partially_paid') && (
-                                    <div className="bg-emerald-50/40 p-6 rounded-2xl border border-emerald-100 shadow-sm animate-[fadeIn_0.3s_ease-out]">
-                                        <div className="flex justify-between items-center mb-4 border-b border-emerald-200/60 pb-3">
-                                            <label className="text-[13px] font-extrabold text-emerald-800 uppercase tracking-wider flex items-center gap-2">
-                                                <i className="fa-solid fa-code-branch"></i> Payment Split Breakdown
-                                            </label>
-                                            <label className="text-[12px] font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-lg border border-emerald-200 shadow-sm"><Taka /> {data.net_pay}</label>
+                                            {errors.deductions && <p className="text-red-600 text-[11px] mt-1 font-bold">{errors.deductions}</p>}
                                         </div>
 
-                                        <div className="space-y-3 relative z-40">
-                                            {data.payments.map((payment, index) => (
-                                                <div key={index} className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 rounded-xl border border-emerald-100 shadow-sm">
-                                                    <div className="w-full sm:flex-1 relative z-50">
-                                                        <Select 
-                                                            options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳ ${Number(a.current_balance).toLocaleString('en-IN')})` }))}
-                                                            value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳ ${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(payment.account_id)) || null}
-                                                            onChange={e => handlePaymentChange(index, 'account_id', e ? e.value : "")}
-                                                            placeholder="Select Account..." styles={selectStyles} menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                                        />
-                                                    </div>
-                                                    <div className="w-full sm:w-[160px] relative shrink-0">
-                                                        <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400" />
-                                                        <input 
-                                                            type="number" step="0.01" min="0" value={payment.amount} onChange={e => handlePaymentChange(index, 'amount', e.target.value)} 
-                                                            className="w-full rounded-xl border border-gray-300 pl-9 pr-3 py-2.5 text-[14px] font-bold text-gray-900 outline-none transition-shadow focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20" placeholder="0.00" 
-                                                        />
-                                                    </div>
-                                                    {data.payments.length > 1 && (
-                                                        <button type="button" onClick={() => removePaymentRow(index)} className="h-11 w-11 shrink-0 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-colors border border-red-200 flex justify-center items-center shadow-sm">
-                                                            <i className="fa-solid fa-trash-can"></i>
-                                                        </button>
-                                                    )}
+                                        {/* 🟢 ADVANCE DEDUCTION BLOCK (Highly visible) */}
+                                        {(availableAdvance > 0 || Number(data.advance_deduction) > 0) ? (
+                                            <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-5 shadow-sm relative overflow-hidden">
+                                                <div className="absolute right-0 top-0 w-20 h-20 bg-amber-100 rounded-full blur-xl -translate-y-5 translate-x-5 pointer-events-none"></div>
+                                                <div className="flex justify-between items-center mb-3 relative z-10">
+                                                    <label className="text-[13px] font-black text-amber-800 flex items-center gap-1.5">
+                                                        <i className="fa-solid fa-hand-holding-dollar"></i> Deduct Advance
+                                                    </label>
+                                                    <span className="text-[11px] font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-lg border border-amber-200 shadow-sm">
+                                                        Max Available: ৳ {availableAdvance.toLocaleString('en-IN')}
+                                                    </span>
                                                 </div>
-                                            ))}
-                                        </div>
+                                                <div className="relative z-10">
+                                                    <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-600 text-[16px]" />
+                                                    <input type="number" min="0" max={availableAdvance} step="0.01" value={data.advance_deduction} onFocus={() => handleInputFocus('advance_deduction')} onBlur={() => handleInputBlur('advance_deduction')} onChange={e => setData('advance_deduction', e.target.value)} className="w-full rounded-xl border border-amber-300 bg-white pl-10 pr-4 py-2.5 text-[15px] font-black text-amber-700 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 shadow-inner" placeholder="0.00" />
+                                                </div>
+                                                <button type="button" className="mt-3 text-[11px] font-bold text-white bg-amber-500 hover:bg-amber-600 px-3 py-1.5 rounded-lg transition-colors shadow-sm w-max relative z-10" onClick={() => setData('advance_deduction', Math.max(0, Math.min(availableAdvance, grossBeforeAdvance)))}>
+                                                    Use Max Advance
+                                                </button>
+                                                {errors.advance_deduction && <p className="text-red-600 text-[11px] mt-1.5 font-bold relative z-10">{errors.advance_deduction}</p>}
+                                            </div>
+                                        ) : (
+                                            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 flex items-center justify-center text-[12px] font-bold text-gray-400">
+                                                <i className="fa-solid fa-info-circle mr-1.5"></i> No advance available to deduct.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
 
-                                        <div className="flex justify-between items-center mt-4 pt-4 border-t border-emerald-200/60">
-                                            <button type="button" onClick={addPaymentRow} className="text-[12px] font-bold text-white bg-emerald-500 hover:bg-emerald-600 px-4 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-1.5">
-                                                <i className="fa-solid fa-plus"></i> Add Split
-                                            </button>
-                                            <div className="text-[14px] font-bold text-gray-700">
-                                                Paying: <span className={`text-[16px] font-black ml-1 ${Math.round(data.payments.reduce((a,c)=>a+Number(c.amount||0),0)) <= Math.round(data.net_pay) ? 'text-emerald-600' : 'text-rose-600'}`}>৳ {data.payments.reduce((a,c)=>a+Number(c.amount||0),0).toLocaleString('en-IN')}</span>
+                                {/* Net Pay Summary */}
+                                <div className="bg-gradient-to-r from-gray-900 to-indigo-900 rounded-2xl p-6 flex flex-col md:flex-row justify-between items-center shadow-lg text-white relative overflow-hidden">
+                                    <div className="absolute left-0 top-0 h-full w-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none"></div>
+                                    <div className="relative z-10 text-center md:text-left mb-2 md:mb-0">
+                                        <h4 className="text-[13px] font-bold text-indigo-300 uppercase tracking-widest mb-1">Calculated Net Pay</h4>
+                                        <p className="text-[11px] text-gray-400">Final amount payable to employee</p>
+                                    </div>
+                                    <div className="relative z-10 flex items-center gap-1 text-[32px] font-black tabular-nums tracking-tight">
+                                        <Taka className="text-[24px] text-indigo-300" /> {Number(data.net_pay).toLocaleString('en-IN')}
+                                    </div>
+                                </div>
+
+                                {/* Payment Actions Section */}
+                                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                                    <h4 className="text-[14px] font-extrabold text-gray-900 uppercase tracking-wider border-b border-gray-100 pb-3 mb-5">Payment Details</h4>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                        <div>
+                                            <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Payment Status <span className="text-red-500">*</span></label>
+                                            <div className="relative">
+                                                <select value={data.status} onChange={e => setData('status', e.target.value)} className="w-full appearance-none bg-none rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm">
+                                                    <option value="unpaid">⏳ Keep as Unpaid (Due)</option>
+                                                    <option value="paid">✅ Mark as Paid</option>
+                                                    <option value="partially_paid">⌛ Partially Paid</option>
+                                                </select>
+                                                <i className="fa-solid fa-chevron-down text-[12px] text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
                                             </div>
                                         </div>
-
-                                        <div className="mt-5 pt-5 border-t border-emerald-200/60">
-                                            <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Payment Date <span className="text-red-500">*</span></label>
-                                            <input type="date" value={data.payment_date} onChange={e => setData('payment_date', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 cursor-pointer shadow-sm" required={data.status !== 'unpaid'} />
-                                        </div>
+                                        {(data.status === 'paid' || data.status === 'partially_paid') && (
+                                            <div>
+                                                <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Payment Date <span className="text-red-500">*</span></label>
+                                                <input type="date" value={data.payment_date} onChange={e => setData('payment_date', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 cursor-pointer shadow-sm" required />
+                                            </div>
+                                        )}
                                     </div>
-                                )}
+
+                                    {/* Multi-Account Splits with Bank Charge */}
+                                    {(data.status === 'paid' || data.status === 'partially_paid') && (
+                                        <div className="bg-emerald-50/40 p-5 rounded-2xl border border-emerald-100 shadow-inner animate-[fadeIn_0.3s_ease-out]">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <label className="text-[12px] font-extrabold text-emerald-800 uppercase tracking-wider flex items-center gap-2">
+                                                    <i className="fa-solid fa-code-branch"></i> Split Funds & Bank Charges
+                                                </label>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                {data.payments.map((payment, index) => (
+                                                    <div key={index} className="flex flex-col md:flex-row items-start md:items-center gap-3 bg-white p-4 rounded-xl border border-emerald-200 shadow-sm relative z-30">
+                                                        <div className="w-full md:flex-1 relative z-40">
+                                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Account</label>
+                                                            <Select
+                                                                options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳ ${Number(a.current_balance).toLocaleString('en-IN')})` }))}
+                                                                value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳ ${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(payment.account_id)) || null}
+                                                                onChange={e => handlePaymentChange(index, 'account_id', e ? e.value : "")}
+                                                                placeholder="Select..." styles={selectStyles} menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                                            />
+                                                        </div>
+                                                        <div className="w-full md:w-[150px] shrink-0">
+                                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Salary Pay</label>
+                                                            <div className="relative">
+                                                                <Taka className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500 text-[13px]" />
+                                                                <input type="number" step="0.01" min="0" value={payment.amount} onChange={e => handlePaymentChange(index, 'amount', e.target.value)} className="w-full rounded-xl border border-gray-300 pl-7 pr-3 py-2 text-[14px] font-bold text-gray-900 outline-none focus:border-emerald-500" placeholder="0.00" />
+                                                            </div>
+                                                        </div>
+                                                        <div className="w-full md:w-[130px] shrink-0">
+                                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Bank Charge</label>
+                                                            <div className="relative">
+                                                                <Taka className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]" />
+                                                                <input type="number" step="0.01" min="0" value={payment.bank_charge} onChange={e => handlePaymentChange(index, 'bank_charge', e.target.value)} className="w-full rounded-xl border border-gray-300 pl-7 pr-3 py-2 text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-500" placeholder="0.00" />
+                                                            </div>
+                                                        </div>
+                                                        {data.payments.length > 1 && (
+                                                            <div className="pt-5 shrink-0">
+                                                                <button type="button" onClick={() => removePaymentRow(index)} className="h-10 w-10 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-colors border border-red-200 flex justify-center items-center shadow-sm">
+                                                                    <i className="fa-solid fa-trash-can"></i>
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <div className="flex flex-col sm:flex-row justify-between items-center mt-4 pt-4 border-t border-emerald-200/60 gap-3">
+                                                <button type="button" onClick={addPaymentRow} className="text-[12px] font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-4 py-2 rounded-lg transition-colors border border-emerald-200 shadow-sm flex items-center gap-1.5">
+                                                    <i className="fa-solid fa-plus"></i> Add Account Split
+                                                </button>
+
+                                                <div className="flex flex-col items-end">
+                                                    <div className="text-[12px] font-bold text-gray-600 mb-1">
+                                                        Total Deduct from Bank: <span className="text-gray-900">৳ {(data.payments.reduce((a,c)=>a+Number(c.amount||0)+Number(c.bank_charge||0),0)).toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                    <div className="text-[14px] font-bold text-gray-700">
+                                                        Salary Paid: <span className={`text-[16px] font-black ml-1 ${Math.round(data.payments.reduce((a,c)=>a+Number(c.amount||0),0)) <= Math.round(data.net_pay) ? 'text-emerald-600' : 'text-rose-600'}`}>৳ {data.payments.reduce((a,c)=>a+Number(c.amount||0),0).toLocaleString('en-IN')}</span> / ৳{data.net_pay}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                {Object.keys(errors).length > 0 && <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-200 text-[13px] font-bold"><i className="fa-solid fa-circle-exclamation mr-1.5"></i> Please fix the errors above before saving.</div>}
                             </div>
 
-                            {/* Footer */}
-                            <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0 rounded-b-3xl">
-                                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-100">Cancel</button>
+                            {/* Footer Buttons */}
+                            <div className="px-8 py-5 border-t border-gray-200 bg-white flex justify-end gap-3 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-50">Cancel</button>
                                 <button type="submit" disabled={processing} className="rounded-xl bg-indigo-600 px-8 py-2.5 text-[14px] font-bold text-white shadow-md transition-all hover:bg-indigo-700 disabled:opacity-70 flex items-center gap-2">
-                                    {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-check"></i> {editMode ? "Update Payslip" : "Save Payslip"}</>}
+                                    {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-check"></i> {editMode ? "Update Payslip" : "Confirm Payslip"}</>}
                                 </button>
                             </div>
                         </form>

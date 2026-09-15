@@ -30,7 +30,7 @@ class DesignationController extends Controller
             $totalCount = $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = min((int) $request->input('per_page', 10), 100000); 
+            $perPage = \App\Support\Pagination::perPage($request, $query); 
         }
 
         $designations = $query

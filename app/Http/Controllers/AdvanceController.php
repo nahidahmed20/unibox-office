@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Controller;
 use App\Models\Advance;
 use App\Models\AdvanceBalance;
 use App\Models\Account;
@@ -17,28 +18,46 @@ class AdvanceController extends Controller
     {
         $query = Advance::query()->with(['account', 'user']);
 
+        // 1. Deep Text Search
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->whereHas('user', function ($q2) use ($searchTerm) {
                     $q2->where('name', 'like', "%{$searchTerm}%");
-                })->orWhere('purpose', 'like', "%{$searchTerm}%")
-                ->orWhere('notes', 'like', "%{$searchTerm}%");
+                })
+                ->orWhereHas('account', function ($q2) use ($searchTerm) {
+                    $q2->where('name', 'like', "%{$searchTerm}%");
+                })
+                ->orWhere('purpose', 'like', "%{$searchTerm}%")
+                ->orWhere('notes', 'like', "%{$searchTerm}%")
+                ->orWhere('date', 'like', "%{$searchTerm}%")
+                ->orWhere('status', 'like', "%{$searchTerm}%")
+                ->orWhere('amount', 'like', "%{$searchTerm}%");
             });
         }
 
-        $totalUnsettled = (clone $query)
-            ->get(['amount', 'settled_amount', 'returned_amount'])
-            ->sum(function ($adv) {
-                $remaining = (float) $adv->amount - (float) ($adv->settled_amount ?? 0) - (float) ($adv->returned_amount ?? 0);
-                return $remaining > 0 ? $remaining : 0;
-            });
+        // 2. Dropdown Filters
+        if ($request->filled('user_id')) {
+            $query->where('user_id', $request->user_id);
+        }
+        if ($request->filled('account_id')) {
+            $query->where('account_id', $request->account_id);
+        }
 
+        // 3. Accurate Global Totals (Not dependent on pagination)
+        $totals = [
+            'total_given'    => (float) (clone $query)->sum('amount'),
+            'total_expensed' => (float) (clone $query)->sum('settled_amount'),
+            'total_returned' => (float) (clone $query)->sum('returned_amount'),
+        ];
+        $totals['total_due'] = $totals['total_given'] - $totals['total_expensed'] - $totals['total_returned'];
+
+        // 4. Pagination Handling (Fixed the Clone issue here)
         if ($request->input('per_page') === 'all') {
-            $totalCount = $query->count();
+            $totalCount = (clone $query)->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = min((int) $request->input('per_page', 50), 100000);
+            $perPage = \App\Support\Pagination::perPage($request, $query);
         }
 
         $advances = $query->orderBy('date', 'desc')->latest()->paginate($perPage)->withQueryString();
@@ -47,11 +66,11 @@ class AdvanceController extends Controller
         $employees = User::whereHas('employeeProfile')->select('id', 'name')->get();
 
         return Inertia::render('Admin/Advances/Index', [
-            'advances'       => $advances,
-            'filters'        => $request->only('search', 'per_page'),
-            'accounts'       => $accounts,
-            'employees'      => $employees,
-            'totalUnsettled' => $totalUnsettled,
+            'advances'  => $advances,
+            'filters'   => $request->only('search', 'per_page', 'user_id', 'account_id'),
+            'accounts'  => $accounts,
+            'employees' => $employees,
+            'totals'    => $totals,
         ]);
     }
 
@@ -93,7 +112,6 @@ class AdvanceController extends Controller
                     'transactionable_type' => Advance::class,
                 ]);
 
-                // --- Pooled balance sync ---
                 $balance = AdvanceBalance::firstOrCreate(['user_id' => $validated['user_id']]);
                 $balance->increment('total_given', $validated['amount']);
             });
@@ -120,8 +138,10 @@ class AdvanceController extends Controller
 
         try {
             DB::transaction(function () use ($advance, $validated) {
+                $advance = Advance::whereKey($advance->id)->lockForUpdate()->firstOrFail();
+                if ($validated['amount'] < $advance->settled_amount + $advance->returned_amount || ($validated['user_id'] != $advance->user_id && $advance->settled_amount + $advance->returned_amount > 0)) throw new \Exception('Used or returned advances cannot be reassigned or reduced below the settled amount.');
+                $validated['status'] = $validated['amount'] <= $advance->settled_amount + $advance->returned_amount ? 'settled' : 'unsettled';
 
-                // --- Account balance adjustment ---
                 if ($advance->account_id != $validated['account_id']) {
                     $oldAccount = Account::findOrFail($advance->account_id);
                     $oldAccount->current_balance += $advance->amount;
@@ -144,7 +164,6 @@ class AdvanceController extends Controller
                     $account->save();
                 }
 
-                // 🟢 Update Transaction Table
                 $transaction = Transaction::where('transactionable_id', $advance->id)
                     ->where('transactionable_type', Advance::class)
                     ->where('type', 'debit')
@@ -159,7 +178,6 @@ class AdvanceController extends Controller
                     ]);
                 }
 
-                // --- Pooled balance (per-employee) sync ---
                 $oldUserId = $advance->user_id;
                 $newUserId = $validated['user_id'];
                 $oldAmount = (float) $advance->amount;
@@ -195,35 +213,40 @@ class AdvanceController extends Controller
         }
     }
 
-    public function returnMoney(Request $request, string$id)
+    public function returnMoney(Request $request, string $id)
     {
         $advance = Advance::findOrFail($id);
 
-        $validated =$request->validate([
+        $validated = $request->validate([
             'return_amount' => 'required|numeric|min:1',
             'return_account_id' => 'required|exists:accounts,id',
         ]);
 
         try {
-            DB::transaction(function () use ($advance,$validated) {
+            DB::transaction(function () use ($advance, $validated) {
                 $advance->refresh();
                 $availableToReturn = max((float) $advance->amount - (float) $advance->settled_amount - (float) $advance->returned_amount, 0);
+
                 if ((float) $validated['return_amount'] > $availableToReturn) {
                     throw \Illuminate\Validation\ValidationException::withMessages([
                         'return_amount' => "Return cannot exceed available advance ({$availableToReturn} TK).",
                     ]);
                 }
-                $advance->returned_amount +=$validated['return_amount'];
 
-                if (($advance->settled_amount +$advance->returned_amount) >= $advance->amount) {$advance->status = 'settled';
+                $advance->returned_amount += $validated['return_amount'];
+
+                if (($advance->settled_amount + $advance->returned_amount) >= $advance->amount) {
+                    $advance->status = 'settled';
                 }
                 $advance->save();
 
                 $account = Account::find($validated['return_account_id']);
-                if ($account) {$account->current_balance += $validated['return_amount'];$account->save();
+                if ($account) {
+                    $account->current_balance += $validated['return_amount'];
+                    $account->save();
 
                     Transaction::create([
-                        'account_id'           => $account->id, 
+                        'account_id'           => $account->id,
                         'type'                 => 'credit',
                         'amount'               => $validated['return_amount'],
                         'transaction_date'     => now()->toDateString(),
@@ -233,7 +256,6 @@ class AdvanceController extends Controller
                     ]);
                 }
 
-                // --- Pooled balance sync ---
                 AdvanceBalance::where('user_id', $advance->user_id)
                     ->increment('total_returned', $validated['return_amount']);
             });
@@ -298,7 +320,6 @@ class AdvanceController extends Controller
         $totalAdvance = $employee->advances_sum_amount ?? 0;
         $totalSettled = $employee->advances_sum_settled_amount ?? 0;
         $totalReturned = $employee->advances_sum_returned_amount ?? 0;
-
         $currentDue = $totalAdvance - ($totalSettled + $totalReturned);
 
         return Inertia::render('Admin/Advances/Ledger', [

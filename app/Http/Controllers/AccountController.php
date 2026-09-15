@@ -24,7 +24,7 @@ class AccountController extends Controller
             });
         }
 
-        $perPageInput = $request->input('per_page', 10);
+        $perPageInput = $request->input('per_page', 25);
 
         if ($perPageInput === 'all') {
             $all = $query->latest()->get();
@@ -36,11 +36,11 @@ class AccountController extends Controller
                 ['path' => $request->url(), 'query' => $request->query()]
             );
         } else {
-            $perPage = min((int) $perPageInput, 100000); 
+            $perPage = \App\Support\Pagination::perPage($request, $query); 
             $accounts = $query->latest()->paginate($perPage)->withQueryString();
         }
 
-        $totalBalance = Account::sum('current_balance');
+        $totalBalance = Account::where('is_active', true)->sum('current_balance');
 
         $totalAssets = DB::table('assets')->sum('purchase_price');
 
@@ -53,9 +53,7 @@ class AccountController extends Controller
             ->value('balance');
             
 
-        $vendorAdvance = DB::table('vendor_ledgers')
-            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN amount WHEN type = 'credit' THEN -amount ELSE 0 END), 0) as balance")
-            ->value('balance');
+        $vendorAdvance = \App\Models\Vendor::sum('wallet_balance');
 
         return Inertia::render('Admin/Accounts/Index', [
             'accounts' => $accounts,

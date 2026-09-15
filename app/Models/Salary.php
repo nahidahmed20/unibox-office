@@ -17,4 +17,9 @@ class Salary extends Model {
     {
         return $this->hasOne(EmployeeProfile::class);
     }
+
+    public function advanceSettlements()
+    {
+        return $this->morphMany(AdvanceSettlement::class, 'settleable');
+    }
 }

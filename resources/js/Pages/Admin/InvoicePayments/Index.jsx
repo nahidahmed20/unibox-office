@@ -94,6 +94,8 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
     const [editMode, setEditMode] = useState(false);
     const [selectedPayment, setSelectedPayment] = useState(null);
     const [editingPayment, setEditingPayment] = useState(null);
+    const [paymentClientId, setPaymentClientId] = useState('');
+    const paymentClient = clients.find(client => String(client.id) === String(paymentClientId));
 
     const [clientId, setClientId] = useState(filters.client_id || "");
     const [accountFilter, setAccountFilter] = useState(filters.account_id || "");
@@ -123,8 +125,8 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
         if (editMode && editingPayment?.invoice && !invoices.some((inv) => String(inv.id) === String(editingPayment.invoice_id))) {
             return [{ id: editingPayment.invoice_id, invoice_number: editingPayment.invoice.invoice_number, client: editingPayment.invoice.client, grand_total: editingPayment.invoice.grand_total, due_amount: editingPayment.invoice.grand_total }, ...invoices];
         }
-        return invoices;
-    }, [invoices, editMode, editingPayment]);
+        return editMode ? invoices : invoices.filter(inv => String(inv.client_id ?? inv.client?.id) === String(paymentClientId));
+    }, [invoices, editMode, editingPayment, paymentClientId]);
 
     const applyFilters = (overrides = {}) => {
         router.get(
@@ -221,9 +223,16 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
     const openCreateModal = () => {
         clearErrors();
         setEditingPayment(null);
+        setPaymentClientId('');
         setData({ id: '', invoice_id: '', account_id: '', amount: '', advance_amount: '', account_payments: [], discount_amount: '', payment_date: new Date().toISOString().slice(0, 10), note: '', _method: 'post' });
         setEditMode(false);
         setShowModal(true);
+    };
+
+    const handlePaymentClientSelect = (value) => {
+        setPaymentClientId(value);
+        clearErrors();
+        setData(prev => ({ ...prev, invoice_id: '', amount: '', advance_amount: '', account_payments: [], discount_amount: '' }));
     };
 
     const handleInvoiceSelect = (val) => {
@@ -555,6 +564,17 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
 
                         <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden h-full">
                             <div className="p-8 overflow-y-auto custom-table-scroll space-y-6">
+                                {!editMode && <div className="relative z-[70]">
+                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Select Client <span className="text-red-500">*</span></label>
+                                    <SearchableSelect options={clients} value={paymentClientId} onChange={handlePaymentClientSelect}
+                                        placeholder="Search client or company" getValue={client => client.id}
+                                        getLabel={client => `${client.name}${client.company_name ? ` (${client.company_name})` : ''}`} />
+                                </div>}
+                                {!editMode && paymentClient && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4" aria-live="polite">
+                                    <p className="text-sm font-bold text-emerald-800">{paymentClient.name} — Available advance: <Taka />{Number(paymentClient.advance_balance || 0).toLocaleString('en-IN')}</p>
+                                    <p className="mt-1 text-xs text-emerald-700">{Number(paymentClient.advance_balance) > 0 ? 'Previously received money remaining after earlier adjustments. Select an invoice below to use it.' : 'This client has no unused advance.'}</p>
+                                    {invoiceOptions.length === 0 && <p className="mt-2 text-sm text-gray-600">No unpaid invoices for this client.</p>}
+                                </div>}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="relative z-[60]">
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Select Invoice <span className="text-red-500">*</span></label>
@@ -562,7 +582,8 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                             options={invoiceOptions}
                                             value={data.invoice_id}
                                             onChange={handleInvoiceSelect}
-                                            placeholder="Search INV# or Client"
+                                            placeholder={!editMode && !paymentClientId ? 'Select a client first' : 'Search invoice'}
+                                            disabled={!editMode && !paymentClientId}
                                             error={errors.invoice_id}
                                             getValue={(inv) => inv.id}
                                             getLabel={(inv) => `${inv.invoice_number} - ${inv.client?.name} (Due: ৳${parseFloat(inv.due_amount ?? inv.grand_total).toLocaleString()})`}
@@ -600,7 +621,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
 
                                 {!editMode && data.invoice_id && (() => {
                                     const selectedInvoice = invoiceOptions.find(i => String(i.id) === String(data.invoice_id));
-                                    const availableAdvance = Number(selectedInvoice?.available_advance || 0);
+                                    const availableAdvance = Number(paymentClient?.advance_balance || 0);
                                     const accountTotal = (data.account_payments || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
                                     const total = Number(data.advance_amount || 0) + accountTotal;
                                     return <div className="space-y-4 rounded-2xl border border-indigo-100 bg-indigo-50/30 p-5">
@@ -608,11 +629,11 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                             <div><h4 className="font-extrabold text-gray-900">Payment Sources</h4><p className="text-xs text-gray-500 mt-1">Use advance only, accounts only, or combine both.</p></div>
                                             <span className="rounded-lg bg-white border px-3 py-2 text-sm font-black text-indigo-700"><Taka />{total.toLocaleString('en-IN')}</span>
                                         </div>
-                                        <div>
+                                        {availableAdvance > 0 && <div>
                                             <label className="block text-[12px] font-bold text-emerald-700 uppercase tracking-wider mb-2">Client Advance (Available: <Taka />{availableAdvance.toLocaleString('en-IN')})</label>
-                                            <input type="number" min="0" max={availableAdvance} step="0.01" value={data.advance_amount} onChange={e => setData('advance_amount', e.target.value)} placeholder="0.00" className="w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 font-bold text-emerald-700 outline-none focus:ring-4 focus:ring-emerald-500/10" />
+                                            <input type="number" min="0" max={Math.min(availableAdvance, Math.max(0, Number(selectedInvoice?.due_amount || 0) - Number(data.discount_amount || 0)))} step="0.01" value={data.advance_amount} onChange={e => setData('advance_amount', e.target.value)} placeholder="0.00" className="w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 font-bold text-emerald-700 outline-none focus:ring-4 focus:ring-emerald-500/10" />
                                             {errors.advance_amount && <span className="mt-1 block text-xs font-bold text-red-500">{errors.advance_amount}</span>}
-                                        </div>
+                                        </div>}
                                         {(data.account_payments || []).map((row, index) => <div key={index} className="grid grid-cols-1 md:grid-cols-[1fr_180px_40px] gap-3 items-end">
                                             <div><label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">Account {index + 1}</label><SearchableSelect options={accounts.filter(acc => !(data.account_payments || []).some((r, i) => i !== index && String(r.account_id) === String(acc.id)))} value={row.account_id} onChange={val => updateAccountPayment(index, 'account_id', val)} placeholder="Select Bank/Cash" getValue={acc => acc.id} getLabel={acc => `${acc.name} (Bal: ৳${Number(acc.current_balance).toLocaleString()})`} /></div>
                                             <div><label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">Amount</label><input type="number" min="0.01" step="0.01" value={row.amount} onChange={e => updateAccountPayment(index, 'amount', e.target.value)} placeholder="0.00" className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 font-bold outline-none" /></div>
