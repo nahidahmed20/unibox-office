@@ -22,6 +22,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+        foreach ([\App\Models\Asset::class, \App\Models\Investment::class, \App\Models\InvestmentPayment::class] as $model) {
+            $model::observe(\App\Observers\AccountMovementObserver::class);
+        }
 
         Gate::before(function ($user, $ability) {
             return $user->hasRole('Super Admin') ? true : null;

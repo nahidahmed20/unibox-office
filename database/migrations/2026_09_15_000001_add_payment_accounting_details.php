@@ -10,14 +10,16 @@ return new class extends Migration
     {
         Schema::table('project_expenses', function (Blueprint $table) {
             $table->string('payee_name')->nullable();
-            $table->decimal('bank_charge', 15, 2)->default(0);
             $table->decimal('payment_amount', 15, 2)->nullable();
             $table->decimal('advance_amount', 15, 2)->nullable();
         });
-        Schema::table('expenses', fn (Blueprint $table) => $table->decimal('bank_charge', 15, 2)->default(0));
+        // Existing installations may have run the original create-table migrations already.
+        foreach (['expenses', 'project_expenses', 'transactions', 'vendor_payments'] as $tableName) {
+            if (!Schema::hasColumn($tableName, 'bank_charge')) {
+                Schema::table($tableName, fn (Blueprint $table) => $table->decimal('bank_charge', 15, 2)->default(0));
+            }
+        }
         Schema::table('salaries', fn (Blueprint $table) => $table->decimal('advance_deduction', 12, 2)->default(0));
-        Schema::table('transactions', fn (Blueprint $table) => $table->decimal('bank_charge', 15, 2)->default(0));
-        Schema::table('vendor_payments', fn (Blueprint $table) => $table->decimal('bank_charge', 15, 2)->default(0));
         Schema::table('vendor_ledgers', function (Blueprint $table) {
             $table->date('date')->nullable();
             $table->unsignedBigInteger('transaction_id')->nullable()->index();
@@ -35,10 +37,8 @@ return new class extends Migration
     {
         Schema::dropIfExists('advance_settlements');
         Schema::table('vendor_ledgers', fn (Blueprint $table) => $table->dropColumn(['date', 'transaction_id']));
-        Schema::table('vendor_payments', fn (Blueprint $table) => $table->dropColumn('bank_charge'));
-        Schema::table('transactions', fn (Blueprint $table) => $table->dropColumn('bank_charge'));
-        Schema::table('expenses', fn (Blueprint $table) => $table->dropColumn('bank_charge'));
+        // Bank-charge columns belong to the base tables; retain them and their values on rollback.
         Schema::table('salaries', fn (Blueprint $table) => $table->dropColumn('advance_deduction'));
-        Schema::table('project_expenses', fn (Blueprint $table) => $table->dropColumn(['payee_name', 'bank_charge', 'payment_amount', 'advance_amount']));
+        Schema::table('project_expenses', fn (Blueprint $table) => $table->dropColumn(['payee_name', 'payment_amount', 'advance_amount']));
     }
 };

@@ -22,6 +22,8 @@ class TransactionController extends Controller
                   ->orWhere('reference_number', 'like', "%{$searchTerm}%")
                   ->orWhere('amount', 'like', "%{$searchTerm}%")
                   ->orWhere('type', 'like', "%{$searchTerm}%")
+                  ->orWhereHasMorph('transactionable', [\App\Models\VendorPayment::class], fn ($q) => $q->whereHas('vendor', fn ($vendor) => $vendor->where('name', 'like', "%{$searchTerm}%")))
+                  ->orWhereHasMorph('transactionable', [\App\Models\ProjectExpense::class], fn ($q) => $q->where('payee_name', 'like', "%{$searchTerm}%")->orWhereHas('vendor', fn ($vendor) => $vendor->where('name', 'like', "%{$searchTerm}%"))->orWhereHas('project', fn ($project) => $project->where('title', 'like', "%{$searchTerm}%")))
                   ->orWhereHas('account', function ($aq) use ($searchTerm) {
                       $aq->where('name', 'like', "%{$searchTerm}%");
                   });
@@ -42,7 +44,7 @@ class TransactionController extends Controller
             $query->whereDate('transaction_date', '<=', $request->date_to);
         }
 
-        // 🟢 Top Summary Calculations
+        // 🟢 Top Summary Calculations (Removed bank_charge)
         $totalCredit = (clone $query)->where('type', 'credit')->sum('amount');
         $totalDebit  = (clone $query)->where('type', 'debit')->sum('amount');
         $netBalance  = $totalCredit - $totalDebit;
@@ -110,6 +112,16 @@ class TransactionController extends Controller
                         $trx->party_type = 'Client';
                         $trx->context_label = 'Invoice Payment';
                         break;
+                    case 'Asset':
+                        $trx->party_name = $trx->transactionable->name;
+                        $trx->context_label = 'Asset Purchase';
+                        break;
+                    case 'Investment':
+                    case 'InvestmentPayment':
+                        $trx->party_name = $trx->transactionable->investor?->name;
+                        $trx->party_type = 'Investor';
+                        $trx->context_label = $type === 'Investment' ? 'Investment / Loan Received' : 'Investment Return / Profit';
+                        break;
                     default:
                         $trx->context_label = $type;
                         break;
@@ -140,15 +152,10 @@ class TransactionController extends Controller
             'account_id'        => 'required|exists:accounts,id',
             'type'              => 'required|in:credit,debit',
             'amount'            => 'required|numeric|decimal:0,2|min:0.01',
-            'bank_charge' => 'nullable|numeric|decimal:0,2|min:0',
             'transaction_date'  => 'required|date',
             'description'       => 'required|string|max:500',
             'reference_number'  => 'nullable|string|max:100',
         ]);
-
-        $validated['bank_charge'] = round((float) ($validated['bank_charge'] ?? 0), 2);
-        if ($validated['type'] !== 'debit' && $validated['bank_charge'] > 0) throw \Illuminate\Validation\ValidationException::withMessages(['bank_charge' => 'Bank charge is available for outgoing payments.']);
-        $validated['amount'] = round($validated['amount'] + $validated['bank_charge'], 2);
 
         DB::transaction(function () use ($validated, $request) {
             Transaction::create($validated);
@@ -167,14 +174,12 @@ class TransactionController extends Controller
         return back()->with('success', 'Transaction saved successfully and balance updated.');
     }
 
-    // 🟢 UPDATED: Transfer fund with separated bank charge logging
     public function transfer(Request $request)
     {
         $validated = $request->validate([
             'from_account_id'   => 'required|exists:accounts,id|different:to_account_id',
             'to_account_id'     => 'required|exists:accounts,id',
             'amount'            => 'required|numeric|decimal:0,2|min:0.01',
-            'bank_charge'       => 'nullable|numeric|decimal:0,2|min:0',
             'transaction_date'  => 'required|date',
             'description'       => 'nullable|string|max:500',
             'reference_number'  => 'nullable|string|max:100',
@@ -184,45 +189,26 @@ class TransactionController extends Controller
             $fromAccount = Account::whereKey($validated['from_account_id'])->lockForUpdate()->firstOrFail();
             $toAccount = Account::whereKey($validated['to_account_id'])->lockForUpdate()->firstOrFail();
 
-            $charge = (float) ($validated['bank_charge'] ?? 0);
             $transferAmount = round((float) $validated['amount'], 2);
-            $totalDebit = round($transferAmount + $charge, 2);
 
-            if ($fromAccount->current_balance < $totalDebit) {
+            if ($fromAccount->current_balance < $transferAmount) {
                 throw new \Exception("Source account does not have sufficient balance!");
             }
 
             $desc = ($validated['description'] ?? '') ?: "Fund transfer from {$fromAccount->name} to {$toAccount->name}";
             $ref = $validated['reference_number'] ?? null;
 
-            // ১. সোর্স অ্যাকাউন্ট থেকে টাকা কেটে নেওয়া
-            $fromAccount->decrement('current_balance', $totalDebit);
+            $fromAccount->decrement('current_balance', $transferAmount);
 
-            // ২. সোর্স থেকে মূল টাকার Out Transaction
             Transaction::create([
                 'account_id'       => $fromAccount->id,
                 'type'             => 'debit',
                 'amount'           => $transferAmount,
-                'bank_charge'      => 0,
                 'transaction_date' => $validated['transaction_date'],
                 'description'      => $desc . " (Out)",
                 'reference_number' => $ref,
             ]);
 
-            // ৩. যদি ব্যাংক চার্জ থাকে তবে তার জন্য আলাদা Out Transaction
-            if ($charge > 0) {
-                Transaction::create([
-                    'account_id'       => $fromAccount->id,
-                    'type'             => 'debit',
-                    'amount'           => $charge,
-                    'bank_charge'      => $charge,
-                    'transaction_date' => $validated['transaction_date'],
-                    'description'      => "Bank Charge: " . $desc,
-                    'reference_number' => $ref,
-                ]);
-            }
-
-            // ৪. ডেস্টিনেশন অ্যাকাউন্টে মূল টাকার In Transaction
             $toAccount->increment('current_balance', $transferAmount);
             Transaction::create([
                 'account_id'       => $toAccount->id,
@@ -240,6 +226,7 @@ class TransactionController extends Controller
     public function update(Request $request, $id)
     {
         $transaction = Transaction::findOrFail($id);
+        
         if ($transaction->transactionable_id !== null) {
             return back()->withErrors(['error' => 'Auto-generated transactions cannot be modified directly.']);
         }
@@ -248,15 +235,10 @@ class TransactionController extends Controller
             'account_id'        => 'required|exists:accounts,id',
             'type'              => 'required|in:credit,debit',
             'amount'            => 'required|numeric|decimal:0,2|min:0.01',
-            'bank_charge' => 'nullable|numeric|decimal:0,2|min:0',
             'transaction_date'  => 'required|date',
             'description'       => 'required|string|max:500',
             'reference_number'  => 'nullable|string|max:100',
         ]);
-
-        $validated['bank_charge'] = round((float) ($validated['bank_charge'] ?? 0), 2);
-        if ($validated['type'] !== 'debit' && $validated['bank_charge'] > 0) throw \Illuminate\Validation\ValidationException::withMessages(['bank_charge' => 'Bank charge is available for outgoing payments.']);
-        $validated['amount'] = round($validated['amount'] + $validated['bank_charge'], 2);
 
         DB::transaction(function () use ($validated, $request, $transaction) {
             $oldAccount = Account::find($transaction->account_id);
@@ -273,7 +255,9 @@ class TransactionController extends Controller
                 if ($request->type === 'credit') {
                     $newAccount->increment('current_balance', $validated['amount']);
                 } else {
-                    if ($newAccount->current_balance < $validated['amount']) throw \Illuminate\Validation\ValidationException::withMessages(['amount' => 'Insufficient account balance, including bank charge.']);
+                    if ($newAccount->current_balance < $validated['amount']) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['amount' => 'Insufficient account balance.']);
+                    }
                     $newAccount->decrement('current_balance', $validated['amount']);
                 }
             }
@@ -284,7 +268,6 @@ class TransactionController extends Controller
         return back()->with('success', 'Transaction updated successfully.');
     }
 
-    // 🟢 UPDATED: Flawless balance restoring on delete
     public function destroy($id)
     {
         $transaction = Transaction::findOrFail($id);
@@ -295,7 +278,6 @@ class TransactionController extends Controller
 
         try {
             DB::transaction(function () use ($transaction) {
-                // lockForUpdate() দিয়ে ব্যালেন্স রিভার্স করা হচ্ছে যেন হিসাব এলোমেলো না হয়
                 $account = Account::whereKey($transaction->account_id)->lockForUpdate()->first();
 
                 if ($account) {

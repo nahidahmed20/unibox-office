@@ -407,6 +407,109 @@ class VendorController extends Controller
         }
     }
 
+    public function updateBankCharge(Request $request, VendorPayment $payment)
+    {
+        $data = $request->validate([
+            'bank_charge' => 'required|numeric|decimal:0,2|min:0|max:9999999999999.99',
+            'pay_amount'  => 'sometimes|required|numeric|decimal:0,2|min:0.01|max:9999999999999.99',
+        ]);
+        
+        DB::transaction(function () use ($payment, $data) {
+            $payment = VendorPayment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
+            $fail = fn ($message) => throw \Illuminate\Validation\ValidationException::withMessages(['bank_charge' => $message]);
+            if ($payment->status !== 'completed' || $payment->payment_source !== 'account' || $payment->pay_amount <= 0) {
+                $fail('Only completed account payments can be edited here.');
+            }
+            $vendor = Vendor::whereKey($payment->vendor_id)->lockForUpdate()->firstOrFail();
+            $account = Account::whereKey($payment->account_id)->lockForUpdate()->firstOrFail();
+            $transactions = Transaction::where('transactionable_type', $payment->getMorphClass())
+                ->where('transactionable_id', $payment->id)->where('type', 'debit')->lockForUpdate()->get();
+            
+            if ($transactions->count() !== 1 || $transactions->first()->account_id != $account->id) {
+                $fail('The original account transaction could not be identified safely.');
+            }
+            
+            $transaction = $transactions->first();
+            
+            if (abs((float) $transaction->amount - ((float) $payment->pay_amount + (float) $payment->bank_charge)) > 0.001) {
+                $fail('The original transaction amount does not match this payment.');
+            }
+            
+            $charge = round((float) $data['bank_charge'], 2);
+            $amount = round((float) ($data['pay_amount'] ?? $payment->pay_amount), 2);
+            
+            if ($amount != (float) $payment->pay_amount) {
+                $details = $payment->details()->lockForUpdate()->get();
+                $bills = ProjectExpense::whereIn('id', $details->pluck('project_expense_id'))->orderBy('created_at')->orderBy('id')->lockForUpdate()->get();
+                
+                if ($bills->count() !== $details->count() || $bills->isEmpty()) {
+                    $fail('The original bills could not be identified safely.');
+                }
+                foreach ($bills as $bill) {
+                    $previous = $details->firstWhere('project_expense_id', $bill->id)->amount;
+                    if ($bill->vendor_id != $vendor->id || $bill->paid_amount < $previous) $fail('The original bill settlement does not match.');
+                    $bill->paid_amount -= $previous;
+                    $bill->due_amount += $previous;
+                }
+                $available = round($bills->sum('due_amount'), 2);
+                $remaining = round($amount + $payment->adjustment_amount, 2);
+                if ($payment->adjustment_amount > 0 && $remaining > $available) $fail('Payment plus adjustment exceeds the linked bills.');
+                
+                $walletCredit = round(max(0, $amount - $available), 2);
+                $walletDifference = round($walletCredit - $payment->wallet_credit_amount, 2);
+                
+                if ($walletDifference < 0 && $vendor->wallet_balance < -$walletDifference) $fail('The excess advance has already been used. Reverse its usage first.');
+                
+                foreach ($bills as $bill) {
+                    $allocated = min($remaining, $bill->due_amount);
+                    $bill->paid_amount += $allocated;
+                    $bill->due_amount -= $allocated;
+                    $bill->payment_status = $bill->due_amount <= 0 ? 'paid' : ($bill->paid_amount > 0 ? 'partial' : 'due');
+                    $bill->save();
+                    $details->firstWhere('project_expense_id', $bill->id)->update(['amount' => $allocated]);
+                    $remaining -= $allocated;
+                }
+                
+                if ($walletDifference != 0) {
+                    $vendor->increment('wallet_balance', $walletDifference);
+                    VendorLedger::create([
+                        'vendor_id' => $vendor->id, 
+                        'type' => $walletDifference > 0 ? 'credit' : 'debit',
+                        'amount' => abs($walletDifference), 
+                        'date' => $payment->getRawOriginal('date'), // 🟢 Force Old Date
+                        'description' => 'Payment amount correction (VP-'.$payment->id.')'
+                    ]);
+                }
+                $payment->wallet_credit_amount = $walletCredit;
+            }
+            
+            $difference = round($amount + $charge - $payment->pay_amount - $payment->bank_charge, 2);
+            
+            if ($difference > 0 && $account->current_balance < $difference) {
+                $fail('Insufficient account balance for the corrected payment.');
+            }
+            
+            if ($difference != 0) {
+                $account->decrement('current_balance', $difference);
+            }
+            
+            $transaction->update([
+                'amount' => round($amount + $charge, 2), 
+                'bank_charge' => $charge,
+                'transaction_date' => $transaction->getRawOriginal('transaction_date') 
+            ]);
+            
+            $payment->update([
+                'pay_amount' => $amount, 
+                'bank_charge' => $charge,
+                'date' => $payment->getRawOriginal('date')
+            ]);
+            
+        });
+        
+        return back()->with('success', 'Payment updated successfully.');
+    }
+
     public function voidPayment(Request $request, VendorPayment $payment)
     {
         if ($payment->status === 'voided') {
@@ -548,5 +651,3 @@ class VendorController extends Controller
         return redirect()->back()->with('success', 'ভেন্ডর সফলভাবে ডিলিট হয়েছে।');
     }
 }
-
-

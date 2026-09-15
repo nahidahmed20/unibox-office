@@ -43,6 +43,12 @@ export default function TransactionsReport({ transactions = { data: [], links: [
 
     // --- Source Type Styling ---
     const sourceMeta = {
+        project_expense: { label: 'Project Expense' },
+        asset_purchase: { label: 'Asset Purchase' },
+        investment_received: { label: 'Investment / Loan Received' },
+        investment_return: { label: 'Investment Return / Profit' },
+        staff_advance: { label: 'Staff Advance' },
+        client_advance: { label: 'Client Advance' },
         vendor_payment:      { label: 'Vendor Payment',      className: 'bg-orange-50 text-orange-600 border-orange-200' },
         vendor_payment_void: { label: 'Payment Voided',      className: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
         vendor_advance:      { label: 'Advance Given',       className: 'bg-blue-50 text-blue-600 border-blue-200' },
@@ -89,7 +95,7 @@ export default function TransactionsReport({ transactions = { data: [], links: [
     // --- Export Tools ---
     const handleCopy = () => {
         if (!recordList.length) return Swal.fire("Empty!", "No data to copy", "warning");
-        const text = recordList.map(tx => `${new Date(tx.created_at).toLocaleDateString()}\t${tx.account?.name}\t${tx.type.toUpperCase()}\t${tx.amount}`).join("\n");
+        const text = recordList.map(tx => `${new Date(tx.transaction_date).toLocaleDateString()}\t${tx.account?.name}\t${tx.type.toUpperCase()}\t${tx.amount}`).join("\n");
         navigator.clipboard.writeText("Date\tAccount\tType\tAmount\n" + text);
         Swal.fire({ icon: "success", title: "Copied!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
     };
@@ -97,7 +103,7 @@ export default function TransactionsReport({ transactions = { data: [], links: [
     const handleExportCSV = () => {
         if (!recordList.length) return Swal.fire("Empty!", "No data to export", "warning");
         const headers = ["Date,Account,Source,Description,Type,Amount\n"];
-        const rows = recordList.map(tx => `"${new Date(tx.created_at).toLocaleDateString()}","${tx.account?.name || ''}","${tx.source_type || ''}","${tx.description || ''}","${tx.type}","${tx.amount}"`);
+        const rows = recordList.map(tx => `"${new Date(tx.transaction_date).toLocaleDateString()}","${tx.account?.name || ''}","${tx.source_type || ''}","${tx.description || ''}","${tx.type}","${tx.amount}"`);
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.setAttribute("download", `Transactions_Report_${new Date().toISOString().slice(0, 10)}.csv`); link.click();
     };
@@ -241,7 +247,7 @@ export default function TransactionsReport({ transactions = { data: [], links: [
                             <tbody className="text-[13.5px] text-[#202223] divide-y divide-gray-100">
                                 {recordList.length > 0 ? recordList.map((tx) => {
                                     const meta = getSourceMeta(tx.source_type);
-                                    const dateObj = new Date(tx.created_at);
+                                    const dateObj = new Date(tx.transaction_date);
 
                                     return (
                                         <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors group">
@@ -280,7 +286,7 @@ export default function TransactionsReport({ transactions = { data: [], links: [
                                                 {tx.type === 'debit' ? '-' : '+'} <Taka />{Number(tx.amount).toLocaleString('en-IN')}
                                             </td>
                                             <td className="px-6 py-4 text-right font-extrabold text-gray-800 tabular-nums">
-                                                <Taka />{Number(tx.balance_after).toLocaleString('en-IN')}
+                                                <Taka />{tx.balance_after == null ? '—' : Number(tx.balance_after).toLocaleString('en-IN')}
                                             </td>
                                             <td className="px-6 py-4 text-center no-print">
                                                 <div className="flex items-center justify-center">
@@ -367,7 +373,7 @@ export default function TransactionsReport({ transactions = { data: [], links: [
                                 </div>
                                 <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
                                     <span className="block text-[11.5px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Date & Time</span>
-                                    <div className="font-bold text-gray-900 flex items-center gap-2"><i className="fa-regular fa-calendar-days text-indigo-400"></i> {new Date(selectedTrx.created_at).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}</div>
+                                    <div className="font-bold text-gray-900 flex items-center gap-2"><i className="fa-regular fa-calendar-days text-indigo-400"></i> {new Date(selectedTrx.transaction_date).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}</div>
                                 </div>
                                 <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm col-span-2">
                                     <span className="block text-[11.5px] font-bold uppercase tracking-wider text-gray-400 mb-2">Description</span>
@@ -383,7 +389,7 @@ export default function TransactionsReport({ transactions = { data: [], links: [
 
                                 <div className="bg-blue-50/50 p-5 rounded-xl border border-blue-100 col-span-2 flex items-center justify-between shadow-sm">
                                     <span className="block text-[12.5px] font-bold uppercase tracking-wider text-blue-600">Balance After Transaction</span>
-                                    <div className="font-black text-blue-800 text-[18px] tabular-nums"><Taka />{Number(selectedTrx.balance_after).toLocaleString('en-IN')}</div>
+                                    <div className="font-black text-blue-800 text-[18px] tabular-nums"><Taka />{selectedTrx.balance_after == null ? '—' : Number(selectedTrx.balance_after).toLocaleString('en-IN')}</div>
                                 </div>
                             </div>
                         </div>

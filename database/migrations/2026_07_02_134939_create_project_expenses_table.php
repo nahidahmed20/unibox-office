@@ -26,6 +26,7 @@ return new class extends Migration
             $table->decimal('due_amount', 15, 2)->default(0)->comment('বাকি কত টাকা পাবে');
             $table->decimal('amount', 15, 2)->default(0)->comment('এই এন্ট্রিতে কত টাকা খরচ দেখানো হলো');
             $table->decimal('discount_amount', 15, 2)->default(0);
+            $table->decimal('bank_charge', 15, 2)->default(0);
             $table->string('payment_status')->default('due')->comment('paid, partial, or due');
             $table->date('date');
             $table->string('attachment')->nullable(); 

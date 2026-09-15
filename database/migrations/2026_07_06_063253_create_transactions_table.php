@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('account_id')->constrained('accounts')->onDelete('cascade');
             $table->enum('type', ['credit', 'debit']); 
             $table->decimal('amount', 15, 2);
+            $table->decimal('bank_charge', 15, 2)->default(0);
             $table->nullableMorphs('transactionable'); 
             
             $table->date('transaction_date');

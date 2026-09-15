@@ -328,13 +328,35 @@ class ReportController extends Controller
 
     public function transactionsReport(Request $request)
     {
-        $transactionModel = class_exists(\App\Models\AccountTransaction::class) ? \App\Models\AccountTransaction::class : \App\Models\Transaction::class;
+        $transactionModel = \App\Models\Transaction::class;
         $query = $transactionModel::with('account:id,name');
+        $sources = [
+            'vendor_payment' => [\App\Models\VendorPayment::class, 'debit'],
+            'vendor_payment_void' => [\App\Models\VendorPayment::class, 'credit'],
+            'vendor_advance' => [\App\Models\Vendor::class, 'debit'],
+            'vendor_refund' => [\App\Models\Vendor::class, 'credit'],
+            'salary_payment' => [\App\Models\Salary::class, null],
+            'invoice_payment' => [\App\Models\InvoicePayment::class, null],
+            'expense' => [\App\Models\Expense::class, null],
+            'project_expense' => [\App\Models\ProjectExpense::class, null],
+            'asset_purchase' => [\App\Models\Asset::class, null],
+            'investment_received' => [\App\Models\Investment::class, null],
+            'investment_return' => [\App\Models\InvestmentPayment::class, null],
+            'staff_advance' => [\App\Models\Advance::class, null],
+            'client_advance' => [\App\Models\ClientAdvance::class, null],
+            'manual_adjustment' => [null, null],
+        ];
+        if (isset($sources[$request->source_type])) {
+            [$model, $direction] = $sources[$request->source_type];
+            $query->where('transactionable_type', $model);
+            if ($direction) $query->where('type', $direction);
+        }
 
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('description', 'like', "%{$search}%");
+                $q->where('description', 'like', "%{$search}%")->orWhere('reference_number', 'like', "%{$search}%")
+                    ->orWhereHasMorph('transactionable', [\App\Models\VendorPayment::class], fn ($payment) => $payment->whereHas('vendor', fn ($vendor) => $vendor->where('name', 'like', "%{$search}%")));
             });
         }
 
@@ -342,24 +364,32 @@ class ReportController extends Controller
             $query->where('account_id', $request->account_id);
         }
         if ($request->filled('from')) {
-            $query->whereDate('created_at', '>=', $request->from);
+            $query->whereDate('transaction_date', '>=', $request->from);
         }
         if ($request->filled('to')) {
-            $query->whereDate('created_at', '<=', $request->to);
+            $query->whereDate('transaction_date', '<=', $request->to);
         }
 
-        $perPage = $request->input('per_page', 25);
+        $perPage = \App\Support\Pagination::perPage($request, $query);
         if ($perPage === 'all') {
             $totalCount = $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         }
 
-        $transactions = $query->latest('created_at')->latest('id')->paginate($perPage)->withQueryString();
+        $transactions = $query->latest('transaction_date')->latest('id')->paginate($perPage)->withQueryString();
+        $transactions->getCollection()->each(function ($transaction) use ($sources) {
+            foreach ($sources as $label => [$model, $direction]) {
+                if ($transaction->transactionable_type === $model && (!$direction || $transaction->type === $direction)) {
+                    $transaction->setAttribute('source_type', $label);
+                    break;
+                }
+            }
+        });
 
         return Inertia::render('Admin/Reports/TransactionsReport', [
             'transactions' => $transactions,
             'accounts'     => Account::select('id', 'name')->get(),
-            'filters'      => $request->only('account_id', 'from', 'to', 'search', 'per_page'),
+            'filters'      => $request->only('account_id', 'from', 'to', 'search', 'per_page', 'source_type'),
         ]);
     }
 

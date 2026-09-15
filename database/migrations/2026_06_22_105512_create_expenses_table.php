@@ -19,6 +19,7 @@ return new class extends Migration
             $table->unsignedBigInteger('advance_user_id')->nullable();
             $table->unsignedBigInteger('account_id')->nullable()->comment('যে অ্যাকাউন্ট থেকে টাকা খরচ হয়েছে');
             $table->decimal('amount', 10, 2);
+            $table->decimal('bank_charge', 15, 2)->default(0);
             $table->date('date');
             $table->unsignedBigInteger('logged_by');
             $table->string('attachment')->nullable(); 

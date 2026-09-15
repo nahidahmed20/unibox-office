@@ -62,6 +62,7 @@ Route::middleware('auth')->group(function () {
 
     // 1. CRM & Projects
     Route::patch('/admin/projects/{id}/status', [ProjectController::class, 'updateStatus'])->name('admin.projects.update-status');
+    Route::patch('vendors/payments/{payment}/bank-charge', [VendorController::class, 'updateBankCharge'])->name('admin.vendors.payments.bank-charge');
     Route::post('vendors/payments/{payment}/void', [VendorController::class, 'voidPayment'])->name('admin.vendors.payments.void');
     Route::get('vendors/{vendor}/payments', [VendorController::class, 'payments'])->name('admin.vendors.payments.index');
     Route::post('vendors/{vendor}/pay', [VendorController::class, 'payVendor'])->name('admin.vendors.pay');

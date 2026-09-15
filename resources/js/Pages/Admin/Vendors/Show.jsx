@@ -1,6 +1,40 @@
 import React, { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
+
+function BankChargeEditor({ payment }) {
+    const [editing, setEditing] = useState(false);
+    const form = useForm({ pay_amount: payment.pay_amount, bank_charge: payment.bank_charge || 0 });
+    return <div className="mt-2 text-xs font-medium text-gray-600">
+        <div>Bank charge: ৳{Number(payment.bank_charge || 0).toFixed(2)}</div>
+        {payment.payment_source === 'account' && payment.status === 'completed' && Number(payment.pay_amount) > 0 && (
+            editing ? <form className="mt-2 space-y-2" onSubmit={event => {
+                event.preventDefault();
+                form.patch(route('admin.vendors.payments.bank-charge', payment.id), {
+                    preserveScroll: true, onSuccess: () => setEditing(false),
+                });
+            }}>
+                <label className="block">Payment amount
+                    <input aria-label="Payment amount" type="number" min="0.01" step="0.01" required value={form.data.pay_amount}
+                        onChange={event => form.setData('pay_amount', event.target.value)} className="block w-36 rounded border-gray-300 mt-1" />
+                </label>
+                {form.errors.pay_amount && <p role="alert" className="text-red-600">{form.errors.pay_amount}</p>}
+                <label className="block">Total bank charge
+                    <input aria-label="Total bank charge" type="number" min="0" step="0.01" required value={form.data.bank_charge}
+                        onChange={event => form.setData('bank_charge', event.target.value)} className="block w-36 rounded border-gray-300 mt-1" />
+                </label>
+                <p className="max-w-52 whitespace-normal">Account debit: ৳{(Number(form.data.pay_amount || 0) + Number(form.data.bank_charge || 0)).toFixed(2)}</p>
+                {form.errors.bank_charge && <p role="alert" className="text-red-600 max-w-52 whitespace-normal">{form.errors.bank_charge}</p>}
+                <button disabled={form.processing} className="text-indigo-700 font-bold mr-3">Save</button>
+                <button type="button" disabled={form.processing} onClick={() => setEditing(false)}>Cancel</button>
+            </form> : <button className="text-indigo-600 font-bold mt-1" onClick={() => {
+                form.setData({ pay_amount: payment.pay_amount, bank_charge: payment.bank_charge || 0 });
+                form.clearErrors();
+                setEditing(true);
+            }}>Edit payment</button>
+        )}
+    </div>;
+}
 
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
@@ -120,6 +154,7 @@ export default function Show({ vendor, payments, ledgers, bills, stats }) {
                                                 <div className="text-[11.5px] font-bold text-gray-400 mt-1 uppercase tracking-wider">
                                                     Ref: #{String(pay.id).padStart(5, '0')}
                                                 </div>
+                                                <BankChargeEditor payment={pay} />
                                             </td>
                                             <td className="px-6 py-4 align-top">
                                                 <div className="font-bold text-indigo-700 flex items-center gap-2 bg-indigo-50 px-3 py-1.5 w-fit rounded-lg border border-indigo-100">

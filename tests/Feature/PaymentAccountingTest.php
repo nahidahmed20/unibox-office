@@ -157,6 +157,12 @@ class PaymentAccountingTest extends TestCase
         $expense = ProjectExpense::firstOrFail();
         $this->post(route('admin.vendors.pay', $vendor), ['project_expense_ids' => [$expense->id], 'payment_source' => 'account', 'account_id' => $this->account->id, 'pay_amount' => 1000, 'bank_charge' => 10, 'date' => '2026-09-10'])->assertSessionHasNoErrors();
         $this->assertEquals(8990, $this->account->fresh()->current_balance);
+        foreach ([[2000, 7990, 0, 1000], [1000, 8990, 0, 0], [500, 9490, 500, 0], [1000, 8990, 0, 0]] as [$amount, $balance, $due, $wallet]) {
+            $this->patch(route('admin.vendors.payments.bank-charge', VendorPayment::firstOrFail()), ['pay_amount' => $amount, 'bank_charge' => 10])->assertSessionHasNoErrors();
+            $this->assertEquals($balance, $this->account->fresh()->current_balance);
+            $this->assertEquals($due, $expense->fresh()->due_amount);
+            $this->assertEquals($wallet, $vendor->fresh()->wallet_balance);
+        }
         $this->assertEquals(0, $expense->fresh()->due_amount);
         $this->delete(route('admin.project-expenses.destroy', $expense))->assertSessionHasErrors('error');
         $payment = VendorPayment::firstOrFail();
@@ -165,6 +171,29 @@ class PaymentAccountingTest extends TestCase
         $this->assertEquals(1000, $expense->fresh()->due_amount);
         $this->post(route('admin.vendors.payments.void', $payment), ['void_reason' => 'Again'])->assertSessionHasErrors('error');
         $this->assertEquals(10000, $this->account->fresh()->current_balance);
+    }
+
+    public function test_vendor_bank_charge_can_be_corrected_without_changing_bill_settlement(): void
+    {
+        $vendor = Vendor::create(['name' => 'Printer']);
+        $this->post(route('admin.project-expenses.store'), $this->expenseData(['vendor_id' => $vendor->id, 'paid_amount' => 0, 'bank_charge' => 0]))->assertSessionHasNoErrors();
+        $expense = ProjectExpense::firstOrFail();
+        $this->post(route('admin.vendors.pay', $vendor), ['project_expense_ids' => [$expense->id], 'payment_source' => 'account', 'account_id' => $this->account->id, 'pay_amount' => 1000, 'bank_charge' => 0, 'date' => '2026-09-10'])->assertSessionHasNoErrors();
+        $payment = VendorPayment::firstOrFail();
+        $url = route('admin.vendors.payments.bank-charge', $payment);
+        foreach ([10, 10, 5, 0, 10] as $charge) {
+            $this->patch($url, ['bank_charge' => $charge])->assertSessionHasNoErrors();
+            $this->assertEquals(9000 - $charge, $this->account->fresh()->current_balance);
+            $this->assertEquals($charge, $payment->fresh()->bank_charge);
+            $this->assertEquals(1000 + $charge, Transaction::where('transactionable_type', VendorPayment::class)->firstOrFail()->amount);
+            $this->assertEquals(0, $expense->fresh()->due_amount);
+        }
+        $this->patch($url, ['bank_charge' => 10000])->assertSessionHasErrors('bank_charge');
+        $this->patch($url, ['bank_charge' => -1])->assertSessionHasErrors('bank_charge');
+        $this->assertEquals(8990, $this->account->fresh()->current_balance);
+        $this->post(route('admin.vendors.payments.void', $payment), ['void_reason' => 'Correction'])->assertSessionHasNoErrors();
+        $this->assertEquals(10000, $this->account->fresh()->current_balance);
+        $this->patch($url, ['bank_charge' => 20])->assertSessionHasErrors('bank_charge');
     }
 
     public function test_insufficient_balance_including_charge_rolls_back_expense(): void
