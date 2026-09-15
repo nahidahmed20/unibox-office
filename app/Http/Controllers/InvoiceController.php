@@ -147,6 +147,8 @@ class InvoiceController extends Controller
             $invoice = Invoice::create($invoiceData);
             $invoice->items()->createMany($validated['items']);
 
+            $this->syncProjectBudgets($invoice);
+
             $this->applyClientAdvance($invoice, $validated['client_id'], (float) ($validated['use_advance_amount'] ?? 0));
 
             $totalPaid = InvoicePayment::where('invoice_id', $invoice->id)->sum('amount');
@@ -181,6 +183,7 @@ class InvoiceController extends Controller
         ]);
     }
 
+    
     public function update(Request $request, string $id)
     {
         $invoice = Invoice::findOrFail($id);
@@ -216,12 +219,29 @@ class InvoiceController extends Controller
             $invoice->items()->delete();
             $invoice->items()->createMany($validated['items']);
 
+            $this->syncProjectBudgets($invoice->fresh());
+
             $this->applyClientAdvance($invoice, $validated['client_id'], (float) ($validated['use_advance_amount'] ?? 0));
             $totalPaid = (float) InvoicePayment::where('invoice_id', $invoice->id)->sum('amount');
             $invoice->update(['status' => $totalPaid >= $invoice->grand_total ? 'paid' : ($totalPaid > 0 ? 'partially_paid' : 'unpaid')]);
         });
 
         return redirect()->route('admin.invoices.index')->with('success', 'Invoice updated successfully.');
+    }
+
+    private function syncProjectBudgets(Invoice $invoice): void
+    {
+        $projectIds = $invoice->items()->whereNotNull('project_id')->pluck('project_id')->unique();
+
+        if ($projectIds->count() === 1) {
+            Project::where('id', $projectIds->first())->update(['budget' => $invoice->grand_total]);
+        } elseif ($projectIds->count() > 1) {
+            
+            foreach ($projectIds as $projectId) {
+                $itemTotal = $invoice->items()->where('project_id', $projectId)->sum('total');
+                Project::where('id', $projectId)->update(['budget' => $itemTotal]);
+            }
+        }
     }
 
     public function destroy(string $id)

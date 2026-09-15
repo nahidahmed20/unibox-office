@@ -3,7 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 
-export default function FinancialReports({ clientsReport = [], monthlyReport = [], monthlyProfitLoss = [], summary = {}, filters = {} }) {
+export default function FinancialReports({ clientsReport = [], monthlyReport = [], summary = {}, filters = {} }) {
     /* State Management */
     const [activeTab, setActiveTab] = useState('profit_loss');
     const [searchClient, setSearchClient] = useState('');
@@ -17,11 +17,10 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
 
     const isFirstRender = useRef(true);
 
-    // Get unique years for the dropdown
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 10 }, (_, index) => currentYear - 5 + index).sort((a, b) => b - a);
 
-    /* 🟢 AUTOMATIC Filtering & Reload Logic */
+    /* 🟢 AUTOMATIC Filtering */
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -105,9 +104,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
         if (!filteredClients.length) return Swal.fire("Empty!", "No data to export", "warning");
 
         let headers = "Client Name,Total Projects,Project Budget,Project Cost (Expenses),Invoices Generated,Total Billed,Received (Paid),Net Due\n";
-        let rows = filteredClients.map(c => {
-            return `"${c.client_name}","${c.total_projects}","${c.total_budget}","${c.total_expense}","${c.total_invoices}","${c.total_billed}","${c.total_paid}","${c.total_due}"`;
-        }).join("\n");
+        let rows = filteredClients.map(c => `"${c.client_name}","${c.total_projects}","${c.total_budget}","${c.total_expense}","${c.total_invoices}","${c.total_billed}","${c.total_paid}","${c.total_due}"`).join("\n");
 
         downloadCSV(headers + rows, `Client_Financial_Report_${new Date().toISOString().slice(0, 10)}.csv`);
     };
@@ -128,18 +125,8 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
     };
 
     /* Computed Data & Totals */
-    const filteredClients = clientsReport.filter(c =>
-        (c.client_name || '').toLowerCase().includes(searchClient.toLowerCase())
-    );
-
-    const filteredMonths = monthlyReport.filter(m =>
-        (m.month || '').toLowerCase().includes(searchMonth.toLowerCase())
-    );
-
-    const profitLossTotals = monthlyProfitLoss.reduce((totals, row) => {
-        ['cash_in', 'cash_out', 'net_cash_flow', 'billed_revenue', 'office_expense', 'salary_expense', 'project_cost'].forEach(key => { totals[key] += Number(row[key] || 0); });
-        return totals;
-    }, { cash_in: 0, cash_out: 0, net_cash_flow: 0, billed_revenue: 0, office_expense: 0, salary_expense: 0, project_cost: 0 });
+    const filteredClients = clientsReport.filter(c => (c.client_name || '').toLowerCase().includes(searchClient.toLowerCase()));
+    const filteredMonths = monthlyReport.filter(m => (m.month || '').toLowerCase().includes(searchMonth.toLowerCase()));
 
     const clientTotals = filteredClients.reduce((totals, row) => {
         ['total_projects', 'total_budget', 'total_expense', 'total_invoices', 'total_billed', 'total_paid', 'total_due'].forEach(key => { totals[key] += Number(row[key] || 0); });
@@ -205,15 +192,13 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
 
                         <div className="flex items-center gap-2">
                             <input
-                                type="date"
-                                value={startDate}
+                                type="date" value={startDate}
                                 onChange={(e) => { setStartDate(e.target.value); setFilterYear(''); setFilterMonth(''); }}
                                 className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] font-medium outline-none transition-shadow focus:border-indigo-500 focus:bg-white cursor-pointer"
                             />
                             <span className="text-gray-400 font-bold">–</span>
                             <input
-                                type="date"
-                                value={endDate}
+                                type="date" value={endDate}
                                 onChange={(e) => { setEndDate(e.target.value); setFilterYear(''); setFilterMonth(''); }}
                                 className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] font-medium outline-none transition-shadow focus:border-indigo-500 focus:bg-white cursor-pointer"
                             />
@@ -227,82 +212,74 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                     </div>
                 </div>
 
-                {/* Top 4 Summary Cards */}
+                {/* 🟢 NEW: ACTUAL NET PROFIT CARD (আসল লাভ) */}
+                <div className={`flex flex-col rounded-3xl border p-6 sm:p-8 shadow-sm relative overflow-hidden ${Number(summary.net_actual_profit) >= 0 ? 'border-teal-200 bg-gradient-to-br from-white to-teal-50/50' : 'border-red-200 bg-gradient-to-br from-white to-red-50/50'}`}>
+                    <i className={`fa-solid fa-gem absolute -right-6 -bottom-6 text-[120px] opacity-[0.03] ${Number(summary.net_actual_profit) >= 0 ? 'text-teal-900' : 'text-red-900'}`}></i>
+
+                    <div className="flex items-start justify-between relative z-10 mb-6">
+                        <div>
+                            <div className={`inline-flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[12px] font-extrabold uppercase tracking-wider mb-2 border ${Number(summary.net_actual_profit) >= 0 ? 'bg-teal-100 text-teal-800 border-teal-200' : 'bg-red-100 text-red-800 border-red-200'}`}>
+                                <i className="fa-solid fa-chart-line"></i> Actual Net Profit (আসল লাভ)
+                            </div>
+                            <p className="text-[13.5px] font-semibold text-gray-500 max-w-3xl leading-relaxed">
+                                এটি আপনার ব্যবসার প্রকৃত লাভ। আপনি মোট কত টাকার কাজ (Invoice) করেছেন, তার থেকে ওই কাজগুলো করতে বা অফিস চালাতে আপনার মোট কত টাকার খরচ (Bills/Salary) হয়েছে— তার নিখুঁত হিসাব।
+                            </p>
+                        </div>
+                        <h2 className={`text-[36px] sm:text-[42px] font-black m-0 tabular-nums tracking-tight ${Number(summary.net_actual_profit) >= 0 ? 'text-teal-700' : 'text-red-700'}`}>
+                            {Number(summary.net_actual_profit) > 0 ? '+' : ''}৳ {fmt(summary.net_actual_profit)}
+                        </h2>
+                    </div>
+
+                    {/* Formula Breakdown */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 relative z-10 items-stretch">
+                        <div className="bg-white border border-blue-100 rounded-2xl p-4 flex flex-col justify-center shadow-sm relative">
+                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Total Invoiced (আয়)</span>
+                            <span className="text-[18px] font-black text-blue-700 tabular-nums">৳ {fmt(summary.accrual_revenue)}</span>
+                            <div className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-gray-400 font-bold border border-gray-200 z-10">-</div>
+                        </div>
+                        <div className="bg-white border border-rose-100 rounded-2xl p-4 flex flex-col justify-center shadow-sm relative">
+                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Project Bills (প্রজেক্ট খরচ)</span>
+                            <span className="text-[18px] font-black text-rose-600 tabular-nums">৳ {fmt(summary.accrual_project_cost)}</span>
+                            <div className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-gray-400 font-bold border border-gray-200 z-10">-</div>
+                        </div>
+                        <div className="bg-white border border-rose-100 rounded-2xl p-4 flex flex-col justify-center shadow-sm relative">
+                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Office Exp (অফিস খরচ)</span>
+                            <span className="text-[18px] font-black text-rose-600 tabular-nums">৳ {fmt(summary.accrual_office_cost)}</span>
+                            <div className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-gray-400 font-bold border border-gray-200 z-10">-</div>
+                        </div>
+                        <div className="bg-white border border-rose-100 rounded-2xl p-4 flex flex-col justify-center shadow-sm relative">
+                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Salaries (বেতন)</span>
+                            <span className="text-[18px] font-black text-rose-600 tabular-nums">৳ {fmt(summary.accrual_salary_cost)}</span>
+                            <div className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 items-center justify-center rounded-full bg-teal-100 text-teal-600 font-bold border border-teal-200 z-10">=</div>
+                        </div>
+                        <div className={`border rounded-2xl p-4 flex flex-col justify-center shadow-sm ${Number(summary.net_actual_profit) >= 0 ? 'bg-teal-50 border-teal-200' : 'bg-red-50 border-red-200'}`}>
+                            <span className={`text-[11px] font-bold uppercase tracking-wider mb-1 ${Number(summary.net_actual_profit) >= 0 ? 'text-teal-700' : 'text-red-700'}`}>Net Profit (নীট লাভ)</span>
+                            <span className={`text-[20px] font-black tabular-nums ${Number(summary.net_actual_profit) >= 0 ? 'text-teal-800' : 'text-red-800'}`}>৳ {fmt(summary.net_actual_profit)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Second Row: Cash Flow & Dues Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                    {/* Card 1 */}
-                    <div className="flex flex-col gap-2 rounded-3xl border border-blue-200 bg-blue-50/50 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                        <i className="fa-solid fa-vault absolute -right-4 -bottom-4 text-[80px] text-blue-100 opacity-50"></i>
-                        <div className="flex items-center gap-2.5 text-blue-600 mb-1 relative z-10">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100"><i className="fa-solid fa-building-columns text-[16px]"></i></div>
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-blue-600/80">Total Liquid Funds <span className="normal-case opacity-80 font-medium">(মোট তরল সম্পদ)</span></p>
-                        </div>
-                        <h3 className="text-[26px] font-black text-blue-800 m-0 tabular-nums tracking-tight relative z-10">৳ {fmt(summary.total_liquid_funds)}</h3>
-                        <p className="text-[11px] text-blue-600 font-bold relative z-10">
-                            Bank: ৳ {fmt(summary.account_balance)} | Staff Adv: ৳ {fmt(summary.staff_advance)} | Vendor Adv: ৳ {fmt(summary.vendor_advance)}
-                        </p>
-                    </div>
 
-                    {/* Card 2 */}
-                    <div className="flex flex-col gap-2 rounded-3xl border border-emerald-200 bg-emerald-50/50 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                        <i className="fa-solid fa-arrow-down-to-bracket absolute -right-4 -bottom-4 text-[80px] text-emerald-100 opacity-50"></i>
-                        <div className="flex items-center gap-2.5 text-emerald-600 mb-1 relative z-10">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100"><i className="fa-solid fa-money-bill-trend-up text-[16px]"></i></div>
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600/80">Total Cash In <span className="normal-case opacity-80 font-medium">(মোট আয়/প্রাপ্তি)</span></p>
-                        </div>
-                        <h3 className="text-[26px] font-black text-emerald-800 m-0 tabular-nums tracking-tight relative z-10">৳ {fmt(summary.total_cash_in)}</h3>
-                        <p className="text-[11px] text-emerald-600 font-bold relative z-10">
-                            Inv Paid: ৳ {fmt(summary.total_invoice_received)} | Client Adv: ৳ {fmt(summary.total_client_advance)}
-                        </p>
-                    </div>
-
-                    {/* Card 3 */}
-                    <div className="flex flex-col gap-2 rounded-3xl border border-rose-200 bg-rose-50/50 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                        <i className="fa-solid fa-arrow-right-from-bracket absolute -right-4 -bottom-4 text-[80px] text-rose-100 opacity-50"></i>
-                        <div className="flex items-center gap-2.5 text-rose-600 mb-1 relative z-10">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100"><i className="fa-solid fa-money-bill-transfer text-[16px]"></i></div>
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600/80">Total Cash Out <span className="normal-case opacity-80 font-medium">(মোট খরচ)</span></p>
-                        </div>
-                        <h3 className="text-[26px] font-black text-rose-800 m-0 tabular-nums tracking-tight relative z-10">৳ {fmt(summary.total_cash_out)}</h3>
-                        <p className="text-[11px] text-rose-600 font-bold relative z-10">
-                            Proj: ৳ {fmt(summary.total_project_paid)} | Office: ৳ {fmt(summary.total_office_expense)} | Salary: ৳ {fmt(summary.total_salary_paid)}
-                        </p>
-                    </div>
-
-                    {/* Card 4 */}
-                    <div className={`flex flex-col gap-2 rounded-3xl border p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden ${Number(summary.net_cash_flow) >= 0 ? 'border-purple-200 bg-purple-50/50' : 'border-gray-200 bg-gray-100'}`}>
-                        <i className="fa-solid fa-scale-balanced absolute -right-4 -bottom-4 text-[80px] opacity-10 text-purple-600"></i>
+                    {/* Net Cash Flow (হাতে থাকা ক্যাশ) */}
+                    <div className={`col-span-1 lg:col-span-2 flex flex-col justify-center gap-2 rounded-3xl border p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden ${Number(summary.net_cash_flow) >= 0 ? 'border-purple-200 bg-purple-50/50' : 'border-gray-200 bg-gray-100'}`}>
+                        <i className="fa-solid fa-wallet absolute -right-4 -bottom-4 text-[80px] opacity-10 text-purple-600"></i>
                         <div className={`flex items-center gap-2.5 mb-1 relative z-10 ${Number(summary.net_cash_flow) >= 0 ? 'text-purple-600' : 'text-gray-600'}`}>
                             <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${Number(summary.net_cash_flow) >= 0 ? 'bg-purple-100' : 'bg-gray-200'}`}>
-                                <i className="fa-solid fa-chart-line text-[16px]"></i>
+                                <i className="fa-solid fa-money-bill-transfer text-[16px]"></i>
                             </div>
-                            <p className="text-[11.5px] font-bold uppercase tracking-wider opacity-80">Net Cash Flow <span className="normal-case opacity-80 font-medium">(নীট ক্যাশ ফ্লো)</span></p>
+                            <p className="text-[12px] font-bold uppercase tracking-wider opacity-90">Net Cash Flow <span className="normal-case opacity-80 font-medium">(হাতে থাকা ক্যাশ)</span></p>
                         </div>
-                        <h3 className={`text-[26px] font-black m-0 tabular-nums tracking-tight relative z-10 ${Number(summary.net_cash_flow) >= 0 ? 'text-purple-800' : 'text-gray-800'}`}>
+                        <h3 className={`text-[28px] font-black m-0 tabular-nums tracking-tight relative z-10 ${Number(summary.net_cash_flow) >= 0 ? 'text-purple-800' : 'text-gray-800'}`}>
                             {Number(summary.net_cash_flow) > 0 ? '+' : ''}৳ {fmt(summary.net_cash_flow)}
                         </h3>
-                        <p className={`text-[12px] font-medium relative z-10 ${Number(summary.net_cash_flow) >= 0 ? 'text-purple-600' : 'text-gray-500'}`}>সব খরচ বাদে পকেটে থাকা আসল ক্যাশ।</p>
+                        <p className={`text-[12.5px] font-medium relative z-10 ${Number(summary.net_cash_flow) >= 0 ? 'text-purple-700' : 'text-gray-600'}`}>
+                            টোটাল যত টাকা ক্যাশ ঢুকেছে তার থেকে টোটাল যত টাকা ক্যাশ বের হয়েছে তার বিয়োগফল।
+                        </p>
                     </div>
-                </div>
 
-                {/* 🟢 NET OPERATING PROFIT CARD (ইনভেস্টমেন্ট বাদে আসল লাভ) */}
-                <div className={`flex flex-col gap-2 rounded-3xl border p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden ${Number(summary.net_operating_profit) >= 0 ? 'border-teal-200 bg-teal-50/60' : 'border-red-200 bg-red-50/60'}`}>
-                    <i className="fa-solid fa-gem absolute -right-4 -bottom-4 text-[90px] opacity-10 text-teal-700"></i>
-                    <div className={`flex items-center gap-2.5 mb-1 relative z-10 ${Number(summary.net_operating_profit) >= 0 ? 'text-teal-700' : 'text-red-700'}`}>
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${Number(summary.net_operating_profit) >= 0 ? 'bg-teal-100' : 'bg-red-100'}`}>
-                            <i className="fa-solid fa-wallet text-[16px]"></i>
-                        </div>
-                        <p className="text-[12px] font-extrabold uppercase tracking-wider opacity-90">Net Operating Profit <span className="normal-case opacity-80 font-medium">(ইনভেস্টমেন্ট বাদে কোম্পানির আসল লাভ)</span></p>
-                    </div>
-                    <h3 className={`text-[32px] font-black m-0 tabular-nums tracking-tight relative z-10 ${Number(summary.net_operating_profit) >= 0 ? 'text-teal-900' : 'text-red-900'}`}>
-                        {Number(summary.net_operating_profit) > 0 ? '+' : ''}৳ {fmt(summary.net_operating_profit)}
-                    </h3>
-                    <p className={`text-[12.5px] font-bold relative z-10 ${Number(summary.net_operating_profit) >= 0 ? 'text-teal-700' : 'text-red-700'}`}>
-                        Total Cash In (৳ {fmt(summary.total_cash_in)}) minus Operational Cost [Projects + Office + Salaries] (৳ {fmt(summary.operational_cash_out)}). ইনভেস্টরদের প্রফিট শেয়ার বা রিটার্ন এখানে যুক্ত নেই।
-                    </p>
-                </div>
-
-                {/* Market Due Cards (Receivables & Payables) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {/* Market Due Cards (Receivables & Payables) */}
                     <div className="flex flex-col gap-2 rounded-3xl border border-amber-200 bg-amber-50/40 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
                         <i className="fa-solid fa-hand-holding-dollar absolute -right-4 -bottom-4 text-[80px] text-amber-100 opacity-60"></i>
                         <div className="flex items-center gap-2.5 text-amber-600 mb-1 relative z-10">
@@ -310,7 +287,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                             <p className="text-[11px] font-bold uppercase tracking-wider text-amber-600/90">Market Receivables <span className="normal-case opacity-80 font-medium">(পাওনা টাকা)</span></p>
                         </div>
                         <h3 className="text-[26px] font-black text-amber-800 m-0 tabular-nums tracking-tight relative z-10">৳ {fmt(summary.client_due)}</h3>
-                        <p className="text-[12px] text-amber-700 font-medium relative z-10">ক্লায়েন্টদের কাছে মোট যত টাকা এখনো পাওনা আছে (Unpaid Bills).</p>
+                        <p className="text-[12px] text-amber-700 font-medium relative z-10">ক্লায়েন্টদের কাছে মোট পাওনা।</p>
                     </div>
 
                     <div className="flex flex-col gap-2 rounded-3xl border border-red-200 bg-red-50/40 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
@@ -320,7 +297,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                             <p className="text-[11px] font-bold uppercase tracking-wider text-red-600/90">Market Payables <span className="normal-case opacity-80 font-medium">(দেনা/বকেয়া)</span></p>
                         </div>
                         <h3 className="text-[26px] font-black text-red-800 m-0 tabular-nums tracking-tight relative z-10">৳ {fmt(summary.vendor_due)}</h3>
-                        <p className="text-[12px] text-red-700 font-medium relative z-10">ভেন্ডর বা অন্যান্য খাতে আপনার মোট যত টাকা পরিশোধ করা বাকি।</p>
+                        <p className="text-[12px] text-red-700 font-medium relative z-10">ভেন্ডরদের মোট পরিশোধযোগ্য বকেয়া।</p>
                     </div>
                 </div>
 
@@ -333,12 +310,6 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                                 onClick={() => setActiveTab('profit_loss')}
                                 className={`flex items-center gap-2 px-6 py-2.5 text-[13px] font-bold rounded-lg transition-all ${activeTab === 'profit_loss' ? 'bg-white text-[var(--accent)] shadow-sm border border-gray-200/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50 border border-transparent'}`}
                             >
-                                <i className="fa-solid fa-chart-column text-[12px]"></i> Cash Flow Report (ক্যাশ ফ্লো)
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('client')}
-                                className={`flex items-center gap-2 px-6 py-2.5 text-[13px] font-bold rounded-lg transition-all ${activeTab === 'client' ? 'bg-white text-[var(--accent)] shadow-sm border border-gray-200/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50 border border-transparent'}`}
-                            >
                                 <i className="fa-solid fa-users text-[12px]"></i> Client-Wise Summary (ক্লায়েন্ট রিপোর্ট)
                             </button>
                             <button
@@ -350,54 +321,8 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                         </div>
                     </div>
 
-                    {/* Tab 1: Cash Flow & Revenue Report */}
+                    {/* Tab 1: Client-Wise Report Section */}
                     {activeTab === 'profit_loss' && (
-                        <div className="overflow-x-auto custom-table-scroll">
-                            <table id="monthly-profit-loss-table" className="w-full min-w-[1200px] text-left">
-                                <thead className="border-b border-gray-200 bg-gray-50 text-[10.5px] font-extrabold uppercase tracking-wider text-gray-500">
-                                    <tr>
-                                        <th className="px-5 py-4">Month <br/><span className="text-[10px] font-medium opacity-80 normal-case">(মাস)</span></th>
-                                        <th className="px-5 py-4 text-right bg-blue-50/50 text-blue-600" title="Total amount invoiced/billed this month">Billed Revenue <br/><span className="text-[10px] font-medium opacity-80 normal-case">(মোট বিলকৃত)</span></th>
-                                        <th className="px-5 py-4 text-right bg-emerald-50/50 text-emerald-600" title="Cash collected for invoices generated in this month">Cash In (Collected) <br/><span className="text-[10px] font-medium opacity-80 normal-case">(প্রাপ্ত ক্যাশ)</span></th>
-                                        <th className="px-5 py-4 text-right bg-rose-50/50 text-rose-600">Proj Cost (Paid) <br/><span className="text-[10px] font-medium opacity-80 normal-case">(প্রজেক্ট খরচ)</span></th>
-                                        <th className="px-5 py-4 text-right bg-rose-50/50 text-rose-600">Office Exp <br/><span className="text-[10px] font-medium opacity-80 normal-case">(অফিস খরচ)</span></th>
-                                        <th className="px-5 py-4 text-right bg-rose-50/50 text-rose-600">Salary Paid <br/><span className="text-[10px] font-medium opacity-80 normal-case">(বেতন প্রদান)</span></th>
-                                        <th className="px-5 py-4 text-right bg-rose-100/50 text-rose-700 border-r border-gray-200">Total Cash Out <br/><span className="text-[10px] font-medium opacity-80 normal-case">(মোট খরচ)</span></th>
-                                        <th className="px-5 py-4 text-right bg-purple-50 text-purple-700">Net Cash Flow <br/><span className="text-[10px] font-medium opacity-80 normal-case">(নীট ক্যাশ ফ্লো)</span></th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100 text-[13.5px]">
-                                    {monthlyProfitLoss.length ? monthlyProfitLoss.map(row => <tr key={row.key} className="hover:bg-gray-50">
-                                        <td className="px-5 py-4 font-extrabold text-gray-900">{row.month}</td>
-                                        <td className="px-5 py-4 text-right font-bold tabular-nums text-blue-600 bg-blue-50/20">৳ {fmt(row.billed_revenue)}</td>
-                                        <td className="px-5 py-4 text-right font-bold tabular-nums text-emerald-600 bg-emerald-50/30">৳ {fmt(row.cash_in)}</td>
-
-                                        <td className="px-5 py-4 text-right font-bold tabular-nums text-rose-600 bg-rose-50/20">৳ {fmt(row.project_cost)}</td>
-                                        <td className="px-5 py-4 text-right font-bold tabular-nums text-rose-600 bg-rose-50/20">৳ {fmt(row.office_expense)}</td>
-                                        <td className="px-5 py-4 text-right font-bold tabular-nums text-rose-600 bg-rose-50/20">৳ {fmt(row.salary_expense)}</td>
-                                        <td className="px-5 py-4 text-right font-black tabular-nums text-rose-700 bg-rose-100/30 border-r border-gray-100">৳ {fmt(row.cash_out)}</td>
-
-                                        <td className={`px-5 py-4 text-right text-[16px] font-black tabular-nums bg-purple-50/30 ${Number(row.net_cash_flow) >= 0 ? 'text-purple-700' : 'text-gray-700'}`}>{Number(row.net_cash_flow) > 0 ? '+' : ''}৳ {fmt(row.net_cash_flow)}</td>
-                                    </tr>) : <tr><td colSpan="8" className="px-5 py-16 text-center font-semibold text-gray-400">No financial activity found for the selected dates.</td></tr>}
-                                </tbody>
-                                {monthlyProfitLoss.length > 0 && <tfoot className="border-t-2 border-gray-300 bg-slate-100 text-[13.5px] font-black">
-                                    <tr>
-                                        <td className="px-5 py-4 text-slate-900">GRAND TOTAL <br/><span className="text-[10px] font-bold opacity-80">(সর্বমোট)</span></td>
-                                        <td className="px-5 py-4 text-right tabular-nums text-blue-700">৳ {fmt(profitLossTotals.billed_revenue)}</td>
-                                        <td className="px-5 py-4 text-right tabular-nums text-emerald-700">৳ {fmt(profitLossTotals.cash_in)}</td>
-                                        <td className="px-5 py-4 text-right tabular-nums text-rose-700">৳ {fmt(profitLossTotals.project_cost)}</td>
-                                        <td className="px-5 py-4 text-right tabular-nums text-rose-700">৳ {fmt(profitLossTotals.office_expense)}</td>
-                                        <td className="px-5 py-4 text-right tabular-nums text-rose-700">৳ {fmt(profitLossTotals.salary_expense)}</td>
-                                        <td className="px-5 py-4 text-right tabular-nums text-rose-800 border-r border-gray-300">৳ {fmt(profitLossTotals.cash_out)}</td>
-                                        <td className={`px-5 py-4 text-right text-[16px] tabular-nums ${Number(profitLossTotals.net_cash_flow) >= 0 ? 'text-purple-800' : 'text-gray-800'}`}>{Number(profitLossTotals.net_cash_flow) > 0 ? '+' : ''}৳ {fmt(profitLossTotals.net_cash_flow)}</td>
-                                    </tr>
-                                </tfoot>}
-                            </table>
-                        </div>
-                    )}
-
-                    {/* Tab 2: Client-Wise Report Section */}
-                    {activeTab === 'client' && (
                         <div className="animate-[fadeIn_0.2s_ease-out]">
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-4 bg-gray-50/50 border-b border-gray-100">
                                 <div className="relative w-full md:w-[320px]">
@@ -494,7 +419,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                         </div>
                     )}
 
-                    {/* Tab 3: Monthly Project Report Section */}
+                    {/* Tab 2: Monthly Project Report Section */}
                     {activeTab === 'monthly' && (
                         <div className="animate-[fadeIn_0.2s_ease-out]">
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-4 bg-gray-50/50 border-b border-gray-100">

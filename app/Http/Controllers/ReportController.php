@@ -154,21 +154,9 @@ class ReportController extends Controller
         };
 
         // VALID INVOICES ONLY
-        $validInvoiceIds = DB::table('invoices')->whereNull('deleted_at')->pluck('id')->toArray();
-
-        // $validInvoiceIds = DB::table('invoice_items')
-        //     ->whereNotNull('project_id')
-        //     ->whereIn('project_id', function($subquery) {
-        //         $subquery->select('project_id')->from('project_expenses');
-        //     })
-        //     ->pluck('invoice_id')
-        //     ->unique()
-        //     ->toArray();
-
-        // ------------------------------------------
-        // A. ACCRUAL REPORT DATA (PROJECT WISE)
-        // ------------------------------------------
-        $query = DB::table('projects')
+        $validInvoiceIds = \Illuminate\Support\Facades\DB::table('invoices')->whereNull('deleted_at')->pluck('id')->toArray();
+        
+        $query = \Illuminate\Support\Facades\DB::table('projects')
             ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
             ->leftJoin('project_expenses', 'projects.id', '=', 'project_expenses.project_id')
             ->whereNull('projects.deleted_at')
@@ -178,7 +166,7 @@ class ReportController extends Controller
 
         $projectsData = $query->select(
                 'projects.id', 'projects.client_id', 'projects.title', 'projects.budget', 'projects.start_date', 'projects.status', 'clients.name as client_name',
-                DB::raw('COALESCE(SUM(project_expenses.total_bill), 0) as total_expense')
+                \Illuminate\Support\Facades\DB::raw('COALESCE(SUM(project_expenses.total_bill), 0) as total_expense')
             )->groupBy('projects.id', 'projects.client_id', 'projects.title', 'projects.budget', 'projects.start_date', 'projects.status', 'clients.name')
             ->orderBy('projects.start_date', 'desc')->get();
 
@@ -209,16 +197,16 @@ class ReportController extends Controller
 
         $clientIds = array_filter(array_column($clientsMap, 'client_id'));
         if (!empty($clientIds)) {
-            $invoiceStats = DB::table('invoices')->whereIn('client_id', $clientIds)->whereNull('deleted_at')
+            $invoiceStats = \Illuminate\Support\Facades\DB::table('invoices')->whereIn('client_id', $clientIds)->whereNull('deleted_at')
                 ->whereIn('id', $validInvoiceIds)
-                ->select('client_id', DB::raw('COUNT(id) as total_invoices'), DB::raw('SUM(grand_total) as total_billed'));
+                ->select('client_id', \Illuminate\Support\Facades\DB::raw('COUNT(id) as total_invoices'), \Illuminate\Support\Facades\DB::raw('SUM(grand_total) as total_billed'));
             $applyPeriod($invoiceStats, 'invoice_date');
             $invoiceStats = $invoiceStats->groupBy('client_id')->get()->keyBy('client_id');
 
-            $paymentStats = DB::table('invoice_payments')->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')
+            $paymentStats = \Illuminate\Support\Facades\DB::table('invoice_payments')->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')
                 ->whereIn('invoices.client_id', $clientIds)->whereNull('invoices.deleted_at')
                 ->whereIn('invoices.id', $validInvoiceIds)
-                ->select('invoices.client_id', DB::raw('SUM(invoice_payments.amount) as total_paid'));
+                ->select('invoices.client_id', \Illuminate\Support\Facades\DB::raw('SUM(invoice_payments.amount) as total_paid'));
 
             $applyPeriod($paymentStats, 'invoice_payments.payment_date');
             $paymentStats = $paymentStats->groupBy('invoices.client_id')->get()->keyBy('client_id');
@@ -238,21 +226,18 @@ class ReportController extends Controller
         }
         usort($monthlyData, function($a, $b) { return strcmp($b['sort_key'], $a['sort_key']); });
 
-        // ------------------------------------------
-        // B. CASH FLOW DATA (STRICTLY PAYMENT DATE BASIS)
-        // ------------------------------------------
-        $revenueQuery = DB::table('invoices')->whereNull('deleted_at')->whereIn('id', $validInvoiceIds);
-        $receivedQuery = DB::table('invoice_payments')
+        $revenueQuery = \Illuminate\Support\Facades\DB::table('invoices')->whereNull('deleted_at')->whereIn('id', $validInvoiceIds);
+        $receivedQuery = \Illuminate\Support\Facades\DB::table('invoice_payments')
             ->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')
             ->whereNull('invoices.deleted_at')
             ->whereIn('invoices.id', $validInvoiceIds);
 
-        $clientAdvQuery = DB::table('client_advances');
-        $expenseQuery = DB::table('transactions')->where('transactionable_type', Expense::class)->where('type', 'debit');
-        $salaryQuery = DB::table('transactions')->where('transactionable_type', Salary::class)->where('type', 'debit');
-        $bankChargeQuery = DB::table('transactions');
-        $projectCostQuery = DB::table('transactions')->whereIn('transactionable_type', [ProjectExpense::class, VendorPayment::class]);
-        $financeCostQuery = DB::table('investment_payments');
+        $clientAdvQuery = \Illuminate\Support\Facades\DB::table('client_advances');
+        $expenseQuery = \Illuminate\Support\Facades\DB::table('transactions')->where('transactionable_type', \App\Models\Expense::class)->where('type', 'debit');
+        $salaryQuery = \Illuminate\Support\Facades\DB::table('transactions')->where('transactionable_type', \App\Models\Salary::class)->where('type', 'debit');
+        $bankChargeQuery = \Illuminate\Support\Facades\DB::table('transactions');
+        $projectCostQuery = \Illuminate\Support\Facades\DB::table('transactions')->whereIn('transactionable_type', [\App\Models\ProjectExpense::class, \App\Models\VendorPayment::class]);
+        $financeCostQuery = \Illuminate\Support\Facades\DB::table('investment_payments');
 
         // Apply Date Filters
         $applyPeriod($revenueQuery, 'invoice_date');
@@ -264,7 +249,6 @@ class ReportController extends Controller
         $applyPeriod($projectCostQuery, 'transaction_date');
         $applyPeriod($financeCostQuery, 'payment_date');
 
-        // Totals Calculation
         $overallTotalBilled = (float) $revenueQuery->sum('grand_total');
         $receivedQuery->whereNotNull('invoice_payments.account_id');
         $totalInvoiceReceived = (float) $receivedQuery->sum('invoice_payments.amount');
@@ -281,61 +265,28 @@ class ReportController extends Controller
 
         $netCashFlow = $totalCashIn - $totalCashOut;
 
-        // ------------------------------------------
-        // C. MONTHLY PROFIT/LOSS BUCKETS
-        // ------------------------------------------
-        $monthlyProfitLoss = collect();
-        $addMonthly = function ($rows, string $dateColumn, string $amountColumn, string $bucket) use (&$monthlyProfitLoss) {
-            foreach ($rows as $row) {
-                $key = Carbon::parse($row->{$dateColumn})->format('Y-m');
-                if (!$monthlyProfitLoss->has($key)) {
-                    $monthlyProfitLoss->put($key, ['key' => $key, 'month' => Carbon::parse($row->{$dateColumn})->format('F Y'), 'cash_in' => 0, 'cash_out' => 0, 'billed_revenue' => 0, 'project_cost' => 0, 'office_expense' => 0, 'salary_expense' => 0]);
-                }
-                $item = $monthlyProfitLoss->get($key);
-                $item[$bucket] += (float) $row->{$amountColumn};
-                $monthlyProfitLoss->put($key, $item);
-            }
-        };
+        $accrualRevenueQuery = \Illuminate\Support\Facades\DB::table('invoices')->whereNull('deleted_at')->whereIn('id', $validInvoiceIds);
+        $applyPeriod($accrualRevenueQuery, 'invoice_date');
+        $accrualRevenue = (float) $accrualRevenueQuery->sum('grand_total');
 
-        $addMonthly((clone $revenueQuery)->get(['invoice_date', 'grand_total']), 'invoice_date', 'grand_total', 'billed_revenue');
-        $addMonthly((clone $receivedQuery)->get(['invoice_payments.payment_date as ref_date', 'invoice_payments.amount']), 'ref_date', 'amount', 'cash_in');
+        $accrualProjectExpQuery = \Illuminate\Support\Facades\DB::table('project_expenses');
+        $applyPeriod($accrualProjectExpQuery, 'date');
+        $accrualProjectCost = (float) $accrualProjectExpQuery->sum('total_bill'); // Only Actual Bill, not what is paid
 
-        $clientAdvancesList = (clone $clientAdvQuery)->get(['date', 'amount', 'used_amount'])->map(function($item) {
-            $item->net_amount = (float) $item->amount;
-            return $item;
-        });
-        $addMonthly($clientAdvancesList, 'date', 'net_amount', 'cash_in');
+        $accrualOfficeExpQuery = \Illuminate\Support\Facades\DB::table('expenses');
+        $applyPeriod($accrualOfficeExpQuery, 'date');
+        $accrualOfficeCost = (float) $accrualOfficeExpQuery->sum('amount');
 
-        $addMonthly((clone $projectCostQuery)->selectRaw("transaction_date, CASE WHEN type = 'debit' THEN amount - bank_charge ELSE -amount + bank_charge END AS principal")->get(), 'transaction_date', 'principal', 'project_cost');
-        $addMonthly((clone $expenseQuery)->selectRaw('transaction_date, amount - bank_charge AS principal')->get(), 'transaction_date', 'principal', 'office_expense');
-        $addMonthly((clone $salaryQuery)->selectRaw('transaction_date, amount - bank_charge AS principal')->get(), 'transaction_date', 'principal', 'salary_expense');
-        $addMonthly((clone $bankChargeQuery)->selectRaw("transaction_date, CASE WHEN type = 'debit' THEN bank_charge ELSE -bank_charge END AS charge")->get(), 'transaction_date', 'charge', 'cash_out');
-        $addMonthly((clone $financeCostQuery)->get(['payment_date', 'profit_amount']), 'payment_date', 'profit_amount', 'cash_out');
+        $accrualSalaryQuery = \Illuminate\Support\Facades\DB::table('salaries');
+        $applyPeriod($accrualSalaryQuery, 'payment_date');
+        $accrualSalaryCost = (float) $accrualSalaryQuery->sum('net_pay');
 
-        $monthlyProfitLoss = $monthlyProfitLoss->map(function ($row) {
-            $row['cash_out'] += $row['project_cost'] + $row['office_expense'] + $row['salary_expense'];
-            $row['net_cash_flow'] = $row['cash_in'] - $row['cash_out'];
-            return $row;
-        })->sortByDesc('key')->values();
+        $netActualProfit = $accrualRevenue - ($accrualProjectCost + $accrualOfficeCost + $accrualSalaryCost);
 
-        // ------------------------------------------
-        // D. CURRENT ASSETS & SUMMARY
-        // ------------------------------------------
-        $accountBalance = (float) DB::table('accounts')->where('is_active', true)->sum('current_balance');
-        $staffAdvance = max((float) DB::table('advance_balances')->selectRaw('COALESCE(SUM(total_given - total_used - total_returned), 0) balance')->value('balance'), 0);
-        $vendorAdvance = (float) DB::table('vendors')->sum('wallet_balance');
+        $accountBalance = (float) \Illuminate\Support\Facades\DB::table('accounts')->where('is_active', true)->sum('current_balance');
+        $staffAdvance = max((float) \Illuminate\Support\Facades\DB::table('advance_balances')->selectRaw('COALESCE(SUM(total_given - total_used - total_returned), 0) balance')->value('balance'), 0);
+        $vendorAdvance = (float) \Illuminate\Support\Facades\DB::table('vendors')->sum('wallet_balance');
         $totalLiquidFunds = $accountBalance + $staffAdvance + $vendorAdvance;
-
-        // Investment and profit payment breakdown
-        $totalInvestmentGross = (float) Investment::sum('amount');
-        $totalInvestmentReturned = (float) InvestmentPayment::sum('principal_amount');
-        $totalInvestmentProfitPaid = (float) $financeCostQuery->sum('profit_amount');
-
-        // Operational cash out (excluding investor returns/profits)
-        $operationalCashOut = $totalProjectExpensePaid + $totalOfficeExpense + $totalSalaryPaid + $totalBankCharges;
-
-        // 🟢 True Net Operating Profit (Excluding Investment/Investor payouts)
-        $netOperatingProfit = $totalCashIn - $operationalCashOut;
 
         $summary = [
             'total_liquid_funds' => $totalLiquidFunds,
@@ -348,38 +299,33 @@ class ReportController extends Controller
             'total_client_advance' => $totalClientAdvanceReceived,
 
             'total_cash_out' => $totalCashOut,
-            'operational_cash_out' => $operationalCashOut,
-
             'total_project_paid' => $totalProjectExpensePaid,
             'total_office_expense' => $totalOfficeExpense,
             'total_salary_paid' => $totalSalaryPaid,
-            'total_finance_cost' => $totalInvestmentProfitPaid,
-            'total_bank_charges' => $totalBankCharges,
 
             'net_cash_flow' => $netCashFlow,
-            'net_operating_profit' => $netOperatingProfit,
-
-            'total_billed_revenue' => $overallTotalBilled,
+            'accrual_revenue' => $accrualRevenue,
+            'accrual_project_cost' => $accrualProjectCost,
+            'accrual_office_cost' => $accrualOfficeCost,
+            'accrual_salary_cost' => $accrualSalaryCost,
+            'net_actual_profit' => $netActualProfit,
 
             'client_due' => max(
-                (float) DB::table('invoices')->whereNull('deleted_at')->whereIn('id', $validInvoiceIds)->sum('grand_total')
-                - (float) DB::table('invoice_payments')->whereIn('invoice_id', $validInvoiceIds)->sum('amount'),
+                (float) \Illuminate\Support\Facades\DB::table('invoices')->whereNull('deleted_at')->whereIn('id', $validInvoiceIds)->sum('grand_total')
+                - (float) \Illuminate\Support\Facades\DB::table('invoice_payments')->whereIn('invoice_id', $validInvoiceIds)->sum('amount'),
             0),
-            'vendor_due' => (float) DB::table('project_expenses')->sum('due_amount'),
+            'vendor_due' => (float) \Illuminate\Support\Facades\DB::table('project_expenses')->sum('due_amount'),
         ];
 
-        return Inertia::render('Admin/Reports/FinancialReports', [
+        return \Inertia\Inertia::render('Admin/Reports/FinancialReports', [
             'clientsReport' => array_values($clientsMap),
             'monthlyReport' => $monthlyData,
-            'monthlyProfitLoss' => $monthlyProfitLoss,
             'summary' => $summary,
             'filters' => $request->only(['start_date', 'end_date', 'year', 'month'])
         ]);
     }
 
-    // ==========================================
-    // 3. OTHER REPORT METHODS
-    // ==========================================
+
     public function transactionsReport(Request $request)
     {
         $transactionModel = class_exists(\App\Models\AccountTransaction::class) ? \App\Models\AccountTransaction::class : \App\Models\Transaction::class;

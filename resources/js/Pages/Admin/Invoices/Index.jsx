@@ -116,7 +116,12 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
     };
 
     const getStatusStyle = (status) => {
-        const styles = { paid: { bg: 'bg-emerald-50 border border-emerald-200', text: 'text-emerald-600', label: 'Paid' }, unpaid: { bg: 'bg-gray-50 border border-gray-200', text: 'text-gray-600', label: 'Unpaid' }, partially_paid: { bg: 'bg-amber-50 border border-amber-200', text: 'text-amber-600', label: 'Partially Paid' }, overdue: { bg: 'bg-red-50 border border-red-200', text: 'text-red-600', label: 'Overdue' } };
+        const styles = { 
+            paid: { bg: 'bg-emerald-50 border border-emerald-200', text: 'text-emerald-600', label: 'Paid' }, 
+            unpaid: { bg: 'bg-gray-50 border border-gray-200', text: 'text-gray-600', label: 'Unpaid' }, 
+            partially_paid: { bg: 'bg-amber-50 border border-amber-200', text: 'text-amber-600', label: 'Partially Paid' }, 
+            overdue: { bg: 'bg-red-50 border border-red-200', text: 'text-red-600', label: 'Overdue' } 
+        };
         return styles[status] || { bg: 'bg-gray-50', text: 'text-gray-600', label: status };
     };
 
@@ -157,7 +162,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
             <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12 mt-2">
 
-                {/* 🟢 Header & TOP SUMMARY CARDS */}
+                {/* Header & TOP SUMMARY CARDS */}
                 <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
                     <div>
                         <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-indigo-600">
@@ -167,7 +172,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                         <p className="text-[14.5px] text-gray-500 mt-1.5 max-w-lg leading-relaxed">Manage client invoices, monitor dues, and record payments.</p>
                     </div>
 
-                    {/* 🟢 THE TOP SUMMARY CARDS */}
+                    {/* TOP SUMMARY CARDS */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full lg:w-auto">
                         <div className="flex items-center gap-3.5 rounded-2xl border border-blue-200 bg-blue-50/50 px-5 py-3 shadow-sm">
                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600 shadow-sm border border-blue-200">
@@ -248,11 +253,9 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                         )}
                     </div>
 
-                    {/* Modern Filter Toolbar */}
+                    {/* Filter Toolbar */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100 no-print">
                         <div className="flex flex-wrap items-center gap-3">
-
-                            {/* Premium Show Rows Dropdown */}
                             <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all z-20">
                                 <span className="bg-gray-50/80 px-4 py-2 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
                                     Show
@@ -277,7 +280,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
                             <div className="h-6 w-px bg-gray-200 hidden sm:block mx-1"></div>
 
-                            {/* Export Buttons */}
                             <div className="flex items-center gap-1.5 shrink-0 z-20">
                                 <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm"><i className="fas fa-copy text-blue-500"></i> Copy</button>
                                 <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 shadow-sm"><i className="fas fa-file-csv"></i> CSV</button>
@@ -285,7 +287,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                             </div>
                         </div>
 
-                        {/* Search by Invoice/Project */}
                         <div className="flex items-center gap-3 w-full lg:w-auto z-20">
                             <div className="relative w-full sm:w-[180px]">
                                 <i className="fa-solid fa-hashtag absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-[12px]"></i>
@@ -300,8 +301,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
                     {/* Searchable Selects & Date Filters */}
                     <div className="flex flex-wrap items-center gap-3 px-6 py-4 bg-gray-50/50 border-b border-gray-100 no-print">
-
-                        {/* React-Select for Client */}
                         <div className="relative w-full sm:w-[260px] z-[60]">
                             <Select
                                 options={clients.map(c => ({ value: c.id, label: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}` }))}
@@ -314,7 +313,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                             />
                         </div>
 
-                        {/* React-Select for Status */}
                         <div className="relative w-full sm:w-[180px] z-[50]">
                             <Select
                                 options={[
@@ -353,7 +351,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                         )}
                     </div>
 
-                    {/* Modern Data Table */}
+                    {/* Table */}
                     <div className="overflow-x-auto custom-table-scroll pb-2">
                         <table className="w-full text-left border-collapse whitespace-nowrap min-w-[1200px]">
                             <thead className="bg-[#F8FAFC] border-b-2 border-[#E2E8F0] print-bg">
@@ -371,7 +369,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                             <tbody className="text-[13.5px] text-gray-800 divide-y divide-gray-100">
                                 {invList.length > 0 ? invList.map((inv, index) => {
                                     const statusStyle = getStatusStyle(inv.status);
-                                    const advanceUsed = Number(inv.advance_used || 0);
                                     const totalPaid = Number(inv.payments_sum_amount || 0);
                                     const dueAmount = Math.max(Number(inv.grand_total) - totalPaid, 0);
                                     const projectItems = inv.items?.filter(item => item.project);
@@ -379,14 +376,12 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                     return (
                                         <tr key={inv.id} className="hover:bg-slate-50/80 transition-colors group">
                                             <td className="px-6 py-4 font-medium text-gray-400 text-center">{invoices.from ? invoices.from + index : index + 1}</td>
-
                                             <td className="px-6 py-4">
                                                 <div className="font-black text-indigo-600 text-[14.5px]">#{inv.invoice_number}</div>
                                                 <div className="text-[11.5px] font-semibold text-gray-500 mt-1 flex items-center gap-1.5">
                                                     <i className="fa-regular fa-calendar text-gray-400"></i> {inv.invoice_date}
                                                 </div>
                                             </td>
-
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-[12px] font-black uppercase shadow-sm">
@@ -424,27 +419,22 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                                     </div>
                                                 </div>
                                             </td>
-
                                             <td className="px-6 py-4 text-right">
                                                 <div className="font-black text-gray-900 text-[15.5px] tabular-nums bg-gray-50 px-2.5 py-1 rounded-lg inline-block border border-gray-200/60 shadow-sm">
                                                     <Taka />{parseFloat(inv.grand_total).toLocaleString('en-IN')}
                                                 </div>
                                             </td>
-
                                             <td className="px-6 py-4 text-right font-black text-emerald-600 text-[14.5px] tabular-nums bg-emerald-50/10 group-hover:bg-emerald-50/30 transition-colors">
                                                 {totalPaid > 0 ? <><Taka />{totalPaid.toLocaleString('en-IN')}</> : <span className="text-gray-300">-</span>}
                                             </td>
-
                                             <td className="px-6 py-4 text-right font-black text-rose-600 text-[14.5px] tabular-nums bg-rose-50/10 group-hover:bg-rose-50/30 transition-colors border-r border-gray-100">
                                                 {dueAmount > 0 ? <><Taka />{dueAmount.toLocaleString('en-IN')}</> : <span className="text-gray-300">-</span>}
                                             </td>
-
                                             <td className="px-6 py-4 text-center">
                                                 <span className={`inline-flex px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${statusStyle.bg} ${statusStyle.text}`}>
                                                     {statusStyle.label}
                                                 </span>
                                             </td>
-
                                             <td className="px-6 py-4 text-right no-print">
                                                 <div className="flex items-center justify-end gap-1.5">
                                                     {hasPermission('view_invoices') && (
@@ -504,137 +494,185 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                 </div>
             </div>
 
-            {/* --- VIEW MODAL --- */}
+            {/* --- 💎 ULTRA PREMIUM INVOICE VIEW MODAL --- */}
             {showViewModal && selectedInvoice && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
-                    <div className="w-full max-w-4xl bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/70 backdrop-blur-md p-3 sm:p-6 overflow-y-auto">
+                    <div className="w-full max-w-4xl bg-white rounded-[2.5rem] shadow-2xl flex flex-col max-h-[95vh] overflow-hidden animate-[fadeIn_0.2s_ease-out] border border-gray-100">
 
-                        <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 px-8 py-8 shrink-0 overflow-hidden">
-                            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-white opacity-10 translate-x-10 -translate-y-10"></div>
-                            <button onClick={() => setShowViewModal(false)} className="absolute top-5 right-5 bg-black/20 hover:bg-black/40 text-white h-9 w-9 rounded-full flex items-center justify-center transition-colors backdrop-blur-md z-20"><i className="fa-solid fa-xmark text-sm"></i></button>
-                            <div className="relative z-10 flex flex-col sm:flex-row gap-5 items-start">
-                                <div className="h-16 w-16 shrink-0 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-white text-3xl shadow-lg ring-1 ring-white/30"><i className="fa-solid fa-file-invoice"></i></div>
-                                <div>
-                                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-white ${getStatusStyle(selectedInvoice.status).text}`}>
-                                            {getStatusStyle(selectedInvoice.status).label}
-                                        </span>
-                                    </div>
-                                    <h2 className="text-[26px] font-black text-white tracking-tight leading-tight">Invoice #{selectedInvoice.invoice_number}</h2>
-                                </div>
+                        {/* Top Action Bar */}
+                        <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gray-50/80 shrink-0 no-print">
+                            <div className="flex items-center gap-3">
+                                <span className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider ${getStatusStyle(selectedInvoice.status).bg} ${getStatusStyle(selectedInvoice.status).text}`}>
+                                    {getStatusStyle(selectedInvoice.status).label}
+                                </span>
+                                <span className="text-sm font-bold text-gray-500">Invoice #{selectedInvoice.invoice_number}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <a href={route('admin.invoices.print', selectedInvoice.id)} target="_blank" className="bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center gap-2 shadow-sm">
+                                    <i className="fa-solid fa-print"></i> Print / PDF
+                                </a>
+                                <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-red-500 bg-white border border-gray-200 hover:bg-red-50 h-9 w-9 rounded-full flex items-center justify-center transition-all shadow-sm">
+                                    <i className="fa-solid fa-xmark text-sm"></i>
+                                </button>
                             </div>
                         </div>
 
-                        <div className="p-6 md:p-8 overflow-y-auto custom-table-scroll space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-center">
-                                    <span className="block text-[12px] font-bold uppercase tracking-wider text-gray-800 mb-4 border-b border-gray-100 pb-2"><i className="fa-solid fa-address-card text-blue-500 mr-1.5"></i> Billed To</span>
-                                    <div className="font-extrabold text-gray-900 text-[18px]">{selectedInvoice.client?.company_name || selectedInvoice.client?.name || "N/A"}</div>
-                                    {selectedInvoice.client?.company_name && <div className="text-[13px] text-gray-500 mt-1 font-medium">Attn: {selectedInvoice.client?.name}</div>}
-                                    {selectedInvoice.client?.phone && <div className="text-[13px] text-gray-500 mt-0.5"><i className="fa-solid fa-phone text-[10px] mr-1"></i> {selectedInvoice.client?.phone}</div>}
-                                </div>
-
-                                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-center">
-                                    <span className="block text-[12px] font-bold uppercase tracking-wider text-gray-800 mb-4 border-b border-gray-100 pb-2"><i className="fa-solid fa-calendar-days text-rose-500 mr-1.5"></i> Timeline</span>
-                                    <div className="flex justify-between items-center mb-3">
-                                        <span className="text-gray-500 font-semibold text-[13px]">Issue Date:</span>
-                                        <span className="font-bold text-gray-800 text-[14px]">{selectedInvoice.invoice_date}</span>
+                        {/* Modal Body */}
+                        <div className="p-6 sm:p-10 overflow-y-auto custom-table-scroll space-y-8 bg-white">
+                            
+                            {/* Brand Header */}
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-8 border-b border-gray-100 gap-6">
+                                <div>
+                                    <div className="flex items-center gap-2.5 text-indigo-600 font-black text-xl tracking-tight">
+                                        <div className="h-10 w-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
+                                            <i className="fa-solid fa-file-invoice-dollar text-lg"></i>
+                                        </div>
+                                        INVOICE STATEMENT
                                     </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-gray-500 font-semibold text-[13px]">Due Date:</span>
-                                        <span className="font-bold text-rose-600 text-[14px]">{selectedInvoice.due_date}</span>
+                                    <p className="text-xs font-semibold text-gray-400 mt-1">Reference: INV-REF-{selectedInvoice.id}</p>
+                                </div>
+                                <div className="text-left sm:text-right">
+                                    <div className="text-[22px] font-black text-gray-900 tracking-tight">#{selectedInvoice.invoice_number}</div>
+                                    <div className="text-xs font-bold text-gray-500 mt-1">Issue Date: <span className="text-gray-800">{selectedInvoice.invoice_date}</span></div>
+                                    <div className="text-xs font-bold text-rose-600 mt-0.5">Due Date: <span>{selectedInvoice.due_date}</span></div>
+                                </div>
+                            </div>
+
+                            {/* Client Info Grid */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-gray-50/60 p-6 rounded-3xl border border-gray-100">
+                                <div>
+                                    <span className="block text-[11px] font-extrabold uppercase tracking-wider text-indigo-600 mb-2">Billed To (Client):</span>
+                                    <h3 className="text-lg font-black text-gray-900">{selectedInvoice.client?.company_name || selectedInvoice.client?.name || "N/A"}</h3>
+                                    {selectedInvoice.client?.company_name && <p className="text-xs font-bold text-gray-600 mt-0.5">Attn: {selectedInvoice.client?.name}</p>}
+                                    {selectedInvoice.client?.phone && <p className="text-xs font-semibold text-gray-500 mt-1"><i className="fa-solid fa-phone mr-1 opacity-70"></i> {selectedInvoice.client?.phone}</p>}
+                                </div>
+                                <div className="sm:text-right flex flex-col sm:items-end justify-center">
+                                    <span className="block text-[11px] font-extrabold uppercase tracking-wider text-gray-400 mb-1">Payment Status</span>
+                                    <span className={`inline-flex px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${getStatusStyle(selectedInvoice.status).bg} ${getStatusStyle(selectedInvoice.status).text}`}>
+                                        {getStatusStyle(selectedInvoice.status).label}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Line Items Table */}
+                            <div>
+                                <h4 className="text-[12px] font-extrabold uppercase tracking-wider text-gray-400 mb-4">Itemized Breakdown</h4>
+                                <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="bg-gray-50 text-[11px] font-black uppercase tracking-wider text-gray-500 border-b border-gray-200">
+                                            <tr>
+                                                <th className="px-5 py-3.5">Service / Item Description</th>
+                                                <th className="px-5 py-3.5 text-center">Qty</th>
+                                                <th className="px-5 py-3.5 text-right">Unit Price</th>
+                                                <th className="px-5 py-3.5 text-right">Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 bg-white">
+                                            {selectedInvoice.items?.map((item, idx) => (
+                                                <tr key={idx} className="hover:bg-gray-50/50">
+                                                    <td className="px-5 py-4">
+                                                        <strong className="text-sm font-extrabold text-gray-900 block">{item.item_name}</strong>
+                                                        {item.project && (
+                                                            <div className="text-[11px] font-bold text-indigo-600 mt-0.5 inline-flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                                                                <i className="fa-solid fa-layer-group"></i> {item.project.title}
+                                                            </div>
+                                                        )}
+                                                        {item.description && <div className="text-xs text-gray-500 mt-1.5 leading-relaxed html-content-view" dangerouslySetInnerHTML={{ __html: item.description }}></div>}
+                                                    </td>
+                                                    <td className="px-5 py-4 text-center font-bold text-gray-700">{item.quantity}</td>
+                                                    <td className="px-5 py-4 text-right font-bold text-gray-600 tabular-nums"><Taka />{Number(item.unit_price).toLocaleString('en-IN')}</td>
+                                                    <td className="px-5 py-4 text-right font-black text-gray-900 tabular-nums"><Taka />{Number(item.total).toLocaleString('en-IN')}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* Summary Box */}
+                            <div className="flex justify-end pt-2">
+                                <div className="w-full sm:w-[360px] bg-gray-900 rounded-3xl p-6 text-white shadow-xl space-y-3 relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500 rounded-full blur-3xl opacity-20 pointer-events-none"></div>
+                                    
+                                    <div className="flex justify-between items-end text-xs text-gray-400 font-bold">
+                                        <span>Sub Total</span>
+                                        <span className="text-white font-extrabold tabular-nums"><Taka />{Number(selectedInvoice.sub_total).toLocaleString('en-IN')}</span>
+                                    </div>
+
+                                    {Number(selectedInvoice.tax) > 0 && (
+                                        <div className="flex justify-between items-end text-xs text-gray-400 font-bold">
+                                            <span>Tax / VAT</span>
+                                            <span className="text-white font-extrabold">{selectedInvoice.tax}%</span>
+                                        </div>
+                                    )}
+
+                                    {Number(selectedInvoice.discount) > 0 && (
+                                        <div className="flex justify-between items-end text-xs text-rose-400 font-bold">
+                                            <span>Discount</span>
+                                            <span className="tabular-nums">- <Taka />{Number(selectedInvoice.discount).toLocaleString('en-IN')}</span>
+                                        </div>
+                                    )}
+
+                                    <div className="border-t border-gray-800 pt-3 flex justify-between items-end">
+                                        <span className="text-xs font-black uppercase tracking-wider text-gray-300">Grand Total</span>
+                                        <span className="text-2xl font-black text-white tabular-nums"><Taka className="text-lg text-indigo-400"/>{parseFloat(selectedInvoice.grand_total).toLocaleString('en-IN')}</span>
+                                    </div>
+
+                                    {(Number(selectedInvoice.advance_used) > 0) && (
+                                        <div className="flex justify-between items-end mt-2 bg-emerald-500/20 px-3 py-2 rounded-xl border border-emerald-500/30">
+                                            <span className="text-[12px] font-bold text-emerald-400">Advance Applied</span>
+                                            <span className="text-[14px] font-bold text-emerald-400 tabular-nums">- <Taka />{parseFloat(selectedInvoice.advance_used).toLocaleString('en-IN')}</span>
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-between items-center bg-gray-800/80 p-3 rounded-xl border border-gray-700/50 mt-2">
+                                        <span className="text-xs font-black text-rose-400 uppercase tracking-wider">Payable Due</span>
+                                        <span className="text-lg font-black text-rose-400 tabular-nums">
+                                            <Taka className="text-sm" />{Math.max(Number(selectedInvoice.grand_total) - (selectedInvoice.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0), 0).toLocaleString('en-IN')}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                                    <span className="block text-[12px] font-bold uppercase tracking-wider text-gray-800"><i className="fa-solid fa-list text-indigo-500 mr-1.5"></i> Line Items</span>
-                                </div>
-                                <div className="p-6">
-                                    <div className="flex flex-col gap-4">
-                                        {selectedInvoice.items?.map((item, idx) => (
-                                            <div key={idx} className="flex justify-between items-start pb-4 border-b border-dashed border-gray-200 last:border-0 last:pb-0">
-                                                <div className="flex-1 pr-6">
-                                                    {item.item_name && <strong className="text-[15px] text-gray-900 block mb-1">{item.item_name}</strong>}
-                                                    {item.project && (
-                                                        <div className="bg-indigo-50/50 px-2.5 py-1 rounded-md border border-indigo-100 text-[12px] text-indigo-700 mb-2 inline-flex items-center font-bold">
-                                                            <i className="fa-solid fa-diagram-project mr-1.5"></i> {item.project.title}
-                                                        </div>
-                                                    )}
-                                                    <div className="html-content-view text-[13px] text-gray-600" dangerouslySetInnerHTML={{ __html: item.description }}></div>
+                            {/* Payment History */}
+                            {selectedInvoice.payments && selectedInvoice.payments.length > 0 && (
+                                <div className="bg-emerald-50/50 rounded-3xl border border-emerald-100 p-6">
+                                    <h4 className="text-[12px] font-extrabold uppercase tracking-wider text-emerald-800 mb-4 flex items-center gap-2">
+                                        <i className="fa-solid fa-clock-rotate-left"></i> Payment Received History
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {selectedInvoice.payments.map((payment, i) => (
+                                            <div key={i} className="flex justify-between items-center bg-white p-4 rounded-2xl border border-emerald-100 shadow-sm">
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-extrabold text-gray-900 text-sm">{payment.payment_date}</span>
+                                                        <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-lg text-[10px] uppercase font-black tracking-wider border border-emerald-200">{payment.method}</span>
+                                                    </div>
+                                                    {payment.note && <div className="text-gray-500 italic mt-1 text-xs"><i className="fa-solid fa-quote-left opacity-50 mr-1"></i> {payment.note}</div>}
                                                 </div>
-                                                <div className="text-right whitespace-nowrap">
-                                                    <div className="text-[12px] font-bold text-gray-400 mb-1">{item.quantity} x <Taka className="text-[10px]"/>{item.unit_price}</div>
-                                                    <strong className="text-[16px] text-gray-900 font-black tabular-nums"><Taka />{item.total}</strong>
-                                                </div>
+                                                <div className="font-black text-emerald-600 text-base tabular-nums"><Taka />{parseFloat(payment.amount).toLocaleString('en-IN')}</div>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="flex justify-end pt-2">
-                                <div className="w-full sm:w-[320px] bg-gray-900 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col justify-between">
-                                    <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/5 blur-2xl pointer-events-none"></div>
-                                    <div className="space-y-3 relative z-10">
-                                        <div className="flex justify-between items-end"><span className="text-[13px] text-gray-400 font-medium">Sub Total</span><span className="text-[15px] font-bold tabular-nums"><Taka />{selectedInvoice.sub_total}</span></div>
-                                        {Number(selectedInvoice.tax) > 0 && <div className="flex justify-between items-end"><span className="text-[13px] text-gray-400 font-medium">Tax</span><span className="text-[15px] font-bold">{selectedInvoice.tax}%</span></div>}
-                                        {Number(selectedInvoice.discount) > 0 && <div className="flex justify-between items-end"><span className="text-[13px] text-rose-400 font-medium">Discount</span><span className="text-[15px] font-bold text-rose-400">- <Taka />{selectedInvoice.discount}</span></div>}
-                                        <div className="flex justify-between border-t border-gray-700 pt-3 mt-1 items-end">
-                                            <span className="text-[13px] text-gray-300 font-bold uppercase tracking-widest">Grand Total</span>
-                                            <span className="text-[22px] font-black text-white tabular-nums"><Taka className="text-[18px]"/>{parseFloat(selectedInvoice.grand_total).toLocaleString('en-IN')}</span>
-                                        </div>
-                                        {(Number(selectedInvoice.advance_used) > 0) && (
-                                            <>
-                                                <div className="flex justify-between items-end mt-2 bg-emerald-500/20 px-3 py-2 rounded-lg border border-emerald-500/30">
-                                                    <span className="text-[12px] font-bold text-emerald-400">Advance Applied</span>
-                                                    <span className="text-[14px] font-bold text-emerald-400 tabular-nums">- <Taka />{parseFloat(selectedInvoice.advance_used).toLocaleString('en-IN')}</span>
-                                                </div>
-                                                <div className="flex justify-between items-end mt-2">
-                                                    <span className="text-[13px] text-rose-300 font-bold uppercase tracking-widest">Payable Due</span>
-                                                    <span className="text-[20px] font-black text-rose-400 tabular-nums"><Taka className="text-[16px]"/>{Math.max(Number(selectedInvoice.grand_total) - (selectedInvoice.payments || []).reduce((sum, payment) => sum + Number(payment.amount || 0), 0), 0).toLocaleString('en-IN')}</span>
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {selectedInvoice.payments && selectedInvoice.payments.length > 0 && (
-                                <div className="bg-emerald-50/50 rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-emerald-100/80 bg-emerald-100/30">
-                                        <span className="block text-[12px] font-bold uppercase tracking-wider text-emerald-800"><i className="fa-solid fa-clock-rotate-left mr-1.5"></i> Payment Received History</span>
-                                    </div>
-                                    <div className="p-6">
-                                        <div className="space-y-3">
-                                            {selectedInvoice.payments.map((payment, i) => (
-                                                <div key={i} className="flex justify-between items-center text-[13.5px] border-b border-emerald-100/50 pb-3 last:border-0 last:pb-0">
-                                                    <div>
-                                                        <span className="font-extrabold text-gray-900 mr-3">{payment.payment_date}</span>
-                                                        <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] uppercase font-black tracking-wider border border-emerald-200">{payment.method}</span>
-                                                        {payment.note && <div className="text-gray-500 italic mt-1 text-[12px]"><i className="fa-solid fa-quote-left opacity-50 mr-1"></i> {payment.note}</div>}
-                                                    </div>
-                                                    <div className="font-black text-emerald-600 text-[16px] tabular-nums"><Taka />{parseFloat(payment.amount).toLocaleString('en-IN')}</div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
                             )}
 
+                            {/* Notes */}
                             {selectedInvoice.notes && (
-                                <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200 shadow-sm">
-                                    <h4 className="text-[12px] font-bold text-gray-800 uppercase tracking-wider mb-2"><i className="fa-solid fa-circle-info mr-1 text-blue-500"></i> Terms & Notes</h4>
-                                    <div className="text-[13.5px] text-gray-600 whitespace-pre-line leading-relaxed font-medium">
+                                <div className="bg-gray-50 rounded-3xl p-6 border border-gray-200/80">
+                                    <h4 className="text-[12px] font-extrabold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                        <i className="fa-solid fa-file-contract text-indigo-500"></i> Terms & Conditions / Notes
+                                    </h4>
+                                    <div className="text-xs text-gray-600 whitespace-pre-line leading-relaxed font-medium">
                                         {selectedInvoice.notes}
                                     </div>
                                 </div>
                             )}
                         </div>
 
-                        <div className="px-6 py-5 border-t border-gray-200 bg-white flex justify-end shrink-0">
-                            <button onClick={() => setShowViewModal(false)} className="rounded-xl bg-gray-900 px-8 py-3 text-[14px] font-bold text-white transition-colors hover:bg-gray-800 shadow-md">
+                        {/* Modal Footer */}
+                        <div className="px-8 py-4 border-t border-gray-100 bg-gray-50 flex justify-end shrink-0 no-print">
+                            <button onClick={() => setShowViewModal(false)} className="rounded-xl bg-gray-900 px-6 py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-gray-800 shadow-sm">
                                 Close Window
                             </button>
                         </div>
