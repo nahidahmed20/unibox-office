@@ -4,7 +4,6 @@ import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
 
-// 🟢 Custom Straight Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
 );
@@ -35,15 +34,14 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
     // Payslip Form
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
         id: '', user_id: '', month_year: defaultMonthYear, basic_salary: 0, allowances: 0, bonus: 0, deductions: 0, advance_deduction: 0, net_pay: 0, status: 'unpaid', payment_date: new Date().toISOString().slice(0, 10),
-        payments: [{ account_id: '', amount: '', bank_charge: '' }]
+        payments: [{ account_id: '', amount: '' }]
     });
 
     // Payment Installment Form
     const paymentForm = useForm({
-        account_id: '', amount: '', bank_charge: '', date: new Date().toISOString().slice(0, 10), note: ''
+        account_id: '', amount: '', date: new Date().toISOString().slice(0, 10), note: ''
     });
 
-    // Handle Employee Selection
     const handleUserSelect = (selected) => {
         const userId = selected ? selected.value : "";
         if (!userId) {
@@ -59,7 +57,6 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
         }));
     };
 
-    // Auto Calculate Net Pay
     useEffect(() => {
         const basic = parseFloat(data.basic_salary) || 0;
         const allow = parseFloat(data.allowances) || 0;
@@ -69,14 +66,13 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
 
         setData(prev => {
             const newData = { ...prev, net_pay: net };
-            if (newData.payments.length === 1 && newData.status !== 'unpaid' && !editMode) {
+            if (newData.payments.length === 1 && newData.status === 'paid' && !editMode) {
                 newData.payments = [{ ...newData.payments[0], amount: net }];
             }
             return newData;
         });
     }, [data.basic_salary, data.allowances, data.bonus, data.deductions, data.advance_deduction, data.status]);
 
-    // Live Search
     useEffect(() => {
         if (isFirstRender.current) { isFirstRender.current = false; return; }
         const delayDebounceFn = setTimeout(() => {
@@ -111,22 +107,24 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
     };
     const handlePrint = () => window.print();
 
-    // Modals
+    // 🟢 MAGIC: Smart Display Status (Shows Partial if paid_amount > 0)
+    const renderStatus = (sal) => {
+        if (sal.status === 'paid') return <span className="inline-flex px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border bg-emerald-50 border-emerald-200 text-emerald-600">Paid</span>;
+        if (Number(sal.paid_amount) > 0) return <span className="inline-flex px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border bg-amber-50 border-amber-200 text-amber-600">Partial</span>;
+        return <span className="inline-flex px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border bg-rose-50 border-rose-200 text-rose-600">Unpaid</span>;
+    };
+
     const openCreateModal = () => {
         clearErrors();
-        setData({ id: '', user_id: '', month_year: defaultMonthYear, basic_salary: 0, allowances: 0, bonus: 0, deductions: 0, advance_deduction: 0, net_pay: 0, status: 'unpaid', payment_date: new Date().toISOString().slice(0, 10), payments: [{ account_id: '', amount: '', bank_charge: '' }] });
+        setData({ id: '', user_id: '', month_year: defaultMonthYear, basic_salary: 0, allowances: 0, bonus: 0, deductions: 0, advance_deduction: 0, net_pay: 0, status: 'unpaid', payment_date: new Date().toISOString().slice(0, 10), payments: [{ account_id: '', amount: '' }] });
         setEditMode(false); setShowModal(true);
     };
 
     const openEditModal = (sal) => {
         clearErrors();
         let formattedPayments = sal.transactions?.length > 0
-            ? sal.transactions.filter(t => Number(t.bank_charge) === 0 || t.bank_charge === null).map(t => {
-                // Find matching bank charge transaction if any
-                const chargeTxn = sal.transactions.find(ct => Number(ct.bank_charge) > 0 && ct.account_id === t.account_id && ct.transaction_date === t.transaction_date && ct.id !== t.id);
-                return { account_id: t.account_id, amount: Number(t.amount), bank_charge: chargeTxn ? Number(chargeTxn.amount) : '' };
-            })
-            : [{ account_id: '', amount: sal.net_pay, bank_charge: '' }];
+            ? sal.transactions.map(t => ({ account_id: t.account_id, amount: Number(t.amount) }))
+            : [{ account_id: '', amount: sal.net_pay }];
 
         setData({ id: sal.id, user_id: sal.user_id || '', month_year: sal.month_year || defaultMonthYear, basic_salary: sal.basic_salary || 0, allowances: sal.allowances || 0, bonus: sal.bonus || 0, deductions: sal.deductions || 0, advance_deduction: sal.advance_deduction || 0, net_pay: sal.net_pay || 0, status: sal.status || 'unpaid', payment_date: sal.payment_date || new Date().toISOString().slice(0, 10), payments: formattedPayments });
         setEditMode(true); setShowModal(true);
@@ -135,13 +133,13 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
     const openPaymentModal = (sal) => {
         setSelectedRecord(sal);
         paymentForm.reset(); paymentForm.clearErrors();
-        paymentForm.setData({ account_id: '', amount: sal.due_amount, bank_charge: '', date: new Date().toISOString().slice(0, 10), note: '' });
+        paymentForm.setData({ account_id: '', amount: sal.due_amount, date: new Date().toISOString().slice(0, 10), note: '' });
         setShowPaymentModal(true);
     };
 
     const openViewModal = (record) => { setSelectedRecord(record); setShowViewModal(true); };
 
-    const addPaymentRow = () => setData('payments', [...data.payments, { account_id: '', amount: '', bank_charge: '' }]);
+    const addPaymentRow = () => setData('payments', [...data.payments, { account_id: '', amount: '' }]);
     const removePaymentRow = (index) => setData('payments', data.payments.filter((_, i) => i !== index));
     const handlePaymentChange = (index, field, value) => {
         const newPayments = [...data.payments];
@@ -151,7 +149,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (data.status !== 'unpaid') {
+        if (data.status === 'paid') {
             const sumOfPayments = data.payments.reduce((acc, curr) => acc + parseFloat(curr.amount || 0), 0);
             if (sumOfPayments > data.net_pay) {
                 return Swal.fire("Amount Exceeded!", `You cannot pay more than Net Pay (৳${data.net_pay}). Your splits total ৳${sumOfPayments}.`, "error");
@@ -181,11 +179,6 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
         });
     };
 
-    const getStatusStyle = (status) => {
-        const styles = { paid: { bg: 'bg-emerald-50 border border-emerald-200', text: 'text-emerald-600', label: 'Paid' }, unpaid: { bg: 'bg-rose-50 border border-rose-200', text: 'text-rose-600', label: 'Unpaid' }, partially_paid: { bg: 'bg-amber-50 border border-amber-200', text: 'text-amber-600', label: 'Partial' } };
-        return styles[status] || { bg: 'bg-gray-50', text: 'text-gray-600', label: status };
-    };
-
     const selectStyles = {
         control: (provided, state) => ({ ...provided, minHeight: "44px", borderRadius: "0.75rem", border: state.isFocused ? "1px solid var(--accent, #6366f1)" : "1px solid #d1d5db", boxShadow: state.isFocused ? "0 0 0 3px rgba(99, 102, 241, 0.1)" : "none", fontSize: "14px", background: "#fff", cursor: "pointer" }),
         option: (provided, state) => ({ ...provided, fontSize: "14px", backgroundColor: state.isSelected ? "var(--accent, #4f46e5)" : state.isFocused ? "#f8fafc" : "#fff", color: state.isSelected ? "#fff" : "#111827", cursor: "pointer" }),
@@ -210,7 +203,6 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
             `}} />
 
             <div className="flex flex-col gap-8 w-full max-w-[1600px] mx-auto pb-12 mt-2">
-                {/* Header & Cards */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 no-print">
                     <div>
                         <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-indigo-600">
@@ -236,7 +228,6 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                     </div>
                 </div>
 
-                {/* Main Table Area */}
                 <div className="rounded-2xl border border-[#e1e3e5] bg-white shadow-sm overflow-hidden flex flex-col" id="printable-table">
                     <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#e1e3e5] px-6 py-5 bg-gray-50/40 gap-4 no-print">
                         <div className="text-[16px] font-bold text-[#202223] flex items-center gap-2.5">
@@ -248,7 +239,6 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                         )}
                     </div>
 
-                    {/* Toolbar */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 border-b border-gray-100 no-print">
                         <div className="flex flex-wrap items-center gap-3">
                             <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
@@ -292,15 +282,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                 </tr>
                             </thead>
                             <tbody className="text-[13.5px] text-[#202223] divide-y divide-gray-100">
-                                {recordList.length > 0 ? recordList.map((sal, index) => {
-                                    const statusStyle = getStatusStyle(sal.status);
-                                    // Combine salary transactions with their bank charges for display
-                                    const displayTxns = sal.transactions?.filter(t => Number(t.bank_charge) === 0 || t.bank_charge === null).map(t => {
-                                        const chargeTxn = sal.transactions.find(ct => Number(ct.bank_charge) > 0 && ct.account_id === t.account_id && ct.transaction_date === t.transaction_date && ct.id !== t.id);
-                                        return { ...t, mapped_charge: chargeTxn ? Number(chargeTxn.amount) : 0 };
-                                    }) || [];
-
-                                    return (
+                                {recordList.length > 0 ? recordList.map((sal, index) => (
                                     <tr key={sal.id} className="hover:bg-slate-50/80 transition-colors group">
                                         <td className="px-6 py-4 font-medium text-gray-400 text-center">{salaries.from ? salaries.from + index : index + 1}</td>
                                         <td className="px-6 py-4">
@@ -324,21 +306,19 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                             {sal.due_amount > 0 ? <><Taka />{Number(sal.due_amount).toLocaleString('en-IN')}</> : <span className="text-gray-300">-</span>}
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <span className={`inline-flex px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${statusStyle.bg} ${statusStyle.text}`}>{statusStyle.label}</span>
+                                            {renderStatus(sal)}
                                         </td>
 
-                                        {/* Premium Split Details Display */}
                                         <td className="px-6 py-4">
-                                            {displayTxns.length > 0 ? (
+                                            {sal.transactions?.length > 0 ? (
                                                 <div className="flex flex-col gap-1.5">
-                                                    {displayTxns.map(t => (
+                                                    {sal.transactions.map(t => (
                                                         <div key={t.id} className="flex items-center justify-between gap-3 bg-white border border-gray-200/70 rounded-md px-2.5 py-1.5 min-w-[180px] shadow-sm">
                                                             <span className="flex items-center gap-1.5 text-[11px] font-bold text-gray-600 truncate max-w-[150px]" title={t.account?.name}>
                                                                 <i className="fa-solid fa-building-columns text-indigo-400"></i> {t.account?.name}
                                                             </span>
                                                             <span className="text-[11.5px] font-black text-emerald-600 tabular-nums">
                                                                 <Taka className="text-[10px]"/>{Number(t.amount).toLocaleString('en-IN')}
-                                                                {t.mapped_charge > 0 && <span className="block text-gray-500 font-semibold mt-0.5 text-[9px]">Charge: {t.mapped_charge.toLocaleString('en-IN')}</span>}
                                                             </span>
                                                         </div>
                                                     ))}
@@ -350,7 +330,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
 
                                         <td className="px-6 py-4 text-right no-print">
                                             <div className="flex items-center justify-end gap-1.5">
-                                                {sal.status !== 'paid' && hasPermission('create_salary') && (
+                                                {Number(sal.due_amount) > 0 && hasPermission('create_salary') && (
                                                     <button onClick={() => openPaymentModal(sal)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors shadow-sm" title="Pay Installment">
                                                         <i className="fa-solid fa-hand-holding-dollar text-[13px]"></i>
                                                     </button>
@@ -361,7 +341,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                             </div>
                                         </td>
                                     </tr>
-                                )}) : <tr><td colSpan="9" className="text-center py-20 text-gray-500 font-bold"><i className="fa-solid fa-money-check-dollar text-4xl mb-3 block text-gray-300"></i>No records found.</td></tr>}
+                                )) : <tr><td colSpan="9" className="text-center py-20 text-gray-500 font-bold"><i className="fa-solid fa-money-check-dollar text-4xl mb-3 block text-gray-300"></i>No records found.</td></tr>}
                             </tbody>
                         </table>
                     </div>
@@ -434,33 +414,20 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                         {paymentForm.errors.amount && <p className="text-rose-500 text-[11px] font-bold mt-1.5">{paymentForm.errors.amount}</p>}
                                     </div>
                                     <div>
-                                        <label className="block text-[12px] font-bold text-gray-500 uppercase tracking-wider mb-2">Bank Charge (If Any)</label>
-                                        <div className="relative">
-                                            <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" />
-                                            <input
-                                                type="number" step="0.01" min="0"
-                                                value={paymentForm.data.bank_charge} onChange={e => paymentForm.setData('bank_charge', e.target.value)}
-                                                className="w-full rounded-xl border border-gray-300 pl-10 pr-4 py-3 text-[15px] font-bold text-gray-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm" placeholder="0.00"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    <div>
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Payment Date <span className="text-red-500">*</span></label>
                                         <input type="date" value={paymentForm.data.date} onChange={e => paymentForm.setData('date', e.target.value)} className="w-full rounded-xl border border-gray-300 px-4 py-3 text-[14px] font-bold outline-none focus:border-indigo-500 transition-all shadow-sm" required />
                                     </div>
-                                    <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Note (Optional)</label>
-                                        <input type="text" value={paymentForm.data.note} onChange={e => paymentForm.setData('note', e.target.value)} placeholder="e.g. Due cleared" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-[14px] outline-none focus:border-indigo-500 transition-all shadow-sm" />
-                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Note (Optional)</label>
+                                    <input type="text" value={paymentForm.data.note} onChange={e => paymentForm.setData('note', e.target.value)} placeholder="e.g. Due cleared" className="w-full rounded-xl border border-gray-300 px-4 py-3 text-[14px] outline-none focus:border-indigo-500 transition-all shadow-sm" />
                                 </div>
                             </div>
 
                             <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-between items-center shrink-0 rounded-b-3xl">
                                 <div className="text-[12.5px] font-bold text-gray-500">
-                                    Total Deduction from Bank: <span className="text-gray-900 font-black">৳{(Number(paymentForm.data.amount || 0) + Number(paymentForm.data.bank_charge || 0)).toLocaleString('en-IN')}</span>
+                                    Total Deduction from Bank: <span className="text-gray-900 font-black">৳{Number(paymentForm.data.amount || 0).toLocaleString('en-IN')}</span>
                                 </div>
                                 <div className="flex gap-3">
                                     <button type="button" onClick={() => setShowPaymentModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-100">Cancel</button>
@@ -489,7 +456,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                 <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg text-white text-2xl font-black mb-3 uppercase">{(selectedRecord.user?.name || "?").charAt(0)}</div>
                                 <h2 className="text-[22px] font-black text-gray-900 tracking-tight">{selectedRecord.user?.name || "Unknown"}</h2>
                                 <p className="text-[12px] font-bold text-gray-500 mt-1 uppercase tracking-widest">Salary For: <span className="text-indigo-600">{selectedRecord.month_year}</span></p>
-                                <div className="mt-3"><span className={`inline-flex px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusStyle(selectedRecord.status).bg} ${getStatusStyle(selectedRecord.status).text}`}>{getStatusStyle(selectedRecord.status).label}</span></div>
+                                <div className="mt-3">{renderStatus(selectedRecord)}</div>
                             </div>
 
                             <div className="space-y-1 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
@@ -507,15 +474,13 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                             </div>
 
                             {/* Payment Transactions List */}
-                            {selectedRecord.transactions?.filter(t => Number(t.bank_charge) === 0 || t.bank_charge === null).length > 0 && (
+                            {selectedRecord.transactions?.length > 0 && (
                                 <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 flex flex-col gap-3">
                                     <div className="text-[12px] font-black text-emerald-800 uppercase tracking-wider border-b border-emerald-200/50 pb-3 flex items-center gap-2">
                                         <i className="fa-solid fa-money-check-dollar"></i> Payment History
                                     </div>
                                     <div className="flex flex-col gap-2.5 mt-1">
-                                        {selectedRecord.transactions.filter(t => Number(t.bank_charge) === 0 || t.bank_charge === null).map(t => {
-                                            const chargeTxn = selectedRecord.transactions.find(ct => Number(ct.bank_charge) > 0 && ct.account_id === t.account_id && ct.transaction_date === t.transaction_date && ct.id !== t.id);
-                                            return (
+                                        {selectedRecord.transactions.map(t => (
                                             <div key={t.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-emerald-100 shadow-sm">
                                                 <div className="flex flex-col">
                                                     <span className="font-bold text-gray-800 flex items-center gap-1.5 text-[12.5px]"><i className="fa-solid fa-building-columns text-indigo-400 text-[10px]"></i> {t.account?.name}</span>
@@ -523,12 +488,11 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                                 </div>
                                                 <div className="text-right">
                                                     <span className="block font-black text-emerald-700 tabular-nums text-[15px]"><Taka />{Number(t.amount).toLocaleString('en-IN')}</span>
-                                                    {chargeTxn && <span className="block text-[10px] font-bold text-gray-500 mt-0.5">Charge: {Number(chargeTxn.amount).toLocaleString('en-IN')}</span>}
                                                 </div>
                                             </div>
-                                        )})}
+                                        ))}
                                     </div>
-                                    {selectedRecord.status === 'partially_paid' && (
+                                    {selectedRecord.status === 'unpaid' && Number(selectedRecord.paid_amount) > 0 && (
                                         <div className="flex justify-between items-center pt-3 border-t border-emerald-200/50 mt-1">
                                             <span className="text-[12px] font-bold text-rose-600">Remaining Due</span>
                                             <span className="text-[15px] font-black text-rose-600 tabular-nums"><Taka />{Number(selectedRecord.due_amount).toLocaleString('en-IN')}</span>
@@ -545,7 +509,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                 </div>
             )}
 
-            {/* --- 🟢 ADD/EDIT PAYSLIP MODAL (Premium Design) --- */}
+            {/* --- 🟢 ADD/EDIT PAYSLIP MODAL --- */}
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/70 backdrop-blur-md p-4 md:p-6 overflow-y-auto">
                     <div className="w-full max-w-4xl bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
@@ -633,7 +597,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                             {errors.deductions && <p className="text-red-600 text-[11px] mt-1 font-bold">{errors.deductions}</p>}
                                         </div>
 
-                                        {/* 🟢 ADVANCE DEDUCTION BLOCK (Highly visible) */}
+                                        {/* Advance Deduction */}
                                         {(availableAdvance > 0 || Number(data.advance_deduction) > 0) ? (
                                             <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-5 shadow-sm relative overflow-hidden">
                                                 <div className="absolute right-0 top-0 w-20 h-20 bg-amber-100 rounded-full blur-xl -translate-y-5 translate-x-5 pointer-events-none"></div>
@@ -684,13 +648,12 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                             <div className="relative">
                                                 <select value={data.status} onChange={e => setData('status', e.target.value)} className="w-full appearance-none bg-none rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm">
                                                     <option value="unpaid">⏳ Keep as Unpaid (Due)</option>
-                                                    <option value="paid">✅ Mark as Paid</option>
-                                                    <option value="partially_paid">⌛ Partially Paid</option>
+                                                    <option value="paid">✅ Pay Now (Cash/Bank)</option>
                                                 </select>
                                                 <i className="fa-solid fa-chevron-down text-[12px] text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
                                             </div>
                                         </div>
-                                        {(data.status === 'paid' || data.status === 'partially_paid') && (
+                                        {data.status === 'paid' && (
                                             <div>
                                                 <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Payment Date <span className="text-red-500">*</span></label>
                                                 <input type="date" value={data.payment_date} onChange={e => setData('payment_date', e.target.value)} className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 cursor-pointer shadow-sm" required />
@@ -698,12 +661,12 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                         )}
                                     </div>
 
-                                    {/* Multi-Account Splits with Bank Charge */}
-                                    {(data.status === 'paid' || data.status === 'partially_paid') && (
+                                    {/* Multi-Account Splits */}
+                                    {data.status === 'paid' && (
                                         <div className="bg-emerald-50/40 p-5 rounded-2xl border border-emerald-100 shadow-inner animate-[fadeIn_0.3s_ease-out]">
                                             <div className="flex justify-between items-center mb-4">
                                                 <label className="text-[12px] font-extrabold text-emerald-800 uppercase tracking-wider flex items-center gap-2">
-                                                    <i className="fa-solid fa-code-branch"></i> Split Funds & Bank Charges
+                                                    <i className="fa-solid fa-code-branch"></i> Split Funds
                                                 </label>
                                             </div>
 
@@ -726,13 +689,6 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                                                 <input type="number" step="0.01" min="0" value={payment.amount} onChange={e => handlePaymentChange(index, 'amount', e.target.value)} className="w-full rounded-xl border border-gray-300 pl-7 pr-3 py-2 text-[14px] font-bold text-gray-900 outline-none focus:border-emerald-500" placeholder="0.00" />
                                                             </div>
                                                         </div>
-                                                        <div className="w-full md:w-[130px] shrink-0">
-                                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Bank Charge</label>
-                                                            <div className="relative">
-                                                                <Taka className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]" />
-                                                                <input type="number" step="0.01" min="0" value={payment.bank_charge} onChange={e => handlePaymentChange(index, 'bank_charge', e.target.value)} className="w-full rounded-xl border border-gray-300 pl-7 pr-3 py-2 text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-500" placeholder="0.00" />
-                                                            </div>
-                                                        </div>
                                                         {data.payments.length > 1 && (
                                                             <div className="pt-5 shrink-0">
                                                                 <button type="button" onClick={() => removePaymentRow(index)} className="h-10 w-10 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-colors border border-red-200 flex justify-center items-center shadow-sm">
@@ -751,7 +707,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
 
                                                 <div className="flex flex-col items-end">
                                                     <div className="text-[12px] font-bold text-gray-600 mb-1">
-                                                        Total Deduct from Bank: <span className="text-gray-900">৳ {(data.payments.reduce((a,c)=>a+Number(c.amount||0)+Number(c.bank_charge||0),0)).toLocaleString('en-IN')}</span>
+                                                        Total Deduct from Bank: <span className="text-gray-900">৳ {(data.payments.reduce((a,c)=>a+Number(c.amount||0),0)).toLocaleString('en-IN')}</span>
                                                     </div>
                                                     <div className="text-[14px] font-bold text-gray-700">
                                                         Salary Paid: <span className={`text-[16px] font-black ml-1 ${Math.round(data.payments.reduce((a,c)=>a+Number(c.amount||0),0)) <= Math.round(data.net_pay) ? 'text-emerald-600' : 'text-rose-600'}`}>৳ {data.payments.reduce((a,c)=>a+Number(c.amount||0),0).toLocaleString('en-IN')}</span> / ৳{data.net_pay}
@@ -764,7 +720,6 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                 {Object.keys(errors).length > 0 && <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-200 text-[13px] font-bold"><i className="fa-solid fa-circle-exclamation mr-1.5"></i> Please fix the errors above before saving.</div>}
                             </div>
 
-                            {/* Footer Buttons */}
                             <div className="px-8 py-5 border-t border-gray-200 bg-white flex justify-end gap-3 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                                 <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-50">Cancel</button>
                                 <button type="submit" disabled={processing} className="rounded-xl bg-indigo-600 px-8 py-2.5 text-[14px] font-bold text-white shadow-md transition-all hover:bg-indigo-700 disabled:opacity-70 flex items-center gap-2">
