@@ -180,7 +180,7 @@ export default function Print({ invoice, dbSettings }) {
                         <div className="text-right" style={{ visibility: settings.show_invoice_meta ? 'visible' : 'hidden' }}>
                             <p><strong>Invoice No:</strong> <span style={{ color: "#147a5b", fontWeight: "bold" }}>{invoice.invoice_number}</span></p>
                             <p><strong>Issue Date:</strong> {invoice.invoice_date}</p>
-                            <p><strong>Due Date:</strong> {invoice.due_date}</p>
+                            {/* <p><strong>Due Date:</strong> {invoice.due_date}</p> */}
                         </div>
                     </div>
 

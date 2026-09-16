@@ -116,11 +116,11 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
     };
 
     const getStatusStyle = (status) => {
-        const styles = { 
-            paid: { bg: 'bg-emerald-50 border border-emerald-200', text: 'text-emerald-600', label: 'Paid' }, 
-            unpaid: { bg: 'bg-gray-50 border border-gray-200', text: 'text-gray-600', label: 'Unpaid' }, 
-            partially_paid: { bg: 'bg-amber-50 border border-amber-200', text: 'text-amber-600', label: 'Partially Paid' }, 
-            overdue: { bg: 'bg-red-50 border border-red-200', text: 'text-red-600', label: 'Overdue' } 
+        const styles = {
+            paid: { bg: 'bg-emerald-50 border border-emerald-200', text: 'text-emerald-600', label: 'Paid' },
+            unpaid: { bg: 'bg-gray-50 border border-gray-200', text: 'text-gray-600', label: 'Unpaid' },
+            partially_paid: { bg: 'bg-amber-50 border border-amber-200', text: 'text-amber-600', label: 'Partially Paid' },
+            overdue: { bg: 'bg-red-50 border border-red-200', text: 'text-red-600', label: 'Overdue' }
         };
         return styles[status] || { bg: 'bg-gray-50', text: 'text-gray-600', label: status };
     };
@@ -204,32 +204,41 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                     </div>
                 </div>
 
-                {/* Pending Billing Section */}
+                {/* 🟢 REDESIGNED: Pending Billing Section (Block Button Premium) */}
                 {uninvoicedProjects.length > 0 && hasPermission('create_invoice') && (
-                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-2xl shadow-sm overflow-hidden no-print">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-amber-100/80">
-                            <div className="flex items-center gap-2.5">
-                                <div className="h-8 w-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center"><i className="fa-solid fa-clock-rotate-left text-[14px]"></i></div>
-                                <h2 className="text-[15px] font-bold text-amber-900">Pending for Billing</h2>
-                                <span className="bg-amber-500 text-white text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ml-1 shadow-sm">{uninvoicedProjects.length}</span>
+                    <div className="bg-gradient-to-r from-amber-50/80 to-orange-50/80 border border-amber-200/60 rounded-2xl shadow-sm overflow-hidden no-print">
+                        <div className="flex items-center justify-between px-5 py-3 border-b border-amber-100/80 bg-amber-50/50">
+                            <div className="flex items-center gap-2">
+                                <div className="h-6 w-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shadow-inner"><i className="fa-solid fa-stopwatch text-[11px]"></i></div>
+                                <h2 className="text-[13.5px] font-extrabold text-amber-900 tracking-wide uppercase">Pending for Billing</h2>
+                                <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full ml-1.5 shadow-sm">{uninvoicedProjects.length}</span>
                             </div>
                         </div>
 
-                        <div className="flex overflow-x-auto gap-4 p-5 custom-amber-scroll snap-x pb-6">
+                        <div className="flex overflow-x-auto gap-4 px-5 py-4 custom-amber-scroll snap-x">
                             {uninvoicedProjects.map((project) => (
-                                <div key={project.id} className="w-[300px] shrink-0 snap-start bg-white border border-amber-100 p-4 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-amber-300 transition-all flex flex-col justify-between group relative overflow-hidden">
-                                    <div className="absolute right-0 top-0 h-16 w-16 bg-amber-50 rounded-bl-full opacity-50 group-hover:scale-110 transition-transform"></div>
-                                    <div className="flex-1 min-w-0 pr-2 relative z-10">
-                                        <h3 className="font-extrabold text-gray-900 text-[14px] truncate mb-2" title={project.title}>{project.title}</h3>
-                                        <div className="flex items-center gap-1.5 text-[12px] font-semibold text-gray-500 mb-2 truncate" title={project.client?.company_name || project.client?.name}>
-                                            <i className="fa-regular fa-building text-gray-400"></i> {project.client?.company_name || project.client?.name}
-                                        </div>
-                                        <div className="font-black text-emerald-600 text-[15px]">
-                                            <Taka className="text-[13px]" />{parseFloat(project.budget).toLocaleString('en-IN')}
+                                <div key={project.id} className="w-[300px] shrink-0 snap-start bg-white border border-amber-200/60 p-4 rounded-xl shadow-sm hover:shadow-md hover:border-amber-400 transition-all flex items-center justify-between group relative overflow-hidden gap-4">
+                                    <div className="absolute right-0 top-0 h-20 w-20 bg-gradient-to-bl from-amber-100 to-transparent rounded-bl-full opacity-40 group-hover:scale-125 transition-transform duration-500"></div>
+
+                                    <div className="flex-1 min-w-0 relative z-10">
+                                        <h3 className="font-extrabold text-gray-900 text-[13.5px] truncate leading-tight" title={project.title}>{project.title}</h3>
+                                        <p className="text-[11px] font-semibold text-gray-500 truncate mt-1" title={project.client?.company_name || project.client?.name}>
+                                            <i className="fa-regular fa-building text-gray-400 mr-1"></i>
+                                            {project.client?.company_name || project.client?.name}
+                                        </p>
+                                        <div className="font-black text-emerald-600 text-[14px] mt-1.5 tabular-nums">
+                                            <Taka className="text-[12px]" />{parseFloat(project.budget).toLocaleString('en-IN')}
                                         </div>
                                     </div>
-                                    <Link href={route('admin.invoices.create')} className="mt-4 flex w-full items-center justify-center gap-2 bg-amber-100 text-amber-700 font-bold text-[12px] py-2 rounded-lg hover:bg-amber-500 hover:text-white transition-colors">
-                                        <i className="fa-solid fa-file-invoice"></i> Create Bill
+
+                                    {/* 🟢 NEW BEAUTIFUL BLOCK BUTTON */}
+                                    <Link
+                                        href={route('admin.invoices.create', { client_id: project.client_id, project_id: project.id })}
+                                        className="shrink-0 flex flex-col items-center justify-center h-[54px] min-w-[64px] bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-200 text-amber-700 rounded-xl hover:from-amber-500 hover:to-orange-500 hover:text-white hover:border-transparent hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group/btn relative z-10"
+                                        title="Create Bill for this Project"
+                                    >
+                                        <i className="fa-solid fa-file-invoice text-[15px] mb-1 group-hover/btn:scale-110 transition-transform"></i>
+                                        <span className="text-[8.5px] font-black uppercase tracking-wider">Bill Now</span>
                                     </Link>
                                 </div>
                             ))}
@@ -499,7 +508,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/70 backdrop-blur-md p-3 sm:p-6 overflow-y-auto">
                     <div className="w-full max-w-4xl bg-white rounded-[2.5rem] shadow-2xl flex flex-col max-h-[95vh] overflow-hidden animate-[fadeIn_0.2s_ease-out] border border-gray-100">
 
-                        {/* Top Action Bar */}
+                        {/* Top Action Bar (No Print) */}
                         <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gray-50/80 shrink-0 no-print">
                             <div className="flex items-center gap-3">
                                 <span className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider ${getStatusStyle(selectedInvoice.status).bg} ${getStatusStyle(selectedInvoice.status).text}`}>
@@ -517,10 +526,10 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                             </div>
                         </div>
 
-                        {/* Modal Body */}
+                        {/* Printable Modal Body */}
                         <div className="p-6 sm:p-10 overflow-y-auto custom-table-scroll space-y-8 bg-white">
-                            
-                            {/* Brand Header */}
+
+                            {/* Invoice Brand Header */}
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-8 border-b border-gray-100 gap-6">
                                 <div>
                                     <div className="flex items-center gap-2.5 text-indigo-600 font-black text-xl tracking-tight">
@@ -538,7 +547,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 </div>
                             </div>
 
-                            {/* Client Info Grid */}
+                            {/* Client & Company Info Grid */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-gray-50/60 p-6 rounded-3xl border border-gray-100">
                                 <div>
                                     <span className="block text-[11px] font-extrabold uppercase tracking-wider text-indigo-600 mb-2">Billed To (Client):</span>
@@ -589,25 +598,25 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 </div>
                             </div>
 
-                            {/* Summary Box */}
+                            {/* Financial Summary & Calculations Box */}
                             <div className="flex justify-end pt-2">
                                 <div className="w-full sm:w-[360px] bg-gray-900 rounded-3xl p-6 text-white shadow-xl space-y-3 relative overflow-hidden">
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500 rounded-full blur-3xl opacity-20 pointer-events-none"></div>
-                                    
-                                    <div className="flex justify-between items-end text-xs text-gray-400 font-bold">
+
+                                    <div className="flex justify-between items-center text-xs text-gray-400 font-bold">
                                         <span>Sub Total</span>
                                         <span className="text-white font-extrabold tabular-nums"><Taka />{Number(selectedInvoice.sub_total).toLocaleString('en-IN')}</span>
                                     </div>
 
                                     {Number(selectedInvoice.tax) > 0 && (
-                                        <div className="flex justify-between items-end text-xs text-gray-400 font-bold">
+                                        <div className="flex justify-between items-center text-xs text-gray-400 font-bold">
                                             <span>Tax / VAT</span>
                                             <span className="text-white font-extrabold">{selectedInvoice.tax}%</span>
                                         </div>
                                     )}
 
                                     {Number(selectedInvoice.discount) > 0 && (
-                                        <div className="flex justify-between items-end text-xs text-rose-400 font-bold">
+                                        <div className="flex justify-between items-center text-xs text-rose-400 font-bold">
                                             <span>Discount</span>
                                             <span className="tabular-nums">- <Taka />{Number(selectedInvoice.discount).toLocaleString('en-IN')}</span>
                                         </div>
@@ -618,10 +627,12 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                         <span className="text-2xl font-black text-white tabular-nums"><Taka className="text-lg text-indigo-400"/>{parseFloat(selectedInvoice.grand_total).toLocaleString('en-IN')}</span>
                                     </div>
 
-                                    {(Number(selectedInvoice.advance_used) > 0) && (
-                                        <div className="flex justify-between items-end mt-2 bg-emerald-500/20 px-3 py-2 rounded-xl border border-emerald-500/30">
-                                            <span className="text-[12px] font-bold text-emerald-400">Advance Applied</span>
-                                            <span className="text-[14px] font-bold text-emerald-400 tabular-nums">- <Taka />{parseFloat(selectedInvoice.advance_used).toLocaleString('en-IN')}</span>
+                                    {Number(selectedInvoice.advance_used) > 0 && (
+                                        <div className="bg-emerald-950/60 border border-emerald-900/50 p-3 rounded-xl mt-2 space-y-1.5">
+                                            <div className="flex justify-between items-center text-xs text-emerald-400 font-bold">
+                                                <span>Advance Applied</span>
+                                                <span className="tabular-nums">- <Taka />{Number(selectedInvoice.advance_used).toLocaleString('en-IN')}</span>
+                                            </div>
                                         </div>
                                     )}
 
@@ -634,7 +645,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 </div>
                             </div>
 
-                            {/* Payment History */}
+                            {/* Payment History Section */}
                             {selectedInvoice.payments && selectedInvoice.payments.length > 0 && (
                                 <div className="bg-emerald-50/50 rounded-3xl border border-emerald-100 p-6">
                                     <h4 className="text-[12px] font-extrabold uppercase tracking-wider text-emerald-800 mb-4 flex items-center gap-2">
@@ -657,7 +668,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 </div>
                             )}
 
-                            {/* Notes */}
+                            {/* Terms & Notes */}
                             {selectedInvoice.notes && (
                                 <div className="bg-gray-50 rounded-3xl p-6 border border-gray-200/80">
                                     <h4 className="text-[12px] font-extrabold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -682,3 +693,4 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         </AdminLayout>
     );
 }
+
