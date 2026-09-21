@@ -4,8 +4,42 @@ import { Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
 
+/* ---------- Design tokens ---------- */
+const fmt = (n) => Number(n || 0).toLocaleString('en-IN');
+const filterInput = "w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-[13.5px] font-medium text-slate-800 placeholder:text-slate-400 outline-none transition hover:border-slate-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10";
+const ghostBtn = "inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50";
+const th = "px-5 py-3.5 text-[12.5px] font-semibold text-slate-500";
+
+const STATUS = {
+    paid: { label: 'Paid', dot: 'bg-emerald-500', pill: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    unpaid: { label: 'Unpaid', dot: 'bg-slate-400', pill: 'bg-slate-50 text-slate-600 border-slate-200' },
+    partially_paid: { label: 'Partially paid', dot: 'bg-amber-500', pill: 'bg-amber-50 text-amber-700 border-amber-200' },
+    overdue: { label: 'Overdue', dot: 'bg-rose-500', pill: 'bg-rose-50 text-rose-700 border-rose-200' },
+};
+const getStatus = (s) => STATUS[s] || { label: s, dot: 'bg-slate-400', pill: 'bg-slate-50 text-slate-600 border-slate-200' };
+const STATUS_OPTIONS = Object.entries(STATUS).map(([value, v]) => ({ value, label: v.label }));
+
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
+);
+
+const StatusPill = ({ status, className = "" }) => {
+    const s = getStatus(status);
+    return (
+        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-semibold ${s.pill} ${className}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`}></span>{s.label}
+        </span>
+    );
+};
+
+const Stat = ({ icon, label, value, tone }) => (
+    <div className="flex items-center gap-3.5 px-5 py-4">
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10 text-[15px] ${tone}`}><i className={icon}></i></span>
+        <div>
+            <p className="text-[12.5px] font-medium text-slate-400">{label}</p>
+            <p className="mt-0.5 text-[22px] font-extrabold leading-none tracking-tight tabular-nums text-white"><Taka className="text-[15px]" />{fmt(value)}</p>
+        </div>
+    </div>
 );
 
 export default function Index({ invoices = { data: [], links: [] }, clients = [], years = [], totals = {}, uninvoicedProjects = [], filters = {} }) {
@@ -14,7 +48,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
     const permissions = auth?.permissions || [];
     const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
 
-    // Filters State
+    // Filters state
     const [invoiceNumber, setInvoiceNumber] = useState(filters.invoice_number || "");
     const [clientId, setClientId] = useState(filters.client_id || "");
     const [status, setStatus] = useState(filters.status || "");
@@ -71,7 +105,6 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         if (field === 'year') setYear(value);
         if (field === 'date_from') setDateFrom(value);
         if (field === 'date_to') setDateTo(value);
-
         applyFilters({ [field]: value });
     };
 
@@ -115,353 +148,245 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         });
     };
 
-    const getStatusStyle = (status) => {
-        const styles = {
-            paid: { bg: 'bg-emerald-50 border border-emerald-200', text: 'text-emerald-600', label: 'Paid' },
-            unpaid: { bg: 'bg-gray-50 border border-gray-200', text: 'text-gray-600', label: 'Unpaid' },
-            partially_paid: { bg: 'bg-amber-50 border border-amber-200', text: 'text-amber-600', label: 'Partially Paid' },
-            overdue: { bg: 'bg-red-50 border border-red-200', text: 'text-red-600', label: 'Overdue' }
-        };
-        return styles[status] || { bg: 'bg-gray-50', text: 'text-gray-600', label: status };
-    };
-
     const openViewModal = (inv) => { setSelectedInvoice(inv); setShowViewModal(true); };
 
     const invList = invoices.data || [];
+    const clientOptions = clients.map(c => ({ value: c.id, label: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}` }));
+    const hasFilters = invoiceNumber || clientId || status || projectName || year || dateFrom || dateTo;
 
     const selectStyles = {
         control: (base, state) => ({
-            ...base, minHeight: '38px', borderRadius: '0.5rem',
-            border: state.isFocused ? '1px solid var(--accent, #6366f1)' : '1px solid #d1d5db',
-            backgroundColor: '#ffffff',
-            boxShadow: state.isFocused ? '0 0 0 3px rgba(99, 102, 241, 0.1)' : 'none',
-            transition: 'all 0.2s ease', fontSize: '13px', cursor: 'pointer',
-            '&:hover': { borderColor: state.isFocused ? 'var(--accent, #6366f1)' : '#9ca3af' }
+            ...base, minHeight: '42px', borderRadius: '0.75rem',
+            borderColor: state.isFocused ? '#6366f1' : '#e2e8f0',
+            boxShadow: state.isFocused ? '0 0 0 4px rgba(99,102,241,0.1)' : 'none',
+            fontSize: '13.5px', fontWeight: 500, cursor: 'pointer',
+            '&:hover': { borderColor: state.isFocused ? '#6366f1' : '#cbd5e1' }
         }),
-        menu: (base) => ({ ...base, fontSize: '13px', borderRadius: '0.5rem', zIndex: 9999 }),
+        placeholder: (base) => ({ ...base, color: '#94a3b8' }),
+        menu: (base) => ({ ...base, fontSize: '13.5px', borderRadius: '0.75rem', padding: '4px', boxShadow: '0 12px 30px -8px rgba(15,23,42,0.18)', border: '1px solid #e2e8f0' }),
         menuPortal: base => ({ ...base, zIndex: 9999 }),
-        option: (base, state) => ({
-            ...base, backgroundColor: state.isSelected ? 'var(--accent, #4f46e5)' : state.isFocused ? '#f8fafc' : 'white',
-            color: state.isSelected ? 'white' : '#1e293b', cursor: 'pointer', fontWeight: state.isSelected ? '700' : '500',
-        })
+        option: (base, state) => ({ ...base, borderRadius: '0.5rem', backgroundColor: state.isSelected ? '#4f46e5' : state.isFocused ? '#eef2ff' : 'transparent', color: state.isSelected ? '#fff' : '#1e293b', cursor: 'pointer', fontWeight: state.isSelected ? 600 : 500 })
     };
+    const portal = { menuPortalTarget: typeof document !== 'undefined' ? document.body : null, styles: selectStyles };
+
+    const modalPaid = selectedInvoice ? (selectedInvoice.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0) : 0;
 
     return (
         <AdminLayout>
             <Head title="Invoices & Billing" />
 
             <style dangerouslySetInnerHTML={{__html: `
-                .custom-amber-scroll::-webkit-scrollbar { height: 6px; }
-                .custom-amber-scroll::-webkit-scrollbar-track { background: #fef3c7; border-radius: 8px; margin: 0 15px; }
-                .custom-amber-scroll::-webkit-scrollbar-thumb { background: #f59e0b; border-radius: 8px; }
-                .custom-table-scroll::-webkit-scrollbar { height: 8px; }
-                .custom-table-scroll::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
-                .custom-table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
-                @media print { body * { visibility: hidden; } #printable-area, #printable-area * { visibility: visible; } #printable-area { position: absolute; left: 0; top: 0; width: 100%; } }
+                .soft-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
+                .soft-scroll::-webkit-scrollbar-track { background: transparent; }
+                .soft-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+                @keyframes modalIn { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: none; } }
+                @media print { body * { visibility: hidden; } .no-print { display: none !important; } #printable-area, #printable-area * { visibility: visible; } #printable-area { position: absolute; left: 0; top: 0; width: 100%; } }
             `}} />
 
-            <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12 mt-2">
+            <div className="mx-auto mt-2 flex max-w-[1600px] flex-col gap-6 pb-12">
 
-                {/* Header & TOP SUMMARY CARDS */}
-                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-                    <div>
-                        <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-indigo-600">
-                            <span className="h-1.5 w-1.5 rounded-full bg-indigo-600"></span> Finance & Revenue
+                {/* Header with totals */}
+                <div className="overflow-hidden rounded-2xl bg-slate-900 text-white">
+                    <div className="flex flex-col gap-4 px-6 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-7">
+                        <div>
+                            <h1 className="text-[28px] font-extrabold leading-none tracking-tight sm:text-[34px]">Invoices</h1>
+                            <p className="mt-2 text-[14px] text-slate-400">Track what you've billed, what's been paid, and what's still due.</p>
                         </div>
-                        <h1 className="text-[28px] font-extrabold text-gray-900 tracking-tight">Billing & Invoices</h1>
-                        <p className="text-[14.5px] text-gray-500 mt-1.5 max-w-lg leading-relaxed">Manage client invoices, monitor dues, and record payments.</p>
+                        {hasPermission('create_invoice') && (
+                            <Link href={route('admin.invoices.create')} className="inline-flex w-fit items-center gap-2 rounded-xl bg-indigo-500 px-5 py-3 text-[14px] font-bold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 active:scale-95">
+                                <i className="fa-solid fa-plus text-[12px]"></i> New invoice
+                            </Link>
+                        )}
                     </div>
-
-                    {/* TOP SUMMARY CARDS */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full lg:w-auto">
-                        <div className="flex items-center gap-3.5 rounded-2xl border border-blue-200 bg-blue-50/50 px-5 py-3 shadow-sm">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600 shadow-sm border border-blue-200">
-                                <i className="fa-solid fa-file-invoice-dollar text-[14px]"></i>
-                            </div>
-                            <div>
-                                <div className="text-[10px] font-bold uppercase tracking-wider text-blue-600/80">Total Billed</div>
-                                <div className="text-[18px] font-black text-blue-900 tabular-nums leading-none"><Taka />{(Number(totals.grand_total) || 0).toLocaleString('en-IN')}</div>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3.5 rounded-2xl border border-emerald-200 bg-emerald-50/50 px-5 py-3 shadow-sm">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 shadow-sm border border-emerald-200">
-                                <i className="fa-solid fa-hand-holding-dollar text-[14px]"></i>
-                            </div>
-                            <div>
-                                <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600/80">Total Paid</div>
-                                <div className="text-[18px] font-black text-emerald-900 tabular-nums leading-none"><Taka />{(Number(totals.paid_amount) || 0).toLocaleString('en-IN')}</div>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3.5 rounded-2xl border border-rose-200 bg-rose-50/50 px-5 py-3 shadow-sm">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600 shadow-sm border border-rose-200">
-                                <i className="fa-solid fa-scale-unbalanced text-[14px]"></i>
-                            </div>
-                            <div>
-                                <div className="text-[10px] font-bold uppercase tracking-wider text-rose-600/80">Total Due</div>
-                                <div className="text-[18px] font-black text-rose-900 tabular-nums leading-none"><Taka />{(Number(totals.due_amount) || 0).toLocaleString('en-IN')}</div>
-                            </div>
-                        </div>
+                    <div className="grid grid-cols-1 divide-y divide-white/10 border-t border-white/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                        <Stat icon="fa-solid fa-file-invoice-dollar" label="Total billed" value={totals.grand_total} tone="text-sky-300" />
+                        <Stat icon="fa-solid fa-hand-holding-dollar" label="Total paid" value={totals.paid_amount} tone="text-emerald-300" />
+                        <Stat icon="fa-solid fa-scale-unbalanced" label="Total due" value={totals.due_amount} tone="text-rose-300" />
                     </div>
                 </div>
 
-                {/* 🟢 REDESIGNED: Pending Billing Section (Block Button Premium) */}
+                {/* Pending billing */}
                 {uninvoicedProjects.length > 0 && hasPermission('create_invoice') && (
-                    <div className="bg-gradient-to-r from-amber-50/80 to-orange-50/80 border border-amber-200/60 rounded-2xl shadow-sm overflow-hidden no-print">
-                        <div className="flex items-center justify-between px-5 py-3 border-b border-amber-100/80 bg-amber-50/50">
-                            <div className="flex items-center gap-2">
-                                <div className="h-6 w-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shadow-inner"><i className="fa-solid fa-stopwatch text-[11px]"></i></div>
-                                <h2 className="text-[13.5px] font-extrabold text-amber-900 tracking-wide uppercase">Pending for Billing</h2>
-                                <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full ml-1.5 shadow-sm">{uninvoicedProjects.length}</span>
-                            </div>
+                    <section className="no-print overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/60">
+                        <div className="flex items-center gap-2.5 px-5 py-3.5">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-[12px] text-amber-700"><i className="fa-solid fa-stopwatch"></i></span>
+                            <h2 className="text-[15px] font-bold text-amber-950">Ready to bill</h2>
+                            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white">{uninvoicedProjects.length}</span>
+                            <span className="ml-1 hidden text-[13px] text-amber-800/70 sm:inline">Projects without an invoice yet</span>
                         </div>
-
-                        <div className="flex overflow-x-auto gap-4 px-5 py-4 custom-amber-scroll snap-x">
+                        <div className="soft-scroll flex snap-x gap-3 overflow-x-auto px-5 pb-4">
                             {uninvoicedProjects.map((project) => (
-                                <div key={project.id} className="w-[300px] shrink-0 snap-start bg-white border border-amber-200/60 p-4 rounded-xl shadow-sm hover:shadow-md hover:border-amber-400 transition-all flex items-center justify-between group relative overflow-hidden gap-4">
-                                    <div className="absolute right-0 top-0 h-20 w-20 bg-gradient-to-bl from-amber-100 to-transparent rounded-bl-full opacity-40 group-hover:scale-125 transition-transform duration-500"></div>
-
-                                    <div className="flex-1 min-w-0 relative z-10">
-                                        <h3 className="font-extrabold text-gray-900 text-[13.5px] truncate leading-tight" title={project.title}>{project.title}</h3>
-                                        <p className="text-[11px] font-semibold text-gray-500 truncate mt-1" title={project.client?.company_name || project.client?.name}>
-                                            <i className="fa-regular fa-building text-gray-400 mr-1"></i>
-                                            {project.client?.company_name || project.client?.name}
+                                <div key={project.id} className="flex w-[300px] shrink-0 snap-start items-center justify-between gap-3 rounded-xl border border-amber-200/70 bg-white p-4 transition hover:border-amber-400 hover:shadow-sm">
+                                    <div className="min-w-0 flex-1">
+                                        <h3 className="truncate text-[14px] font-bold text-slate-900" title={project.title}>{project.title}</h3>
+                                        <p className="mt-0.5 truncate text-[12.5px] text-slate-500" title={project.client?.company_name || project.client?.name}>
+                                            <i className="fa-regular fa-building mr-1 text-slate-400"></i>{project.client?.company_name || project.client?.name}
                                         </p>
-                                        <div className="font-black text-emerald-600 text-[14px] mt-1.5 tabular-nums">
-                                            <Taka className="text-[12px]" />{parseFloat(project.budget).toLocaleString('en-IN')}
-                                        </div>
+                                        <p className="mt-1.5 text-[15px] font-extrabold tabular-nums text-emerald-600"><Taka className="text-[12px]" />{fmt(project.budget)}</p>
                                     </div>
-
-                                    {/* 🟢 NEW BEAUTIFUL BLOCK BUTTON */}
                                     <Link
                                         href={route('admin.invoices.create', { client_id: project.client_id, project_id: project.id })}
-                                        className="shrink-0 flex flex-col items-center justify-center h-[54px] min-w-[64px] bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-200 text-amber-700 rounded-xl hover:from-amber-500 hover:to-orange-500 hover:text-white hover:border-transparent hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group/btn relative z-10"
-                                        title="Create Bill for this Project"
+                                        className="shrink-0 rounded-lg bg-amber-500 px-3.5 py-2 text-[13px] font-bold text-white transition hover:bg-amber-600 active:scale-95"
+                                        title="Create invoice for this project"
                                     >
-                                        <i className="fa-solid fa-file-invoice text-[15px] mb-1 group-hover/btn:scale-110 transition-transform"></i>
-                                        <span className="text-[8.5px] font-black uppercase tracking-wider">Bill Now</span>
+                                        Bill now
                                     </Link>
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </section>
                 )}
 
-                {/* Main Data Card */}
-                <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col" id="printable-area">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 px-6 py-5 gap-4 bg-gray-50/40 no-print">
-                        <div className="text-[16px] font-bold text-gray-900 flex items-center gap-2.5">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                                <i className="fa-solid fa-file-invoice-dollar text-[14px]"></i>
-                            </div>
-                            Invoice Directory
-                        </div>
-                        {hasPermission('create_invoice') && (
-                            <Link href={route('admin.invoices.create')} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-[13.5px] font-bold text-white transition-all hover:bg-indigo-700 shadow-sm hover:shadow-md">
-                                <i className="fa-solid fa-plus"></i> Generate Invoice
-                            </Link>
-                        )}
-                    </div>
+                {/* Directory */}
+                <section id="printable-area" className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
-                    {/* Filter Toolbar */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100 no-print">
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all z-20">
-                                <span className="bg-gray-50/80 px-4 py-2 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
-                                    Show
-                                </span>
-                                <div className="relative">
+                    {/* Toolbar */}
+                    <div className="no-print flex flex-col gap-3 border-b border-slate-100 p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10">
+                                    <span className="border-r border-slate-200 bg-slate-50 px-3.5 py-2.5 text-[13px] font-medium text-slate-500">Show</span>
                                     <select
                                         value={perPage}
                                         onChange={(e) => handleFilterChange('per_page', e.target.value === "all" ? "all" : Number(e.target.value))}
-                                        className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
+                                        className="cursor-pointer border-none bg-transparent py-2.5 pl-3 pr-8 text-[13.5px] font-semibold text-slate-800 outline-none focus:ring-0"
                                     >
-                                        <option value={10}>10 Rows</option>
-                                        <option value={25}>25 Rows</option>
-                                        <option value={50}>50 Rows</option>
-                                        <option value={100}>100 Rows</option>
-                                        <option value="all">All Data</option>
+                                        <option value={10}>10 rows</option>
+                                        <option value={25}>25 rows</option>
+                                        <option value={50}>50 rows</option>
+                                        <option value={100}>100 rows</option>
+                                        <option value="all">All rows</option>
                                     </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-400">
-                                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-                                    </div>
                                 </div>
+                                <button onClick={handleCopy} className={ghostBtn}><i className="fa-regular fa-copy text-slate-400"></i> Copy</button>
+                                <button onClick={handleExportCSV} className={ghostBtn}><i className="fa-solid fa-file-csv text-emerald-500"></i> CSV</button>
+                                <button onClick={handlePrint} className={ghostBtn}><i className="fa-solid fa-print text-slate-400"></i> Print</button>
                             </div>
-
-                            <div className="h-6 w-px bg-gray-200 hidden sm:block mx-1"></div>
-
-                            <div className="flex items-center gap-1.5 shrink-0 z-20">
-                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm"><i className="fas fa-copy text-blue-500"></i> Copy</button>
-                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 shadow-sm"><i className="fas fa-file-csv"></i> CSV</button>
-                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm"><i className="fas fa-print text-gray-500"></i> Print</button>
-                            </div>
+                            {hasFilters && (
+                                <button onClick={clearAllFilters} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold text-rose-600 transition hover:bg-rose-50">
+                                    <i className="fa-solid fa-xmark"></i> Clear filters
+                                </button>
+                            )}
                         </div>
 
-                        <div className="flex items-center gap-3 w-full lg:w-auto z-20">
-                            <div className="relative w-full sm:w-[180px]">
-                                <i className="fa-solid fa-hashtag absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-[12px]"></i>
-                                <input type="text" placeholder="Invoice Number..." value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} className="w-full rounded-xl border border-gray-300 py-2 pl-9 pr-3 text-[13px] outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm" />
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+                            <div className="relative">
+                                <i className="fa-solid fa-hashtag pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[12px] text-slate-400"></i>
+                                <input type="text" placeholder="Invoice number" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} className={filterInput} />
                             </div>
-                            <div className="relative w-full sm:w-[200px]">
-                                <i className="fa-solid fa-briefcase absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-[12px]"></i>
-                                <input type="text" placeholder="Project Name..." value={projectName} onChange={(e) => setProjectName(e.target.value)} className="w-full rounded-xl border border-gray-300 py-2 pl-9 pr-3 text-[13px] outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm" />
+                            <div className="relative">
+                                <i className="fa-solid fa-briefcase pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[12px] text-slate-400"></i>
+                                <input type="text" placeholder="Project name" value={projectName} onChange={(e) => setProjectName(e.target.value)} className={filterInput} />
                             </div>
-                        </div>
-                    </div>
-
-                    {/* Searchable Selects & Date Filters */}
-                    <div className="flex flex-wrap items-center gap-3 px-6 py-4 bg-gray-50/50 border-b border-gray-100 no-print">
-                        <div className="relative w-full sm:w-[260px] z-[60]">
                             <Select
-                                options={clients.map(c => ({ value: c.id, label: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}` }))}
-                                value={clients.map(c => ({ value: c.id, label: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}` })).find(opt => String(opt.value) === String(clientId)) || null}
+                                options={clientOptions}
+                                value={clientOptions.find(opt => String(opt.value) === String(clientId)) || null}
                                 onChange={(selected) => handleFilterChange('client_id', selected ? selected.value : '')}
-                                placeholder="🔍 Search Client..."
-                                isSearchable isClearable
-                                styles={selectStyles}
-                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                placeholder="All clients" isSearchable isClearable {...portal}
                             />
-                        </div>
-
-                        <div className="relative w-full sm:w-[180px] z-[50]">
                             <Select
-                                options={[
-                                    { value: 'paid', label: 'Paid' },
-                                    { value: 'unpaid', label: 'Unpaid' },
-                                    { value: 'partially_paid', label: 'Partially Paid' },
-                                    { value: 'overdue', label: 'Overdue' }
-                                ]}
-                                value={[{ value: 'paid', label: 'Paid' }, { value: 'unpaid', label: 'Unpaid' }, { value: 'partially_paid', label: 'Partially Paid' }, { value: 'overdue', label: 'Overdue' }].find(opt => String(opt.value) === String(status)) || null}
+                                options={STATUS_OPTIONS}
+                                value={STATUS_OPTIONS.find(opt => String(opt.value) === String(status)) || null}
                                 onChange={(selected) => handleFilterChange('status', selected ? selected.value : '')}
-                                placeholder="Select Status..."
-                                isClearable
-                                styles={selectStyles}
-                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                placeholder="All statuses" isClearable {...portal}
                             />
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <select value={year} onChange={(e) => handleFilterChange('year', e.target.value)} className="w-[100px] rounded-xl border border-gray-300 bg-white px-3 py-2 text-[13px] outline-none focus:border-indigo-500 cursor-pointer shadow-sm">
-                                <option value="">All Years</option>
+                            <select value={year} onChange={(e) => handleFilterChange('year', e.target.value)} className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13.5px] font-medium text-slate-800 outline-none transition hover:border-slate-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10">
+                                <option value="">All years</option>
                                 {years.map((y) => <option key={y} value={y}>{y}</option>)}
                             </select>
+                            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10">
+                                <i className="fa-regular fa-calendar-days text-[13px] text-slate-400"></i>
+                                <input type="date" value={dateFrom} onChange={(e) => handleFilterChange('date_from', e.target.value)} className="w-full min-w-0 cursor-pointer border-none bg-transparent p-0 text-[12.5px] text-slate-700 outline-none focus:ring-0" title="From date" />
+                                <span className="text-slate-300">–</span>
+                                <input type="date" value={dateTo} onChange={(e) => handleFilterChange('date_to', e.target.value)} className="w-full min-w-0 cursor-pointer border-none bg-transparent p-0 text-[12.5px] text-slate-700 outline-none focus:ring-0" title="To date" />
+                            </div>
                         </div>
-
-                        <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-300 px-3 py-1.5 shadow-sm">
-                            <i className="fa-regular fa-calendar-days text-indigo-500 text-[13px]"></i>
-                            <input type="date" value={dateFrom} onChange={(e) => handleFilterChange('date_from', e.target.value)} className="bg-transparent border-none text-[12.5px] p-0 outline-none cursor-pointer" title="From Date" />
-                            <span className="text-gray-400">–</span>
-                            <input type="date" value={dateTo} onChange={(e) => handleFilterChange('date_to', e.target.value)} className="bg-transparent border-none text-[12.5px] p-0 outline-none cursor-pointer" title="To Date" />
-                        </div>
-
-                        {(invoiceNumber || clientId || status || projectName || year || dateFrom || dateTo) && (
-                            <button onClick={clearAllFilters} className="ml-auto flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-2 text-[12px] font-bold text-rose-600 hover:bg-rose-100 transition-colors border border-rose-100 shadow-sm">
-                                <i className="fa-solid fa-xmark"></i> Clear
-                            </button>
-                        )}
                     </div>
 
                     {/* Table */}
-                    <div className="overflow-x-auto custom-table-scroll pb-2">
-                        <table className="w-full text-left border-collapse whitespace-nowrap min-w-[1200px]">
-                            <thead className="bg-[#F8FAFC] border-b-2 border-[#E2E8F0] print-bg">
+                    <div className="soft-scroll overflow-x-auto">
+                        <table className="w-full min-w-[1100px] whitespace-nowrap border-collapse text-left">
+                            <thead className="border-b border-slate-200 bg-slate-50">
                                 <tr>
-                                    <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-12">SL</th>
-                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Invoice Details</th>
-                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Client / Project</th>
-                                    <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Grand Total</th>
-                                    <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Paid Amount</th>
-                                    <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] border-r border-gray-100">Due Amount</th>
-                                    <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Status</th>
-                                    <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] no-print">Actions</th>
+                                    <th className={`${th} w-14 text-center`}>SL</th>
+                                    <th className={th}>Invoice</th>
+                                    <th className={th}>Client and projects</th>
+                                    <th className={`${th} text-right`}>Total</th>
+                                    <th className={`${th} text-right`}>Paid</th>
+                                    <th className={`${th} text-right`}>Due</th>
+                                    <th className={`${th} text-center`}>Status</th>
+                                    <th className={`${th} no-print text-right`}>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="text-[13.5px] text-gray-800 divide-y divide-gray-100">
+                            <tbody className="divide-y divide-slate-100 text-[13.5px] text-slate-800">
                                 {invList.length > 0 ? invList.map((inv, index) => {
-                                    const statusStyle = getStatusStyle(inv.status);
                                     const totalPaid = Number(inv.payments_sum_amount || 0);
                                     const dueAmount = Math.max(Number(inv.grand_total) - totalPaid, 0);
                                     const projectItems = inv.items?.filter(item => item.project);
+                                    const expanded = expandedProjects.includes(inv.id);
+                                    const chip = "flex w-max max-w-[220px] items-center gap-1.5 truncate rounded-md bg-slate-100 px-2 py-0.5 text-[12px] font-medium text-slate-600";
 
                                     return (
-                                        <tr key={inv.id} className="hover:bg-slate-50/80 transition-colors group">
-                                            <td className="px-6 py-4 font-medium text-gray-400 text-center">{invoices.from ? invoices.from + index : index + 1}</td>
-                                            <td className="px-6 py-4">
-                                                <div className="font-black text-indigo-600 text-[14.5px]">#{inv.invoice_number}</div>
-                                                <div className="text-[11.5px] font-semibold text-gray-500 mt-1 flex items-center gap-1.5">
-                                                    <i className="fa-regular fa-calendar text-gray-400"></i> {inv.invoice_date}
+                                        <tr key={inv.id} className="transition-colors hover:bg-slate-50/70">
+                                            <td className="px-5 py-4 text-center text-slate-400 tabular-nums">{invoices.from ? invoices.from + index : index + 1}</td>
+                                            <td className="px-5 py-4">
+                                                <div className="text-[14.5px] font-bold text-indigo-600">#{inv.invoice_number}</div>
+                                                <div className="mt-0.5 flex items-center gap-1.5 text-[12.5px] text-slate-500">
+                                                    <i className="fa-regular fa-calendar text-slate-400"></i>{inv.invoice_date}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-5 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-[12px] font-black uppercase shadow-sm">
+                                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-[13px] font-bold uppercase text-indigo-700">
                                                         {(inv.client?.company_name || inv.client?.name || '?').charAt(0)}
-                                                    </div>
+                                                    </span>
                                                     <div>
-                                                        <div className="font-extrabold text-gray-900 text-[13.5px]">
-                                                            {inv.client?.company_name || inv.client?.name || 'Unknown Client'}
-                                                        </div>
+                                                        <div className="font-bold text-slate-900">{inv.client?.company_name || inv.client?.name || 'Unknown client'}</div>
                                                         {projectItems && projectItems.length > 0 ? (
                                                             <div className="mt-1 flex flex-col gap-1">
-                                                                {expandedProjects.includes(inv.id) ? (
-                                                                    <>
-                                                                        {projectItems.map((p, idx) => (
-                                                                            <div key={idx} className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 bg-gray-100/80 px-2 py-0.5 rounded border border-gray-200/50 w-max max-w-[200px] truncate" title={p.project.title}>
-                                                                                <i className="fa-solid fa-layer-group text-indigo-400"></i> {p.project.title}
-                                                                            </div>
-                                                                        ))}
-                                                                        <button onClick={() => toggleProjectExpand(inv.id)} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700 text-left mt-0.5"><i className="fa-solid fa-chevron-up"></i> Less</button>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 bg-gray-100/80 px-2 py-0.5 rounded border border-gray-200/50 w-max max-w-[200px] truncate" title={projectItems[0].project.title}>
-                                                                            <i className="fa-solid fa-layer-group text-indigo-400"></i> {projectItems[0].project.title}
-                                                                        </div>
-                                                                        {projectItems.length > 1 && (
-                                                                            <button onClick={() => toggleProjectExpand(inv.id)} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700 text-left mt-0.5">+ {projectItems.length - 1} more</button>
-                                                                        )}
-                                                                    </>
+                                                                {(expanded ? projectItems : projectItems.slice(0, 1)).map((p, idx) => (
+                                                                    <div key={idx} className={chip} title={p.project.title}>
+                                                                        <i className="fa-solid fa-layer-group text-indigo-400"></i>{p.project.title}
+                                                                    </div>
+                                                                ))}
+                                                                {projectItems.length > 1 && (
+                                                                    <button onClick={() => toggleProjectExpand(inv.id)} className="text-left text-[12px] font-semibold text-indigo-600 hover:text-indigo-800">
+                                                                        {expanded ? "Show less" : `+ ${projectItems.length - 1} more`}
+                                                                    </button>
                                                                 )}
                                                             </div>
                                                         ) : (
-                                                            <div className="text-[11px] font-bold text-gray-400 mt-1 flex items-center gap-1"><i className="fa-solid fa-receipt"></i> General Billing</div>
+                                                            <div className="mt-1 flex items-center gap-1.5 text-[12.5px] text-slate-400"><i className="fa-solid fa-receipt"></i> General billing</div>
                                                         )}
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="font-black text-gray-900 text-[15.5px] tabular-nums bg-gray-50 px-2.5 py-1 rounded-lg inline-block border border-gray-200/60 shadow-sm">
-                                                    <Taka />{parseFloat(inv.grand_total).toLocaleString('en-IN')}
-                                                </div>
+                                            <td className="px-5 py-4 text-right text-[15px] font-bold tabular-nums text-slate-900"><Taka />{fmt(inv.grand_total)}</td>
+                                            <td className="px-5 py-4 text-right text-[14.5px] font-bold tabular-nums text-emerald-600">
+                                                {totalPaid > 0 ? <><Taka />{fmt(totalPaid)}</> : <span className="text-slate-300">–</span>}
                                             </td>
-                                            <td className="px-6 py-4 text-right font-black text-emerald-600 text-[14.5px] tabular-nums bg-emerald-50/10 group-hover:bg-emerald-50/30 transition-colors">
-                                                {totalPaid > 0 ? <><Taka />{totalPaid.toLocaleString('en-IN')}</> : <span className="text-gray-300">-</span>}
+                                            <td className="px-5 py-4 text-right text-[14.5px] font-bold tabular-nums text-rose-600">
+                                                {dueAmount > 0 ? <><Taka />{fmt(dueAmount)}</> : <span className="text-slate-300">–</span>}
                                             </td>
-                                            <td className="px-6 py-4 text-right font-black text-rose-600 text-[14.5px] tabular-nums bg-rose-50/10 group-hover:bg-rose-50/30 transition-colors border-r border-gray-100">
-                                                {dueAmount > 0 ? <><Taka />{dueAmount.toLocaleString('en-IN')}</> : <span className="text-gray-300">-</span>}
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <span className={`inline-flex px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${statusStyle.bg} ${statusStyle.text}`}>
-                                                    {statusStyle.label}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-right no-print">
-                                                <div className="flex items-center justify-end gap-1.5">
+                                            <td className="px-5 py-4 text-center"><StatusPill status={inv.status} /></td>
+                                            <td className="no-print px-5 py-4">
+                                                <div className="flex items-center justify-end gap-1">
                                                     {hasPermission('view_invoices') && (
-                                                        <button onClick={() => openViewModal(inv)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors shadow-sm" title="View Details">
-                                                            <i className="fa-regular fa-eye text-[13px]"></i>
+                                                        <button onClick={() => openViewModal(inv)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-blue-50 hover:text-blue-600" title="View details">
+                                                            <i className="fa-regular fa-eye text-[14px]"></i>
                                                         </button>
                                                     )}
-                                                    <a href={route('admin.invoices.print', inv.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors shadow-sm" title="Print Invoice" target="_blank">
+                                                    <a href={route('admin.invoices.print', inv.id)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-violet-50 hover:text-violet-600" title="Print invoice" target="_blank">
                                                         <i className="fa-solid fa-print text-[13px]"></i>
                                                     </a>
                                                     {hasPermission('edit_invoice') && (
-                                                        <Link href={route('admin.invoices.edit', inv.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors shadow-sm" title="Edit">
-                                                            <i className="fa-regular fa-pen-to-square text-[13px]"></i>
+                                                        <Link href={route('admin.invoices.edit', inv.id)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-amber-50 hover:text-amber-600" title="Edit">
+                                                            <i className="fa-regular fa-pen-to-square text-[14px]"></i>
                                                         </Link>
                                                     )}
                                                     {hasPermission('delete_invoice') && (
-                                                        <button onClick={() => handleDelete(inv.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors shadow-sm" title="Delete">
-                                                            <i className="fa-regular fa-trash-can text-[13px]"></i>
+                                                        <button onClick={() => handleDelete(inv.id)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-rose-50 hover:text-rose-600" title="Delete">
+                                                            <i className="fa-regular fa-trash-can text-[14px]"></i>
                                                         </button>
                                                     )}
                                                 </div>
@@ -470,13 +395,11 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                     );
                                 }) : (
                                     <tr>
-                                        <td colSpan="8" className="px-6 py-20 text-center text-gray-500">
-                                            <div className="flex flex-col items-center justify-center">
-                                                <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400 shadow-sm border border-gray-200">
-                                                    <i className="fa-solid fa-file-invoice-dollar text-2xl"></i>
-                                                </div>
-                                                <p className="text-[15px] font-bold text-gray-700">No invoices found.</p>
-                                                <p className="text-[13px] font-medium text-gray-400 mt-1">Try adjusting your filters or generate a new invoice.</p>
+                                        <td colSpan="8" className="px-6 py-20 text-center">
+                                            <div className="flex flex-col items-center">
+                                                <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-400"><i className="fa-solid fa-file-invoice-dollar"></i></span>
+                                                <p className="text-[15px] font-bold text-slate-800">No invoices match these filters</p>
+                                                <p className="mt-1 text-[13.5px] text-slate-500">Clear a filter or create a new invoice to get started.</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -487,110 +410,99 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
                     {/* Pagination */}
                     {invoices.links && invoices.links.length > 3 && (
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#e1e3e5] bg-[#f6f6f7] px-6 py-4 no-print">
-                            <div className="text-[13px] font-medium text-gray-500">
-                                Showing {invoices.from || 0} to {invoices.to || 0} of {invoices.total || 0} entries
-                            </div>
+                        <div className="no-print flex flex-col items-center justify-between gap-4 border-t border-slate-100 bg-slate-50 px-6 py-4 sm:flex-row">
+                            <p className="text-[13px] text-slate-500">
+                                Showing <b className="text-slate-700">{invoices.from || 0}</b> to <b className="text-slate-700">{invoices.to || 0}</b> of <b className="text-slate-700">{invoices.total || 0}</b> invoices
+                            </p>
                             <div className="flex flex-wrap items-center gap-1">
                                 {invoices.links.map((link, index) => (
-                                    <Link key={index} href={link.url || "#"} className={`flex min-w-[32px] items-center justify-center rounded-md border px-2.5 py-1.5 text-[13px] font-bold transition-colors ${link.active ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm' : link.url ? 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300' : 'border-gray-100 bg-gray-50 text-gray-400 pointer-events-none'}`} preserveState>
+                                    <Link key={index} href={link.url || "#"} className={`flex min-w-[34px] items-center justify-center rounded-lg border px-2.5 py-1.5 text-[13px] font-semibold transition ${link.active ? 'border-indigo-600 bg-indigo-600 text-white' : link.url ? 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50' : 'pointer-events-none border-slate-100 bg-slate-50 text-slate-300'}`} preserveState>
                                         {link.label.includes("Previous") ? <i className="fa-solid fa-chevron-left text-[10px]"></i> : link.label.includes("Next") ? <i className="fa-solid fa-chevron-right text-[10px]"></i> : link.label.replace("&laquo;", "").replace("&raquo;", "")}
                                     </Link>
                                 ))}
                             </div>
                         </div>
                     )}
-                </div>
+                </section>
             </div>
 
-            {/* --- 💎 ULTRA PREMIUM INVOICE VIEW MODAL --- */}
+            {/* Invoice view modal */}
             {showViewModal && selectedInvoice && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/70 backdrop-blur-md p-3 sm:p-6 overflow-y-auto">
-                    <div className="w-full max-w-4xl bg-white rounded-[2.5rem] shadow-2xl flex flex-col max-h-[95vh] overflow-hidden animate-[fadeIn_0.2s_ease-out] border border-gray-100">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6" onClick={() => setShowViewModal(false)}>
+                    <div onClick={(e) => e.stopPropagation()} className="flex max-h-[95vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ animation: 'modalIn .2s ease-out' }}>
 
-                        {/* Top Action Bar (No Print) */}
-                        <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gray-50/80 shrink-0 no-print">
+                        {/* Top bar */}
+                        <div className="no-print flex shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50 px-6 py-4">
                             <div className="flex items-center gap-3">
-                                <span className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider ${getStatusStyle(selectedInvoice.status).bg} ${getStatusStyle(selectedInvoice.status).text}`}>
-                                    {getStatusStyle(selectedInvoice.status).label}
-                                </span>
-                                <span className="text-sm font-bold text-gray-500">Invoice #{selectedInvoice.invoice_number}</span>
+                                <StatusPill status={selectedInvoice.status} />
+                                <span className="text-[14px] font-semibold text-slate-500">Invoice #{selectedInvoice.invoice_number}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <a href={route('admin.invoices.print', selectedInvoice.id)} target="_blank" className="bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center gap-2 shadow-sm">
+                                <a href={route('admin.invoices.print', selectedInvoice.id)} target="_blank" className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-indigo-500">
                                     <i className="fa-solid fa-print"></i> Print / PDF
                                 </a>
-                                <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-red-500 bg-white border border-gray-200 hover:bg-red-50 h-9 w-9 rounded-full flex items-center justify-center transition-all shadow-sm">
-                                    <i className="fa-solid fa-xmark text-sm"></i>
+                                <button onClick={() => setShowViewModal(false)} className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-rose-50 hover:text-rose-500" aria-label="Close">
+                                    <i className="fa-solid fa-xmark"></i>
                                 </button>
                             </div>
                         </div>
 
-                        {/* Printable Modal Body */}
-                        <div className="p-6 sm:p-10 overflow-y-auto custom-table-scroll space-y-8 bg-white">
+                        {/* Body */}
+                        <div className="soft-scroll flex flex-col gap-7 overflow-y-auto p-6 sm:p-9">
 
-                            {/* Invoice Brand Header */}
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-8 border-b border-gray-100 gap-6">
+                            <div className="flex flex-col justify-between gap-5 border-b border-slate-100 pb-7 sm:flex-row sm:items-start">
                                 <div>
-                                    <div className="flex items-center gap-2.5 text-indigo-600 font-black text-xl tracking-tight">
-                                        <div className="h-10 w-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
-                                            <i className="fa-solid fa-file-invoice-dollar text-lg"></i>
-                                        </div>
-                                        INVOICE STATEMENT
+                                    <p className="text-[13px] font-medium text-slate-500">Invoice</p>
+                                    <p className="mt-1 text-[32px] font-extrabold leading-none tracking-tight text-slate-900">#{selectedInvoice.invoice_number}</p>
+                                    <p className="mt-2 text-[12.5px] text-slate-400">Reference INV-REF-{selectedInvoice.id}</p>
+                                </div>
+                                <div className="flex gap-6 sm:text-right">
+                                    <div>
+                                        <p className="text-[12.5px] font-medium text-slate-500">Issued</p>
+                                        <p className="mt-1 text-[14.5px] font-bold text-slate-900">{selectedInvoice.invoice_date}</p>
                                     </div>
-                                    <p className="text-xs font-semibold text-gray-400 mt-1">Reference: INV-REF-{selectedInvoice.id}</p>
-                                </div>
-                                <div className="text-left sm:text-right">
-                                    <div className="text-[22px] font-black text-gray-900 tracking-tight">#{selectedInvoice.invoice_number}</div>
-                                    <div className="text-xs font-bold text-gray-500 mt-1">Issue Date: <span className="text-gray-800">{selectedInvoice.invoice_date}</span></div>
-                                    <div className="text-xs font-bold text-rose-600 mt-0.5">Due Date: <span>{selectedInvoice.due_date}</span></div>
+                                    <div>
+                                        <p className="text-[12.5px] font-medium text-rose-500">Due</p>
+                                        <p className="mt-1 text-[14.5px] font-bold text-rose-600">{selectedInvoice.due_date}</p>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Client & Company Info Grid */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-gray-50/60 p-6 rounded-3xl border border-gray-100">
-                                <div>
-                                    <span className="block text-[11px] font-extrabold uppercase tracking-wider text-indigo-600 mb-2">Billed To (Client):</span>
-                                    <h3 className="text-lg font-black text-gray-900">{selectedInvoice.client?.company_name || selectedInvoice.client?.name || "N/A"}</h3>
-                                    {selectedInvoice.client?.company_name && <p className="text-xs font-bold text-gray-600 mt-0.5">Attn: {selectedInvoice.client?.name}</p>}
-                                    {selectedInvoice.client?.phone && <p className="text-xs font-semibold text-gray-500 mt-1"><i className="fa-solid fa-phone mr-1 opacity-70"></i> {selectedInvoice.client?.phone}</p>}
-                                </div>
-                                <div className="sm:text-right flex flex-col sm:items-end justify-center">
-                                    <span className="block text-[11px] font-extrabold uppercase tracking-wider text-gray-400 mb-1">Payment Status</span>
-                                    <span className={`inline-flex px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${getStatusStyle(selectedInvoice.status).bg} ${getStatusStyle(selectedInvoice.status).text}`}>
-                                        {getStatusStyle(selectedInvoice.status).label}
-                                    </span>
-                                </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-5">
+                                <p className="text-[12.5px] font-medium text-slate-500">Billed to</p>
+                                <h3 className="mt-1 text-[19px] font-extrabold text-slate-900">{selectedInvoice.client?.company_name || selectedInvoice.client?.name || "N/A"}</h3>
+                                {selectedInvoice.client?.company_name && <p className="mt-0.5 text-[13px] font-medium text-slate-600">Attn: {selectedInvoice.client?.name}</p>}
+                                {selectedInvoice.client?.phone && <p className="mt-1.5 text-[13px] text-slate-500"><i className="fa-solid fa-phone mr-1.5 text-[11px] opacity-70"></i>{selectedInvoice.client?.phone}</p>}
                             </div>
 
-                            {/* Line Items Table */}
+                            {/* Items */}
                             <div>
-                                <h4 className="text-[12px] font-extrabold uppercase tracking-wider text-gray-400 mb-4">Itemized Breakdown</h4>
-                                <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                                    <table className="w-full text-left text-sm">
-                                        <thead className="bg-gray-50 text-[11px] font-black uppercase tracking-wider text-gray-500 border-b border-gray-200">
+                                <h4 className="mb-3 text-[15px] font-bold text-slate-900">Items</h4>
+                                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                                    <table className="w-full min-w-[520px] text-left text-sm">
+                                        <thead className="border-b border-slate-200 bg-slate-50 text-[12.5px] font-semibold text-slate-500">
                                             <tr>
-                                                <th className="px-5 py-3.5">Service / Item Description</th>
-                                                <th className="px-5 py-3.5 text-center">Qty</th>
-                                                <th className="px-5 py-3.5 text-right">Unit Price</th>
-                                                <th className="px-5 py-3.5 text-right">Total</th>
+                                                <th className="px-5 py-3">Service</th>
+                                                <th className="px-5 py-3 text-center">Qty</th>
+                                                <th className="px-5 py-3 text-right">Unit price</th>
+                                                <th className="px-5 py-3 text-right">Total</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-100 bg-white">
+                                        <tbody className="divide-y divide-slate-100 bg-white">
                                             {selectedInvoice.items?.map((item, idx) => (
-                                                <tr key={idx} className="hover:bg-gray-50/50">
+                                                <tr key={idx}>
                                                     <td className="px-5 py-4">
-                                                        <strong className="text-sm font-extrabold text-gray-900 block">{item.item_name}</strong>
+                                                        <strong className="block text-[14px] font-bold text-slate-900">{item.item_name}</strong>
                                                         {item.project && (
-                                                            <div className="text-[11px] font-bold text-indigo-600 mt-0.5 inline-flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-                                                                <i className="fa-solid fa-layer-group"></i> {item.project.title}
-                                                            </div>
+                                                            <span className="mt-1 inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 text-[12px] font-medium text-indigo-700">
+                                                                <i className="fa-solid fa-layer-group text-[10px]"></i>{item.project.title}
+                                                            </span>
                                                         )}
-                                                        {item.description && <div className="text-xs text-gray-500 mt-1.5 leading-relaxed html-content-view" dangerouslySetInnerHTML={{ __html: item.description }}></div>}
+                                                        {item.description && <div className="html-content-view mt-1.5 text-[12.5px] leading-relaxed text-slate-500" dangerouslySetInnerHTML={{ __html: item.description }}></div>}
                                                     </td>
-                                                    <td className="px-5 py-4 text-center font-bold text-gray-700">{item.quantity}</td>
-                                                    <td className="px-5 py-4 text-right font-bold text-gray-600 tabular-nums"><Taka />{Number(item.unit_price).toLocaleString('en-IN')}</td>
-                                                    <td className="px-5 py-4 text-right font-black text-gray-900 tabular-nums"><Taka />{Number(item.total).toLocaleString('en-IN')}</td>
+                                                    <td className="px-5 py-4 text-center font-semibold text-slate-700 tabular-nums">{item.quantity}</td>
+                                                    <td className="px-5 py-4 text-right font-semibold text-slate-600 tabular-nums"><Taka />{fmt(item.unit_price)}</td>
+                                                    <td className="px-5 py-4 text-right font-bold text-slate-900 tabular-nums"><Taka />{fmt(item.total)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -598,93 +510,67 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 </div>
                             </div>
 
-                            {/* Financial Summary & Calculations Box */}
-                            <div className="flex justify-end pt-2">
-                                <div className="w-full sm:w-[360px] bg-gray-900 rounded-3xl p-6 text-white shadow-xl space-y-3 relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500 rounded-full blur-3xl opacity-20 pointer-events-none"></div>
-
-                                    <div className="flex justify-between items-center text-xs text-gray-400 font-bold">
-                                        <span>Sub Total</span>
-                                        <span className="text-white font-extrabold tabular-nums"><Taka />{Number(selectedInvoice.sub_total).toLocaleString('en-IN')}</span>
+                            {/* Totals */}
+                            <div className="flex justify-end">
+                                <div className="w-full overflow-hidden rounded-xl bg-slate-900 text-white shadow-lg sm:w-[360px]">
+                                    <div className="flex flex-col gap-2.5 px-5 py-4 text-[13.5px]">
+                                        <div className="flex justify-between text-slate-400"><span>Subtotal</span><span className="font-bold tabular-nums text-white"><Taka />{fmt(selectedInvoice.sub_total)}</span></div>
+                                        {Number(selectedInvoice.tax) > 0 && (
+                                            <div className="flex justify-between text-slate-400"><span>Tax / VAT</span><span className="font-bold text-white">{selectedInvoice.tax}%</span></div>
+                                        )}
+                                        {Number(selectedInvoice.discount) > 0 && (
+                                            <div className="flex justify-between text-slate-400"><span>Discount</span><span className="font-bold tabular-nums text-rose-300">– <Taka />{fmt(selectedInvoice.discount)}</span></div>
+                                        )}
                                     </div>
-
-                                    {Number(selectedInvoice.tax) > 0 && (
-                                        <div className="flex justify-between items-center text-xs text-gray-400 font-bold">
-                                            <span>Tax / VAT</span>
-                                            <span className="text-white font-extrabold">{selectedInvoice.tax}%</span>
-                                        </div>
-                                    )}
-
-                                    {Number(selectedInvoice.discount) > 0 && (
-                                        <div className="flex justify-between items-center text-xs text-rose-400 font-bold">
-                                            <span>Discount</span>
-                                            <span className="tabular-nums">- <Taka />{Number(selectedInvoice.discount).toLocaleString('en-IN')}</span>
-                                        </div>
-                                    )}
-
-                                    <div className="border-t border-gray-800 pt-3 flex justify-between items-end">
-                                        <span className="text-xs font-black uppercase tracking-wider text-gray-300">Grand Total</span>
-                                        <span className="text-2xl font-black text-white tabular-nums"><Taka className="text-lg text-indigo-400"/>{parseFloat(selectedInvoice.grand_total).toLocaleString('en-IN')}</span>
+                                    <div className="flex items-end justify-between border-t border-dashed border-white/15 bg-white/[0.04] px-5 py-4">
+                                        <span className="text-[13.5px] font-medium text-slate-300">Grand total</span>
+                                        <span className="text-[28px] font-extrabold leading-none tabular-nums"><Taka className="text-[18px] text-indigo-400" />{fmt(selectedInvoice.grand_total)}</span>
                                     </div>
-
                                     {Number(selectedInvoice.advance_used) > 0 && (
-                                        <div className="bg-emerald-950/60 border border-emerald-900/50 p-3 rounded-xl mt-2 space-y-1.5">
-                                            <div className="flex justify-between items-center text-xs text-emerald-400 font-bold">
-                                                <span>Advance Applied</span>
-                                                <span className="tabular-nums">- <Taka />{Number(selectedInvoice.advance_used).toLocaleString('en-IN')}</span>
-                                            </div>
+                                        <div className="flex justify-between border-t border-white/10 px-5 py-3 text-[13.5px] text-emerald-300">
+                                            <span>Advance applied</span><span className="font-bold tabular-nums">– <Taka />{fmt(selectedInvoice.advance_used)}</span>
                                         </div>
                                     )}
-
-                                    <div className="flex justify-between items-center bg-gray-800/80 p-3 rounded-xl border border-gray-700/50 mt-2">
-                                        <span className="text-xs font-black text-rose-400 uppercase tracking-wider">Payable Due</span>
-                                        <span className="text-lg font-black text-rose-400 tabular-nums">
-                                            <Taka className="text-sm" />{Math.max(Number(selectedInvoice.grand_total) - (selectedInvoice.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0), 0).toLocaleString('en-IN')}
-                                        </span>
+                                    <div className="flex items-center justify-between border-t border-white/10 px-5 py-3.5">
+                                        <span className="text-[13.5px] font-semibold text-rose-300">Payable due</span>
+                                        <span className="text-[18px] font-extrabold tabular-nums text-rose-300"><Taka className="text-[14px]" />{fmt(Math.max(Number(selectedInvoice.grand_total) - modalPaid, 0))}</span>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Payment History Section */}
+                            {/* Payments */}
                             {selectedInvoice.payments && selectedInvoice.payments.length > 0 && (
-                                <div className="bg-emerald-50/50 rounded-3xl border border-emerald-100 p-6">
-                                    <h4 className="text-[12px] font-extrabold uppercase tracking-wider text-emerald-800 mb-4 flex items-center gap-2">
-                                        <i className="fa-solid fa-clock-rotate-left"></i> Payment Received History
-                                    </h4>
-                                    <div className="space-y-3">
+                                <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-5">
+                                    <h4 className="mb-3 flex items-center gap-2 text-[15px] font-bold text-emerald-900"><i className="fa-solid fa-clock-rotate-left text-[13px]"></i> Payments received</h4>
+                                    <div className="flex flex-col gap-2.5">
                                         {selectedInvoice.payments.map((payment, i) => (
-                                            <div key={i} className="flex justify-between items-center bg-white p-4 rounded-2xl border border-emerald-100 shadow-sm">
+                                            <div key={i} className="flex items-center justify-between rounded-lg border border-emerald-100 bg-white px-4 py-3">
                                                 <div>
                                                     <div className="flex items-center gap-2">
-                                                        <span className="font-extrabold text-gray-900 text-sm">{payment.payment_date}</span>
-                                                        <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-lg text-[10px] uppercase font-black tracking-wider border border-emerald-200">{payment.method}</span>
+                                                        <span className="text-[14px] font-bold text-slate-900">{payment.payment_date}</span>
+                                                        <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[12px] font-semibold capitalize text-emerald-700">{payment.method}</span>
                                                     </div>
-                                                    {payment.note && <div className="text-gray-500 italic mt-1 text-xs"><i className="fa-solid fa-quote-left opacity-50 mr-1"></i> {payment.note}</div>}
+                                                    {payment.note && <p className="mt-1 text-[12.5px] italic text-slate-500">{payment.note}</p>}
                                                 </div>
-                                                <div className="font-black text-emerald-600 text-base tabular-nums"><Taka />{parseFloat(payment.amount).toLocaleString('en-IN')}</div>
+                                                <span className="text-[16px] font-extrabold tabular-nums text-emerald-600"><Taka />{fmt(payment.amount)}</span>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             )}
 
-                            {/* Terms & Notes */}
+                            {/* Notes (saved from the rich text editor, so render as HTML) */}
                             {selectedInvoice.notes && (
-                                <div className="bg-gray-50 rounded-3xl p-6 border border-gray-200/80">
-                                    <h4 className="text-[12px] font-extrabold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-2">
-                                        <i className="fa-solid fa-file-contract text-indigo-500"></i> Terms & Conditions / Notes
-                                    </h4>
-                                    <div className="text-xs text-gray-600 whitespace-pre-line leading-relaxed font-medium">
-                                        {selectedInvoice.notes}
-                                    </div>
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                                    <h4 className="mb-2 flex items-center gap-2 text-[15px] font-bold text-slate-900"><i className="fa-solid fa-file-contract text-[13px] text-indigo-500"></i> Terms and notes</h4>
+                                    <div className="html-content-view text-[13px] leading-relaxed text-slate-600" dangerouslySetInnerHTML={{ __html: selectedInvoice.notes }}></div>
                                 </div>
                             )}
                         </div>
 
-                        {/* Modal Footer */}
-                        <div className="px-8 py-4 border-t border-gray-100 bg-gray-50 flex justify-end shrink-0 no-print">
-                            <button onClick={() => setShowViewModal(false)} className="rounded-xl bg-gray-900 px-6 py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-gray-800 shadow-sm">
-                                Close Window
+                        <div className="no-print flex shrink-0 justify-end border-t border-slate-100 bg-slate-50 px-6 py-3.5">
+                            <button onClick={() => setShowViewModal(false)} className="rounded-xl bg-slate-900 px-6 py-2.5 text-[13.5px] font-semibold text-white transition hover:bg-slate-800">
+                                Close
                             </button>
                         </div>
                     </div>
@@ -693,4 +579,3 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         </AdminLayout>
     );
 }
-

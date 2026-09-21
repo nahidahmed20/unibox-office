@@ -61,7 +61,7 @@ class DashboardController extends Controller
 
         $monthlyProjectCostPaid = (float) Transaction::whereIn('transactionable_type', [ProjectExpense::class, VendorPayment::class])->whereMonth('transaction_date', $currentMonth)->whereYear('transaction_date', $currentYear)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN amount - bank_charge ELSE -amount + bank_charge END), 0) total")->value('total');
 
-        $monthlyCashIn = InvoicePayment::whereNotNull('account_id')->whereIn('invoice_id', $validInvoiceIds)->whereMonth('payment_date', $currentMonth)->whereYear('payment_date', $currentYear)->sum('amount')
+        $monthlyCashIn = InvoicePayment::whereNotNull('account_id')->where('method', '!=', 'Client Advance')->whereIn('invoice_id', $validInvoiceIds)->whereMonth('payment_date', $currentMonth)->whereYear('payment_date', $currentYear)->sum('amount')
                        + ClientAdvance::whereMonth('date', $currentMonth)->whereYear('date', $currentYear)->sum('amount');
 
         $monthlyBankCharges = (float) Transaction::whereMonth('transaction_date', $currentMonth)->whereYear('transaction_date', $currentYear)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN bank_charge ELSE -bank_charge END), 0) total")->value('total');

@@ -16,6 +16,7 @@ class SyncOldVendorPayments extends Command
         $this->info('Starting to sync old vendor payments...');
 
         $payments = VendorPayment::whereNotNull('account_id')
+            ->where('payment_source', 'account')
             ->where('status', 'completed')
             ->where('pay_amount', '>', 0)
             ->get();
@@ -31,7 +32,8 @@ class SyncOldVendorPayments extends Command
                 Transaction::create([
                     'account_id'           => $payment->account_id,
                     'type'                 => 'debit',
-                    'amount'               => $payment->pay_amount,
+                    'amount'               => $payment->pay_amount + $payment->bank_charge,
+                    'bank_charge'          => $payment->bank_charge,
                     'transaction_date'     => $payment->date,
                     'description'          => 'Bill payment to vendor (Auto Synced): ' . ($payment->vendor->name ?? 'Unknown') . ' (VP-' . $payment->id . ')',
                     'transactionable_id'   => $payment->id,

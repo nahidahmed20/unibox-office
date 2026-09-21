@@ -6,9 +6,44 @@ import Select from 'react-select';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
+/* ---------- Constants & Helpers ---------- */
+const fmt = (n) => Number(n || 0).toLocaleString('en-IN');
+
+const STATUS = [
+    { value: 'unpaid', label: 'Unpaid', color: '#EF4444' },         // Red 500
+    { value: 'partially_paid', label: 'Partially paid', color: '#F59E0B' }, // Amber 500
+    { value: 'paid', label: 'Paid', color: '#10B981' },           // Emerald 500
+];
+
 const Taka = ({ className = "text-[14px]" }) => (
-    <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-1 opacity-80 ${className}`}>৳</span>
+    <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 ${className}`}>৳</span>
 );
+
+// Modernized Select Styles matching Projects
+const selectStyles = {
+    control: (base, state) => ({
+        ...base,
+        minHeight: '48px',
+        borderRadius: '10px',
+        borderColor: state.isFocused ? '#4F46E5' : '#E2E8F0',
+        boxShadow: state.isFocused ? '0 0 0 4px rgba(79, 70, 229, 0.15)' : 'none',
+        backgroundColor: '#F8FAFC',
+        '&:hover': { borderColor: '#4F46E5' },
+    }),
+    option: (base, state) => ({
+        ...base,
+        backgroundColor: state.isSelected ? '#4F46E5' : state.isFocused ? '#EEF2FF' : 'white',
+        color: state.isSelected ? '#FFFFFF' : '#1E293B',
+        fontWeight: 600,
+        fontSize: '14px',
+        cursor: 'pointer',
+    }),
+    placeholder: (base) => ({ ...base, color: '#94A3B8', fontWeight: 600, fontSize: '14px' }),
+    singleValue: (base) => ({ ...base, color: '#1E293B', fontWeight: 700, fontSize: '14px' }),
+    input: (base) => ({ ...base, color: '#1E293B', fontWeight: 600, fontSize: '14px' }),
+    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+    menu: (base) => ({ ...base, borderRadius: '10px', overflow: 'hidden', border: '1px solid #E2E8F0' }),
+};
 
 export default function Create({ clients = [], projects = [], nextInvoiceNumber }) {
 
@@ -21,12 +56,33 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
 
     const [availableAdvance, setAvailableAdvance] = useState(initialClient ? Number(initialClient.available_advance || 0) : 0);
 
-    /* Sticking Refs */
+    /* Sticky refs */
     const formRef = useRef(null);
     const leftColumnRef = useRef(null);
     const stickyWrapperRef = useRef(null);
     const stickyInnerRef = useRef(null);
     const [stickyStyle, setStickyStyle] = useState({});
+
+    // Load ALL items from the project if opened via URL
+    const initialItems = (initialProject && initialProject.items && initialProject.items.length > 0)
+        ? initialProject.items.map(pi => ({
+            project_id: initialProject.id,
+            item_name: pi.item_name,
+            description: pi.description || "",
+            quantity: Number(pi.quantity) || 1,
+            unit_type: pi.unit_type || "piece",
+            unit_price: Number(pi.unit_price) || 0,
+            total: Number(pi.total) || 0
+        }))
+        : [{
+            project_id: initialProject ? initialProject.id : "",
+            item_name: initialProject ? initialProject.title : "",
+            description: initialProject ? (initialProject.description || "") : "",
+            quantity: 1,
+            unit_type: "piece",
+            unit_price: initialProject ? (Number(initialProject.budget) || 0) : 0,
+            total: initialProject ? (Number(initialProject.budget) || 0) : 0
+        }];
 
     const { data, setData, post, processing, errors } = useForm({
         client_id: urlClientId ? Number(urlClientId) : "",
@@ -40,16 +96,7 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
         use_advance_amount: 0,
         status: "unpaid",
         notes: "",
-        items: [
-            {
-                project_id: initialProject ? initialProject.id : "",
-                item_name: initialProject ? initialProject.title : "",
-                description: initialProject ? (initialProject.description || "") : "",
-                quantity: initialProject ? (Number(initialProject.quantity) || 1) : 1,
-                unit_price: initialProject ? ((Number(initialProject.budget) || 0) / (Number(initialProject.quantity) || 1)) : 0,
-                total: initialProject ? (Number(initialProject.budget) || 0) : 0
-            }
-        ]
+        items: initialItems
     });
 
     const clientOptions = clients.map((c) => ({
@@ -69,30 +116,40 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
             .filter((_, idx) => idx !== currentIndex)
             .map((item) => item.project_id)
             .filter((id) => id !== null && id !== "");
-
         return projectOptions.filter((opt) => !otherSelectedIds.includes(opt.value));
     };
 
     const updateItem = (index, field, value) => {
-        setData(
-            "items",
-            data.items.map((item, i) => {
+        setData(prev => ({
+            ...prev,
+            items: prev.items.map((item, i) => {
                 if (i !== index) return item;
-
                 const updatedItem = { ...item, [field]: value };
                 if (field === "quantity" || field === "unit_price") {
                     updatedItem.total = (Number(updatedItem.quantity) || 0) * (Number(updatedItem.unit_price) || 0);
                 }
                 return updatedItem;
             })
-        );
+        }));
+    };
+
+    const addItemRow = () => {
+        setData(prev => {
+            const lastProjectId = prev.items.length > 0 ? prev.items[prev.items.length - 1].project_id : "";
+            return {
+                ...prev,
+                items: [...prev.items, { project_id: lastProjectId, item_name: "", description: "", quantity: 1, unit_type: "piece", unit_price: 0, total: 0 }]
+            };
+        });
+    };
+
+    const removeItemRow = (index) => {
+        setData(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== index) }));
     };
 
     useEffect(() => {
         let subtotal = 0;
-        data.items.forEach((item) => {
-            subtotal += Number(item.total) || 0;
-        });
+        data.items.forEach((item) => { subtotal += Number(item.total) || 0; });
 
         const taxAmount = (subtotal * (Number(data.tax) || 0)) / 100;
         const grand = subtotal + taxAmount - (Number(data.discount) || 0);
@@ -103,18 +160,13 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
             if (validAdvanceUsed > availableAdvance) validAdvanceUsed = availableAdvance;
 
             if (prev.sub_total !== subtotal || prev.grand_total !== grand || prev.use_advance_amount !== validAdvanceUsed) {
-                return {
-                    ...prev,
-                    sub_total: subtotal,
-                    grand_total: grand,
-                    use_advance_amount: validAdvanceUsed
-                };
+                return { ...prev, sub_total: subtotal, grand_total: grand, use_advance_amount: validAdvanceUsed };
             }
             return prev;
         });
     }, [data.items, data.tax, data.discount, availableAdvance]);
 
-    /* Sticky Position Logic */
+    /* Sticky Logic */
     const updateStickyPosition = useCallback(() => {
         const form = formRef.current;
         const leftColumn = leftColumnRef.current;
@@ -123,260 +175,182 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
 
         if (!form || !leftColumn || !wrapper || !inner) return;
 
-        const BREAKPOINT = 1280;
-        const TOP_OFFSET = 24;
-
-        if (window.innerWidth < BREAKPOINT) {
+        if (window.innerWidth < 1280) {
             wrapper.style.minHeight = "";
             setStickyStyle({});
             return;
         }
 
-        const leftRect = leftColumn.getBoundingClientRect();
         const wrapperRect = wrapper.getBoundingClientRect();
         const formRect = form.getBoundingClientRect();
         const innerHeight = inner.offsetHeight;
+        const TOP_OFFSET = 24;
 
         wrapper.style.minHeight = `${leftColumn.offsetHeight}px`;
 
         if (wrapperRect.top > TOP_OFFSET) {
             setStickyStyle({ position: "absolute", top: 0, left: 0, width: "100%" });
-            return;
-        }
-
-        if (wrapperRect.top <= TOP_OFFSET) {
-            if (formRect.bottom > innerHeight + TOP_OFFSET) {
-                setStickyStyle({ position: "fixed", top: `${TOP_OFFSET}px`, left: `${wrapperRect.left}px`, width: `${wrapperRect.width}px` });
-                return;
-            }
-        }
-
-        if (formRect.bottom <= innerHeight + TOP_OFFSET) {
+        } else if (formRect.bottom > innerHeight + TOP_OFFSET) {
+            setStickyStyle({ position: "fixed", top: `${TOP_OFFSET}px`, left: `${wrapperRect.left}px`, width: `${wrapperRect.width}px` });
+        } else {
             setStickyStyle({ position: "absolute", top: "auto", bottom: 0, left: 0, width: "100%" });
-            return;
         }
-
-        setStickyStyle({ position: "absolute", top: 0, left: 0, width: "100%" });
     }, []);
 
     useEffect(() => {
-        let frameId = null;
-        const handleScroll = () => {
-            if (frameId) cancelAnimationFrame(frameId);
-            frameId = requestAnimationFrame(() => updateStickyPosition());
-        };
-
-        const handleResize = () => updateStickyPosition();
-
-        window.addEventListener("scroll", handleScroll, { passive: true });
-        document.addEventListener("scroll", handleScroll, { passive: true, capture: true });
-        window.addEventListener("resize", handleResize);
-
+        window.addEventListener("scroll", updateStickyPosition, { passive: true });
+        window.addEventListener("resize", updateStickyPosition);
         updateStickyPosition();
-
-        let resizeObserver = null;
-        if (typeof ResizeObserver !== "undefined") {
-            resizeObserver = new ResizeObserver(() => updateStickyPosition());
-            if (leftColumnRef.current) resizeObserver.observe(leftColumnRef.current);
-            if (stickyInnerRef.current) resizeObserver.observe(stickyInnerRef.current);
-        }
-
         return () => {
-            window.removeEventListener("scroll", handleScroll);
-            document.removeEventListener("scroll", handleScroll, true);
-            window.removeEventListener("resize", handleResize);
-            if (resizeObserver) resizeObserver.disconnect();
-            if (frameId) cancelAnimationFrame(frameId);
+            window.removeEventListener("scroll", updateStickyPosition);
+            window.removeEventListener("resize", updateStickyPosition);
         };
     }, [updateStickyPosition]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!data.client_id) {
-            return Swal.fire("Required", "Please select a client.", "warning");
-        }
+        if (!data.client_id) return Swal.fire({ icon: 'warning', title: 'Required', text: 'Please select a client.', confirmButtonColor: '#4F46E5' });
 
         post(route("admin.invoices.store"), {
-            onSuccess: () => {
-                Swal.fire({
-                    icon: "success",
-                    title: "Invoice Created!",
-                    timer: 1500,
-                    showConfirmButton: false
-                });
-            }
+            onSuccess: () => Swal.fire({ icon: "success", title: "Invoice Created!", timer: 1500, showConfirmButton: false })
         });
     };
 
-    const selectStyles = {
-        control: (base, state) => ({
-            ...base,
-            minHeight: "46px",
-            borderRadius: "0.75rem",
-            border: state.isFocused ? "1px solid #6366f1" : "1px solid #e2e8f0",
-            backgroundColor: state.isFocused ? "#ffffff" : "#f8fafc",
-            boxShadow: state.isFocused ? "0 0 0 4px rgba(99, 102, 241, 0.1)" : "none",
-            transition: "all 0.2s ease",
-            fontSize: "14px",
-            cursor: "pointer",
-            fontWeight: "600",
-            "&:hover": { borderColor: state.isFocused ? "#6366f1" : "#cbd5e1", backgroundColor: "#ffffff" }
-        }),
-        menu: (base) => ({ ...base, fontSize: "14px", borderRadius: "0.75rem", zIndex: 9999, padding: "4px", boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }),
-        menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-        option: (base, state) => ({
-            ...base,
-            borderRadius: "0.5rem",
-            backgroundColor: state.isSelected ? "#4f46e5" : state.isFocused ? "#f1f5f9" : "transparent",
-            color: state.isSelected ? "white" : "#1e293b",
-            cursor: "pointer",
-            fontWeight: state.isSelected ? "700" : "500",
-            margin: "2px 0"
-        })
-    };
+    // Modernized general input classes matching Projects
+    const inputClass = "w-full rounded-lg border border-slate-200 bg-slate-50 hover:bg-white px-4 py-3 text-[14px] font-semibold text-slate-800 outline-none focus:bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 transition-colors";
 
-    // Shared input class for consistency
-    const inputClass = "w-full rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white px-4 py-3 text-[14px] font-bold text-slate-800 outline-none focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-200 shadow-sm";
+    const portal = { menuPortalTarget: typeof document !== 'undefined' ? document.body : null, menuPosition: "fixed", styles: selectStyles };
+    const payable = Math.max(0, Number(data.grand_total) - Number(data.use_advance_amount || 0));
 
     return (
         <AdminLayout>
-            <Head title="Create Premium Invoice" />
+            <Head title="Create Invoice" />
 
             <style dangerouslySetInnerHTML={{__html: `
-                .ql-editor { min-height: 120px; font-size: 14px; background: #f8fafc; border-radius: 0 0 0.75rem 0.75rem; border: none; font-weight: 500; color: #334155; }
+                .ql-editor { min-height: 100px; font-size: 14px; background: #F8FAFC; border-radius: 0 0 0.5rem 0.5rem; font-weight: 500; color: #1E293B; }
+                .ql-editor.ql-blank::before { color: #94A3B8; font-style: normal; font-weight: 500; }
                 .ql-editor:focus { background: #ffffff; }
-                .ql-toolbar { border-radius: 0.75rem 0.75rem 0 0; background: #ffffff; border: none !important; border-bottom: 1px solid #e2e8f0 !important; }
-                .ql-container { border-radius: 0 0 0.75rem 0.75rem; border: none !important; }
-                .quill-wrapper { border: 1px solid #e2e8f0; border-radius: 0.75rem; overflow: hidden; transition: all 0.2s; background: #f8fafc; }
-                .quill-wrapper:focus-within { border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99,102,241,0.1); background: #ffffff; }
+                .ql-toolbar.ql-snow { border-radius: 0.5rem 0.5rem 0 0; background: #ffffff; border-color: #E2E8F0 !important; }
+                .ql-container.ql-snow { border-color: #E2E8F0 !important; }
+                .quill-wrapper { border-radius: 0.5rem; overflow: hidden; transition: box-shadow 0.15s ease; }
+                .quill-wrapper:focus-within .ql-toolbar.ql-snow,
+                .quill-wrapper:focus-within .ql-container.ql-snow { border-color: #4F46E5 !important; }
+                input[type=number]::-webkit-inner-spin-button { opacity: .4; }
             `}} />
 
-            <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto pb-12 mt-2">
+            <div className="flex flex-col gap-8 w-full max-w-[1400px] mx-auto pb-12 mt-4">
 
-                {/* PAGE HEADER */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 sm:p-8 rounded-[1.5rem] border border-gray-200 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-72 h-72 bg-indigo-50/80 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
-                    <div className="relative z-10">
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 text-[11px] font-black uppercase tracking-widest mb-3 border border-indigo-100/50">
-                            <i className="fa-solid fa-wand-magic-sparkles"></i> Billing Engine
-                        </div>
-                        <h1 className="text-[26px] sm:text-[32px] font-black text-slate-900 tracking-tight leading-none">Generate Invoice</h1>
-                        <p className="text-slate-500 font-medium mt-2 text-[14px] sm:text-[15px]">Create a professional invoice and link it to projects seamlessly.</p>
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 pb-6 border-b border-slate-200">
+                    <div>
+                        <p className="text-[13px] font-semibold text-slate-500 mb-1">New billing</p>
+                        <h1 className="text-[28px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">Create invoice</h1>
+                        <p className="text-[14px] text-slate-500 mt-2 max-w-md">Pick a client, add the work you did, and send a clean bill.</p>
                     </div>
-                    <div className="relative z-10 mt-2 sm:mt-0">
-                        <Link href={route("admin.invoices.index")} className="flex w-fit items-center justify-center gap-2 text-[14px] font-bold text-slate-700 hover:text-indigo-600 transition-all bg-white px-6 py-3 rounded-xl border border-slate-200 hover:border-indigo-300 shadow-sm hover:shadow group">
-                            <i className="fa-solid fa-arrow-left-long transition-transform group-hover:-translate-x-1"></i> Back to List
+                    <div className="flex items-center gap-5">
+                        <div className="text-right hidden sm:block">
+                            <p className="text-[12.5px] font-semibold text-slate-500">Invoice No.</p>
+                            <p className="text-[18px] font-bold text-indigo-600 tabular-nums">{data.invoice_number || "—"}</p>
+                        </div>
+                        <Link href={route("admin.invoices.index")} className="flex w-fit items-center justify-center gap-2 text-[13px] font-semibold text-slate-600 hover:text-indigo-600 transition-colors border border-slate-200 hover:border-indigo-600 px-5 py-2.5 rounded-lg bg-white shadow-sm">
+                            <i className="fa-solid fa-arrow-left-long"></i> All Invoices
                         </Link>
                     </div>
                 </div>
 
-                {/* MAIN FORM */}
+                {/* Form */}
                 <form ref={formRef} onSubmit={handleSubmit} className="relative flex flex-col xl:flex-row gap-8 items-start">
 
-                    {/* LEFT COLUMN */}
+                    {/* Left Column */}
                     <div ref={leftColumnRef} className="flex-1 w-full flex flex-col gap-8">
 
-                        {/* BILLING DETAILS */}
-                        <div className="bg-white rounded-[1.5rem] p-6 sm:p-8 border border-slate-200/80 shadow-sm relative group hover:border-indigo-200/60 transition-colors">
+                        {/* Billing Details */}
+                        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
                             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100/50">
-                                    <i className="fa-regular fa-address-card text-lg"></i>
+                                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600">
+                                    <i className="fa-regular fa-address-card text-[15px]"></i>
                                 </div>
-                                <h3 className="text-[15px] font-black text-slate-800 uppercase tracking-widest">
-                                    Billing Details
-                                </h3>
+                                <h3 className="text-[15px] font-semibold text-slate-900">Billing details</h3>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-                                <div className="sm:col-span-2 relative">
-                                    <label className="block text-[11.5px] font-black text-slate-500 uppercase tracking-wider mb-2.5">Select Client <span className="text-rose-500">*</span></label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="md:col-span-2">
+                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Select client <span className="text-red-500">*</span></label>
                                     <Select
                                         options={clientOptions}
-                                        value={clientOptions.find(o => o.value === data.client_id)}
+                                        value={clientOptions.find(o => o.value === data.client_id) || null}
                                         onChange={(opt) => {
                                             setData("client_id", opt ? opt.value : "");
                                             setAvailableAdvance(opt ? opt.advance : 0);
                                         }}
-                                        isClearable placeholder="🔍 Search Client..." styles={selectStyles} menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                        styles={selectStyles}
+                                        isClearable placeholder="Search client…" {...portal}
                                     />
-                                    {errors.client_id && <span className="text-rose-500 text-[12px] font-bold mt-2 block">{errors.client_id}</span>}
-                                </div>
-
-                                <div className="sm:col-span-1 xl:col-span-2">
-                                    <label className="block text-[11.5px] font-black text-slate-500 uppercase tracking-wider mb-2.5">Invoice Number <span className="text-rose-500">*</span></label>
-                                    <div className="relative">
-                                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600"><i className="fa-solid fa-hashtag text-[12px]"></i></div>
-                                        <input type="text" value={data.invoice_number} readOnly className="w-full rounded-xl border border-slate-200 bg-slate-100/50 pl-14 pr-4 py-3 text-[14px] font-black text-indigo-700 outline-none cursor-not-allowed shadow-inner" />
-                                    </div>
+                                    {errors.client_id && <span className="text-red-500 text-[12px] font-semibold mt-2 block">{errors.client_id}</span>}
                                 </div>
 
                                 <div>
-                                    <label className="block text-[11.5px] font-black text-slate-500 uppercase tracking-wider mb-2.5">Invoice Status <span className="text-rose-500">*</span></label>
-                                    <div className="relative">
-                                        <select value={data.status} onChange={(e) => setData("status", e.target.value)} className={`${inputClass} appearance-none pr-10 cursor-pointer`}>
-                                            <option value="unpaid">Unpaid (বকেয়া)</option>
-                                            <option value="paid">Paid (পরিশোধিত)</option>
-                                        </select>
-                                        <i className="fa-solid fa-chevron-down text-[12px] text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-                                    </div>
+                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Invoice date <span className="text-red-500">*</span></label>
+                                    <input type="date" value={data.invoice_date} onChange={(e) => setData("invoice_date", e.target.value)} className={inputClass} required />
                                 </div>
 
                                 <div>
-                                    <label className="block text-[11.5px] font-black text-slate-500 uppercase tracking-wider mb-2.5">Invoice Date <span className="text-rose-500">*</span></label>
-                                    <input type="date" value={data.invoice_date} onChange={(e) => setData("invoice_date", e.target.value)} className={`${inputClass} cursor-pointer`} />
+                                    <label className="block text-[12.5px] font-semibold text-red-600 mb-2.5">Payment due date <span className="text-red-500">*</span></label>
+                                    <input type="date" value={data.due_date} onChange={(e) => setData("due_date", e.target.value)} className="w-full rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[14px] font-semibold text-red-700 outline-none focus:bg-white focus:border-red-500 focus:ring-4 focus:ring-red-500/20 transition-colors cursor-pointer" required />
                                 </div>
 
-                                <div className="sm:col-span-2 xl:col-span-2">
-                                    <label className="block text-[11.5px] font-black text-rose-500 uppercase tracking-wider mb-2.5">Payment Due Date <span className="text-rose-500">*</span></label>
-                                    <input type="date" value={data.due_date} onChange={(e) => setData("due_date", e.target.value)} className="w-full rounded-xl border border-rose-200/80 bg-rose-50/50 hover:bg-white px-4 py-3 text-[14px] font-bold text-rose-700 outline-none focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 cursor-pointer transition-all shadow-sm" />
+                                <div className="md:col-span-2">
+                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Payment status <span className="text-red-500">*</span></label>
+                                    <div className="flex flex-wrap gap-2 p-1.5 bg-slate-50 border border-slate-200 rounded-lg w-fit">
+                                        {STATUS.map(s => {
+                                            const isActive = data.status === s.value;
+                                            return (
+                                                <button
+                                                    key={s.value} type="button"
+                                                    onClick={() => setData("status", s.value)}
+                                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-[13px] font-semibold transition-colors ${isActive ? "text-white shadow-sm" : "text-slate-600 hover:bg-slate-200/50"}`}
+                                                    style={{ backgroundColor: isActive ? s.color : "transparent" }}
+                                                >
+                                                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: isActive ? "rgba(255,255,255,0.9)" : s.color }}></span>
+                                                    {s.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* LINE ITEMS - COMPLETELY REDESIGNED */}
-                        <div className="bg-white rounded-[1.5rem] p-6 sm:p-8 border border-slate-200/80 shadow-sm relative group hover:border-emerald-200/60 transition-colors">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-slate-100 gap-4">
+                        {/* Line Items */}
+                        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                            <div className="flex justify-between items-center mb-2 pb-4 border-b border-slate-100">
                                 <div className="flex items-center gap-3">
-                                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 shadow-sm border border-emerald-100/50">
-                                        <i className="fa-solid fa-boxes-stacked text-lg"></i>
+                                    <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600">
+                                        <i className="fa-solid fa-boxes-stacked text-[15px]"></i>
                                     </div>
-                                    <h3 className="text-[15px] font-black text-slate-800 uppercase tracking-widest m-0">
-                                        Services & Items
-                                    </h3>
+                                    <h3 className="text-[15px] font-semibold text-slate-900 m-0">Services and items</h3>
                                 </div>
-                                <button type="button" onClick={() => setData("items", [...data.items, { project_id: "", item_name: "", description: "", quantity: 1, unit_price: 0, total: 0 }])} className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-[13px] font-bold hover:bg-slate-800 transition-all shadow-sm flex items-center gap-2 active:scale-95 w-full sm:w-auto justify-center">
-                                    <i className="fa-solid fa-plus text-[11px]"></i> Add Extra Item
+                                <button type="button" onClick={addItemRow} className="border border-slate-200 bg-white text-slate-700 px-4 py-2.5 rounded-lg text-[13px] font-semibold hover:border-indigo-600 hover:text-indigo-600 shadow-sm transition-colors flex items-center gap-2">
+                                    <i className="fa-solid fa-plus text-[11px]"></i> Add item
                                 </button>
                             </div>
 
-                            <div className="space-y-6">
+                            <div className="divide-y divide-slate-100">
                                 {data.items.map((item, index) => (
-                                    <div key={index} className="bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden transition-all hover:border-indigo-300 hover:shadow-md relative">
-
-                                        {/* Card Header for Item */}
-                                        <div className="bg-slate-50/80 border-b border-slate-200/60 px-5 py-3 flex justify-between items-center">
-                                            <span className="text-[12px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-2.5">
-                                                <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 text-[11px] shadow-inner">{index + 1}</div>
-                                                Item Detail
+                                    <div key={index} className="py-6">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <span className="font-mono text-[12px] font-semibold text-indigo-600 tracking-wide bg-indigo-50 px-2.5 py-1 rounded-md">
+                                                No. {String(index + 1).padStart(2, "0")}
                                             </span>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => setData("items", data.items.filter((_, i) => i !== index))}
-                                                disabled={data.items.length === 1}
-                                                className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed flex items-center gap-1.5"
-                                            >
-                                                <i className="fa-solid fa-trash-can"></i> <span className="hidden sm:inline">Remove</span>
+                                            <button type="button" onClick={() => removeItemRow(index)} disabled={data.items.length === 1} className="text-[12px] font-semibold text-slate-400 hover:text-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5">
+                                                <i className="fa-solid fa-trash-can text-[11px]"></i> Remove
                                             </button>
                                         </div>
 
-                                        {/* Card Body */}
-                                        <div className="p-5 flex flex-col gap-5">
-
-                                            {/* Top Row: Links and Title */}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div className="flex flex-col gap-5">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <div>
-                                                    <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">Link Project (Optional)</label>
+                                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Project (optional)</label>
                                                     <Select
                                                         options={getAvailableProjectOptions(index)}
                                                         value={projectOptions.find(o => o.value === item.project_id) || null}
@@ -385,72 +359,75 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
                                                             const proj = projects.find((p) => p.id === projId);
 
                                                             setData((prev) => {
-                                                                const newItems = prev.items.map((it, i) => {
-                                                                    if (i !== index) return it;
-                                                                    if (proj) {
-                                                                        const qty = Number(proj.quantity) || 1;
-                                                                        return {
-                                                                            ...it,
-                                                                            project_id: projId,
-                                                                            item_name: proj.title,
-                                                                            description: proj.description || "",
-                                                                            quantity: qty,
-                                                                            unit_price: (Number(proj.budget) || 0) / qty,
-                                                                            total: Number(proj.budget) || 0
-                                                                        };
-                                                                    }
-                                                                    return {
-                                                                        ...it,
-                                                                        project_id: null,
-                                                                        item_name: "",
-                                                                        description: "",
-                                                                        unit_price: 0,
-                                                                        total: 0
+                                                                let newItems = [...prev.items];
+                                                                if (proj && proj.items && proj.items.length > 0) {
+                                                                    const mappedItems = proj.items.map(pi => ({
+                                                                        project_id: projId,
+                                                                        item_name: pi.item_name,
+                                                                        description: pi.description || "",
+                                                                        quantity: Number(pi.quantity) || 1,
+                                                                        unit_type: pi.unit_type || "piece",
+                                                                        unit_price: Number(pi.unit_price) || 0,
+                                                                        total: Number(pi.total) || 0
+                                                                    }));
+                                                                    newItems.splice(index, 1, ...mappedItems);
+                                                                } else if (proj) {
+                                                                    newItems[index] = {
+                                                                        ...newItems[index], project_id: projId, item_name: proj.title,
+                                                                        description: "", quantity: 1, unit_type: "piece",
+                                                                        unit_price: Number(proj.budget) || 0, total: Number(proj.budget) || 0
                                                                     };
-                                                                });
-
+                                                                } else {
+                                                                    newItems[index] = { ...newItems[index], project_id: null, item_name: "", description: "", unit_type: "piece", unit_price: 0, total: 0 };
+                                                                }
                                                                 const projDate = proj && proj.created_at ? proj.created_at.slice(0, 10) : prev.invoice_date;
-                                                                return {
-                                                                    ...prev,
-                                                                    items: newItems,
-                                                                    invoice_date: projDate
-                                                                };
+                                                                return { ...prev, items: newItems, invoice_date: projDate };
                                                             });
                                                         }}
-                                                        isClearable placeholder="Search projects..." styles={selectStyles} menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                                        isClearable placeholder="Link to project…" {...portal}
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">Service Title <span className="text-rose-500">*</span></label>
-                                                    <input type="text" value={item.item_name} onChange={(e) => updateItem(index, "item_name", e.target.value)} placeholder="e.g. Website Design" className={inputClass} required />
+                                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Service title <span className="text-red-500">*</span></label>
+                                                    <input type="text" value={item.item_name} onChange={(e) => updateItem(index, "item_name", e.target.value)} placeholder="E.g. Web Development" className={inputClass} required />
                                                 </div>
                                             </div>
 
-                                            {/* Middle Row: Editor */}
                                             <div>
-                                                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">Detailed Description</label>
+                                                <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Description</label>
                                                 <div className="quill-wrapper">
                                                     <ReactQuill theme="snow" value={item.description} onChange={(val) => updateItem(index, "description", val)} />
                                                 </div>
                                             </div>
 
-                                            {/* Bottom Row: Math / Pricing */}
-                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 bg-slate-50/50 p-4 rounded-xl border border-slate-100 items-end">
-                                                <div>
-                                                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2">Quantity</label>
-                                                    <input type="number" step="any" value={item.quantity} onChange={(e) => updateItem(index, "quantity", e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[14px] font-black text-slate-800 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm" placeholder="Qty" />
+                                            {/* Math Row */}
+                                            <div className="flex flex-wrap items-end gap-x-6 gap-y-4 pt-2">
+                                                <div className="w-20">
+                                                    <label className="block text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Qty</label>
+                                                    <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateItem(index, "quantity", e.target.value)}
+                                                        className="w-full font-mono border-0 border-b-2 border-slate-200 focus:border-indigo-600 outline-none py-1.5 text-[14px] font-semibold text-slate-800 bg-transparent focus:ring-0 transition-colors" placeholder="0" />
                                                 </div>
-                                                <div>
-                                                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2">Unit Price</label>
+                                                <div className="w-24">
+                                                    <label className="block text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Unit</label>
+                                                    <select value={item.unit_type} onChange={e => updateItem(index, "unit_type", e.target.value)}
+                                                        className="w-full border-0 border-b-2 border-slate-200 focus:border-indigo-600 outline-none py-1.5 bg-transparent text-[13px] font-semibold text-slate-800 cursor-pointer focus:ring-0 transition-colors">
+                                                        <option value="piece">Pcs</option><option value="kg">Kg</option><option value="set">Set</option><option value="box">Box</option><option value="sqft">SqFt</option>
+                                                    </select>
+                                                </div>
+                                                <span className="font-mono text-[15px] text-slate-300 pb-2">×</span>
+                                                <div className="w-32">
+                                                    <label className="block text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Unit price</label>
                                                     <div className="relative">
-                                                        <input type="number" step="any" value={item.unit_price} onChange={(e) => updateItem(index, "unit_price", e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 py-2.5 text-[14px] font-black text-slate-800 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm text-right" placeholder="Price" />
-                                                        <Taka className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[13px] m-0" />
+                                                        <Taka className="absolute left-0 top-1/2 -translate-y-1/2 text-[13px] text-slate-400" />
+                                                        <input type="number" step="any" min="0" value={item.unit_price} onChange={(e) => updateItem(index, "unit_price", e.target.value)}
+                                                            className="w-full font-mono border-0 border-b-2 border-slate-200 focus:border-indigo-600 outline-none py-1.5 pl-5 text-[14px] font-semibold text-slate-800 bg-transparent text-right focus:ring-0 transition-colors" placeholder="0" />
                                                     </div>
                                                 </div>
-                                                <div className="sm:text-right pb-1">
-                                                    <label className="block text-[11px] font-black text-indigo-400 uppercase tracking-wider mb-1">Row Total</label>
-                                                    <div className="text-[22px] font-black text-indigo-700 tracking-tight tabular-nums">
-                                                        <Taka className="text-[16px] text-indigo-400" /> {Number(item.total).toLocaleString('en-IN')}
+                                                <span className="font-mono text-[15px] text-slate-300 pb-2">=</span>
+                                                <div className="ml-auto text-right">
+                                                    <label className="block text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Line total</label>
+                                                    <div className="font-mono text-[19px] font-bold text-emerald-600 tabular-nums">
+                                                        <Taka className="text-[13px] text-emerald-600" />{fmt(item.total)}
                                                     </div>
                                                 </div>
                                             </div>
@@ -460,76 +437,91 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
                             </div>
                         </div>
 
-                        {/* TERMS */}
-                        <div className="bg-white rounded-[1.5rem] p-6 sm:p-8 border border-slate-200/80 shadow-sm group hover:border-slate-300 transition-colors">
-                            <div className="flex items-center gap-3 mb-5 pb-4 border-b border-slate-100">
-                                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-50 text-slate-600 shadow-sm border border-slate-200/60">
-                                    <i className="fa-solid fa-file-contract text-lg"></i>
+                        {/* Terms and Notes */}
+                        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 text-slate-600">
+                                    <i className="fa-solid fa-file-contract text-[15px]"></i>
                                 </div>
-                                <h3 className="text-[15px] font-black text-slate-800 uppercase tracking-widest">
-                                    Terms & Conditions
-                                </h3>
+                                <h3 className="text-[15px] font-semibold text-slate-900">Terms and notes</h3>
                             </div>
                             <div className="quill-wrapper">
-                                <ReactQuill theme="snow" value={data.notes} onChange={(val) => setData("notes", val)} placeholder="Enter payment terms, bank details, or a thank you note..." />
+                                <ReactQuill theme="snow" value={data.notes || ''} onChange={(val) => setData("notes", val)} placeholder="Payment terms, bank details, or a thank-you note…" />
                             </div>
                         </div>
 
                     </div>
 
-                    {/* RIGHT COLUMN (STICKY SUMMARY) */}
-                    <div ref={stickyWrapperRef} className="w-full xl:w-[380px] shrink-0 relative">
+                    {/* Right Column (Sticky Summary) */}
+                    <div ref={stickyWrapperRef} className="w-full xl:w-[340px] shrink-0 relative">
                         <div ref={stickyInnerRef} style={stickyStyle} className="flex flex-col gap-6 z-20">
-                            <div className="bg-[#0B1120] rounded-[1.5rem] p-6 shadow-2xl relative overflow-hidden text-white border border-gray-800">
-                                <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500 rounded-full blur-[70px] -mr-16 -mt-16 pointer-events-none opacity-40"></div>
-                                <div className="absolute bottom-0 left-0 w-40 h-40 bg-rose-500 rounded-full blur-[70px] -ml-16 -mb-16 pointer-events-none opacity-20"></div>
-                                <h3 className="text-[11.5px] font-black text-gray-400 uppercase tracking-widest mb-5 flex items-center gap-2 border-b border-gray-800 pb-3 relative z-10">
-                                    <i className="fa-solid fa-receipt text-gray-500"></i> Financial Summary
-                                </h3>
-                                <div className="space-y-4 relative z-10">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-[13px] font-bold text-gray-400">Sub Total</span>
-                                        <span className="text-[15px] font-black text-white tabular-nums"><Taka />{Number(data.sub_total).toLocaleString('en-IN')}</span>
+                            <div className="bg-slate-900 rounded-2xl p-6 sm:p-7 shadow-xl relative overflow-hidden text-white border border-slate-800">
+                                {/* Decorative Taka */}
+                                <span className="absolute -right-3 -top-8 text-[130px] leading-none font-mono text-white/[0.03] select-none pointer-events-none">৳</span>
+
+                                <div className="relative">
+                                    <div className="flex items-center gap-2 border-b border-white/10 pb-4 mb-5">
+                                        <i className="fa-solid fa-receipt text-indigo-400"></i>
+                                        <p className="text-[14px] font-bold text-white">Invoice summary</p>
                                     </div>
-                                    <div className="flex justify-between items-center bg-gray-800/50 p-2 rounded-xl border border-gray-700/50">
-                                        <span className="text-[12px] font-bold text-gray-300 pl-2">Tax / VAT (%)</span>
-                                        <div className="relative w-24">
-                                            <input type="number" value={data.tax} onChange={(e) => setData("tax", e.target.value)} className="w-full rounded-lg bg-gray-900 border border-gray-700 px-3 py-1.5 text-[13px] font-black text-white text-right outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/50 transition-all shadow-inner" />
+
+                                    <div className="flex flex-col gap-4">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[13px] text-slate-400">Subtotal</span>
+                                            <span className="font-mono text-[14px] font-semibold"><Taka className="text-[12px] text-slate-400"/>{fmt(data.sub_total)}</span>
                                         </div>
-                                    </div>
-                                    <div className="flex justify-between items-center bg-rose-900/20 p-2 rounded-xl border border-rose-900/30">
-                                        <span className="text-[12px] font-bold text-rose-300 pl-2">Discount (TK)</span>
-                                        <div className="relative w-28">
-                                            <input type="number" value={data.discount} onChange={(e) => setData("discount", e.target.value)} className="w-full rounded-lg bg-rose-950/50 border border-rose-800 px-3 py-1.5 text-[13px] font-black text-rose-400 text-right outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/50 transition-all shadow-inner" />
+
+                                        <div className="flex justify-between items-center gap-4">
+                                            <label htmlFor="tax" className="text-[13px] text-slate-400">Tax / VAT (%)</label>
+                                            <input id="tax" type="number" min="0" value={data.tax} onChange={(e) => setData("tax", e.target.value)}
+                                                className="w-20 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 text-right text-[13px] font-bold tabular-nums text-white outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30" />
                                         </div>
-                                    </div>
-                                    <div className="border-t border-dashed border-gray-700 pt-4 mt-2 flex justify-between items-end">
-                                        <span className="text-[11.5px] font-black text-gray-300 uppercase tracking-widest">Grand Total</span>
-                                        <span className="text-[32px] font-black text-white tracking-tight leading-none"><Taka className="text-[20px] text-indigo-400" />{Number(data.grand_total).toLocaleString('en-IN')}</span>
-                                    </div>
-                                </div>
-                                {availableAdvance > 0 && (
-                                    <div className="mt-6 pt-5 border-t border-gray-800 relative z-10">
-                                        <div className="flex justify-between items-center mb-2.5">
-                                            <span className="text-[10.5px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5"><i className="fa-solid fa-piggy-bank"></i> Client Advance</span>
-                                            <span className="text-[11px] font-bold text-emerald-500 bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-900/50">Bal: ৳{Number(availableAdvance).toLocaleString('en-IN')}</span>
+
+                                        <div className="flex justify-between items-center gap-4 pb-4 border-b border-white/10">
+                                            <label htmlFor="discount" className="text-[13px] text-slate-400">Discount (৳)</label>
+                                            <input id="discount" type="number" min="0" value={data.discount} onChange={(e) => setData("discount", e.target.value)}
+                                                className="w-24 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 text-right text-[13px] font-bold tabular-nums text-red-400 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-500/30" />
                                         </div>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-gray-400 uppercase">Use:</span>
-                                            <input type="number" min="0" max={availableAdvance} value={data.use_advance_amount} onChange={(e) => setData("use_advance_amount", e.target.value)} className="w-full rounded-xl bg-gray-800 border border-emerald-900/50 pl-12 pr-3 py-3 text-[15px] font-black text-emerald-400 text-right outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/50 transition-all shadow-inner" />
+
+                                        <div className="pt-2 pb-4">
+                                            <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Grand total</span>
+                                            <div className="flex items-baseline gap-1 font-mono text-[32px] font-bold tracking-tight">
+                                                <Taka className="text-[18px] text-indigo-400" />
+                                                <span>{fmt(data.grand_total)}</span>
+                                            </div>
                                         </div>
-                                        <p className="text-[10px] text-gray-500 font-medium mt-2 text-center">Will be automatically deducted from final due.</p>
+
+                                        {/* Advance Usage Section */}
+                                        {availableAdvance > 0 && (
+                                            <div className="border-t border-white/10 pt-5 pb-2">
+                                                <div className="mb-3 flex items-center justify-between">
+                                                    <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-emerald-400">
+                                                        <i className="fa-solid fa-piggy-bank"></i> Client advance
+                                                    </span>
+                                                    <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-300 border border-emerald-500/20">
+                                                        Balance: ৳{fmt(availableAdvance)}
+                                                    </span>
+                                                </div>
+                                                <div className="relative mb-3">
+                                                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[12px] font-medium text-slate-400">Use</span>
+                                                    <input type="number" min="0" max={availableAdvance} value={data.use_advance_amount} onChange={(e) => setData("use_advance_amount", e.target.value)}
+                                                        className="w-full rounded-lg border border-emerald-500/20 bg-emerald-500/5 py-2 pl-10 pr-3 text-right text-[14px] font-bold tabular-nums text-emerald-400 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30" />
+                                                </div>
+                                                <div className="flex items-center justify-between text-[13px] pt-1">
+                                                    <span className="text-slate-400">Due after advance</span>
+                                                    <span className="font-mono font-bold tabular-nums text-white"><Taka className="text-[12px] text-slate-400"/>{fmt(payable)}</span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <button type="submit" disabled={processing} className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-lg text-[14px] font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-60">
+                                            {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Saving…</> : <><i className="fa-solid fa-cloud-arrow-up"></i> Create invoice</>}
+                                        </button>
                                     </div>
-                                )}
-                                <div className="mt-6 relative z-10">
-                                    <button type="submit" disabled={processing} className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white py-3.5 rounded-xl text-[14px] font-black uppercase tracking-wider hover:from-indigo-500 hover:to-indigo-400 transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:shadow-[0_0_30px_rgba(99,102,241,0.5)] flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 border border-indigo-400/30">
-                                        {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-file-invoice"></i> Save & Generate</>}
-                                    </button>
                                 </div>
                             </div>
                         </div>
                     </div>
-
                 </form>
             </div>
         </AdminLayout>

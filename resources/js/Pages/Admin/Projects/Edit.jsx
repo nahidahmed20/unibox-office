@@ -1,17 +1,22 @@
-import React, { useMemo, useState, useRef, useEffect } from "react";
+import React, { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { Head, useForm, Link } from "@inertiajs/react";
 import Swal from "sweetalert2";
 import Select from "react-select";
+import ReactQuill from "react-quill";
+import 'react-quill/dist/quill.snow.css';
 
+// Updated Priorities with modern vibrant colors
 const PRIORITIES = [
-    { value: "low", label: "Low", dot: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50", activeBg: "bg-emerald-500", activeText: "text-white", border: "border-emerald-200", hover: "hover:bg-emerald-100" },
-    { value: "medium", label: "Medium", dot: "bg-orange-500", text: "text-orange-700", bg: "bg-orange-50", activeBg: "bg-orange-500", activeText: "text-white", border: "border-orange-200", hover: "hover:bg-orange-100" },
-    { value: "high", label: "High", dot: "bg-red-500", text: "text-red-700", bg: "bg-red-50", activeBg: "bg-red-500", activeText: "text-white", border: "border-red-200", hover: "hover:bg-red-100" },
-    { value: "urgent", label: "Urgent", dot: "bg-rose-500", text: "text-rose-700", bg: "bg-rose-50", activeBg: "bg-rose-500", activeText: "text-white", border: "border-rose-200", hover: "hover:bg-rose-100" },
+    { value: "low", label: "Low", color: "#059669" },      // Emerald 600
+    { value: "medium", label: "Medium", color: "#D97706" }, // Amber 600
+    { value: "high", label: "High", color: "#EA580C" },     // Orange 600
+    { value: "urgent", label: "Urgent", color: "#DC2626" }, // Red 600
 ];
 
-const formatTaka = (n) => new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Number(n) || 0);
+const Taka = ({ className = "text-[14px]" }) => (
+    <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 ${className}`}>৳</span>
+);
 
 const daysUntil = (dateStr) => {
     if (!dateStr) return null;
@@ -19,451 +24,433 @@ const daysUntil = (dateStr) => {
     return Math.ceil(diff);
 };
 
+// Modernized Select Styles
+const selectStyles = {
+    control: (base, state) => ({
+        ...base,
+        minHeight: '48px',
+        borderRadius: '10px',
+        borderColor: state.isFocused ? '#4F46E5' : '#E2E8F0', // Indigo-600 or Slate-200
+        boxShadow: state.isFocused ? '0 0 0 4px rgba(79, 70, 229, 0.15)' : 'none',
+        backgroundColor: '#F8FAFC', // Slate-50
+        '&:hover': { borderColor: '#4F46E5' },
+    }),
+    option: (base, state) => ({
+        ...base,
+        backgroundColor: state.isSelected ? '#4F46E5' : state.isFocused ? '#EEF2FF' : 'white', // Indigo
+        color: state.isSelected ? '#FFFFFF' : '#1E293B',
+        fontWeight: 600,
+        fontSize: '14px',
+        cursor: 'pointer',
+    }),
+    placeholder: (base) => ({ ...base, color: '#94A3B8', fontWeight: 600, fontSize: '14px' }),
+    singleValue: (base) => ({ ...base, color: '#1E293B', fontWeight: 700, fontSize: '14px' }),
+    input: (base) => ({ ...base, color: '#1E293B', fontWeight: 600, fontSize: '14px' }),
+    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+    menu: (base) => ({ ...base, borderRadius: '10px', overflow: 'hidden', border: '1px solid #E2E8F0' }),
+};
+
 export default function Edit({ project, clients = [], managers = [] }) {
-    // 🟢 ADDED: unit_price in initial state
+    // 🟢 Initialize state with existing project and items data
     const { data, setData, put, processing, errors } = useForm({
         client_id: project.client_id || "",
         project_manager_id: project.project_manager_id || "",
         title: project.title || "",
         description: project.description || "",
-        quantity: project.quantity || "",
-        unit_type: project.unit_type || "piece",
-        unit_price: project.unit_price || "",
         start_date: project.start_date ? project.start_date.split('T')[0] : "",
         deadline: project.deadline ? project.deadline.split('T')[0] : "",
-        budget: project.budget || "",
         status: project.status || "planning",
         priority: project.priority || "medium",
         progress: project.progress || 0,
         repo_link: project.repo_link || "",
-        live_url: project.live_url || ""
+        live_url: project.live_url || "",
+        // 🟢 Load existing items from database
+        items: project.items && project.items.length > 0 ? project.items.map(i => ({
+            id: i.id,
+            item_name: i.item_name || "",
+            description: i.description || "",
+            quantity: i.quantity || 1,
+            unit_type: i.unit_type || "piece",
+            unit_price: i.unit_price || 0,
+            total: i.total || 0
+        })) : [{ item_name: "", description: "", quantity: 1, unit_type: "piece", unit_price: 0, total: 0 }]
     });
 
     const [selectedClient, setSelectedClient] = useState(() => clients.find(c => c.id === project.client_id) || null);
-    const [selectedManager, setSelectedManager] = useState(() => managers.find(m => m.id === project.project_manager_id) || null);
 
-    const footerRef = useRef(null);
-    const [footerHeight, setFooterHeight] = useState(0);
+    /* Sticky Summary Refs */
+    const formRef = useRef(null);
+    const leftColumnRef = useRef(null);
+    const stickyWrapperRef = useRef(null);
+    const stickyInnerRef = useRef(null);
+    const [stickyStyle, setStickyStyle] = useState({});
 
-    useEffect(() => {
-        const el = footerRef.current;
-        if (!el) return;
-        const update = () => setFooterHeight(el.offsetHeight);
-        update();
-        const ro = new ResizeObserver(update);
-        ro.observe(el);
-        window.addEventListener("resize", update);
-        return () => {
-            ro.disconnect();
-            window.removeEventListener("resize", update);
-        };
+    const clientOptions = useMemo(() => clients.map(c => ({ value: c.id, label: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}`, raw: c })), [clients]);
+    const managerOptions = useMemo(() => managers.map(m => ({ value: m.id, label: m.name, raw: m })), [managers]);
+
+    const updateItem = (index, field, value) => {
+        setData("items", data.items.map((item, i) => {
+            if (i !== index) return item;
+            const updated = { ...item, [field]: value };
+            if (field === "quantity" || field === "unit_price") {
+                updated.total = (Number(updated.quantity) || 0) * (Number(updated.unit_price) || 0);
+            }
+            return updated;
+        }));
+    };
+
+    const addItemRow = () => setData("items", [...data.items, { item_name: "", description: "", quantity: 1, unit_type: "piece", unit_price: 0, total: 0 }]);
+    const removeItemRow = (index) => setData("items", data.items.filter((_, i) => i !== index));
+
+    const totalBudget = data.items.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+    const dLeft = daysUntil(data.deadline);
+
+    /* Sticky Logic */
+    const updateStickyPosition = useCallback(() => {
+        const form = formRef.current;
+        const leftColumn = leftColumnRef.current;
+        const wrapper = stickyWrapperRef.current;
+        const inner = stickyInnerRef.current;
+
+        if (!form || !leftColumn || !wrapper || !inner) return;
+
+        if (window.innerWidth < 1280) {
+            wrapper.style.minHeight = "";
+            setStickyStyle({});
+            return;
+        }
+
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const formRect = form.getBoundingClientRect();
+        const innerHeight = inner.offsetHeight;
+        const TOP_OFFSET = 24;
+
+        wrapper.style.minHeight = `${leftColumn.offsetHeight}px`;
+
+        if (wrapperRect.top > TOP_OFFSET) {
+            setStickyStyle({ position: "absolute", top: 0, left: 0, width: "100%" });
+        } else if (formRect.bottom > innerHeight + TOP_OFFSET) {
+            setStickyStyle({ position: "fixed", top: `${TOP_OFFSET}px`, left: `${wrapperRect.left}px`, width: `${wrapperRect.width}px` });
+        } else {
+            setStickyStyle({ position: "absolute", top: "auto", bottom: 0, left: 0, width: "100%" });
+        }
     }, []);
 
-    const clientOptions = useMemo(() =>
-        clients.map(c => ({ value: c.id, label: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}`, raw: c })),
-    [clients]);
-
-    const managerOptions = useMemo(() =>
-        managers.map(m => ({ value: m.id, label: m.name, raw: m })),
-    [managers]);
+    useEffect(() => {
+        window.addEventListener("scroll", updateStickyPosition, { passive: true });
+        window.addEventListener("resize", updateStickyPosition);
+        updateStickyPosition();
+        return () => {
+            window.removeEventListener("scroll", updateStickyPosition);
+            window.removeEventListener("resize", updateStickyPosition);
+        };
+    }, [updateStickyPosition]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!data.client_id) return Swal.fire({ icon: 'warning', title: 'Client Required', text: 'Please select a target client first.', confirmButtonColor: '#4f46e5' });
-        if (!data.title || !data.deadline) return Swal.fire({ icon: 'error', title: 'Missing Fields', text: 'Please fill out all required fields (Title, Deadline).', confirmButtonColor: '#4f46e5' });
+        if (!data.client_id || !data.title) return Swal.fire({ icon: 'warning', title: 'Required Fields', text: 'Please fill out Client and Project Title.', confirmButtonColor: '#4F46E5' });
 
         put(route("admin.projects.update", project.id), {
-            onSuccess: () => {
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Project Updated!', showConfirmButton: false, timer: 1500 });
-            }
+            onSuccess: () => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Project Updated!', showConfirmButton: false, timer: 1500 }),
+            onError: () => Swal.fire({ icon: 'error', title: 'Validation Error', text: 'Please check the form for missing or incorrect data.', confirmButtonColor: '#EF4444' })
         });
     };
 
-    const dLeft = daysUntil(data.deadline);
-
-    const selectStyles = {
-        control: (base, state) => ({
-            ...base, minHeight: '48px', borderRadius: '0.75rem',
-            border: state.isFocused ? '1px solid var(--accent, #6366f1)' : '1px solid #e5e7eb',
-            backgroundColor: state.isFocused ? '#ffffff' : '#f8fafc',
-            boxShadow: state.isFocused ? '0 0 0 4px rgba(99, 102, 241, 0.1)' : 'none',
-            transition: 'all 0.2s ease', fontSize: '14px', cursor: 'pointer', paddingLeft: '0.25rem',
-            '&:hover': { borderColor: state.isFocused ? 'var(--accent, #6366f1)' : '#cbd5e1' }
-        }),
-        menu: (base) => ({
-            ...base, fontSize: '14px', borderRadius: '0.75rem', overflow: 'hidden',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-            border: '1px solid #f1f5f9', marginTop: '8px', zIndex: 9999
-        }),
-        menuPortal: base => ({ ...base, zIndex: 9999 }),
-        option: (base, state) => ({
-            ...base, backgroundColor: state.isSelected ? 'var(--accent, #4f46e5)' : state.isFocused ? '#f8fafc' : 'white',
-            color: state.isSelected ? 'white' : '#1e293b', cursor: 'pointer', padding: '10px 16px',
-            fontWeight: state.isSelected ? '700' : '500', transition: 'background-color 0.15s ease'
-        })
-    };
+    // Modernized general input classes
+    const inputClass = "w-full rounded-lg border border-slate-200 bg-slate-50 hover:bg-white px-4 py-3 text-[14px] font-semibold text-slate-800 outline-none focus:bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 transition-colors";
 
     return (
         <AdminLayout>
-            <Head title="Edit Project" />
+            <Head title={`Edit Project - ${project.title}`} />
 
-            <div className="flex flex-col gap-8 w-full max-w-[1400px] mx-auto pb-12 mt-6">
+            <style dangerouslySetInnerHTML={{__html: `
+                .ql-editor { min-height: 100px; font-size: 14px; background: #F8FAFC; border-radius: 0 0 0.5rem 0.5rem; font-weight: 500; color: #1E293B; }
+                .ql-editor.ql-blank::before { color: #94A3B8; font-style: normal; font-weight: 500; }
+                .ql-editor:focus { background: #ffffff; }
+                .ql-toolbar.ql-snow { border-radius: 0.5rem 0.5rem 0 0; background: #ffffff; border-color: #E2E8F0 !important; }
+                .ql-container.ql-snow { border-color: #E2E8F0 !important; }
+                .quill-wrapper { border-radius: 0.5rem; overflow: hidden; transition: box-shadow 0.15s ease; }
+                .quill-wrapper:focus-within .ql-toolbar.ql-snow,
+                .quill-wrapper:focus-within .ql-container.ql-snow { border-color: #4F46E5 !important; }
+                input[type="range"].ledger-range { accent-color: #4F46E5; }
+            `}} />
+
+            <div className="flex flex-col gap-8 w-full max-w-[1400px] mx-auto pb-12 mt-4">
 
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100">
-                    <div>
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-50 text-amber-600 text-[11px] font-black uppercase tracking-wider mb-3">
-                            <i className="fa-solid fa-pen-ruler"></i> Modification
-                        </div>
-                        <h1 className="text-[26px] font-extrabold text-gray-900 tracking-tight">Edit Project</h1>
-                        <p className="text-[14.5px] font-bold text-indigo-600 mt-1">#{project.id} — {project.title}</p>
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 pb-6 border-b border-slate-200">
+                    <div className="min-w-0">
+                        <p className="text-[13px] font-semibold text-slate-500 mb-1">Editing</p>
+                        <h1 className="text-[28px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">Edit project</h1>
+                        <p className="text-[14px] text-indigo-600 font-semibold mt-2 truncate max-w-lg">#{project.id} — {project.title}</p>
                     </div>
-                    <Link href={route('admin.projects.index')} className="flex items-center justify-center gap-2 text-[14px] font-bold text-gray-600 hover:text-indigo-600 transition-all bg-gray-50 hover:bg-indigo-50 px-6 py-3 rounded-xl border border-gray-200 hover:border-indigo-200 shadow-sm group">
-                        <i className="fa-solid fa-arrow-left transition-transform group-hover:-translate-x-1"></i> Back to Directory
+                    <Link href={route("admin.projects.index")} className="flex w-fit items-center justify-center gap-2 text-[13px] font-semibold text-slate-600 hover:text-indigo-600 transition-colors border border-slate-200 hover:border-indigo-600 px-5 py-2.5 rounded-lg shrink-0 bg-white shadow-sm">
+                        <i className="fa-solid fa-arrow-left-long"></i> Directory
                     </Link>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-8">
+                {/* Form */}
+                <form ref={formRef} onSubmit={handleSubmit} className="relative flex flex-col xl:flex-row gap-8 items-start">
 
-                    {/* Global Configuration Section */}
-                    <section className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden relative">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-amber-50 to-transparent rounded-bl-full opacity-60 pointer-events-none"></div>
+                    {/* Left Column */}
+                    <div ref={leftColumnRef} className="flex-1 w-full flex flex-col gap-8">
 
-                        <div className="px-6 md:px-8 py-5 border-b border-gray-100 flex items-center gap-3 bg-gradient-to-r from-gray-50/80 to-white rounded-t-3xl">
-                            <div className="h-10 w-10 rounded-xl bg-slate-800 shadow-md text-white flex items-center justify-center shrink-0">
-                                <i className="fa-solid fa-building-user text-[15px]"></i>
+                        {/* General Info */}
+                        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600">
+                                    <i className="fa-solid fa-circle-info text-[15px]"></i>
+                                </div>
+                                <h3 className="text-[15px] font-semibold text-slate-900">Project details</h3>
                             </div>
-                            <div>
-                                <h2 className="text-[17px] font-bold text-gray-900">Project Assignment</h2>
-                                <p className="text-[12.5px] text-gray-500 font-medium mt-0.5">Manage client assignment and project manager.</p>
-                            </div>
-                        </div>
 
-                        <div className="p-6 md:p-8 relative z-10">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
-                                        Target Client <span className="text-rose-500">*</span>
-                                    </label>
+                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Select client <span className="text-red-500">*</span></label>
                                     <Select
-                                        value={clientOptions.find(opt => opt.value === data.client_id) || null}
                                         options={clientOptions}
+                                        value={clientOptions.find(o => o.value === data.client_id) || null}
                                         onChange={(opt) => {
                                             setData("client_id", opt ? opt.value : "");
                                             setSelectedClient(opt ? opt.raw : null);
                                         }}
-                                        placeholder="🔍 Search and select client..."
-                                        isClearable
                                         styles={selectStyles}
-                                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                        menuPosition={'fixed'}
+                                        isClearable placeholder="Search client…" menuPortalTarget={typeof document !== 'undefined' ? document.body : null} menuPosition="fixed"
                                     />
-                                    {errors.client_id && <p className="text-rose-500 text-[12px] font-bold mt-1.5">{errors.client_id}</p>}
+                                    {errors.client_id && <span className="text-red-500 text-[12px] font-semibold mt-2 block">{errors.client_id}</span>}
                                 </div>
                                 <div>
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
-                                        Project Manager <span className="text-gray-400 font-medium normal-case tracking-normal">(Optional)</span>
-                                    </label>
+                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Manager (optional)</label>
                                     <Select
-                                        value={managerOptions.find(opt => opt.value === data.project_manager_id) || null}
                                         options={managerOptions}
-                                        onChange={(opt) => {
-                                            setData("project_manager_id", opt ? opt.value : "");
-                                            setSelectedManager(opt ? opt.raw : null);
-                                        }}
-                                        placeholder="👤 Assign a manager..."
-                                        isClearable
+                                        value={managerOptions.find(o => o.value === data.project_manager_id) || null}
+                                        onChange={(opt) => setData("project_manager_id", opt ? opt.value : "")}
                                         styles={selectStyles}
-                                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                        menuPosition={'fixed'}
+                                        isClearable placeholder="Assign manager…" menuPortalTarget={typeof document !== 'undefined' ? document.body : null} menuPosition="fixed"
                                     />
                                 </div>
-                            </div>
-                        </div>
-                    </section>
 
-                    {/* Single Project Detailed Form Section */}
-                    <section className="bg-white rounded-3xl shadow-sm relative border border-gray-200 transition-all duration-300">
+                                <div className="md:col-span-2">
+                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Project title <span className="text-red-500">*</span></label>
+                                    <input type="text" value={data.title} onChange={e => setData("title", e.target.value)} placeholder="E.g., Complete Branding Package" className={inputClass} required />
+                                    {errors.title && <span className="text-red-500 text-[12px] font-semibold mt-2 block">{errors.title}</span>}
+                                </div>
 
-                        <div className="px-6 md:px-8 py-5 border-b border-gray-100 flex flex-wrap justify-between items-center gap-4 bg-gray-50/80 rounded-t-3xl">
-                            <div className="flex items-center gap-4">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-800 text-white text-[16px] font-black shadow-md shrink-0">
-                                    <i className="fa-solid fa-pen-to-square"></i>
+                                <div>
+                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Start date</label>
+                                    <input type="date" value={data.start_date} onChange={e => setData("start_date", e.target.value)} className={inputClass} />
                                 </div>
                                 <div>
-                                    <h3 className="text-[17px] font-bold text-gray-900 flex items-center gap-3">
-                                        Project Details
-                                        {dLeft !== null && dLeft <= 7 && (
-                                            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-rose-700 bg-rose-100 px-2.5 py-1 rounded-full border border-rose-200 shadow-sm">
-                                                <i className="fa-solid fa-clock"></i> {dLeft < 0 ? "Overdue" : `${dLeft} Days Left`}
-                                            </span>
-                                        )}
-                                    </h3>
-                                    {data.title && <p className="text-[13px] text-gray-500 font-semibold truncate max-w-xs sm:max-w-md mt-0.5">{data.title}</p>}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="p-6 md:p-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-x-8 gap-y-7">
-
-                                <div className="md:col-span-2 lg:col-span-12">
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
-                                        Project Title <span className="text-rose-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={data.title}
-                                        onChange={e => setData("title", e.target.value)}
-                                        required
-                                        placeholder="e.g. E-Commerce Website Development"
-                                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-[15px] font-bold text-gray-900 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm"
-                                    />
-                                    {errors.title && <p className="text-rose-500 text-[12px] font-bold mt-1.5">{errors.title}</p>}
+                                    <label className="block text-[12.5px] font-semibold text-red-600 mb-2.5">Deadline <span className="text-red-500">*</span></label>
+                                    <input type="date" value={data.deadline} onChange={e => setData("deadline", e.target.value)} className="w-full rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[14px] font-semibold text-red-700 outline-none focus:bg-white focus:border-red-500 focus:ring-4 focus:ring-red-500/20 transition-colors cursor-pointer" required />
+                                    {errors.deadline && <span className="text-red-500 text-[12px] font-semibold mt-2 block">{errors.deadline}</span>}
                                 </div>
 
-                                <div className="md:col-span-2 lg:col-span-12">
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Priority Level</label>
-                                    <div className="flex flex-wrap gap-3 p-2 bg-gray-50 border border-gray-100 rounded-xl w-fit">
+                                <div className="md:col-span-2">
+                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Priority</label>
+                                    <div className="flex flex-wrap gap-2 p-1.5 bg-slate-50 border border-slate-200 rounded-lg w-fit">
                                         {PRIORITIES.map(pr => {
                                             const isActive = data.priority === pr.value;
                                             return (
                                                 <button
-                                                    key={pr.value}
-                                                    type="button"
+                                                    key={pr.value} type="button"
                                                     onClick={() => setData("priority", pr.value)}
-                                                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-[13px] font-bold transition-all duration-200 ${
-                                                        isActive ? "text-white shadow-md transform scale-105" : "bg-transparent text-gray-500 hover:bg-gray-200/50"
-                                                    }`}
-                                                    style={{ backgroundColor: isActive ? (pr.value === "low" ? "#10b981" : pr.value === "medium" ? "#f97316" : pr.value === "high" ? "#ef4444" : "#f43f5e") : "transparent" }}
+                                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-[13px] font-semibold transition-colors ${isActive ? "text-white shadow-sm" : "text-slate-600 hover:bg-slate-200/50"}`}
+                                                    style={{ backgroundColor: isActive ? pr.color : "transparent" }}
                                                 >
-                                                    {!isActive && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: pr.value === "low" ? "#10b981" : pr.value === "medium" ? "#f97316" : pr.value === "high" ? "#ef4444" : "#f43f5e" }}></span>}
-                                                    {isActive && <i className="fa-solid fa-check text-[11px]"></i>}
+                                                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: isActive ? "rgba(255,255,255,0.9)" : pr.color }}></span>
                                                     {pr.label}
                                                 </button>
                                             );
                                         })}
                                     </div>
                                 </div>
+                            </div>
+                        </div>
 
-                                {/* 🟢 Quantity & Unit */}
-                                <div className="lg:col-span-4">
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Quantity / Size</label>
-                                    <div className="flex bg-white rounded-xl border border-gray-300 overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all shadow-sm">
-                                        <input
-                                            type="number" min="0" step="any"
-                                            value={data.quantity}
-                                            onChange={(e) => {
-                                                const val = e.target.value;
-                                                setData(prev => {
-                                                    const updated = { ...prev, quantity: val };
-                                                    const p = parseFloat(prev.unit_price) || 0;
-                                                    const q = parseFloat(val) || 0;
-                                                    if (q > 0 && p > 0) updated.budget = (q * p).toString();
-                                                    return updated;
-                                                });
-                                            }}
-                                            placeholder="0"
-                                            className="w-full bg-transparent px-4 py-3.5 text-[15px] font-bold text-gray-900 outline-none border-none border-r border-gray-200"
-                                        />
-                                        <select
-                                            value={data.unit_type}
-                                            onChange={e => setData("unit_type", e.target.value)}
-                                            className="w-[100px] bg-gray-50 px-2 py-3.5 text-[13.5px] font-bold text-gray-700 outline-none border-none cursor-pointer appearance-none text-center hover:bg-gray-100 transition-colors"
-                                        >
-                                            <option value="piece">Pcs</option>
-                                            <option value="kg">Kg</option>
-                                            <option value="set">Set</option>
-                                            <option value="box">Box</option>
-                                            <option value="sqft">SqFt</option>
-                                        </select>
-                                    </div>
+                        {/* Status & Progress */}
+                        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 text-slate-600">
+                                    <i className="fa-solid fa-spinner text-[15px]"></i>
                                 </div>
-
-                                {/* 🟢 Unit Price */}
-                                <div className="lg:col-span-4">
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Unit Price (TK)</label>
+                                <h3 className="text-[15px] font-semibold text-slate-900">Status &amp; progress</h3>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div>
+                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Current status <span className="text-red-500">*</span></label>
                                     <div className="relative">
-                                        <div className="absolute left-0 top-0 bottom-0 w-12 flex items-center justify-center bg-gray-50 border-r border-gray-200 rounded-l-xl z-10">
-                                            <span className="text-gray-500 font-bold text-[17px]" style={{ fontFamily: 'Arial, sans-serif' }}>৳</span>
-                                        </div>
-                                        <input
-                                            type="number" min="0" step="0.01"
-                                            value={data.unit_price}
-                                            onChange={(e) => {
-                                                const val = e.target.value;
-                                                setData(prev => {
-                                                    const updated = { ...prev, unit_price: val };
-                                                    const p = parseFloat(val) || 0;
-                                                    const q = parseFloat(prev.quantity) || 0;
-                                                    if (q > 0 && p > 0) updated.budget = (q * p).toString();
-                                                    return updated;
-                                                });
-                                            }}
-                                            placeholder="0.00"
-                                            className="w-full rounded-xl border border-gray-300 bg-white pl-14 pr-4 py-3.5 text-[15px] font-bold text-gray-900 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm relative z-0"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* 🟢 Total Budget */}
-                                <div className="lg:col-span-4">
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Total Budget (TK)</label>
-                                    <div className="relative">
-                                        <div className="absolute left-0 top-0 bottom-0 w-12 flex items-center justify-center bg-emerald-50 border-r border-emerald-200 rounded-l-xl z-10">
-                                            <span className="text-emerald-600 font-bold text-[17px]" style={{ fontFamily: 'Arial, sans-serif' }}>৳</span>
-                                        </div>
-                                        <input
-                                            type="number" min="0" step="0.01"
-                                            value={data.budget}
-                                            onChange={e => setData("budget", e.target.value)}
-                                            placeholder="0.00"
-                                            className="w-full rounded-xl border border-gray-300 bg-white pl-14 pr-4 py-3.5 text-[15px] font-black text-emerald-700 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm relative z-0"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* 🟢 Dates */}
-                                <div className="md:col-span-2 lg:col-span-12 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6 mt-1">
-                                    <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Start Date</label>
-                                        <input
-                                            type="date"
-                                            value={data.start_date}
-                                            onChange={e => setData("start_date", e.target.value)}
-                                            className="w-full rounded-xl border border-gray-300 bg-white px-3 py-3.5 text-[14px] font-bold text-gray-700 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[12px] font-bold text-rose-600 uppercase tracking-wider mb-2.5">Deadline <span className="text-rose-500">*</span></label>
-                                        <input
-                                            type="date"
-                                            value={data.deadline}
-                                            onChange={e => setData("deadline", e.target.value)}
-                                            required
-                                            className="w-full rounded-xl border border-rose-200 bg-rose-50/50 hover:bg-rose-100 focus:bg-white px-4 py-3.5 text-[14px] font-bold text-rose-700 outline-none transition-shadow focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 shadow-sm cursor-pointer"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Description */}
-                                <div className="md:col-span-2 lg:col-span-12 mt-1">
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Project Scope / Details</label>
-                                    <textarea
-                                        value={data.description}
-                                        onChange={e => setData("description", e.target.value)}
-                                        rows="3"
-                                        placeholder="Write down project requirements, links, or specific notes..."
-                                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-4 text-[14.5px] font-medium outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 resize-y leading-relaxed text-gray-800 shadow-sm"
-                                    ></textarea>
-                                </div>
-
-                                {/* Status & Progress Block */}
-                                <div className="md:col-span-2 lg:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-gray-100 pt-8 mt-2">
-                                    <div className="bg-gray-50/80 p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-3">Current Status <span className="text-rose-500">*</span></label>
-                                        <select
-                                            value={data.status}
-                                            onChange={e => setData("status", e.target.value)}
-                                            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-[14.5px] font-bold outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm"
-                                        >
+                                        <select value={data.status} onChange={(e) => setData("status", e.target.value)} className={`${inputClass} appearance-none cursor-pointer pr-10`} style={{ backgroundImage: 'none' }}>
                                             <option value="planning">Planning (Not Started)</option>
                                             <option value="in_progress">In Progress (Active)</option>
                                             <option value="on_hold">On Hold (Paused)</option>
                                             <option value="completed">Completed (Done)</option>
                                         </select>
+                                        <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-[12px] pointer-events-none"></i>
                                     </div>
-
-                                    <div className="bg-gray-50/80 p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-center">
-                                        <label className="flex justify-between text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-3">
-                                            <span>Completion Progress</span>
-                                            <span className={`font-black text-[16px] ${data.progress == 100 ? 'text-emerald-600' : 'text-indigo-600'}`}>{data.progress}%</span>
-                                        </label>
-                                        <div className="relative pt-1">
-                                            <input
-                                                type="range" min="0" max="100"
-                                                value={data.progress}
-                                                onChange={e => setData("progress", e.target.value)}
-                                                className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                                            />
-                                            <div className="flex justify-between text-[10px] font-bold text-gray-400 mt-2">
-                                                <span>0%</span>
-                                                <span>50%</span>
-                                                <span>100%</span>
-                                            </div>
+                                </div>
+                                <div>
+                                    <label className="flex justify-between text-[12.5px] font-semibold text-slate-600 mb-2.5">
+                                        <span>Completion progress</span>
+                                        <span className={`font-mono font-bold text-[15px] ${data.progress == 100 ? 'text-emerald-600' : 'text-indigo-600'}`}>{data.progress}%</span>
+                                    </label>
+                                    <div className="relative pt-2">
+                                        <input type="range" min="0" max="100" value={data.progress} onChange={e => setData("progress", e.target.value)} className="ledger-range w-full h-2 bg-slate-200 rounded-full appearance-none cursor-pointer" />
+                                        <div className="flex justify-between text-[10px] font-semibold text-slate-400 mt-2 font-mono">
+                                            <span>0%</span><span>50%</span><span>100%</span>
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* External Links Block */}
-                                <div className="md:col-span-2 lg:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gray-100 pt-6">
-                                    <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
-                                            <i className="fa-brands fa-github mr-1 text-gray-800"></i> Repo / Drive Link
-                                        </label>
-                                        <input
-                                            type="url"
-                                            value={data.repo_link}
-                                            onChange={e => setData("repo_link", e.target.value)}
-                                            placeholder="https://github.com/..."
-                                            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-[14px] font-medium outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
-                                            <i className="fa-solid fa-globe mr-1 text-blue-500"></i> Live URL
-                                        </label>
-                                        <input
-                                            type="url"
-                                            value={data.live_url}
-                                            onChange={e => setData("live_url", e.target.value)}
-                                            placeholder="https://www.example.com"
-                                            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-[14px] font-medium text-blue-600 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm"
-                                        />
-                                    </div>
-                                </div>
-
                             </div>
                         </div>
-                    </section>
 
-                    <div aria-hidden="true" style={{ height: footerHeight ? footerHeight + 16 : 0 }} />
-
-                    {/* Sticky Footer */}
-                    <div ref={footerRef} className="fixed bottom-0 left-0 md:left-[270px] right-0 z-[999] bg-white border-t border-gray-200 shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
-                        <div className="max-w-[1400px] mx-auto px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-
-                            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-5 gap-y-2 text-[13px] font-bold text-gray-500">
-                                <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-lg text-emerald-700 border border-emerald-100 shadow-sm">
-                                    <i className="fa-solid fa-sack-dollar text-emerald-500"></i>
-                                    <span>Budget: <span className="text-[16px] font-black">৳{formatTaka(data.budget)}</span></span>
+                        {/* Notes & Links */}
+                        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 text-slate-600">
+                                    <i className="fa-solid fa-align-left text-[15px]"></i>
                                 </div>
-                                {dLeft !== null && (
-                                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg shadow-sm font-bold border ${dLeft <= 7 ? 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse' : 'bg-gray-100 text-gray-700 border-gray-200'}`}>
-                                        <i className="fa-solid fa-clock"></i>
-                                        <span>{dLeft < 0 ? "Deadline Overdue" : `${dLeft} Days Remaining`}</span>
+                                <h3 className="text-[15px] font-semibold text-slate-900">Notes &amp; links</h3>
+                            </div>
+                            <div className="flex flex-col gap-6">
+                                <div>
+                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Project scope / details</label>
+                                    <div className="quill-wrapper">
+                                        <ReactQuill theme="snow" value={data.description || ''} onChange={(val) => setData("description", val)} />
                                     </div>
-                                )}
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5"><i className="fa-brands fa-github text-slate-400 mr-1"></i> Repo / drive link</label>
+                                        <input type="url" value={data.repo_link} onChange={e => setData("repo_link", e.target.value)} placeholder="https://github.com/..." className={inputClass} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5"><i className="fa-solid fa-globe text-slate-400 mr-1"></i> Live URL</label>
+                                        <input type="url" value={data.live_url} onChange={e => setData("live_url", e.target.value)} placeholder="https://www.example.com" className={inputClass} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Line Items */}
+                        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                            <div className="flex justify-between items-center mb-2 pb-4 border-b border-slate-100">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600">
+                                        <i className="fa-solid fa-boxes-stacked text-[15px]"></i>
+                                    </div>
+                                    <h3 className="text-[15px] font-semibold text-slate-900 m-0">Project items</h3>
+                                </div>
+                                <button type="button" onClick={addItemRow} className="border border-slate-200 bg-white text-slate-700 px-4 py-2.5 rounded-lg text-[13px] font-semibold hover:border-indigo-600 hover:text-indigo-600 shadow-sm transition-colors flex items-center gap-2">
+                                    <i className="fa-solid fa-plus text-[11px]"></i> Add item
+                                </button>
                             </div>
 
-                            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-3 sm:mt-0">
-                                <Link
-                                    href={route('admin.projects.index')}
-                                    className="flex-1 sm:flex-none inline-flex items-center justify-center px-6 py-3 rounded-xl border border-gray-300 bg-white text-gray-700 font-bold text-[14.5px] hover:bg-gray-50 transition-colors shadow-sm"
-                                >
-                                    Cancel
-                                </Link>
-                                <button
-                                    type="submit"
-                                    disabled={processing}
-                                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-indigo-600 text-white font-bold text-[14.5px] hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-md disabled:opacity-70"
-                                >
-                                    {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-cloud-arrow-up"></i> Update Project</>}
-                                </button>
+                            <div className="divide-y divide-slate-100">
+                                {data.items.map((item, index) => (
+                                    <div key={item.id ?? index} className="py-6">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <span className="font-mono text-[12px] font-semibold text-indigo-600 tracking-wide bg-indigo-50 px-2.5 py-1 rounded-md">
+                                                No. {String(index + 1).padStart(2, "0")}
+                                            </span>
+                                            <button type="button" onClick={() => removeItemRow(index)} disabled={data.items.length === 1} className="text-[12px] font-semibold text-slate-400 hover:text-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5">
+                                                <i className="fa-solid fa-trash-can text-[11px]"></i> Remove
+                                            </button>
+                                        </div>
+
+                                        <div className="flex flex-col gap-5">
+                                            <div>
+                                                <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Item name <span className="text-red-500">*</span></label>
+                                                <input type="text" value={item.item_name} onChange={(e) => updateItem(index, "item_name", e.target.value)} placeholder="E.g., Business Card Design" className={inputClass} required />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Description / specifications</label>
+                                                <div className="quill-wrapper">
+                                                    <ReactQuill theme="snow" value={item.description || ''} onChange={(val) => updateItem(index, "description", val)} />
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-wrap items-end gap-x-6 gap-y-4 pt-2">
+                                                <div className="w-20">
+                                                    <label className="block text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Qty</label>
+                                                    <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateItem(index, "quantity", e.target.value)}
+                                                        className="w-full font-mono border-0 border-b-2 border-slate-200 focus:border-indigo-600 outline-none py-1.5 text-[14px] font-semibold text-slate-800 bg-transparent focus:ring-0 transition-colors" placeholder="0" />
+                                                </div>
+                                                <div className="w-24">
+                                                    <label className="block text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Unit</label>
+                                                    <select value={item.unit_type} onChange={e => updateItem(index, "unit_type", e.target.value)}
+                                                        className="w-full border-0 border-b-2 border-slate-200 focus:border-indigo-600 outline-none py-1.5 bg-transparent text-[13px] font-semibold text-slate-800 cursor-pointer focus:ring-0 transition-colors">
+                                                        <option value="piece">Pcs</option><option value="kg">Kg</option><option value="set">Set</option><option value="box">Box</option><option value="sqft">SqFt</option>
+                                                    </select>
+                                                </div>
+                                                <span className="font-mono text-[15px] text-slate-300 pb-2">×</span>
+                                                <div className="w-32">
+                                                    <label className="block text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Unit price</label>
+                                                    <div className="relative">
+                                                        <Taka className="absolute left-0 top-1/2 -translate-y-1/2 text-[13px] text-slate-400" />
+                                                        <input type="number" step="any" min="0" value={item.unit_price} onChange={(e) => updateItem(index, "unit_price", e.target.value)}
+                                                            className="w-full font-mono border-0 border-b-2 border-slate-200 focus:border-indigo-600 outline-none py-1.5 pl-5 text-[14px] font-semibold text-slate-800 bg-transparent text-right focus:ring-0 transition-colors" placeholder="0" />
+                                                    </div>
+                                                </div>
+                                                <span className="font-mono text-[15px] text-slate-300 pb-2">=</span>
+                                                <div className="ml-auto text-right">
+                                                    <label className="block text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Line total</label>
+                                                    <div className="font-mono text-[19px] font-bold text-emerald-600 tabular-nums">
+                                                        <Taka className="text-[13px] text-emerald-600" />{Number(item.total).toLocaleString('en-IN')}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {/* Right Column (Sticky Summary) */}
+                    <div ref={stickyWrapperRef} className="w-full xl:w-[340px] shrink-0 relative">
+                        <div ref={stickyInnerRef} style={stickyStyle} className="flex flex-col gap-6 z-20">
+                            <div className="bg-slate-900 rounded-2xl p-6 sm:p-7 shadow-xl relative overflow-hidden text-white border border-slate-800">
+                                <span className="absolute -right-3 -top-8 text-[130px] leading-none font-mono text-white/[0.03] select-none pointer-events-none">৳</span>
+
+                                <div className="relative">
+                                    <p className="text-[12px] font-semibold text-slate-400 mb-5">Quote summary</p>
+
+                                    <div className="flex justify-between items-center pb-4 border-b border-white/10">
+                                        <span className="text-[13px] text-slate-300">Line items</span>
+                                        <span className="font-mono text-[15px] font-semibold">{data.items.length}</span>
+                                    </div>
+
+                                    <div className="pt-5">
+                                        <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Total estimate</span>
+                                        <div className="flex items-baseline gap-1 font-mono text-[32px] font-bold tracking-tight">
+                                            <Taka className="text-[18px] text-slate-400" />
+                                            <span>{totalBudget.toLocaleString('en-IN')}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Days Remaining Banner */}
+                                    {dLeft !== null && (
+                                        <div className={`mt-5 pt-4 border-t border-white/10 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-semibold border ${dLeft <= 7 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-white/5 text-slate-300 border-white/10'}`}>
+                                            <i className="fa-solid fa-clock text-[12px]"></i>
+                                            <span className="text-[13px] font-mono">{dLeft < 0 ? "Deadline overdue" : `${dLeft} days remaining`}</span>
+                                        </div>
+                                    )}
+
+                                    <div className="mt-7 flex flex-col gap-2.5">
+                                        <button type="submit" disabled={processing} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-lg text-[14px] font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-60">
+                                            {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Saving…</> : <><i className="fa-solid fa-cloud-arrow-up"></i> Update project</>}
+                                        </button>
+                                        <Link href={route('admin.projects.index')} className="w-full text-slate-400 py-3 rounded-lg text-[13px] font-semibold hover:text-white transition-colors border border-white/10 hover:border-white/20 flex items-center justify-center">
+                                            Cancel &amp; go back
+                                        </Link>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-
                 </form>
             </div>
         </AdminLayout>

@@ -756,14 +756,22 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                                 <i className="fa-solid fa-building-columns text-[18px]"></i> Bank / Cash
                                             </label>
                                             <label className={`flex cursor-pointer items-center justify-center gap-2 text-[14px] font-bold transition-all px-4 py-3 border-2 rounded-xl select-none ${payForm.data.payment_source === 'advance' ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-                                                <input type="radio" name="payment_source" value="advance" checked={payForm.data.payment_source === 'advance'} onChange={() => { payForm.setData("payment_source", "advance"); payForm.setData("account_id", ""); }} className="hidden" />
+                                                <input type="radio" name="payment_source" value="advance" checked={payForm.data.payment_source === 'advance'} onChange={() => { payForm.setData("payment_source", "advance"); payForm.setData("account_id", ""); payForm.setData("bank_charge", ""); }} className="hidden" />
                                                 <i className="fa-solid fa-user-tie text-[18px]"></i> Employee Advance
                                             </label>
+                                            <label className={`flex cursor-pointer items-center justify-center gap-2 px-4 py-3 border-2 rounded-xl font-bold ${payForm.data.payment_source === 'wallet' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'}`}>
+                                                <input type="radio" name="payment_source" value="wallet" checked={payForm.data.payment_source === 'wallet'} onChange={() => payForm.setData({ ...payForm.data, payment_source: 'wallet', account_id: '', advance_user_id: '', bank_charge: '', pay_amount: Math.min(selectedTotalDue, Number(selectedVendor.wallet_balance || 0)) })} className="hidden" />
+                                                Vendor Advance (Wallet)
+                                            </label>
                                         </div>
+                                        {Number(selectedVendor.wallet_balance) > 0 && <p className="mt-3 text-sm text-purple-700">Already paid to vendor: ৳{Number(selectedVendor.wallet_balance).toLocaleString('en-IN')}. Select Vendor Advance (Wallet) to settle bills using this money. Bank / Cash records a new payment.</p>}
+                                        {payForm.errors.payment_source && <p className="text-red-600">{payForm.errors.payment_source}</p>}
                                     </div>
 
                                     <div className="mb-6">
-                                        {payForm.data.payment_source === 'account' ? (
+                                        {payForm.data.payment_source === 'wallet' ? (
+                                            <p className="text-sm text-purple-700">This uses the existing vendor advance. No new bank/cash debit or cash transaction will be created. Available: ৳{Number(selectedVendor.wallet_balance || 0).toLocaleString('en-IN')}.</p>
+                                        ) : payForm.data.payment_source === 'account' ? (
                                             <>
                                                 <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Select Account <span className="text-red-500">*</span></label>
                                                 <div className="relative">

@@ -52,7 +52,7 @@ class AdvanceController extends Controller
         ];
         $totals['total_due'] = $totals['total_given'] - $totals['total_expensed'] - $totals['total_returned'];
 
-        // 4. Pagination Handling (Fixed the Clone issue here)
+        // 4. Pagination Handling
         if ($request->input('per_page') === 'all') {
             $totalCount = (clone $query)->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
@@ -65,12 +65,33 @@ class AdvanceController extends Controller
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->get();
         $employees = User::whereHas('employeeProfile')->select('id', 'name')->get();
 
+        $employeeBalances = User::select('id', 'name')
+            ->has('advances')
+            ->withSum('advances', 'amount')
+            ->withSum('advances', 'settled_amount')
+            ->withSum('advances', 'returned_amount')
+            ->get()
+            ->map(function ($user) {
+                $given = (float)($user->advances_sum_amount ?? 0);
+                $settled = (float)($user->advances_sum_settled_amount ?? 0);
+                $returned = (float)($user->advances_sum_returned_amount ?? 0);
+                return [
+                    'user_id' => $user->id,
+                    'name' => $user->name,
+                    'total_due' => round($given - ($settled + $returned), 2)
+                ];
+            })
+            ->filter(fn($u) => $u['total_due'] > 0)
+            ->sortByDesc('total_due')
+            ->values();
+
         return Inertia::render('Admin/Advances/Index', [
             'advances'  => $advances,
             'filters'   => $request->only('search', 'per_page', 'user_id', 'account_id'),
             'accounts'  => $accounts,
             'employees' => $employees,
             'totals'    => $totals,
+            'employeeBalances' => $employeeBalances,
         ]);
     }
 

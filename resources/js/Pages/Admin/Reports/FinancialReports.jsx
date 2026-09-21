@@ -3,13 +3,72 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 
+/* ---------- Design tokens ---------- */
+const fmt = (num) => Number(num || 0).toLocaleString('en-IN');
+const darkInput = "rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[13px] font-medium text-white outline-none transition [color-scheme:dark] hover:bg-white/10 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/30 cursor-pointer";
+const th = "px-5 py-3.5 text-[12.5px] font-semibold text-slate-500";
+const Bn = ({ children }) => <span className="block text-[11.5px] font-medium text-slate-400">{children}</span>;
+
+/* Defined outside the page so typing in search never remounts them */
+const Toolbar = ({ placeholder, value, onChange, onCsv, onPrint }) => (
+    <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-4 md:flex-row md:items-center md:justify-between">
+        <div className="relative w-full md:w-[320px]">
+            <i className="fa-solid fa-magnifying-glass pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[13px] text-slate-400"></i>
+            <input
+                type="text" placeholder={placeholder} value={value} onChange={onChange}
+                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-[13.5px] font-medium text-slate-800 placeholder:text-slate-400 outline-none transition hover:border-slate-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+            />
+        </div>
+        <div className="flex items-center gap-2">
+            <button onClick={onCsv} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
+                <i className="fa-solid fa-file-csv text-emerald-500"></i> Export CSV
+            </button>
+            <button onClick={onPrint} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
+                <i className="fa-solid fa-print text-slate-400"></i> Print / PDF
+            </button>
+        </div>
+    </div>
+);
+
+const EmptyRow = ({ cols, icon, text }) => (
+    <tr>
+        <td colSpan={cols} className="px-6 py-16 text-center">
+            <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-400"><i className={icon}></i></span>
+            <p className="text-[14.5px] font-semibold text-slate-700">{text}</p>
+        </td>
+    </tr>
+);
+
+const Tile = ({ label, bn, value, tone, op }) => (
+    <div className="relative flex flex-col justify-center rounded-xl border border-slate-200 bg-white p-4">
+        <span className="text-[12.5px] font-semibold text-slate-600">{label}</span>
+        <span className="text-[11.5px] text-slate-400">{bn}</span>
+        <span className={`mt-2 text-[20px] font-extrabold leading-none tabular-nums ${tone}`}>৳ {fmt(value)}</span>
+        {op && <span className="absolute -right-3 top-1/2 z-10 hidden h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-[13px] font-bold text-slate-500 md:flex">{op}</span>}
+    </div>
+);
+
+const MiniCard = ({ icon, label, bn, value, note, tone, className = "" }) => (
+    <div className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm ${className}`}>
+        <div className="flex items-center gap-3">
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[15px] ${tone.icon}`}><i className={icon}></i></span>
+            <div>
+                <p className="text-[14px] font-semibold text-slate-800">{label}</p>
+                <p className="text-[12px] text-slate-400">{bn}</p>
+            </div>
+        </div>
+        <p className={`mt-5 text-[30px] font-extrabold leading-none tracking-tight tabular-nums ${tone.value}`}>{value}</p>
+        <p className="mt-2.5 text-[13px] leading-relaxed text-slate-500">{note}</p>
+    </div>
+);
+
 export default function FinancialReports({ clientsReport = [], monthlyReport = [], summary = {}, filters = {} }) {
-    /* State Management */
+    /* State management */
     const [activeTab, setActiveTab] = useState('profit_loss');
     const [searchClient, setSearchClient] = useState('');
     const [searchMonth, setSearchMonth] = useState('');
 
-    // Date Filters State
+    // Date filters state
     const [startDate, setStartDate] = useState(filters.start_date || '');
     const [endDate, setEndDate] = useState(filters.end_date || '');
     const [filterYear, setFilterYear] = useState(filters.year || '');
@@ -20,7 +79,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 10 }, (_, index) => currentYear - 5 + index).sort((a, b) => b - a);
 
-    /* 🟢 AUTOMATIC Filtering */
+    /* Automatic filtering */
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
@@ -51,7 +110,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
         setFilterMonth('');
     };
 
-    /* Export Helpers */
+    /* Export helpers */
     const handlePrint = (elementId, title) => {
         const tableContent = document.getElementById(elementId);
         if (!tableContent) return;
@@ -124,7 +183,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
         downloadCSV(headers + rows.join("\n"), `Monthly_Projects_Report_${new Date().toISOString().slice(0, 10)}.csv`);
     };
 
-    /* Computed Data & Totals */
+    /* Computed data and totals */
     const filteredClients = clientsReport.filter(c => (c.client_name || '').toLowerCase().includes(searchClient.toLowerCase()));
     const filteredMonths = monthlyReport.filter(m => (m.month || '').toLowerCase().includes(searchMonth.toLowerCase()));
 
@@ -140,393 +199,266 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
         return totals;
     }, { budget: 0, expense: 0, profit: 0 });
 
-    const fmt = (num) => Number(num || 0).toLocaleString('en-IN');
+    const profitable = Number(summary.net_actual_profit) >= 0;
+    const cashPositive = Number(summary.net_cash_flow) >= 0;
+    const hasFilters = startDate || endDate || filterYear || filterMonth;
 
     return (
         <AdminLayout>
             <Head title="Financial Reports (আর্থিক প্রতিবেদন)"/>
 
             <style dangerouslySetInnerHTML={{__html: `
-                .custom-table-scroll::-webkit-scrollbar { height: 8px; }
-                .custom-table-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
-                .custom-table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
-                .custom-table-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+                .soft-scroll::-webkit-scrollbar { height: 8px; }
+                .soft-scroll::-webkit-scrollbar-track { background: transparent; }
+                .soft-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
             `}} />
 
-            <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-12 mt-2 px-2">
+            <div className="mx-auto mt-2 flex w-full max-w-[1600px] flex-col gap-6 px-2 pb-12">
 
-                {/* Header & Date Filters */}
-                <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6">
-                    <div>
-                        <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-[var(--accent)]">
-                            <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]"></span> Business Analytics (বিজনেস অ্যানালিটিক্স)
-                        </div>
-                        <h1 className="text-[28px] font-extrabold text-gray-900 tracking-tight">Financial Reports <span className="text-gray-400 font-medium text-[20px]">(আর্থিক প্রতিবেদন)</span></h1>
-                        <p className="text-[14px] text-gray-500 mt-1.5 max-w-lg">Track Actual Cash Flow, Market Dues, and Monthly Profitability.</p>
+                {/* Header with filters */}
+                <div className="overflow-hidden rounded-2xl bg-slate-900 text-white">
+                    <div className="px-6 py-6 sm:px-8 sm:py-7">
+                        <h1 className="text-[28px] font-extrabold leading-none tracking-tight sm:text-[34px]">
+                            Financial reports <span className="text-[20px] font-medium text-slate-400">(আর্থিক প্রতিবেদন)</span>
+                        </h1>
+                        <p className="mt-2 max-w-2xl text-[14px] text-slate-400">Track actual cash flow, market dues and monthly profitability. Pick a period below and the numbers update by themselves.</p>
                     </div>
-
-                    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
-                        <div className="flex items-center gap-2">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                                <i className="fa-solid fa-calendar-days text-[13px]"></i>
-                            </div>
-                            <select
-                                value={filterYear}
-                                onChange={(e) => { setFilterYear(e.target.value); setFilterMonth(''); setStartDate(''); setEndDate(''); }}
-                                className="appearance-none w-[125px] rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] font-semibold outline-none transition-shadow focus:border-indigo-500 focus:bg-white cursor-pointer"
-                            >
-                                <option value="">All Years (সব)</option>
-                                {years.map(y => <option key={y} value={y}>{y}</option>)}
-                            </select>
-                        </div>
-
+                    <div className="flex flex-wrap items-center gap-3 border-t border-white/10 bg-white/[0.03] px-6 py-4 sm:px-8">
+                        <span className="flex items-center gap-2 text-[13px] font-medium text-slate-400"><i className="fa-solid fa-calendar-days"></i> Period</span>
+                        <select
+                            value={filterYear}
+                            onChange={(e) => { setFilterYear(e.target.value); setFilterMonth(''); setStartDate(''); setEndDate(''); }}
+                            className={`${darkInput} w-[140px]`}
+                        >
+                            <option value="" className="text-slate-900">All years (সব)</option>
+                            {years.map(y => <option key={y} value={y} className="text-slate-900">{y}</option>)}
+                        </select>
                         <input
-                            type="month"
-                            value={filterMonth}
+                            type="month" value={filterMonth}
                             onChange={(e) => { setFilterMonth(e.target.value); setFilterYear(''); setStartDate(''); setEndDate(''); }}
-                            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] font-semibold outline-none focus:border-indigo-500 focus:bg-white cursor-pointer"
-                            title="Filter by month"
+                            className={darkInput} title="Filter by month"
                         />
-
-                        <div className="h-8 w-px bg-gray-200 hidden md:block mx-1"></div>
-
+                        <span className="hidden h-6 w-px bg-white/10 md:block"></span>
                         <div className="flex items-center gap-2">
-                            <input
-                                type="date" value={startDate}
-                                onChange={(e) => { setStartDate(e.target.value); setFilterYear(''); setFilterMonth(''); }}
-                                className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] font-medium outline-none transition-shadow focus:border-indigo-500 focus:bg-white cursor-pointer"
-                            />
-                            <span className="text-gray-400 font-bold">–</span>
-                            <input
-                                type="date" value={endDate}
-                                onChange={(e) => { setEndDate(e.target.value); setFilterYear(''); setFilterMonth(''); }}
-                                className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] font-medium outline-none transition-shadow focus:border-indigo-500 focus:bg-white cursor-pointer"
-                            />
+                            <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setFilterYear(''); setFilterMonth(''); }} className={darkInput} />
+                            <span className="text-slate-500">–</span>
+                            <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setFilterYear(''); setFilterMonth(''); }} className={darkInput} />
                         </div>
-
-                        {(startDate || endDate || filterYear || filterMonth) && (
-                            <button onClick={resetFilters} className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-[13px] font-bold text-red-600 transition-colors hover:bg-red-100 ml-1">
+                        {hasFilters && (
+                            <button onClick={resetFilters} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-[13px] font-semibold text-rose-300 transition hover:bg-rose-500/10">
                                 <i className="fa-solid fa-xmark"></i> Clear (মুছুন)
                             </button>
                         )}
                     </div>
                 </div>
 
-                {/* 🟢 NEW: ACTUAL NET PROFIT CARD (আসল লাভ) */}
-                <div className={`flex flex-col rounded-3xl border p-6 sm:p-8 shadow-sm relative overflow-hidden ${Number(summary.net_actual_profit) >= 0 ? 'border-teal-200 bg-gradient-to-br from-white to-teal-50/50' : 'border-red-200 bg-gradient-to-br from-white to-red-50/50'}`}>
-                    <i className={`fa-solid fa-gem absolute -right-6 -bottom-6 text-[120px] opacity-[0.03] ${Number(summary.net_actual_profit) >= 0 ? 'text-teal-900' : 'text-red-900'}`}></i>
-
-                    <div className="flex items-start justify-between relative z-10 mb-6">
-                        <div>
-                            <div className={`inline-flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[12px] font-extrabold uppercase tracking-wider mb-2 border ${Number(summary.net_actual_profit) >= 0 ? 'bg-teal-100 text-teal-800 border-teal-200' : 'bg-red-100 text-red-800 border-red-200'}`}>
-                                <i className="fa-solid fa-chart-line"></i> Actual Net Profit (আসল লাভ)
+                {/* Hero: actual net profit */}
+                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div className="flex flex-col gap-5 p-6 sm:p-8 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="max-w-2xl">
+                            <div className="flex items-center gap-2.5">
+                                <span className={`flex h-9 w-9 items-center justify-center rounded-lg text-[14px] ${profitable ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}><i className="fa-solid fa-chart-line"></i></span>
+                                <h2 className="text-[18px] font-bold text-slate-900">Actual net profit <span className="font-medium text-slate-400">(আসল লাভ)</span></h2>
                             </div>
-                            <p className="text-[13.5px] font-semibold text-gray-500 max-w-3xl leading-relaxed">
+                            <p className="mt-3 text-[13.5px] leading-relaxed text-slate-500">
                                 এটি আপনার ব্যবসার প্রকৃত লাভ। আপনি মোট কত টাকার কাজ (Invoice) করেছেন, তার থেকে ওই কাজগুলো করতে বা অফিস চালাতে আপনার মোট কত টাকার খরচ (Bills/Salary) হয়েছে— তার নিখুঁত হিসাব।
                             </p>
                         </div>
-                        <h2 className={`text-[36px] sm:text-[42px] font-black m-0 tabular-nums tracking-tight ${Number(summary.net_actual_profit) >= 0 ? 'text-teal-700' : 'text-red-700'}`}>
+                        <p className={`text-[42px] font-extrabold leading-none tracking-tight tabular-nums sm:text-[52px] ${profitable ? 'text-emerald-600' : 'text-rose-600'}`}>
                             {Number(summary.net_actual_profit) > 0 ? '+' : ''}৳ {fmt(summary.net_actual_profit)}
-                        </h2>
-                    </div>
-
-                    {/* Formula Breakdown */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 relative z-10 items-stretch">
-                        <div className="bg-white border border-blue-100 rounded-2xl p-4 flex flex-col justify-center shadow-sm relative">
-                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Total Invoiced (আয়)</span>
-                            <span className="text-[18px] font-black text-blue-700 tabular-nums">৳ {fmt(summary.accrual_revenue)}</span>
-                            <div className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-gray-400 font-bold border border-gray-200 z-10">-</div>
-                        </div>
-                        <div className="bg-white border border-rose-100 rounded-2xl p-4 flex flex-col justify-center shadow-sm relative">
-                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Project Bills (প্রজেক্ট খরচ)</span>
-                            <span className="text-[18px] font-black text-rose-600 tabular-nums">৳ {fmt(summary.accrual_project_cost)}</span>
-                            <div className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-gray-400 font-bold border border-gray-200 z-10">-</div>
-                        </div>
-                        <div className="bg-white border border-rose-100 rounded-2xl p-4 flex flex-col justify-center shadow-sm relative">
-                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Office Exp (অফিস খরচ)</span>
-                            <span className="text-[18px] font-black text-rose-600 tabular-nums">৳ {fmt(summary.accrual_office_cost)}</span>
-                            <div className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-gray-400 font-bold border border-gray-200 z-10">-</div>
-                        </div>
-                        <div className="bg-white border border-rose-100 rounded-2xl p-4 flex flex-col justify-center shadow-sm relative">
-                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Salaries (বেতন)</span>
-                            <span className="text-[18px] font-black text-rose-600 tabular-nums">৳ {fmt(summary.accrual_salary_cost)}</span>
-                            <div className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 items-center justify-center rounded-full bg-teal-100 text-teal-600 font-bold border border-teal-200 z-10">=</div>
-                        </div>
-                        <div className={`border rounded-2xl p-4 flex flex-col justify-center shadow-sm ${Number(summary.net_actual_profit) >= 0 ? 'bg-teal-50 border-teal-200' : 'bg-red-50 border-red-200'}`}>
-                            <span className={`text-[11px] font-bold uppercase tracking-wider mb-1 ${Number(summary.net_actual_profit) >= 0 ? 'text-teal-700' : 'text-red-700'}`}>Net Profit (নীট লাভ)</span>
-                            <span className={`text-[20px] font-black tabular-nums ${Number(summary.net_actual_profit) >= 0 ? 'text-teal-800' : 'text-red-800'}`}>৳ {fmt(summary.net_actual_profit)}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Second Row: Cash Flow & Dues Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-
-                    {/* Net Cash Flow (হাতে থাকা ক্যাশ) */}
-                    <div className={`col-span-1 lg:col-span-2 flex flex-col justify-center gap-2 rounded-3xl border p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden ${Number(summary.net_cash_flow) >= 0 ? 'border-purple-200 bg-purple-50/50' : 'border-gray-200 bg-gray-100'}`}>
-                        <i className="fa-solid fa-wallet absolute -right-4 -bottom-4 text-[80px] opacity-10 text-purple-600"></i>
-                        <div className={`flex items-center gap-2.5 mb-1 relative z-10 ${Number(summary.net_cash_flow) >= 0 ? 'text-purple-600' : 'text-gray-600'}`}>
-                            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${Number(summary.net_cash_flow) >= 0 ? 'bg-purple-100' : 'bg-gray-200'}`}>
-                                <i className="fa-solid fa-money-bill-transfer text-[16px]"></i>
-                            </div>
-                            <p className="text-[12px] font-bold uppercase tracking-wider opacity-90">Net Cash Flow <span className="normal-case opacity-80 font-medium">(হাতে থাকা ক্যাশ)</span></p>
-                        </div>
-                        <h3 className={`text-[28px] font-black m-0 tabular-nums tracking-tight relative z-10 ${Number(summary.net_cash_flow) >= 0 ? 'text-purple-800' : 'text-gray-800'}`}>
-                            {Number(summary.net_cash_flow) > 0 ? '+' : ''}৳ {fmt(summary.net_cash_flow)}
-                        </h3>
-                        <p className={`text-[12.5px] font-medium relative z-10 ${Number(summary.net_cash_flow) >= 0 ? 'text-purple-700' : 'text-gray-600'}`}>
-                            টোটাল যত টাকা ক্যাশ ঢুকেছে তার থেকে টোটাল যত টাকা ক্যাশ বের হয়েছে তার বিয়োগফল।
                         </p>
                     </div>
 
-                    {/* Market Due Cards (Receivables & Payables) */}
-                    <div className="flex flex-col gap-2 rounded-3xl border border-amber-200 bg-amber-50/40 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                        <i className="fa-solid fa-hand-holding-dollar absolute -right-4 -bottom-4 text-[80px] text-amber-100 opacity-60"></i>
-                        <div className="flex items-center gap-2.5 text-amber-600 mb-1 relative z-10">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100"><i className="fa-solid fa-file-invoice-dollar text-[16px]"></i></div>
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-amber-600/90">Market Receivables <span className="normal-case opacity-80 font-medium">(পাওনা টাকা)</span></p>
+                    <div className="grid grid-cols-2 gap-3 border-t border-slate-100 bg-slate-50 p-5 sm:px-8 md:grid-cols-5">
+                        <Tile label="Total invoiced" bn="(আয়)" value={summary.accrual_revenue} tone="text-blue-700" op="−" />
+                        <Tile label="Project bills" bn="(প্রজেক্ট খরচ)" value={summary.accrual_project_cost} tone="text-rose-600" op="−" />
+                        <Tile label="Office expenses" bn="(অফিস খরচ)" value={summary.accrual_office_cost} tone="text-rose-600" op="−" />
+                        <Tile label="Salaries" bn="(বেতন)" value={summary.accrual_salary_cost} tone="text-rose-600" op="=" />
+                        <div className={`col-span-2 flex flex-col justify-center rounded-xl p-4 text-white md:col-span-1 ${profitable ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+                            <span className="text-[12.5px] font-semibold text-white/80">Net profit</span>
+                            <span className="text-[11.5px] text-white/60">(নীট লাভ)</span>
+                            <span className="mt-2 text-[22px] font-extrabold leading-none tabular-nums">৳ {fmt(summary.net_actual_profit)}</span>
                         </div>
-                        <h3 className="text-[26px] font-black text-amber-800 m-0 tabular-nums tracking-tight relative z-10">৳ {fmt(summary.client_due)}</h3>
-                        <p className="text-[12px] text-amber-700 font-medium relative z-10">ক্লায়েন্টদের কাছে মোট পাওনা।</p>
                     </div>
+                </section>
 
-                    <div className="flex flex-col gap-2 rounded-3xl border border-red-200 bg-red-50/40 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                        <i className="fa-solid fa-money-check-dollar absolute -right-4 -bottom-4 text-[80px] text-red-100 opacity-60"></i>
-                        <div className="flex items-center gap-2.5 text-red-600 mb-1 relative z-10">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100"><i className="fa-solid fa-file-signature text-[16px]"></i></div>
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-red-600/90">Market Payables <span className="normal-case opacity-80 font-medium">(দেনা/বকেয়া)</span></p>
-                        </div>
-                        <h3 className="text-[26px] font-black text-red-800 m-0 tabular-nums tracking-tight relative z-10">৳ {fmt(summary.vendor_due)}</h3>
-                        <p className="text-[12px] text-red-700 font-medium relative z-10">ভেন্ডরদের মোট পরিশোধযোগ্য বকেয়া।</p>
-                    </div>
+                {/* Cash flow and market dues */}
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+                    <MiniCard
+                        className="lg:col-span-2"
+                        icon="fa-solid fa-money-bill-transfer" label="Net cash flow" bn="(হাতে থাকা ক্যাশ)"
+                        value={`${Number(summary.net_cash_flow) > 0 ? '+' : ''}৳ ${fmt(summary.net_cash_flow)}`}
+                        note="টোটাল যত টাকা ক্যাশ ঢুকেছে তার থেকে টোটাল যত টাকা ক্যাশ বের হয়েছে তার বিয়োগফল।"
+                        tone={cashPositive ? { icon: 'bg-violet-50 text-violet-600', value: 'text-violet-700' } : { icon: 'bg-slate-100 text-slate-600', value: 'text-slate-700' }}
+                    />
+                    <MiniCard
+                        icon="fa-solid fa-file-invoice-dollar" label="Market receivables" bn="(পাওনা টাকা)"
+                        value={`৳ ${fmt(summary.client_due)}`} note="ক্লায়েন্টদের কাছে মোট পাওনা।"
+                        tone={{ icon: 'bg-amber-50 text-amber-600', value: 'text-amber-700' }}
+                    />
+                    <MiniCard
+                        icon="fa-solid fa-file-signature" label="Market payables" bn="(দেনা/বকেয়া)"
+                        value={`৳ ${fmt(summary.vendor_due)}`} note="ভেন্ডরদের মোট পরিশোধযোগ্য বকেয়া।"
+                        tone={{ icon: 'bg-rose-50 text-rose-600', value: 'text-rose-700' }}
+                    />
                 </div>
 
-                {/* Tabs & Main Content */}
-                <div className="rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col mt-2">
-
-                    <div className="bg-white px-6 pt-5 pb-1 border-b border-gray-100">
-                        <div className="inline-flex p-1.5 space-x-1 bg-gray-100/80 border border-gray-200/60 rounded-xl w-max">
+                {/* Tabs and tables */}
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div className="flex gap-1 overflow-x-auto border-b border-slate-200 px-4 pt-2 sm:px-6">
+                        {[
+                            ['profit_loss', 'fa-solid fa-users', 'Client-wise summary', '(ক্লায়েন্ট রিপোর্ট)'],
+                            ['monthly', 'fa-regular fa-calendar-days', 'Project accrual', '(প্রজেক্ট রিপোর্ট)'],
+                        ].map(([id, icon, label, bn]) => (
                             <button
-                                onClick={() => setActiveTab('profit_loss')}
-                                className={`flex items-center gap-2 px-6 py-2.5 text-[13px] font-bold rounded-lg transition-all ${activeTab === 'profit_loss' ? 'bg-white text-[var(--accent)] shadow-sm border border-gray-200/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50 border border-transparent'}`}
+                                key={id} onClick={() => setActiveTab(id)}
+                                className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-3.5 text-[14px] font-semibold transition ${activeTab === id ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
                             >
-                                <i className="fa-solid fa-users text-[12px]"></i> Client-Wise Summary (ক্লায়েন্ট রিপোর্ট)
+                                <i className={`${icon} text-[13px]`}></i>{label}<span className="hidden font-medium text-slate-400 sm:inline">{bn}</span>
                             </button>
-                            <button
-                                onClick={() => setActiveTab('monthly')}
-                                className={`flex items-center gap-2 px-6 py-2.5 text-[13px] font-bold rounded-lg transition-all ${activeTab === 'monthly' ? 'bg-white text-[var(--accent)] shadow-sm border border-gray-200/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50 border border-transparent'}`}
-                            >
-                                <i className="fa-regular fa-calendar-days text-[12px]"></i> Project Accrual (প্রজেক্ট রিপোর্ট)
-                            </button>
-                        </div>
+                        ))}
                     </div>
 
-                    {/* Tab 1: Client-Wise Report Section */}
+                    {/* Tab 1: client-wise */}
                     {activeTab === 'profit_loss' && (
-                        <div className="animate-[fadeIn_0.2s_ease-out]">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-4 bg-gray-50/50 border-b border-gray-100">
-                                <div className="relative w-full md:w-[320px]">
-                                    <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
-                                    <input
-                                        type="text"
-                                        placeholder="Search Client (ক্লায়েন্ট খুঁজুন)..."
-                                        value={searchClient}
-                                        onChange={(e) => setSearchClient(e.target.value)}
-                                        className="w-full rounded-xl border border-gray-300 py-2.5 pl-9 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent)]/10 bg-white"
-                                    />
-                                </div>
-                                <div className="flex items-center gap-2.5">
-                                    <button onClick={exportClientCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 shadow-sm">
-                                        <i className="fas fa-file-csv"></i> Export CSV
-                                    </button>
-                                    <button onClick={() => handlePrint('client-report-table', 'Client-Wise Profitability Report')} className="flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm">
-                                        <i className="fas fa-print text-gray-500"></i> Print / PDF
-                                    </button>
-                                </div>
-                            </div>
+                        <div style={{ animation: 'fadeIn .2s ease-out' }}>
+                            <Toolbar
+                                placeholder="Search client (ক্লায়েন্ট খুঁজুন)…" value={searchClient}
+                                onChange={(e) => setSearchClient(e.target.value)} onCsv={exportClientCSV}
+                                onPrint={() => handlePrint('client-report-table', 'Client-Wise Profitability Report')}
+                            />
 
-                            <div className="overflow-x-auto custom-table-scroll pb-2">
-                                <table id="client-report-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1200px]">
-                                    <thead className="bg-[#f6f6f7] text-[10.5px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
+                            <div className="soft-scroll overflow-x-auto">
+                                <table id="client-report-table" className="w-full min-w-[1200px] whitespace-nowrap border-collapse text-left">
+                                    <thead className="border-b border-slate-200 bg-slate-50">
                                         <tr>
-                                            <th className="px-6 py-4">Client Name <br/><span className="text-[10px] font-medium opacity-80 normal-case">(ক্লায়েন্টের নাম)</span></th>
-                                            <th className="px-6 py-4 text-center">Projects <br/><span className="text-[10px] font-medium opacity-80 normal-case">(প্রজেক্টস)</span></th>
-                                            <th className="px-6 py-4 text-right">Project Budget <br/><span className="text-[10px] font-medium opacity-80 normal-case">(বাজেট)</span></th>
-                                            <th className="px-6 py-4 text-right">Project Cost <br/><span className="text-[10px] font-medium opacity-80 normal-case">(খরচ)</span></th>
-                                            <th className="px-6 py-4 text-center border-l border-gray-200">Invoices <br/><span className="text-[10px] font-medium opacity-80 normal-case">(ইনভয়েস)</span></th>
-                                            <th className="px-6 py-4 text-right">Total Billed <br/><span className="text-[10px] font-medium opacity-80 normal-case">(মোট বিল)</span></th>
-                                            <th className="px-6 py-4 text-right bg-emerald-50/50">Received (Paid) <br/><span className="text-[10px] font-medium opacity-80 normal-case">(প্রাপ্তি)</span></th>
-                                            <th className="px-6 py-4 text-right bg-rose-50/50">Net Due <br/><span className="text-[10px] font-medium opacity-80 normal-case">(বকেয়া)</span></th>
+                                            <th className={th}>Client name<Bn>(ক্লায়েন্টের নাম)</Bn></th>
+                                            <th className={`${th} text-center`}>Projects<Bn>(প্রজেক্টস)</Bn></th>
+                                            <th className={`${th} text-right`}>Project budget<Bn>(বাজেট)</Bn></th>
+                                            <th className={`${th} text-right`}>Project cost<Bn>(খরচ)</Bn></th>
+                                            <th className={`${th} border-l border-slate-200 text-center`}>Invoices<Bn>(ইনভয়েস)</Bn></th>
+                                            <th className={`${th} text-right`}>Total billed<Bn>(মোট বিল)</Bn></th>
+                                            <th className={`${th} bg-emerald-50/60 text-right`}>Received<Bn>(প্রাপ্তি)</Bn></th>
+                                            <th className={`${th} bg-rose-50/60 text-right`}>Net due<Bn>(বকেয়া)</Bn></th>
                                         </tr>
                                     </thead>
-                                    <tbody className="text-[13.5px] text-[#202223] divide-y divide-gray-100">
-                                        {filteredClients.length > 0 ? (
-                                            filteredClients.map((client) => (
-                                                <tr key={client.client_name} className="hover:bg-gray-50/60 transition-colors">
-                                                    <td className="px-6 py-4">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 text-[12px] font-bold uppercase border border-blue-100">
-                                                                {(client.client_name || '?').charAt(0)}
-                                                            </div>
-                                                            <span className="font-bold text-gray-900">{client.client_name}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-center">
-                                                        <span className="inline-flex items-center justify-center rounded-md bg-gray-100 border border-gray-200 text-gray-700 px-2.5 py-1 text-[11.5px] font-bold">
-                                                            {fmt(client.total_projects)}
+                                    <tbody className="divide-y divide-slate-100 text-[13.5px] text-slate-800">
+                                        {filteredClients.length > 0 ? filteredClients.map((client) => (
+                                            <tr key={client.client_name} className="transition-colors hover:bg-slate-50/70">
+                                                <td className="px-5 py-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-[13px] font-bold uppercase text-indigo-700">
+                                                            {(client.client_name || '?').charAt(0)}
                                                         </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right font-bold text-blue-600 tabular-nums">৳ {fmt(client.total_budget)}</td>
-                                                    <td className="px-6 py-4 text-right font-bold text-orange-500 tabular-nums">৳ {fmt(client.total_expense)}</td>
-
-                                                    <td className="px-6 py-4 text-center border-l border-gray-100">
-                                                        <span className="inline-flex items-center justify-center rounded-md bg-purple-50 border border-purple-100 text-purple-700 px-2.5 py-1 text-[11.5px] font-bold">
-                                                            {fmt(client.total_invoices)}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right font-bold text-purple-700 tabular-nums">৳ {fmt(client.total_billed)}</td>
-                                                    <td className="px-6 py-4 text-right font-bold text-emerald-600 tabular-nums bg-emerald-50/30">৳ {fmt(client.total_paid)}</td>
-                                                    <td className={`px-6 py-4 text-right font-black text-[14.5px] tabular-nums bg-rose-50/30 ${Number(client.total_due) > 0 ? "text-rose-600" : "text-gray-400"}`}>
-                                                        ৳ {fmt(client.total_due)}
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr>
-                                                <td colSpan="8" className="px-6 py-16 text-center text-gray-500">
-                                                    <div className="flex flex-col items-center justify-center">
-                                                        <i className="fa-solid fa-users-slash text-4xl text-gray-300 mb-3"></i>
-                                                        <p className="text-[14px] font-bold text-gray-600">No clients found for this period.</p>
+                                                        <span className="font-bold text-slate-900">{client.client_name}</span>
                                                     </div>
                                                 </td>
+                                                <td className="px-5 py-4 text-center">
+                                                    <span className="inline-flex min-w-[32px] justify-center rounded-md bg-slate-100 px-2 py-1 text-[12px] font-bold tabular-nums text-slate-700">{fmt(client.total_projects)}</span>
+                                                </td>
+                                                <td className="px-5 py-4 text-right font-bold tabular-nums text-blue-600">৳ {fmt(client.total_budget)}</td>
+                                                <td className="px-5 py-4 text-right font-bold tabular-nums text-orange-500">৳ {fmt(client.total_expense)}</td>
+                                                <td className="border-l border-slate-100 px-5 py-4 text-center">
+                                                    <span className="inline-flex min-w-[32px] justify-center rounded-md bg-violet-50 px-2 py-1 text-[12px] font-bold tabular-nums text-violet-700">{fmt(client.total_invoices)}</span>
+                                                </td>
+                                                <td className="px-5 py-4 text-right font-bold tabular-nums text-violet-700">৳ {fmt(client.total_billed)}</td>
+                                                <td className="bg-emerald-50/30 px-5 py-4 text-right font-bold tabular-nums text-emerald-600">৳ {fmt(client.total_paid)}</td>
+                                                <td className={`bg-rose-50/30 px-5 py-4 text-right text-[14.5px] font-extrabold tabular-nums ${Number(client.total_due) > 0 ? 'text-rose-600' : 'text-slate-400'}`}>৳ {fmt(client.total_due)}</td>
                                             </tr>
-                                        )}
+                                        )) : <EmptyRow cols={8} icon="fa-solid fa-users-slash" text="No clients found for this period." />}
                                     </tbody>
-                                    {filteredClients.length > 0 && <tfoot className="border-t-2 border-gray-300 bg-slate-100 text-[13px] font-black text-slate-800">
-                                        <tr>
-                                            <td className="px-6 py-4">GRAND TOTAL <br/><span className="text-[10px] font-bold opacity-80">(সর্বমোট)</span></td>
-                                            <td className="px-6 py-4 text-center">{fmt(clientTotals.total_projects)}</td>
-                                            <td className="px-6 py-4 text-right">৳ {fmt(clientTotals.total_budget)}</td>
-                                            <td className="px-6 py-4 text-right">৳ {fmt(clientTotals.total_expense)}</td>
-                                            <td className="px-6 py-4 text-center">{fmt(clientTotals.total_invoices)}</td>
-                                            <td className="px-6 py-4 text-right">৳ {fmt(clientTotals.total_billed)}</td>
-                                            <td className="px-6 py-4 text-right text-emerald-700">৳ {fmt(clientTotals.total_paid)}</td>
-                                            <td className="px-6 py-4 text-right text-rose-700">৳ {fmt(clientTotals.total_due)}</td>
-                                        </tr>
-                                    </tfoot>}
+                                    {filteredClients.length > 0 && (
+                                        <tfoot className="border-t-2 border-slate-300 bg-slate-100 text-[13.5px] font-extrabold text-slate-800">
+                                            <tr>
+                                                <td className="px-5 py-4">Grand total<Bn>(সর্বমোট)</Bn></td>
+                                                <td className="px-5 py-4 text-center tabular-nums">{fmt(clientTotals.total_projects)}</td>
+                                                <td className="px-5 py-4 text-right tabular-nums">৳ {fmt(clientTotals.total_budget)}</td>
+                                                <td className="px-5 py-4 text-right tabular-nums">৳ {fmt(clientTotals.total_expense)}</td>
+                                                <td className="px-5 py-4 text-center tabular-nums">{fmt(clientTotals.total_invoices)}</td>
+                                                <td className="px-5 py-4 text-right tabular-nums">৳ {fmt(clientTotals.total_billed)}</td>
+                                                <td className="px-5 py-4 text-right tabular-nums text-emerald-700">৳ {fmt(clientTotals.total_paid)}</td>
+                                                <td className="px-5 py-4 text-right tabular-nums text-rose-700">৳ {fmt(clientTotals.total_due)}</td>
+                                            </tr>
+                                        </tfoot>
+                                    )}
                                 </table>
                             </div>
                         </div>
                     )}
 
-                    {/* Tab 2: Monthly Project Report Section */}
+                    {/* Tab 2: monthly project accrual */}
                     {activeTab === 'monthly' && (
-                        <div className="animate-[fadeIn_0.2s_ease-out]">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-4 bg-gray-50/50 border-b border-gray-100">
-                                <div className="relative w-full md:w-[320px]">
-                                    <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
-                                    <input
-                                        type="text"
-                                        placeholder="Search Month (মাস খুঁজুন)..."
-                                        value={searchMonth}
-                                        onChange={(e) => setSearchMonth(e.target.value)}
-                                        className="w-full rounded-xl border border-gray-300 py-2.5 pl-9 pr-3 text-[13.5px] outline-none transition-shadow focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent)]/10 bg-white"
-                                    />
-                                </div>
-                                <div className="flex items-center gap-2.5">
-                                    <button onClick={exportMonthlyCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 shadow-sm">
-                                        <i className="fas fa-file-csv"></i> Export CSV
-                                    </button>
-                                    <button onClick={() => handlePrint('monthly-report-table', 'Monthly Projects Report')} className="flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm">
-                                        <i className="fas fa-print text-gray-500"></i> Print / PDF
-                                    </button>
-                                </div>
-                            </div>
+                        <div style={{ animation: 'fadeIn .2s ease-out' }}>
+                            <Toolbar
+                                placeholder="Search month (মাস খুঁজুন)…" value={searchMonth}
+                                onChange={(e) => setSearchMonth(e.target.value)} onCsv={exportMonthlyCSV}
+                                onPrint={() => handlePrint('monthly-report-table', 'Monthly Projects Report')}
+                            />
 
-                            <div className="overflow-x-auto custom-table-scroll pb-2">
-                                <table id="monthly-report-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[950px]">
-                                    {filteredMonths.length > 0 ? (
-                                        filteredMonths.map((data) => (
-                                            <React.Fragment key={data.month}>
-                                                <thead>
-                                                    <tr className="bg-slate-800 text-white border-b-2 border-slate-900 month-header">
-                                                        <th colSpan="5" className="px-6 py-3.5 text-[13px] font-extrabold uppercase tracking-wider">
-                                                            <div className="flex items-center gap-2">
-                                                                <i className="fa-regular fa-calendar-days text-blue-400"></i> {data.month}
+                            <div className="soft-scroll overflow-x-auto">
+                                <table id="monthly-report-table" className="w-full min-w-[950px] whitespace-nowrap border-collapse text-left">
+                                    {filteredMonths.length > 0 ? filteredMonths.map((data) => (
+                                        <React.Fragment key={data.month}>
+                                            <thead>
+                                                <tr className="month-header bg-slate-900 text-white">
+                                                    <th colSpan="5" className="px-5 py-3.5 text-[14px] font-bold">
+                                                        <div className="flex items-center gap-2.5"><i className="fa-regular fa-calendar-days text-indigo-300"></i>{data.month}</div>
+                                                    </th>
+                                                </tr>
+                                                <tr className="border-b border-slate-200 bg-slate-50">
+                                                    <th className={th}>Project name<Bn>(প্রজেক্টের নাম)</Bn></th>
+                                                    <th className={th}>Client<Bn>(ক্লায়েন্ট)</Bn></th>
+                                                    <th className={`${th} text-right`}>Budget<Bn>(বাজেট)</Bn></th>
+                                                    <th className={`${th} text-right`}>Cost<Bn>(খরচ)</Bn></th>
+                                                    <th className={`${th} text-right`}>Est. profit<Bn>(সম্ভাব্য লাভ)</Bn></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="text-[13.5px] text-slate-800">
+                                                {data.projects.map((proj, pIdx) => (
+                                                    <tr key={pIdx} className="border-b border-slate-100 transition-colors hover:bg-slate-50/70">
+                                                        <td className="px-5 py-4">
+                                                            <div className="flex items-center gap-2.5 font-bold text-slate-900">
+                                                                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-500"><i className="fa-solid fa-briefcase text-[11px]"></i></span>
+                                                                {proj.title}
+                                                                {proj.status === 'completed' && (
+                                                                    <span className="ml-1 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[12px] font-semibold text-emerald-700">
+                                                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Completed
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                        </th>
-                                                    </tr>
-                                                    <tr className="bg-[#f6f6f7] text-[10.5px] font-bold uppercase tracking-wider text-[#4E5771] border-b border-[#e1e3e5]">
-                                                        <th className="px-6 py-3.5">Project Name <br/><span className="text-[10px] font-medium opacity-80 normal-case">(প্রজেক্টের নাম)</span></th>
-                                                        <th className="px-6 py-3.5">Client <br/><span className="text-[10px] font-medium opacity-80 normal-case">(ক্লায়েন্ট)</span></th>
-                                                        <th className="px-6 py-3.5 text-right">Budget <br/><span className="text-[10px] font-medium opacity-80 normal-case">(বাজেট)</span></th>
-                                                        <th className="px-6 py-3.5 text-right">Cost (Expenses) <br/><span className="text-[10px] font-medium opacity-80 normal-case">(খরচ)</span></th>
-                                                        <th className="px-6 py-3.5 text-right">Est. Profit <br/><span className="text-[10px] font-medium opacity-80 normal-case">(সম্ভাব্য লাভ)</span></th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="text-[13.5px] text-[#202223]">
-                                                    {data.projects.map((proj, pIdx) => (
-                                                        <tr key={pIdx} className="border-b border-gray-100 hover:bg-gray-50/60 transition-colors">
-                                                            <td className="px-6 py-4 font-bold text-gray-900">
-                                                                <div className="flex items-center gap-2.5">
-                                                                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gray-100 text-gray-500 border border-gray-200">
-                                                                        <i className="fa-solid fa-briefcase text-[11px]"></i>
-                                                                    </div>
-                                                                    {proj.title}
-                                                                    {proj.status === 'completed' && (
-                                                                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[9.5px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200">
-                                                                            Completed
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-6 py-4 font-medium text-gray-600">{proj.client}</td>
-                                                            <td className="px-6 py-4 text-right font-bold text-blue-600 tabular-nums">৳ {fmt(proj.budget)}</td>
-                                                            <td className="px-6 py-4 text-right font-bold text-orange-500 tabular-nums">৳ {fmt(proj.expense)}</td>
-                                                            <td className={`px-6 py-4 text-right font-black tabular-nums ${Number(proj.profit) >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                                                                {Number(proj.profit) > 0 ? '+' : ''}৳ {fmt(proj.profit)}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                    <tr className="bg-slate-50 border-t-2 border-b-4 border-gray-200 summary-row">
-                                                        <td colSpan="2" className="px-6 py-4 text-right font-bold text-gray-500 uppercase text-[11px] tracking-wider">
-                                                            Summary for {data.month} <br/><span className="text-[10px] font-bold opacity-80">(সারসংক্ষেপ)</span>:
                                                         </td>
-                                                        <td className="px-6 py-4 text-right font-black text-blue-700 text-[14.5px] tabular-nums">
-                                                            ৳ {fmt(data.month_budget)}
-                                                        </td>
-                                                        <td className="px-6 py-4 text-right font-black text-orange-600 text-[14.5px] tabular-nums">
-                                                            ৳ {fmt(data.month_expense)}
-                                                        </td>
-                                                        <td className={`px-6 py-4 text-right font-black text-[16px] tabular-nums ${Number(data.month_profit) >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
-                                                            {Number(data.month_profit) > 0 ? '+' : ''}৳ {fmt(data.month_profit)}
+                                                        <td className="px-5 py-4 font-medium text-slate-600">{proj.client}</td>
+                                                        <td className="px-5 py-4 text-right font-bold tabular-nums text-blue-600">৳ {fmt(proj.budget)}</td>
+                                                        <td className="px-5 py-4 text-right font-bold tabular-nums text-orange-500">৳ {fmt(proj.expense)}</td>
+                                                        <td className={`px-5 py-4 text-right font-extrabold tabular-nums ${Number(proj.profit) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                            {Number(proj.profit) > 0 ? '+' : ''}৳ {fmt(proj.profit)}
                                                         </td>
                                                     </tr>
-                                                </tbody>
-                                            </React.Fragment>
-                                        ))
-                                    ) : (
-                                        <tbody>
-                                            <tr>
-                                                <td colSpan="5" className="px-6 py-16 text-center text-gray-500">
-                                                    <div className="flex flex-col items-center justify-center">
-                                                        <i className="fa-regular fa-calendar-xmark text-4xl text-gray-300 mb-3"></i>
-                                                        <p className="text-[14px] font-bold text-gray-600">No monthly records found.</p>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        </tbody>
+                                                ))}
+                                                <tr className="summary-row border-b-4 border-slate-200 bg-slate-50">
+                                                    <td colSpan="2" className="px-5 py-4 text-right text-[13px] font-semibold text-slate-500">
+                                                        Summary for {data.month} <span className="text-slate-400">(সারসংক্ষেপ)</span>
+                                                    </td>
+                                                    <td className="px-5 py-4 text-right text-[14.5px] font-extrabold tabular-nums text-blue-700">৳ {fmt(data.month_budget)}</td>
+                                                    <td className="px-5 py-4 text-right text-[14.5px] font-extrabold tabular-nums text-orange-600">৳ {fmt(data.month_expense)}</td>
+                                                    <td className={`px-5 py-4 text-right text-[16px] font-extrabold tabular-nums ${Number(data.month_profit) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                                        {Number(data.month_profit) > 0 ? '+' : ''}৳ {fmt(data.month_profit)}
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </React.Fragment>
+                                    )) : (
+                                        <tbody><EmptyRow cols={5} icon="fa-regular fa-calendar-xmark" text="No monthly records found." /></tbody>
                                     )}
 
                                     {filteredMonths.length > 0 && (
-                                        <tfoot className="border-t-4 border-gray-300 bg-slate-800 text-[13px] font-black text-white tracking-wider">
+                                        <tfoot className="bg-slate-900 text-[13.5px] font-extrabold text-white">
                                             <tr>
-                                                <td colSpan="2" className="px-6 py-4 text-right uppercase">
-                                                    OVERALL GRAND TOTAL <br/><span className="text-[10px] font-bold opacity-80">(সর্বমোট)</span>
-                                                </td>
-                                                <td className="px-6 py-4 text-right text-blue-300">৳ {fmt(monthlyReportTotals.budget)}</td>
-                                                <td className="px-6 py-4 text-right text-orange-300">৳ {fmt(monthlyReportTotals.expense)}</td>
-                                                <td className={`px-6 py-4 text-right ${monthlyReportTotals.profit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                                                <td colSpan="2" className="px-5 py-4 text-right">Overall grand total <span className="font-medium text-slate-400">(সর্বমোট)</span></td>
+                                                <td className="px-5 py-4 text-right tabular-nums text-blue-300">৳ {fmt(monthlyReportTotals.budget)}</td>
+                                                <td className="px-5 py-4 text-right tabular-nums text-orange-300">৳ {fmt(monthlyReportTotals.expense)}</td>
+                                                <td className={`px-5 py-4 text-right tabular-nums ${monthlyReportTotals.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                                                     {monthlyReportTotals.profit > 0 ? '+' : ''}৳ {fmt(monthlyReportTotals.profit)}
                                                 </td>
                                             </tr>

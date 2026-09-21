@@ -34,12 +34,12 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
     // Payslip Form
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
         id: '', user_id: '', month_year: defaultMonthYear, basic_salary: 0, allowances: 0, bonus: 0, deductions: 0, advance_deduction: 0, net_pay: 0, status: 'unpaid', payment_date: new Date().toISOString().slice(0, 10),
-        payments: [{ account_id: '', amount: '' }]
+        payments: [{ account_id: '', amount: '', bank_charge: 0 }]
     });
 
     // Payment Installment Form
     const paymentForm = useForm({
-        account_id: '', amount: '', date: new Date().toISOString().slice(0, 10), note: ''
+        account_id: '', amount: '', bank_charge: 0, date: new Date().toISOString().slice(0, 10), note: ''
     });
 
     const handleUserSelect = (selected) => {
@@ -116,30 +116,30 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
 
     const openCreateModal = () => {
         clearErrors();
-        setData({ id: '', user_id: '', month_year: defaultMonthYear, basic_salary: 0, allowances: 0, bonus: 0, deductions: 0, advance_deduction: 0, net_pay: 0, status: 'unpaid', payment_date: new Date().toISOString().slice(0, 10), payments: [{ account_id: '', amount: '' }] });
+        setData({ id: '', user_id: '', month_year: defaultMonthYear, basic_salary: 0, allowances: 0, bonus: 0, deductions: 0, advance_deduction: 0, net_pay: 0, status: 'unpaid', payment_date: new Date().toISOString().slice(0, 10), payments: [{ account_id: '', amount: '', bank_charge: 0 }] });
         setEditMode(false); setShowModal(true);
     };
 
     const openEditModal = (sal) => {
         clearErrors();
         let formattedPayments = sal.transactions?.length > 0
-            ? sal.transactions.map(t => ({ account_id: t.account_id, amount: Number(t.amount) }))
+            ? sal.transactions.map(t => ({ account_id: t.account_id, amount: Number(t.amount) - Number(t.bank_charge || 0), bank_charge: Number(t.bank_charge || 0) }))
             : [{ account_id: '', amount: sal.net_pay }];
 
-        setData({ id: sal.id, user_id: sal.user_id || '', month_year: sal.month_year || defaultMonthYear, basic_salary: sal.basic_salary || 0, allowances: sal.allowances || 0, bonus: sal.bonus || 0, deductions: sal.deductions || 0, advance_deduction: sal.advance_deduction || 0, net_pay: sal.net_pay || 0, status: sal.status || 'unpaid', payment_date: sal.payment_date || new Date().toISOString().slice(0, 10), payments: formattedPayments });
+        setData({ id: sal.id, user_id: sal.user_id || '', month_year: sal.month_year || defaultMonthYear, basic_salary: sal.basic_salary || 0, allowances: sal.allowances || 0, bonus: sal.bonus || 0, deductions: sal.deductions || 0, advance_deduction: sal.advance_deduction || 0, net_pay: sal.net_pay || 0, status: Number(sal.paid_amount) > 0 ? 'paid' : (sal.status || 'unpaid'), payment_date: sal.payment_date || new Date().toISOString().slice(0, 10), payments: formattedPayments });
         setEditMode(true); setShowModal(true);
     };
 
     const openPaymentModal = (sal) => {
         setSelectedRecord(sal);
         paymentForm.reset(); paymentForm.clearErrors();
-        paymentForm.setData({ account_id: '', amount: sal.due_amount, date: new Date().toISOString().slice(0, 10), note: '' });
+        paymentForm.setData({ account_id: '', amount: sal.due_amount, bank_charge: 0, date: new Date().toISOString().slice(0, 10), note: '' });
         setShowPaymentModal(true);
     };
 
     const openViewModal = (record) => { setSelectedRecord(record); setShowViewModal(true); };
 
-    const addPaymentRow = () => setData('payments', [...data.payments, { account_id: '', amount: '' }]);
+    const addPaymentRow = () => setData('payments', [...data.payments, { account_id: '', amount: '', bank_charge: 0 }]);
     const removePaymentRow = (index) => setData('payments', data.payments.filter((_, i) => i !== index));
     const handlePaymentChange = (index, field, value) => {
         const newPayments = [...data.payments];
@@ -411,6 +411,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                                 className="w-full rounded-xl border border-emerald-200 bg-emerald-50 pl-10 pr-4 py-3 text-[16px] font-black text-emerald-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 transition-all shadow-sm" placeholder="0.00" required
                                             />
                                         </div>
+                                        <label className="block mt-3 text-xs font-bold">Bank charge (extra)<input type="number" min="0" step="0.01" value={paymentForm.data.bank_charge || 0} onChange={e => paymentForm.setData('bank_charge', e.target.value)} className="block w-full rounded-xl border-gray-300" /></label>
                                         {paymentForm.errors.amount && <p className="text-rose-500 text-[11px] font-bold mt-1.5">{paymentForm.errors.amount}</p>}
                                     </div>
                                     <div>
@@ -689,6 +690,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                                                 <input type="number" step="0.01" min="0" value={payment.amount} onChange={e => handlePaymentChange(index, 'amount', e.target.value)} className="w-full rounded-xl border border-gray-300 pl-7 pr-3 py-2 text-[14px] font-bold text-gray-900 outline-none focus:border-emerald-500" placeholder="0.00" />
                                                             </div>
                                                         </div>
+                                                        <label className="text-xs font-bold">Bank charge (extra)<input type="number" min="0" step="0.01" value={payment.bank_charge || 0} onChange={e => handlePaymentChange(index, 'bank_charge', e.target.value)} className="block w-28 rounded-xl border-gray-300" /></label>
                                                         {data.payments.length > 1 && (
                                                             <div className="pt-5 shrink-0">
                                                                 <button type="button" onClick={() => removePaymentRow(index)} className="h-10 w-10 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-colors border border-red-200 flex justify-center items-center shadow-sm">
@@ -707,7 +709,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
 
                                                 <div className="flex flex-col items-end">
                                                     <div className="text-[12px] font-bold text-gray-600 mb-1">
-                                                        Total Deduct from Bank: <span className="text-gray-900">৳ {(data.payments.reduce((a,c)=>a+Number(c.amount||0),0)).toLocaleString('en-IN')}</span>
+                                                        Total Deduct from Bank: <span className="text-gray-900">৳ {(data.payments.reduce((a,c)=>a+Number(c.amount||0)+Number(c.bank_charge||0),0)).toLocaleString('en-IN')}</span>
                                                     </div>
                                                     <div className="text-[14px] font-bold text-gray-700">
                                                         Salary Paid: <span className={`text-[16px] font-black ml-1 ${Math.round(data.payments.reduce((a,c)=>a+Number(c.amount||0),0)) <= Math.round(data.net_pay) ? 'text-emerald-600' : 'text-rose-600'}`}>৳ {data.payments.reduce((a,c)=>a+Number(c.amount||0),0).toLocaleString('en-IN')}</span> / ৳{data.net_pay}

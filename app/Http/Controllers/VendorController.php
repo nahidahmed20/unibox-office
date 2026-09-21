@@ -78,7 +78,7 @@ class VendorController extends Controller
         $request->validate([
             'project_expense_ids'   => 'required|array|min:1',
             'project_expense_ids.*' => 'exists:project_expenses,id',
-            'payment_source'        => 'required|in:account,advance',
+            'payment_source'        => 'required|in:account,advance,wallet',
             'account_id'            => 'nullable|required_if:payment_source,account|exists:accounts,id',
             'advance_user_id'       => 'nullable|required_if:payment_source,advance|exists:users,id',
             'pay_amount'            => 'required|numeric|decimal:0,2|min:0',
@@ -115,6 +115,11 @@ class VendorController extends Controller
 
             $totalDueSelected = $bills->sum('due_amount');
 
+            if ($request->payment_source === 'wallet') {
+                if ($payAmount > $vendor->wallet_balance) throw new \Exception('Insufficient vendor advance balance.');
+                if ($totalClearing > $totalDueSelected) throw new \Exception('Wallet settlement cannot exceed the selected bills.');
+            }
+
             if ($totalClearing > $totalDueSelected && $adjustmentAmount > 0) {
                 throw new \Exception('Adjustment সহ মোট পরিমাণ বিলের বকেয়ার চেয়ে বেশি হতে পারবে না।');
             }
@@ -139,7 +144,7 @@ class VendorController extends Controller
 
             if ($payAmount > 0) {
                 if ($request->payment_source === 'account') {
-                    $account = Account::findOrFail($request->account_id);
+                    $account = Account::whereKey($request->account_id)->lockForUpdate()->firstOrFail();
                     if ($account->current_balance < $payAmount + $charge) {
                         throw new \Exception('অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
                     }
@@ -173,6 +178,15 @@ class VendorController extends Controller
             ]);
 
             if ($request->payment_source === 'advance') app(\App\Services\AdvanceSettlementService::class)->consume($payment, $request->advance_user_id, $payAmount);
+
+            if ($request->payment_source === 'wallet' && $payAmount > 0) {
+                $vendor->decrement('wallet_balance', $payAmount);
+                VendorLedger::create([
+                    'vendor_id' => $vendor->id, 'type' => 'debit', 'amount' => $payAmount,
+                    'date' => $request->date,
+                    'description' => 'Existing vendor advance applied to bills (VP-' . $payment->id . ')',
+                ]);
+            }
 
             foreach ($appliedDetails as $expenseId => $amount) {
                 $payment->details()->create([
@@ -552,6 +566,15 @@ class VendorController extends Controller
                     'transactionable_type' => VendorPayment::class,
                 ]);
 
+            } elseif ($payment->payment_source === 'wallet') {
+                if ($payment->pay_amount > 0) {
+                    $vendor->increment('wallet_balance', $payment->pay_amount);
+                    VendorLedger::create([
+                        'vendor_id' => $vendor->id, 'type' => 'credit', 'amount' => $payment->pay_amount,
+                        'date' => now()->toDateString(),
+                        'description' => 'Wallet settlement voided (VP-' . $payment->id . '): ' . $request->void_reason,
+                    ]);
+                }
             } elseif (!app(\App\Services\AdvanceSettlementService::class)->refund($payment)) {
                 $advanceBalance = AdvanceBalance::where('user_id', $payment->advance_user_id)->first();
                 $advanceBalance?->decrement('total_used', $payment->pay_amount);

@@ -250,7 +250,7 @@ class ReportController extends Controller
         $applyPeriod($financeCostQuery, 'payment_date');
 
         $overallTotalBilled = (float) $revenueQuery->sum('grand_total');
-        $receivedQuery->whereNotNull('invoice_payments.account_id');
+        $receivedQuery->whereNotNull('invoice_payments.account_id')->where('invoice_payments.method', '!=', 'Client Advance');
         $totalInvoiceReceived = (float) $receivedQuery->sum('invoice_payments.amount');
 
         $totalClientAdvanceReceived = (float) $clientAdvQuery->sum('amount');
@@ -302,6 +302,7 @@ class ReportController extends Controller
             'total_project_paid' => $totalProjectExpensePaid,
             'total_office_expense' => $totalOfficeExpense,
             'total_salary_paid' => $totalSalaryPaid,
+            'total_bank_charges' => $totalBankCharges,
 
             'net_cash_flow' => $netCashFlow,
             'accrual_revenue' => $accrualRevenue,

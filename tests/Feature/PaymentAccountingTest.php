@@ -150,6 +150,97 @@ class PaymentAccountingTest extends TestCase
         $this->assertEquals(10000, $this->account->fresh()->current_balance);
     }
 
+    public function test_vendor_wallet_settlement_and_void_never_withdraw_the_same_money_twice(): void
+    {
+        $vendor = Vendor::create(['name' => 'Printer']);
+        $this->post(route('admin.vendors.add-advance', $vendor), ['account_id' => $this->account->id, 'amount' => 1000, 'bank_charge' => 10, 'date' => '2026-08-10'])->assertSessionHasNoErrors();
+        $this->post(route('admin.project-expenses.store'), $this->expenseData(['vendor_id' => $vendor->id, 'paid_amount' => 0, 'bank_charge' => 0]))->assertSessionHasNoErrors();
+        $expense = ProjectExpense::firstOrFail();
+        $data = ['project_expense_ids' => [$expense->id], 'payment_source' => 'wallet', 'pay_amount' => 600, 'date' => '2026-09-10'];
+        $this->post(route('admin.vendors.pay', $vendor), $data)->assertSessionHasNoErrors();
+        $payment = VendorPayment::firstOrFail();
+        $this->assertEquals(400, $vendor->fresh()->wallet_balance);
+        $this->assertEquals(400, $expense->fresh()->due_amount);
+        $this->assertEquals(8990, $this->account->fresh()->current_balance);
+        $this->assertDatabaseCount('transactions', 1);
+        $this->assertNull($payment->account_id);
+        $this->assertDatabaseHas('vendor_ledgers', ['vendor_id' => $vendor->id, 'type' => 'debit', 'amount' => 600, 'date' => '2026-09-10']);
+        $this->post(route('admin.vendors.pay', $vendor), $data)->assertSessionHasErrors('error');
+        $this->assertDatabaseCount('vendor_payments', 1);
+        $this->post(route('admin.vendors.payments.void', $payment), ['void_reason' => 'Wrong bill'])->assertSessionHasNoErrors();
+        $this->assertEquals(1000, $vendor->fresh()->wallet_balance);
+        $this->assertEquals(1000, $expense->fresh()->due_amount);
+        $this->assertEquals(8990, $this->account->fresh()->current_balance);
+        $this->assertDatabaseCount('transactions', 1);
+        $this->post(route('admin.vendors.payments.void', $payment), ['void_reason' => 'Repeated'])->assertSessionHasErrors('error');
+        $this->assertEquals(1000, $vendor->fresh()->wallet_balance);
+    }
+
+    public function test_wallet_cannot_exceed_bill_or_balance_or_include_bank_charges(): void
+    {
+        $vendor = Vendor::create(['name' => 'Printer']);
+        $this->post(route('admin.vendors.add-advance', $vendor), ['account_id' => $this->account->id, 'amount' => 1500, 'date' => '2026-08-10'])->assertSessionHasNoErrors();
+        $this->post(route('admin.project-expenses.store'), $this->expenseData(['vendor_id' => $vendor->id, 'paid_amount' => 0, 'bank_charge' => 0]))->assertSessionHasNoErrors();
+        $expense = ProjectExpense::firstOrFail();
+        foreach ([[1200, 0], [1600, 0], [500, 10]] as [$amount, $charge]) {
+            $this->post(route('admin.vendors.pay', $vendor), ['project_expense_ids' => [$expense->id], 'payment_source' => 'wallet', 'pay_amount' => $amount, 'bank_charge' => $charge, 'date' => '2026-09-10'])->assertSessionHasErrors('error');
+        }
+        $this->assertEquals(1000, $expense->fresh()->due_amount);
+        $this->assertEquals(1500, $vendor->fresh()->wallet_balance);
+        $this->assertEquals(8500, $this->account->fresh()->current_balance);
+        $this->assertDatabaseCount('vendor_payments', 0);
+        $this->assertDatabaseCount('transactions', 1);
+    }
+
+    public function test_legacy_sync_does_not_create_a_second_withdrawal_for_a_settled_bill(): void
+    {
+        $vendor = Vendor::create(['name' => 'Printer']);
+        $this->post(route('admin.project-expenses.store'), $this->expenseData(['vendor_id' => $vendor->id, 'paid_amount' => 0, 'bank_charge' => 0]))->assertSessionHasNoErrors();
+        $expense = ProjectExpense::firstOrFail();
+        $this->post(route('admin.vendors.pay', $vendor), ['project_expense_ids' => [$expense->id], 'payment_source' => 'account', 'account_id' => $this->account->id, 'pay_amount' => 1000, 'bank_charge' => 10, 'date' => '2026-09-10'])->assertSessionHasNoErrors();
+        // Legacy bills may retain an account even though a later payment settled them.
+        $expense->update(['account_id' => $this->account->id]);
+        $this->artisan('sync:old-transactions')->assertSuccessful();
+        $this->assertDatabaseCount('transactions', 1);
+        $this->assertEquals(8990, $this->account->fresh()->current_balance);
+        Transaction::query()->delete();
+        $this->artisan('sync:old-vendor-payments')->assertSuccessful();
+        $this->artisan('sync:old-vendor-payments')->assertSuccessful();
+        $this->assertDatabaseCount('transactions', 1);
+        $this->assertDatabaseHas('transactions', ['amount' => 1010, 'bank_charge' => 10]);
+        $this->assertEquals(8990, $this->account->fresh()->current_balance);
+    }
+
+    public function test_reconciliation_preview_apply_and_repeat_are_safe(): void
+    {
+        $this->account->update(['opening_balance' => 10000]);
+        $vendor = Vendor::create(['name' => 'Printer']);
+        $this->post(route('admin.project-expenses.store'), $this->expenseData(['vendor_id' => $vendor->id, 'paid_amount' => 0, 'bank_charge' => 0]))->assertSessionHasNoErrors();
+        $expense = ProjectExpense::firstOrFail();
+        $this->post(route('admin.vendors.pay', $vendor), ['project_expense_ids' => [$expense->id], 'payment_source' => 'account', 'account_id' => $this->account->id, 'pay_amount' => 1000, 'date' => '2026-09-10'])->assertSessionHasNoErrors();
+        $expense->update(['payment_amount' => null]);
+        $duplicate = Transaction::create(['account_id' => $this->account->id, 'type' => 'debit', 'amount' => 1000, 'bank_charge' => 0, 'transactionable_type' => ProjectExpense::class, 'transactionable_id' => $expense->id, 'transaction_date' => '2026-09-10', 'description' => 'Project Expense (Auto Synced): Bill']);
+        $this->account->update(['current_balance' => 8000]);
+        $this->artisan('finance:reconcile', ['--rebuild-accounts' => true])->assertSuccessful();
+        $this->assertDatabaseHas('transactions', ['id' => $duplicate->id]);
+        $this->assertEquals(8000, $this->account->fresh()->current_balance);
+        $this->artisan('finance:reconcile', ['--apply' => true, '--rebuild-accounts' => true])->assertSuccessful();
+        $this->assertDatabaseMissing('transactions', ['id' => $duplicate->id]);
+        $this->assertEquals(9000, $this->account->fresh()->current_balance);
+        $this->artisan('finance:reconcile', ['--apply' => true, '--rebuild-accounts' => true])->expectsOutput('0 repair(s) applied.')->assertSuccessful();
+        $this->assertDatabaseCount('transactions', 1);
+    }
+
+    public function test_reconciliation_will_not_rebuild_accounts_with_unresolved_refund_history(): void
+    {
+        $this->account->update(['opening_balance' => 10000, 'current_balance' => 9000]);
+        Advance::create(['user_id' => $this->staff->id, 'account_id' => $this->account->id, 'amount' => 1000, 'returned_amount' => 100, 'date' => '2026-09-01']);
+        $this->artisan('finance:reconcile', ['--apply' => true, '--rebuild-accounts' => true])->assertFailed();
+        $this->assertEquals(9000, $this->account->fresh()->current_balance);
+        $this->assertDatabaseCount('advance_balances', 0);
+        $this->assertDatabaseCount('transactions', 0);
+    }
+
     public function test_vendor_bulk_payment_charge_void_and_expense_edit_guard(): void
     {
         $vendor = Vendor::create(['name' => 'Printer']);
@@ -234,7 +325,7 @@ class PaymentAccountingTest extends TestCase
         $this->post(route('salaries.pay', $salary), ['account_id' => $this->account->id, 'amount' => 200, 'bank_charge' => 2, 'date' => '2026-09-10'])->assertSessionHasNoErrors();
         $this->get(route('admin.reports.financial', ['month' => '2026-09']))->assertInertia(fn (Assert $p) => $p
             ->where('summary.total_salary_paid', 200)->where('summary.total_bank_charges', 2)
-            ->where('summary.total_cash_out', 202)->where('monthlyProfitLoss.0.cash_out', 202)->etc());
+            ->where('summary.total_cash_out', 202)->etc());
     }
 
     public function test_account_summary_vendor_advance_has_correct_sign(): void

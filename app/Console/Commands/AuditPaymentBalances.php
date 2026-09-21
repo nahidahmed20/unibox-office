@@ -53,9 +53,20 @@ class AuditPaymentBalances extends Command
             $compare('Salary paid', $salary->id, $salary->paid_amount,
                 $salary->transactions()->where('type', 'debit')->sum('amount') - $salary->transactions()->where('type', 'debit')->sum('bank_charge'));
         }
+        $tables = [];
+        foreach (\App\Services\FinanceReconciliation::TABLES as $table) {
+            $tables[$table] = \Illuminate\Support\Facades\DB::table($table)->orderBy('id')->get()->map(fn ($row) => (array) $row)->all();
+        }
+        $reconciliation = (new \App\Services\FinanceReconciliation($tables))->plan();
+        foreach ($reconciliation['issues'] as $issue) $this->warn($issue);
+        if ($reconciliation['changes']) $this->warn(count($reconciliation['changes']).' source-supported repairs available; preview with finance:reconcile.');
         if ($differences) {
             $this->table(['Record', 'ID', 'Saved', 'From records'], $differences);
             $this->warn(count($differences).' difference(s). Missing legacy transactions or opening entries need review; no balances were changed.');
+            return self::FAILURE;
+        }
+        if ($reconciliation['issues'] || $reconciliation['changes']) {
+            $this->warn('Summary totals match, but source-record discrepancies remain. No data was changed.');
             return self::FAILURE;
         }
         $this->info('All checked balances match their records. No data was changed.');

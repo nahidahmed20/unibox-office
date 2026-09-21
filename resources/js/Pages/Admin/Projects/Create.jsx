@@ -1,463 +1,361 @@
-import React, { useMemo, useState, useRef, useEffect } from "react";
+import React, { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { Head, useForm, Link } from "@inertiajs/react";
 import Swal from "sweetalert2";
 import Select from "react-select";
+import ReactQuill from "react-quill";
+import 'react-quill/dist/quill.snow.css';
 
+// Updated Priorities with modern vibrant colors
 const PRIORITIES = [
-    { value: "low", label: "Low", dot: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50", activeBg: "bg-emerald-500", activeText: "text-white", border: "border-emerald-200", hover: "hover:bg-emerald-100" },
-    { value: "medium", label: "Medium", dot: "bg-orange-500", text: "text-orange-700", bg: "bg-orange-50", activeBg: "bg-orange-500", activeText: "text-white", border: "border-orange-200", hover: "hover:bg-orange-100" },
-    { value: "high", label: "High", dot: "bg-red-500", text: "text-red-700", bg: "bg-red-50", activeBg: "bg-red-500", activeText: "text-white", border: "border-red-200", hover: "hover:bg-red-100" },
-    { value: "urgent", label: "Urgent", dot: "bg-rose-500", text: "text-rose-700", bg: "bg-rose-50", activeBg: "bg-rose-500", activeText: "text-white", border: "border-rose-200", hover: "hover:bg-rose-100" },
+    { value: "low", label: "Low", color: "#059669" },      // Emerald 600
+    { value: "medium", label: "Medium", color: "#D97706" }, // Amber 600
+    { value: "high", label: "High", color: "#EA580C" },     // Orange 600
+    { value: "urgent", label: "Urgent", color: "#DC2626" }, // Red 600
 ];
 
-const formatTaka = (n) => new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Number(n) || 0);
+const Taka = ({ className = "text-[14px]" }) => (
+    <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 ${className}`}>৳</span>
+);
 
-const daysUntil = (dateStr) => {
-    if (!dateStr) return null;
-    const diff = (new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24);
-    return Math.ceil(diff);
+// Modernized Select Styles
+const selectStyles = {
+    control: (base, state) => ({
+        ...base,
+        minHeight: '48px',
+        borderRadius: '10px',
+        borderColor: state.isFocused ? '#4F46E5' : '#E2E8F0', // Indigo-600 or Slate-200
+        boxShadow: state.isFocused ? '0 0 0 4px rgba(79, 70, 229, 0.15)' : 'none',
+        backgroundColor: '#F8FAFC', // Slate-50
+        '&:hover': { borderColor: '#4F46E5' },
+    }),
+    option: (base, state) => ({
+        ...base,
+        backgroundColor: state.isSelected ? '#4F46E5' : state.isFocused ? '#EEF2FF' : 'white', // Indigo
+        color: state.isSelected ? '#FFFFFF' : '#1E293B',
+        fontWeight: 600,
+        fontSize: '14px',
+        cursor: 'pointer',
+    }),
+    placeholder: (base) => ({ ...base, color: '#94A3B8', fontWeight: 600, fontSize: '14px' }),
+    singleValue: (base) => ({ ...base, color: '#1E293B', fontWeight: 700, fontSize: '14px' }),
+    input: (base) => ({ ...base, color: '#1E293B', fontWeight: 600, fontSize: '14px' }),
+    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+    menu: (base) => ({ ...base, borderRadius: '10px', overflow: 'hidden', border: '1px solid #E2E8F0' }),
 };
 
 export default function Create({ clients = [], managers = [] }) {
-    // 🟢 ADDED: unit_price inside emptyProject
-    const emptyProject = {
-        title: "", description: "", quantity: "", unit_type: "piece", unit_price: "",
-        start_date: "", deadline: "", budget: "", status: "planning",
-        priority: "medium", progress: 0, repo_link: "", live_url: ""
-    };
-
     const { data, setData, post, processing, errors } = useForm({
         client_id: "",
         project_manager_id: "",
-        projects: [{ ...emptyProject }]
+        title: "",
+        description: "",
+        start_date: new Date().toISOString().split('T')[0],
+        deadline: "",
+        status: "planning",
+        priority: "medium",
+        progress: 0,
+        repo_link: "",
+        live_url: "",
+        items: [{ item_name: "", description: "", quantity: 1, unit_type: "piece", unit_price: 0, total: 0 }]
     });
 
     const [selectedClient, setSelectedClient] = useState(null);
-    const [selectedManager, setSelectedManager] = useState(null);
 
-    const footerRef = useRef(null);
-    const [footerHeight, setFooterHeight] = useState(0);
+    /* Sticky Summary Refs */
+    const formRef = useRef(null);
+    const leftColumnRef = useRef(null);
+    const stickyWrapperRef = useRef(null);
+    const stickyInnerRef = useRef(null);
+    const [stickyStyle, setStickyStyle] = useState({});
 
-    useEffect(() => {
-        const el = footerRef.current;
-        if (!el) return;
-        const update = () => setFooterHeight(el.offsetHeight);
-        update();
-        const ro = new ResizeObserver(update);
-        ro.observe(el);
-        window.addEventListener("resize", update);
-        return () => {
-            ro.disconnect();
-            window.removeEventListener("resize", update);
-        };
-    }, []);
+    const clientOptions = useMemo(() => clients.map(c => ({ value: c.id, label: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}`, raw: c })), [clients]);
+    const managerOptions = useMemo(() => managers.map(m => ({ value: m.id, label: m.name, raw: m })), [managers]);
 
-    const clientOptions = useMemo(() =>
-        clients.map(c => ({ value: c.id, label: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}`, raw: c })),
-    [clients]);
-
-    const managerOptions = useMemo(() =>
-        managers.map(m => ({ value: m.id, label: m.name, raw: m })),
-    [managers]);
-
-    const addProjectRow = () => setData("projects", [...data.projects, { ...emptyProject }]);
-
-    const removeProjectRow = (index) => {
-        const updated = [...data.projects];
-        updated.splice(index, 1);
-        setData("projects", updated);
+    const updateItem = (index, field, value) => {
+        setData("items", data.items.map((item, i) => {
+            if (i !== index) return item;
+            const updated = { ...item, [field]: value };
+            if (field === "quantity" || field === "unit_price") {
+                updated.total = (Number(updated.quantity) || 0) * (Number(updated.unit_price) || 0);
+            }
+            return updated;
+        }));
     };
 
-    // 🟢 UPDATED: Auto Calculate Budget Logic
-    const updateProjectField = (index, field, value) => {
-        const updated = [...data.projects];
-        updated[index][field] = value;
+    const addItemRow = () => setData("items", [...data.items, { item_name: "", description: "", quantity: 1, unit_type: "piece", unit_price: 0, total: 0 }]);
+    const removeItemRow = (index) => setData("items", data.items.filter((_, i) => i !== index));
 
-        // Auto-calculate budget if quantity or unit_price is changed
-        if (field === 'quantity' || field === 'unit_price') {
-            const qty = parseFloat(updated[index].quantity) || 0;
-            const price = parseFloat(updated[index].unit_price) || 0;
-            if (qty > 0 && price > 0) {
-                // You can remove .toFixed(2) if you don't want decimals
-                updated[index].budget = (qty * price).toString();
-            }
+    const totalBudget = data.items.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+
+    /* Sticky Logic */
+    const updateStickyPosition = useCallback(() => {
+        const form = formRef.current;
+        const leftColumn = leftColumnRef.current;
+        const wrapper = stickyWrapperRef.current;
+        const inner = stickyInnerRef.current;
+
+        if (!form || !leftColumn || !wrapper || !inner) return;
+
+        if (window.innerWidth < 1280) {
+            wrapper.style.minHeight = "";
+            setStickyStyle({});
+            return;
         }
 
-        setData("projects", updated);
-    };
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const formRect = form.getBoundingClientRect();
+        const innerHeight = inner.offsetHeight;
+        const TOP_OFFSET = 24;
+
+        wrapper.style.minHeight = `${leftColumn.offsetHeight}px`;
+
+        if (wrapperRect.top > TOP_OFFSET) {
+            setStickyStyle({ position: "absolute", top: 0, left: 0, width: "100%" });
+        } else if (formRect.bottom > innerHeight + TOP_OFFSET) {
+            setStickyStyle({ position: "fixed", top: `${TOP_OFFSET}px`, left: `${wrapperRect.left}px`, width: `${wrapperRect.width}px` });
+        } else {
+            setStickyStyle({ position: "absolute", top: "auto", bottom: 0, left: 0, width: "100%" });
+        }
+    }, []);
+
+    useEffect(() => {
+        window.addEventListener("scroll", updateStickyPosition, { passive: true });
+        window.addEventListener("resize", updateStickyPosition);
+        updateStickyPosition();
+        return () => {
+            window.removeEventListener("scroll", updateStickyPosition);
+            window.removeEventListener("resize", updateStickyPosition);
+        };
+    }, [updateStickyPosition]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!data.client_id) return Swal.fire({ icon: 'warning', title: 'Client Required', text: 'Please select a target client first.', confirmButtonColor: '#4f46e5' });
+        if (!data.client_id || !data.title) return Swal.fire({ icon: 'warning', title: 'Required Fields', text: 'Please fill out Client and Project Title.', confirmButtonColor: '#4F46E5' });
 
-        const invalidProject = data.projects.find(p => !p.title || !p.deadline);
-        if (invalidProject) return Swal.fire({ icon: 'error', title: 'Missing Fields', text: 'Please fill out all required fields (Title, Deadline) for all projects.', confirmButtonColor: '#4f46e5' });
-
-        post(route("admin.projects.store"));
+        post(route("admin.projects.store"), {
+            onError: () => Swal.fire({ icon: 'error', title: 'Validation Error', text: 'Please check the form for missing or incorrect data.', confirmButtonColor: '#EF4444' })
+        });
     };
 
-    const totals = useMemo(() => {
-        const budget = data.projects.reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
-        const urgentSoon = data.projects.filter(p => {
-            const d = daysUntil(p.deadline);
-            return d !== null && d <= 7;
-        }).length;
-        return { budget, urgentSoon };
-    }, [data.projects]);
-
-    const selectStyles = {
-        control: (base, state) => ({
-            ...base, minHeight: '48px', borderRadius: '0.75rem',
-            border: state.isFocused ? '1px solid var(--accent, #6366f1)' : '1px solid #e5e7eb',
-            backgroundColor: state.isFocused ? '#ffffff' : '#f8fafc',
-            boxShadow: state.isFocused ? '0 0 0 4px rgba(99, 102, 241, 0.1)' : 'none',
-            transition: 'all 0.2s ease', fontSize: '14px', cursor: 'pointer', paddingLeft: '0.25rem',
-            '&:hover': { borderColor: state.isFocused ? 'var(--accent, #6366f1)' : '#cbd5e1' }
-        }),
-        menu: (base) => ({
-            ...base, fontSize: '14px', borderRadius: '0.75rem', overflow: 'hidden',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-            border: '1px solid #f1f5f9', marginTop: '8px', zIndex: 9999
-        }),
-        menuPortal: base => ({ ...base, zIndex: 9999 }),
-        option: (base, state) => ({
-            ...base, backgroundColor: state.isSelected ? 'var(--accent, #4f46e5)' : state.isFocused ? '#f8fafc' : 'white',
-            color: state.isSelected ? 'white' : '#1e293b', cursor: 'pointer', padding: '10px 16px',
-            fontWeight: state.isSelected ? '700' : '500', transition: 'background-color 0.15s ease'
-        })
-    };
+    // Modernized general input classes
+    const inputClass = "w-full rounded-lg border border-slate-200 bg-slate-50 hover:bg-white px-4 py-3 text-[14px] font-semibold text-slate-800 outline-none focus:bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 transition-colors";
 
     return (
         <AdminLayout>
-            <Head title="Create Projects" />
+            <Head title="Create Project" />
 
-            <div className="flex flex-col gap-8 w-full max-w-[1400px] mx-auto pb-12 mt-6">
+            <style dangerouslySetInnerHTML={{__html: `
+                .ql-editor { min-height: 100px; font-size: 14px; background: #F8FAFC; border-radius: 0 0 0.5rem 0.5rem; font-weight: 500; color: #1E293B; }
+                .ql-editor.ql-blank::before { color: #94A3B8; font-style: normal; font-weight: 500; }
+                .ql-editor:focus { background: #ffffff; }
+                .ql-toolbar.ql-snow { border-radius: 0.5rem 0.5rem 0 0; background: #ffffff; border-color: #E2E8F0 !important; }
+                .ql-container.ql-snow { border-color: #E2E8F0 !important; }
+                .quill-wrapper { border-radius: 0.5rem; overflow: hidden; transition: box-shadow 0.15s ease; }
+                .quill-wrapper:focus-within .ql-toolbar.ql-snow,
+                .quill-wrapper:focus-within .ql-container.ql-snow { border-color: #4F46E5 !important; }
+            `}} />
+
+            <div className="flex flex-col gap-8 w-full max-w-[1400px] mx-auto pb-12 mt-4">
 
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 pb-6 border-b border-slate-200">
                     <div>
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-50 text-indigo-600 text-[11px] font-black uppercase tracking-wider mb-3">
-                            <i className="fa-solid fa-layer-group"></i> Batch Intake
-                        </div>
-                        <h1 className="text-[26px] font-extrabold text-gray-900 tracking-tight">Create Projects</h1>
-                        <p className="text-[14.5px] text-gray-500 mt-1.5">Draft a manifest of projects and assign them to a single client instantly.</p>
+                        <p className="text-[13px] font-semibold text-slate-500 mb-1">New engagement</p>
+                        <h1 className="text-[28px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">Create project</h1>
+                        <p className="text-[14px] text-slate-500 mt-2 max-w-md">Set the scope, timeline and cost for a new client engagement.</p>
                     </div>
-                    <Link href={route('admin.projects.index')} className="flex items-center justify-center gap-2 text-[14px] font-bold text-gray-600 hover:text-indigo-600 transition-all bg-gray-50 hover:bg-indigo-50 px-6 py-3 rounded-xl border border-gray-200 hover:border-indigo-200 shadow-sm group">
-                        <i className="fa-solid fa-arrow-left transition-transform group-hover:-translate-x-1"></i> Back to Directory
+                    <Link href={route("admin.projects.index")} className="flex w-fit items-center justify-center gap-2 text-[13px] font-semibold text-slate-600 hover:text-indigo-600 transition-colors border border-slate-200 hover:border-indigo-600 px-5 py-2.5 rounded-lg bg-white shadow-sm">
+                        <i className="fa-solid fa-arrow-left-long"></i> Directory
                     </Link>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-8">
+                {/* Form */}
+                <form ref={formRef} onSubmit={handleSubmit} className="relative flex flex-col xl:flex-row gap-8 items-start">
 
-                    {/* Global Configuration */}
-                    <section className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                        <div className="px-8 py-5 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-                                    <i className="fa-solid fa-building-user text-[16px]"></i>
+                    {/* Left Column */}
+                    <div ref={leftColumnRef} className="flex-1 w-full flex flex-col gap-8">
+
+                        {/* General Info */}
+                        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600">
+                                    <i className="fa-solid fa-circle-info text-[15px]"></i>
                                 </div>
-                                <div>
-                                    <h2 className="text-[17px] font-bold text-gray-900">Global Configuration</h2>
-                                    <p className="text-[12.5px] text-gray-500 font-medium mt-0.5">Define the client and manager for this entire batch.</p>
-                                </div>
+                                <h3 className="text-[15px] font-semibold text-slate-900">Project details</h3>
                             </div>
-                        </div>
 
-                        <div className="p-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
-                                        Target Client <span className="text-rose-500">*</span>
-                                    </label>
+                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Select client <span className="text-red-500">*</span></label>
                                     <Select
-                                        value={clientOptions.find(opt => opt.value === data.client_id) || null}
                                         options={clientOptions}
+                                        value={clientOptions.find(o => o.value === data.client_id) || null}
                                         onChange={(opt) => {
                                             setData("client_id", opt ? opt.value : "");
                                             setSelectedClient(opt ? opt.raw : null);
                                         }}
-                                        placeholder="🔍 Search and select client..."
-                                        isClearable
                                         styles={selectStyles}
-                                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                        menuPosition={'fixed'}
+                                        isClearable placeholder="Search client…" menuPortalTarget={typeof document !== 'undefined' ? document.body : null} menuPosition="fixed"
                                     />
-                                    {errors.client_id && <p className="text-rose-500 text-[12px] font-bold mt-1.5">{errors.client_id}</p>}
+                                    {errors.client_id && <span className="text-red-500 text-[12px] font-semibold mt-2 block">{errors.client_id}</span>}
                                 </div>
                                 <div>
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
-                                        Project Manager <span className="text-gray-400 font-medium normal-case tracking-normal">(Optional)</span>
-                                    </label>
+                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Manager (optional)</label>
                                     <Select
-                                        value={managerOptions.find(opt => opt.value === data.project_manager_id) || null}
                                         options={managerOptions}
-                                        onChange={(opt) => {
-                                            setData("project_manager_id", opt ? opt.value : "");
-                                            setSelectedManager(opt ? opt.raw : null);
-                                        }}
-                                        placeholder="👤 Assign a manager..."
-                                        isClearable
+                                        value={managerOptions.find(o => o.value === data.project_manager_id) || null}
+                                        onChange={(opt) => setData("project_manager_id", opt ? opt.value : "")}
                                         styles={selectStyles}
-                                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                        menuPosition={'fixed'}
+                                        isClearable placeholder="Assign manager…" menuPortalTarget={typeof document !== 'undefined' ? document.body : null} menuPosition="fixed"
                                     />
                                 </div>
-                            </div>
 
-                            {selectedClient && (
-                                <div className="mt-6 flex items-center gap-4 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-5 shadow-sm animate-[fadeIn_0.3s_ease-out]">
-                                    <div className="h-12 w-12 rounded-xl bg-indigo-600 shadow-md text-white flex items-center justify-center text-[18px] font-black shrink-0">
-                                        {selectedClient.name ? selectedClient.name.charAt(0).toUpperCase() : "?"}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-[15px] font-bold text-gray-900 truncate">
-                                            {selectedClient.name} {selectedClient.company_name ? <span className="text-indigo-600 font-bold text-[14px]">· {selectedClient.company_name}</span> : ""}
-                                        </p>
-                                        <p className="text-[13px] text-gray-600 mt-1 flex items-center gap-1.5 font-medium">
-                                            <i className="fa-regular fa-folder-open text-indigo-400"></i>
-                                            All projects below will be assigned here {selectedManager ? <span className="font-bold text-gray-700">— Managed by {selectedManager.name}</span> : ""}
-                                        </p>
-                                    </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Project title <span className="text-red-500">*</span></label>
+                                    <input type="text" value={data.title} onChange={e => setData("title", e.target.value)} placeholder="E.g., Complete Branding Package" className={inputClass} required />
+                                    {errors.title && <span className="text-red-500 text-[12px] font-semibold mt-2 block">{errors.title}</span>}
                                 </div>
-                            )}
-                        </div>
-                    </section>
 
-                    <div className="relative">
-                        {data.projects.length > 1 && (
-                            <div className="absolute left-[44px] top-16 bottom-16 w-1 bg-gradient-to-b from-indigo-200 via-gray-200 to-transparent hidden lg:block rounded-full"></div>
-                        )}
+                                <div>
+                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Start date</label>
+                                    <input type="date" value={data.start_date} onChange={e => setData("start_date", e.target.value)} className={inputClass} />
+                                </div>
+                                <div>
+                                    <label className="block text-[12.5px] font-semibold text-red-600 mb-2.5">Deadline <span className="text-red-500">*</span></label>
+                                    <input type="date" value={data.deadline} onChange={e => setData("deadline", e.target.value)} className="w-full rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[14px] font-semibold text-red-700 outline-none focus:bg-white focus:border-red-500 focus:ring-4 focus:ring-red-500/20 transition-colors" required />
+                                    {errors.deadline && <span className="text-red-500 text-[12px] font-semibold mt-2 block">{errors.deadline}</span>}
+                                </div>
 
-                        <div className="space-y-8">
-                            {data.projects.map((proj, index) => {
-                                const p = PRIORITIES.find(x => x.value === proj.priority) || PRIORITIES[1];
-                                const dLeft = daysUntil(proj.deadline);
-
-                                return (
-                                    <section key={index} className="bg-white rounded-3xl shadow-sm relative border border-gray-200 transition-all duration-300">
-
-                                        <div className="px-8 py-5 border-b border-gray-100 flex flex-wrap justify-between items-center gap-4 bg-gray-50/80 rounded-t-3xl">
-                                            <div className="flex items-center gap-4">
-                                                <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-800 text-white text-[16px] font-black shadow-md shrink-0">
-                                                    {index + 1}
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-[16.5px] font-bold text-gray-900 flex items-center gap-3">
-                                                        Project #{index + 1}
-                                                        {dLeft !== null && dLeft <= 7 && (
-                                                            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-rose-700 bg-rose-100 px-2.5 py-1 rounded-full border border-rose-200 shadow-sm">
-                                                                <i className="fa-solid fa-clock"></i> {dLeft < 0 ? "Overdue" : `${dLeft} Days Left`}
-                                                            </span>
-                                                        )}
-                                                    </h3>
-                                                    {proj.title && <p className="text-[13.5px] text-indigo-600 font-semibold truncate max-w-xs sm:max-w-md mt-0.5">{proj.title}</p>}
-                                                </div>
-                                            </div>
-
-                                            {data.projects.length > 1 && (
-                                                <button type="button" onClick={() => removeProjectRow(index)} className="flex items-center gap-2 text-rose-500 text-[13px] font-bold px-4 py-2 rounded-xl transition-all hover:bg-rose-50 hover:text-rose-600 border border-transparent hover:border-rose-100">
-                                                    <i className="fa-regular fa-trash-can"></i> <span className="hidden sm:inline">Remove</span>
+                                <div className="md:col-span-2">
+                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Priority</label>
+                                    <div className="flex flex-wrap gap-2 p-1.5 bg-slate-50 border border-slate-200 rounded-lg w-fit">
+                                        {PRIORITIES.map(pr => {
+                                            const isActive = data.priority === pr.value;
+                                            return (
+                                                <button
+                                                    key={pr.value} type="button"
+                                                    onClick={() => setData("priority", pr.value)}
+                                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-[13px] font-semibold transition-colors ${isActive ? "text-white shadow-sm" : "text-slate-600 hover:bg-slate-200/50"}`}
+                                                    style={{ backgroundColor: isActive ? pr.color : "transparent" }}
+                                                >
+                                                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: isActive ? "rgba(255,255,255,0.9)" : pr.color }}></span>
+                                                    {pr.label}
                                                 </button>
-                                            )}
-                                        </div>
-
-                                        <div className="p-8">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-x-8 gap-y-7">
-
-                                                {/* Project Title */}
-                                                <div className="md:col-span-2 lg:col-span-12">
-                                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">
-                                                        Project Title <span className="text-rose-500">*</span>
-                                                    </label>
-                                                    <input
-                                                        type="text"
-                                                        value={proj.title}
-                                                        onChange={e => updateProjectField(index, "title", e.target.value)}
-                                                        required
-                                                        placeholder="e.g. E-Commerce Website Development"
-                                                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-[15px] font-bold text-gray-900 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 placeholder-gray-400 shadow-sm"
-                                                    />
-                                                </div>
-
-                                                {/* Priority Level */}
-                                                <div className="md:col-span-2 lg:col-span-12">
-                                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Priority Level</label>
-                                                    <div className="flex flex-wrap gap-3 p-2 bg-gray-50 border border-gray-100 rounded-xl w-fit">
-                                                        {PRIORITIES.map(pr => {
-                                                            const isActive = proj.priority === pr.value;
-                                                            return (
-                                                                <button
-                                                                    key={pr.value}
-                                                                    type="button"
-                                                                    onClick={() => updateProjectField(index, "priority", pr.value)}
-                                                                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-[13px] font-bold transition-all duration-200 ${
-                                                                        isActive ? "text-white shadow-md transform scale-105" : "bg-transparent text-gray-500 hover:bg-gray-200/50"
-                                                                    }`}
-                                                                    style={{ backgroundColor: isActive ? (pr.value === "low" ? "#10b981" : pr.value === "medium" ? "#f97316" : pr.value === "high" ? "#ef4444" : "#f43f5e") : "transparent" }}
-                                                                >
-                                                                    {!isActive && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: pr.value === "low" ? "#10b981" : pr.value === "medium" ? "#f97316" : pr.value === "high" ? "#ef4444" : "#f43f5e" }}></span>}
-                                                                    {isActive && <i className="fa-solid fa-check text-[11px]"></i>}
-                                                                    {pr.label}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-
-                                                {/* 🟢 Quantity & Unit */}
-                                                <div className="lg:col-span-4">
-                                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Quantity / Size</label>
-                                                    <div className="flex bg-white rounded-xl border border-gray-300 overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all shadow-sm">
-                                                        <input
-                                                            type="number" min="0" step="any"
-                                                            value={proj.quantity}
-                                                            onChange={e => updateProjectField(index, "quantity", e.target.value)}
-                                                            placeholder="0"
-                                                            className="w-full bg-transparent px-4 py-3.5 text-[15px] font-bold text-gray-900 outline-none border-none border-r border-gray-200"
-                                                        />
-                                                        <select
-                                                            value={proj.unit_type}
-                                                            onChange={e => updateProjectField(index, "unit_type", e.target.value)}
-                                                            className="w-[100px] bg-gray-50 px-2 py-3.5 text-[13.5px] font-bold text-gray-700 outline-none border-none cursor-pointer appearance-none text-center hover:bg-gray-100 transition-colors"
-                                                        >
-                                                            <option value="piece">Pcs</option><option value="kg">Kg</option><option value="set">Set</option><option value="box">Box</option><option value="sqft">SqFt</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-
-                                                {/* 🟢 Unit Price */}
-                                                <div className="lg:col-span-4">
-                                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Unit Price (TK)</label>
-                                                    <div className="relative">
-                                                        <div className="absolute left-0 top-0 bottom-0 w-12 flex items-center justify-center bg-gray-50 border-r border-gray-200 rounded-l-xl z-10">
-                                                            <span className="text-gray-500 font-bold text-[17px]" style={{ fontFamily: 'Arial, sans-serif' }}>৳</span>
-                                                        </div>
-                                                        <input
-                                                            type="number" min="0" step="0.01"
-                                                            value={proj.unit_price}
-                                                            onChange={e => updateProjectField(index, "unit_price", e.target.value)}
-                                                            placeholder="0.00"
-                                                            className="w-full rounded-xl border border-gray-300 bg-white pl-14 pr-4 py-3.5 text-[15px] font-bold text-gray-900 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm relative z-0"
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                {/* 🟢 Total Budget */}
-                                                <div className="lg:col-span-4">
-                                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Total Budget (TK)</label>
-                                                    <div className="relative">
-                                                        <div className="absolute left-0 top-0 bottom-0 w-12 flex items-center justify-center bg-emerald-50 border-r border-emerald-200 rounded-l-xl z-10">
-                                                            <span className="text-emerald-600 font-bold text-[17px]" style={{ fontFamily: 'Arial, sans-serif' }}>৳</span>
-                                                        </div>
-                                                        <input
-                                                            type="number" min="0" step="0.01"
-                                                            value={proj.budget}
-                                                            onChange={e => updateProjectField(index, "budget", e.target.value)}
-                                                            placeholder="0.00"
-                                                            className="w-full rounded-xl border border-gray-300 bg-white pl-14 pr-4 py-3.5 text-[15px] font-black text-emerald-700 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm relative z-0"
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                {/* 🟢 Dates (Moved to new row for clean layout) */}
-                                                <div className="md:col-span-2 lg:col-span-12 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6 mt-1">
-                                                    <div>
-                                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Start Date</label>
-                                                        <input
-                                                            type="date"
-                                                            value={proj.start_date}
-                                                            onChange={e => updateProjectField(index, "start_date", e.target.value)}
-                                                            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-[14px] font-bold text-gray-700 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-[12px] font-bold text-rose-600 uppercase tracking-wider mb-2.5">Deadline <span className="text-rose-500">*</span></label>
-                                                        <input
-                                                            type="date"
-                                                            value={proj.deadline}
-                                                            onChange={e => updateProjectField(index, "deadline", e.target.value)}
-                                                            required
-                                                            className="w-full rounded-xl border border-rose-200 bg-rose-50/50 hover:bg-rose-100 focus:bg-white px-4 py-3.5 text-[14px] font-bold text-rose-700 outline-none transition-shadow focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 shadow-sm cursor-pointer"
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                {/* Description */}
-                                                <div className="md:col-span-2 lg:col-span-12 mt-1">
-                                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2.5">Project Scope / Details</label>
-                                                    <textarea
-                                                        value={proj.description}
-                                                        onChange={e => updateProjectField(index, "description", e.target.value)}
-                                                        rows="3"
-                                                        placeholder="Write down project requirements, links, or specific notes..."
-                                                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-4 text-[14.5px] font-medium outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 resize-y leading-relaxed text-gray-800 shadow-sm"
-                                                    ></textarea>
-                                                </div>
-
-                                            </div>
-                                        </div>
-                                    </section>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Add More Button */}
-                    <div className="pt-2">
-                        <button
-                            type="button"
-                            onClick={addProjectRow}
-                            className="w-full py-6 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-3xl bg-white hover:bg-indigo-50 hover:border-indigo-400 hover:text-indigo-700 transition-all duration-300 group shadow-sm flex flex-col sm:flex-row items-center justify-center gap-3"
-                        >
-                            <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-gray-300 group-hover:border-indigo-400 bg-white transition-colors shadow-sm">
-                                <i className="fa-solid fa-plus text-gray-400 group-hover:text-indigo-600 transition-transform group-hover:scale-110 text-lg"></i>
-                            </span>
-                            <span className="text-[15px]">Add Another Project to this Batch</span>
-                        </button>
-                    </div>
-
-                    <div aria-hidden="true" style={{ height: footerHeight ? footerHeight + 16 : 0 }} />
-
-                    {/* Sticky Footer */}
-                    <div ref={footerRef} className="fixed bottom-0 left-0 md:left-[270px] right-0 z-[999] bg-white border-t border-gray-200 shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
-                        <div className="max-w-[1400px] mx-auto px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-
-                            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-5 gap-y-2 text-[13px] font-bold text-gray-500">
-                                <div className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200">
-                                    <i className="fa-solid fa-layer-group text-gray-400"></i>
-                                    <span><span className="text-gray-900 text-[15px]">{data.projects.length}</span> Project(s)</span>
-                                </div>
-                                <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-lg text-emerald-700 border border-emerald-100">
-                                    <i className="fa-solid fa-sack-dollar text-emerald-500"></i>
-                                    <span>Total Value: <span className="text-[16px] font-black">৳{formatTaka(totals.budget)}</span></span>
-                                </div>
-                                {totals.urgentSoon > 0 && (
-                                    <div className="flex items-center gap-2 bg-rose-50 px-3 py-1.5 rounded-lg text-rose-700 border border-rose-100 animate-pulse">
-                                        <i className="fa-solid fa-triangle-exclamation text-rose-500"></i>
-                                        <span>{totals.urgentSoon} Due Soon</span>
+                                            );
+                                        })}
                                     </div>
-                                )}
+                                </div>
                             </div>
+                        </div>
 
-                            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-3 sm:mt-0">
-                                <Link
-                                    href={route('admin.projects.index')}
-                                    className="flex-1 sm:flex-none inline-flex items-center justify-center px-6 py-3 rounded-xl border border-gray-300 bg-white text-gray-700 font-bold text-[14px] hover:bg-gray-50 transition-colors shadow-sm"
-                                >
-                                    Cancel
-                                </Link>
-                                <button
-                                    type="submit"
-                                    disabled={processing}
-                                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-indigo-600 text-white font-bold text-[14.5px] hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-md disabled:opacity-70"
-                                >
-                                    {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-cloud-arrow-up"></i> Save Batch</>}
+                        {/* Line Items */}
+                        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                            <div className="flex justify-between items-center mb-2 pb-4 border-b border-slate-100">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600">
+                                        <i className="fa-solid fa-boxes-stacked text-[15px]"></i>
+                                    </div>
+                                    <h3 className="text-[15px] font-semibold text-slate-900 m-0">Project items</h3>
+                                </div>
+                                <button type="button" onClick={addItemRow} className="border border-slate-200 bg-white text-slate-700 px-4 py-2.5 rounded-lg text-[13px] font-semibold hover:border-indigo-600 hover:text-indigo-600 shadow-sm transition-colors flex items-center gap-2">
+                                    <i className="fa-solid fa-plus text-[11px]"></i> Add item
                                 </button>
                             </div>
+
+                            <div className="divide-y divide-slate-100">
+                                {data.items.map((item, index) => (
+                                    <div key={index} className="py-6">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <span className="font-mono text-[12px] font-semibold text-indigo-600 tracking-wide bg-indigo-50 px-2.5 py-1 rounded-md">
+                                                No. {String(index + 1).padStart(2, "0")}
+                                            </span>
+                                            <button type="button" onClick={() => removeItemRow(index)} disabled={data.items.length === 1} className="text-[12px] font-semibold text-slate-400 hover:text-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5">
+                                                <i className="fa-solid fa-trash-can text-[11px]"></i> Remove
+                                            </button>
+                                        </div>
+
+                                        <div className="flex flex-col gap-5">
+                                            <div>
+                                                <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Item name <span className="text-red-500">*</span></label>
+                                                <input type="text" value={item.item_name} onChange={(e) => updateItem(index, "item_name", e.target.value)} placeholder="E.g., Business Card Design" className={inputClass} required />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Description / specifications</label>
+                                                <div className="quill-wrapper">
+                                                    <ReactQuill theme="snow" value={item.description} onChange={(val) => updateItem(index, "description", val)} />
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-wrap items-end gap-x-6 gap-y-4 pt-2">
+                                                <div className="w-20">
+                                                    <label className="block text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Qty</label>
+                                                    <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateItem(index, "quantity", e.target.value)}
+                                                        className="w-full font-mono border-0 border-b-2 border-slate-200 focus:border-indigo-600 outline-none py-1.5 text-[14px] font-semibold text-slate-800 bg-transparent focus:ring-0 transition-colors" placeholder="0" />
+                                                </div>
+                                                <div className="w-24">
+                                                    <label className="block text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Unit</label>
+                                                    <select value={item.unit_type} onChange={e => updateItem(index, "unit_type", e.target.value)}
+                                                        className="w-full border-0 border-b-2 border-slate-200 focus:border-indigo-600 outline-none py-1.5 bg-transparent text-[13px] font-semibold text-slate-800 cursor-pointer focus:ring-0 transition-colors">
+                                                        <option value="piece">Pcs</option><option value="kg">Kg</option><option value="set">Set</option><option value="sqft">SqFt</option>
+                                                    </select>
+                                                </div>
+                                                <span className="font-mono text-[15px] text-slate-300 pb-2">×</span>
+                                                <div className="w-32">
+                                                    <label className="block text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Unit price</label>
+                                                    <div className="relative">
+                                                        <Taka className="absolute left-0 top-1/2 -translate-y-1/2 text-[13px] text-slate-400" />
+                                                        <input type="number" step="any" min="0" value={item.unit_price} onChange={(e) => updateItem(index, "unit_price", e.target.value)}
+                                                            className="w-full font-mono border-0 border-b-2 border-slate-200 focus:border-indigo-600 outline-none py-1.5 pl-5 text-[14px] font-semibold text-slate-800 bg-transparent text-right focus:ring-0 transition-colors" placeholder="0" />
+                                                    </div>
+                                                </div>
+                                                <span className="font-mono text-[15px] text-slate-300 pb-2">=</span>
+                                                <div className="ml-auto text-right">
+                                                    <label className="block text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Line total</label>
+                                                    <div className="font-mono text-[19px] font-bold text-emerald-600 tabular-nums">
+                                                        <Taka className="text-[13px] text-emerald-600" />{Number(item.total).toLocaleString('en-IN')}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
+
                     </div>
 
+                    {/* Right Column (Sticky Summary) */}
+                    <div ref={stickyWrapperRef} className="w-full xl:w-[340px] shrink-0 relative">
+                        <div ref={stickyInnerRef} style={stickyStyle} className="flex flex-col gap-6 z-20">
+                            <div className="bg-slate-900 rounded-2xl p-6 sm:p-7 shadow-xl relative overflow-hidden text-white border border-slate-800">
+                                {/* Decorative Taka */}
+                                <span className="absolute -right-3 -top-8 text-[130px] leading-none font-mono text-white/[0.03] select-none pointer-events-none">৳</span>
+
+                                <div className="relative">
+                                    <p className="text-[12px] font-semibold text-slate-400 mb-5">Quote summary</p>
+
+                                    <div className="flex justify-between items-center pb-4 border-b border-white/10">
+                                        <span className="text-[13px] text-slate-300">Line items</span>
+                                        <span className="font-mono text-[15px] font-semibold">{data.items.length}</span>
+                                    </div>
+
+                                    <div className="pt-5">
+                                        <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Total estimate</span>
+                                        <div className="flex items-baseline gap-1 font-mono text-[32px] font-bold tracking-tight">
+                                            <Taka className="text-[18px] text-slate-400" />
+                                            <span>{totalBudget.toLocaleString('en-IN')}</span>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" disabled={processing} className="w-full mt-7 bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-lg text-[14px] font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-60">
+                                        {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Saving…</> : <><i className="fa-solid fa-cloud-arrow-up"></i> Create project</>}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </form>
             </div>
         </AdminLayout>

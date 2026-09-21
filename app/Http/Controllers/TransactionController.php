@@ -152,20 +152,27 @@ class TransactionController extends Controller
             'account_id'        => 'required|exists:accounts,id',
             'type'              => 'required|in:credit,debit',
             'amount'            => 'required|numeric|decimal:0,2|min:0.01',
+            'bank_charge'       => 'nullable|numeric|decimal:0,2|min:0',
             'transaction_date'  => 'required|date',
             'description'       => 'required|string|max:500',
             'reference_number'  => 'nullable|string|max:100',
         ]);
 
+        $validated['bank_charge'] = round((float) ($validated['bank_charge'] ?? 0), 2);
+        if ($validated['type'] === 'credit' && $validated['bank_charge'] > 0) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['bank_charge' => 'Bank charge is only supported for outgoing payments.']);
+        }
+        $validated['amount'] = round((float) $validated['amount'] + $validated['bank_charge'], 2);
+
         DB::transaction(function () use ($validated, $request) {
             Transaction::create($validated);
-            $account = Account::findOrFail($request->account_id);
+            $account = Account::whereKey($request->account_id)->lockForUpdate()->firstOrFail();
 
             if ($request->type === 'credit') {
                 $account->increment('current_balance', $validated['amount']);
             } else {
                 if ($account->current_balance < $validated['amount']) {
-                    throw new \Exception("Insufficient balance in the account!");
+                    throw \Illuminate\Validation\ValidationException::withMessages(['amount' => 'Insufficient account balance.']);
                 }
                 $account->decrement('current_balance', $validated['amount']);
             }
@@ -180,6 +187,7 @@ class TransactionController extends Controller
             'from_account_id'   => 'required|exists:accounts,id|different:to_account_id',
             'to_account_id'     => 'required|exists:accounts,id',
             'amount'            => 'required|numeric|decimal:0,2|min:0.01',
+            'bank_charge'       => 'nullable|numeric|decimal:0,2|min:0',
             'transaction_date'  => 'required|date',
             'description'       => 'nullable|string|max:500',
             'reference_number'  => 'nullable|string|max:100',
@@ -190,20 +198,22 @@ class TransactionController extends Controller
             $toAccount = Account::whereKey($validated['to_account_id'])->lockForUpdate()->firstOrFail();
 
             $transferAmount = round((float) $validated['amount'], 2);
+            $charge = round((float) ($validated['bank_charge'] ?? 0), 2);
 
-            if ($fromAccount->current_balance < $transferAmount) {
+            if ($fromAccount->current_balance < $transferAmount + $charge) {
                 throw new \Exception("Source account does not have sufficient balance!");
             }
 
             $desc = ($validated['description'] ?? '') ?: "Fund transfer from {$fromAccount->name} to {$toAccount->name}";
             $ref = $validated['reference_number'] ?? null;
 
-            $fromAccount->decrement('current_balance', $transferAmount);
+            $fromAccount->decrement('current_balance', $transferAmount + $charge);
 
             Transaction::create([
                 'account_id'       => $fromAccount->id,
                 'type'             => 'debit',
-                'amount'           => $transferAmount,
+                'amount'           => $transferAmount + $charge,
+                'bank_charge'      => $charge,
                 'transaction_date' => $validated['transaction_date'],
                 'description'      => $desc . " (Out)",
                 'reference_number' => $ref,
@@ -235,10 +245,17 @@ class TransactionController extends Controller
             'account_id'        => 'required|exists:accounts,id',
             'type'              => 'required|in:credit,debit',
             'amount'            => 'required|numeric|decimal:0,2|min:0.01',
+            'bank_charge'       => 'nullable|numeric|decimal:0,2|min:0',
             'transaction_date'  => 'required|date',
             'description'       => 'required|string|max:500',
             'reference_number'  => 'nullable|string|max:100',
         ]);
+
+        $validated['bank_charge'] = round((float) ($validated['bank_charge'] ?? 0), 2);
+        if ($validated['type'] === 'credit' && $validated['bank_charge'] > 0) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['bank_charge' => 'Bank charge is only supported for outgoing payments.']);
+        }
+        $validated['amount'] = round((float) $validated['amount'] + $validated['bank_charge'], 2);
 
         DB::transaction(function () use ($validated, $request, $transaction) {
             $oldAccount = Account::find($transaction->account_id);

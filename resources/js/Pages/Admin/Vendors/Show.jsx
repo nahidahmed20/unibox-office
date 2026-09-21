@@ -159,7 +159,7 @@ export default function Show({ vendor, payments, ledgers, bills, stats }) {
                                             <td className="px-6 py-4 align-top">
                                                 <div className="font-bold text-indigo-700 flex items-center gap-2 bg-indigo-50 px-3 py-1.5 w-fit rounded-lg border border-indigo-100">
                                                     <i className={`fa-solid ${pay.payment_source === 'account' ? 'fa-building-columns' : 'fa-user-tie'}`}></i>
-                                                    {pay.payment_source === 'account' ? (pay.account?.name || 'Bank/Cash') : 'Employee Advance'}
+                                                    {pay.payment_source === 'account' ? (pay.account?.name || 'Bank/Cash') : pay.payment_source === 'wallet' ? 'Vendor Advance (Wallet)' : 'Employee Advance'}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-normal min-w-[300px] max-w-lg align-top">

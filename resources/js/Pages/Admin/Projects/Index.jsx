@@ -3,6 +3,14 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
+const Taka = ({ className = "text-[13px]" }) => (
+    <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 ${className}`}>৳</span>
+);
+
+// Updated DOT colors to match modern SaaS theme (Tailwind HEX equivalents)
+const STATUS_DOT = { planning: "#94A3B8", in_progress: "#4F46E5", on_hold: "#EF4444", completed: "#10B981" };
+const PRIORITY_DOT = { low: "#10B981", medium: "#F59E0B", high: "#F97316", urgent: "#EF4444" };
+
 export default function Index({ projects = { data: [], links: [] }, clients = [], managers = [], is_super_admin = false }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
@@ -125,7 +133,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
     const handleDelete = (id) => {
         Swal.fire({
             title: "Are you sure?", text: "This project will be deleted permanently!", icon: "warning",
-            showCancelButton: true, confirmButtonColor: "#ef4444", cancelButtonColor: "#64748b", confirmButtonText: "Yes, Delete"
+            showCancelButton: true, confirmButtonColor: "#EF4444", cancelButtonColor: "#64748B", confirmButtonText: "Yes, Delete"
         }).then((result) => {
             if (result.isConfirmed) {
                 router.delete(route("admin.projects.destroy", id), {
@@ -138,13 +146,25 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
     const openViewModal = (project) => { setSelectedProject(project); setShowViewModal(true); };
 
+    // Modernized Status Badge Styles
     const getStatusStyles = (status) => {
-        const styles = { planning: "bg-gray-100 text-gray-600 border-gray-200", in_progress: "bg-blue-100 text-blue-700 border-blue-200", completed: "bg-emerald-100 text-emerald-700 border-emerald-200", on_hold: "bg-red-100 text-red-700 border-red-200" };
+        const styles = {
+            planning: "bg-slate-100 text-slate-600 border-slate-200",
+            in_progress: "bg-indigo-50 text-indigo-600 border-indigo-200",
+            completed: "bg-emerald-50 text-emerald-600 border-emerald-200",
+            on_hold: "bg-red-50 text-red-600 border-red-200",
+        };
         return styles[status] || styles.planning;
     };
 
+    // Modernized Priority Badge Styles
     const getPriorityStyles = (priority) => {
-        const styles = { low: "bg-gray-100 text-gray-500 border-gray-200", medium: "bg-sky-50 text-sky-600 border-sky-200", high: "bg-amber-50 text-amber-600 border-amber-200", urgent: "bg-rose-50 text-rose-600 border-rose-200" };
+        const styles = {
+            low: "bg-emerald-50 text-emerald-600 border-emerald-200",
+            medium: "bg-amber-50 text-amber-600 border-amber-200",
+            high: "bg-orange-50 text-orange-600 border-orange-200",
+            urgent: "bg-red-50 text-red-600 border-red-200",
+        };
         return styles[priority] || styles.medium;
     };
 
@@ -159,105 +179,75 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
             <style dangerouslySetInnerHTML={{__html: `
                 .custom-table-scroll::-webkit-scrollbar { height: 8px; }
-                .custom-table-scroll::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
-                .custom-table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
-                .custom-table-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+                .custom-table-scroll::-webkit-scrollbar-track { background: #F8FAFC; border-radius: 8px; }
+                .custom-table-scroll::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 8px; }
+                .custom-table-scroll::-webkit-scrollbar-thumb:hover { background: #CBD5E1; }
             `}} />
 
-            <div className="flex flex-col gap-8 w-full max-w-[1600px] mx-auto pb-12">
+            <div className="flex flex-col gap-8 w-full max-w-[1600px] mx-auto pb-12 mt-4">
 
-                {/* Premium Page Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mt-2">
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 pb-6 border-b border-slate-200">
                     <div>
-                        <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-indigo-600">
-                            <span className="h-1.5 w-1.5 rounded-full bg-indigo-600"></span> Operations
-                        </div>
-                        <h1 className="text-[28px] font-extrabold text-gray-900 tracking-tight">Project Workspace</h1>
-                        <p className="text-[14.5px] text-gray-500 mt-1.5 max-w-lg leading-relaxed">
-                            Manage, track, and oversee client projects seamlessly from start to completion.
-                        </p>
+                        <p className="text-[13px] font-semibold text-slate-500 mb-1">Operations</p>
+                        <h1 className="text-[28px] font-bold text-slate-900 tracking-tight">Project workspace</h1>
+                        <p className="text-[14px] text-slate-500 mt-2 max-w-lg">Manage, track, and oversee client projects from start to completion.</p>
                     </div>
                 </div>
 
-                {/* Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                    <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-all group">
-                        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-indigo-50 opacity-50 transition-transform group-hover:scale-110"></div>
-                        <div className="relative flex items-center gap-5">
-                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-200">
-                                <i className="fa-solid fa-layer-group text-[20px]"></i>
-                            </div>
-                            <div>
-                                <p className="mb-1 text-[11.5px] font-bold uppercase tracking-wider text-gray-500">Total Projects Listed</p>
-                                <h3 className="text-[26px] font-black text-gray-900 m-0 tracking-tight tabular-nums">{projects?.total || 0}</h3>
-                            </div>
-                        </div>
+                {/* Summary Strip */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                    <div className="p-6">
+                        <p className="text-[12px] font-semibold text-slate-500 mb-2">Total projects listed</p>
+                        <h3 className="font-mono text-[26px] font-bold text-slate-900 tabular-nums">{projects?.total || 0}</h3>
                     </div>
-
-                    <div className="relative overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50/50 p-6 shadow-sm hover:shadow-md transition-all group">
-                        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-blue-100 opacity-40 transition-transform group-hover:scale-110"></div>
-                        <div className="relative flex items-center gap-5">
-                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 text-white shadow-lg shadow-blue-200">
-                                <i className="fa-solid fa-chart-line text-[20px]"></i>
-                            </div>
-                            <div>
-                                <p className="mb-1 text-[11.5px] font-bold uppercase tracking-wider text-blue-600/90">Active (In Progress)</p>
-                                <h3 className="text-[26px] font-black text-blue-700 m-0 tabular-nums tracking-tight">{activeProjectsCount} Projects</h3>
-                            </div>
-                        </div>
+                    <div className="p-6">
+                        <p className="text-[12px] font-semibold text-slate-500 mb-2">Active — in progress</p>
+                        <h3 className="font-mono text-[26px] font-bold text-indigo-600 tabular-nums">{activeProjectsCount}</h3>
                     </div>
-
-                    <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50/50 p-6 shadow-sm hover:shadow-md transition-all group">
-                        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-emerald-100 opacity-40 transition-transform group-hover:scale-110"></div>
-                        <div className="relative flex items-center gap-5">
-                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-200">
-                                <i className="fa-solid fa-hand-holding-dollar text-[20px]"></i>
-                            </div>
-                            <div>
-                                <p className="mb-1 text-[11.5px] font-bold uppercase tracking-wider text-emerald-600/90">Total Value (Current View)</p>
-                                <h3 className="text-[26px] font-black text-emerald-700 m-0 tabular-nums tracking-tight">
-                                    <i className="fa-solid fa-bangladeshi-taka-sign text-[18px] mr-1.5 opacity-80"></i>
-                                    {totalProjectsBudget.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                                </h3>
-                            </div>
-                        </div>
+                    <div className="p-6">
+                        <p className="text-[12px] font-semibold text-slate-500 mb-2">Total value (current view)</p>
+                        <h3 className="font-mono text-[26px] font-bold text-emerald-600 tabular-nums flex items-center">
+                            <Taka className="text-[17px] text-emerald-600" />{totalProjectsBudget.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                        </h3>
                     </div>
                 </div>
 
-                {/* 🟢 Main Card */}
-                <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
-                    
+                {/* Main Card */}
+                <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden flex flex-col shadow-sm">
+
                     {/* Card Header & Actions */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 px-6 py-5 gap-4 bg-gray-50/40">
-                        <div className="text-[16px] font-bold text-gray-900 flex items-center gap-2.5">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 px-6 py-5 gap-4">
+                        <div className="text-[15px] font-semibold text-slate-900 flex items-center gap-2.5">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
                                 <i className="fa-solid fa-layer-group text-[14px]"></i>
                             </div>
-                            Project Directory
+                            Project directory
                         </div>
                         {hasPermission('create_project') && (
-                            <Link href={route('admin.projects.create')} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-[13.5px] font-bold text-white transition-all hover:bg-indigo-700 shadow-sm hover:shadow-md">
-                                <i className="fa-solid fa-plus"></i> Add New Project
+                            <Link href={route('admin.projects.create')} className="flex items-center justify-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 px-5 py-2.5 text-[13px] font-semibold text-white transition-colors shadow-sm">
+                                <i className="fa-solid fa-plus"></i> New project
                             </Link>
                         )}
                     </div>
 
-                    {/* 🟢 Unified Filters & Search Toolbar */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100" ref={filterRef}>
-                        
+                    {/* Filters & Search Toolbar */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-slate-200" ref={filterRef}>
+
                         {/* Left Side: Show Rows & Filters */}
                         <div className="flex flex-wrap items-center gap-3">
-                            
-                            {/* 🟢 Premium Show Rows Dropdown */}
-                            <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
-                                <span className="bg-gray-50/80 px-4 py-2.5 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
+
+                            {/* Show Rows Dropdown */}
+                            <div className="flex items-center rounded-lg border border-slate-200 bg-white overflow-hidden focus-within:border-indigo-600 focus-within:ring-4 focus-within:ring-indigo-600/15 transition-colors">
+                                <span className="bg-slate-50 px-4 py-2.5 text-[12px] font-semibold text-slate-500 border-r border-slate-200">
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select 
-                                        value={perPage} 
-                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
-                                        className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
+                                    <select
+                                        value={perPage}
+                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
+                                        className="appearance-none bg-transparent pl-4 pr-10 py-2.5 text-[13px] font-semibold text-slate-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
+                                        style={{ backgroundImage: 'none' }}
                                     >
                                         <option value={10}>10 Rows</option>
                                         <option value={25}>25 Rows</option>
@@ -265,8 +255,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                         <option value={100}>100 Rows</option>
                                         <option value="all">All Data</option>
                                     </select>
-                                    
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-400">
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-500">
                                         <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                             <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                                         </svg>
@@ -274,30 +263,30 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                 </div>
                             </div>
 
-                            <div className="h-6 w-px bg-gray-200 hidden sm:block mx-1"></div>
+                            <div className="h-6 w-px bg-slate-200 hidden sm:block mx-1"></div>
 
                             {/* Client Filter Dropdown */}
                             <div className="relative w-full sm:w-[220px]">
-                                <div onClick={() => { setShowClientFilterDropdown(!showClientFilterDropdown); setShowStatusFilterDropdown(false); }} className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] hover:bg-gray-50 transition-shadow shadow-sm font-medium">
-                                    <span className={filterClient ? 'text-indigo-600 font-bold' : 'text-gray-500'}>
-                                        {filterClient ? (clients.find(c => c.id == filterClient)?.name || "All Clients") : "Filter by Client"}
+                                <div onClick={() => { setShowClientFilterDropdown(!showClientFilterDropdown); setShowStatusFilterDropdown(false); }} className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] hover:border-indigo-600 transition-colors font-medium">
+                                    <span className={filterClient ? 'text-indigo-600 font-semibold' : 'text-slate-500'}>
+                                        {filterClient ? (clients.find(c => c.id == filterClient)?.name || "All Clients") : "Filter by client"}
                                     </span>
                                     {filterClient ? (
-                                        <i className="fa-solid fa-times text-red-400 hover:text-red-600" onClick={(e) => { e.stopPropagation(); setFilterClient(""); }}></i>
+                                        <i className="fa-solid fa-times text-red-500 hover:text-red-600" onClick={(e) => { e.stopPropagation(); setFilterClient(""); }}></i>
                                     ) : (
-                                        <i className="fa-solid fa-chevron-down text-[11px] text-gray-400"></i>
+                                        <i className="fa-solid fa-chevron-down text-[11px] text-slate-400"></i>
                                     )}
                                 </div>
                                 {showClientFilterDropdown && (
-                                    <div className="absolute top-full left-0 mt-1 flex max-h-[280px] w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl z-50">
-                                        <div className="border-b border-gray-100 bg-gray-50 p-2 relative">
-                                            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[12px]"></i>
-                                            <input type="text" placeholder="Search client..." value={clientFilterSearch} onChange={(e) => setClientFilterSearch(e.target.value)} className="w-full rounded-lg border border-gray-200 pl-8 pr-3 py-2 text-[13px] outline-none focus:border-indigo-500" autoFocus />
+                                    <div className="absolute top-full left-0 mt-1 flex max-h-[280px] w-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg z-50">
+                                        <div className="border-b border-slate-200 bg-slate-50 p-2 relative">
+                                            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-[12px]"></i>
+                                            <input type="text" placeholder="Search client..." value={clientFilterSearch} onChange={(e) => setClientFilterSearch(e.target.value)} className="w-full rounded-md border border-slate-200 pl-8 pr-3 py-2 text-[13px] outline-none focus:border-indigo-600" autoFocus />
                                         </div>
                                         <div className="overflow-y-auto py-1 custom-table-scroll">
-                                            <div onClick={() => { setFilterClient(""); setShowClientFilterDropdown(false); }} className="cursor-pointer px-4 py-2 text-[13px] text-gray-700 hover:bg-indigo-50 font-medium">All Clients</div>
+                                            <div onClick={() => { setFilterClient(""); setShowClientFilterDropdown(false); }} className="cursor-pointer px-4 py-2 text-[13px] text-slate-800 hover:bg-slate-50 font-medium">All Clients</div>
                                             {clients.filter(c => c.name.toLowerCase().includes(clientFilterSearch.toLowerCase())).map(c => (
-                                                <div key={c.id} onClick={() => { setFilterClient(c.id); setShowClientFilterDropdown(false); setClientFilterSearch(""); }} className={`cursor-pointer px-4 py-2 text-[13px] hover:bg-indigo-50 ${filterClient == c.id ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-gray-700 font-medium'}`}>{c.name}</div>
+                                                <div key={c.id} onClick={() => { setFilterClient(c.id); setShowClientFilterDropdown(false); setClientFilterSearch(""); }} className={`cursor-pointer px-4 py-2 text-[13px] hover:bg-slate-50 ${filterClient == c.id ? 'bg-indigo-50 text-indigo-600 font-semibold' : 'text-slate-800 font-medium'}`}>{c.name}</div>
                                             ))}
                                         </div>
                                     </div>
@@ -306,22 +295,22 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
                             {/* Status Filter Dropdown */}
                             <div className="relative w-full sm:w-[160px]">
-                                <div onClick={() => { setShowStatusFilterDropdown(!showStatusFilterDropdown); setShowClientFilterDropdown(false); }} className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] hover:bg-gray-50 transition-shadow shadow-sm font-medium">
-                                    <span className={filterStatus ? 'text-indigo-600 font-bold' : 'text-gray-500'}>
-                                        {filterStatus ? (statusOptions.find(s => s.value === filterStatus)?.label || "All Status") : "Filter by Status"}
+                                <div onClick={() => { setShowStatusFilterDropdown(!showStatusFilterDropdown); setShowClientFilterDropdown(false); }} className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] hover:border-indigo-600 transition-colors font-medium">
+                                    <span className={filterStatus ? 'text-indigo-600 font-semibold' : 'text-slate-500'}>
+                                        {filterStatus ? (statusOptions.find(s => s.value === filterStatus)?.label || "All Status") : "Filter by status"}
                                     </span>
                                     {filterStatus ? (
-                                        <i className="fa-solid fa-times text-red-400 hover:text-red-600" onClick={(e) => { e.stopPropagation(); setFilterStatus(""); }}></i>
+                                        <i className="fa-solid fa-times text-red-500 hover:text-red-600" onClick={(e) => { e.stopPropagation(); setFilterStatus(""); }}></i>
                                     ) : (
-                                        <i className="fa-solid fa-chevron-down text-[11px] text-gray-400"></i>
+                                        <i className="fa-solid fa-chevron-down text-[11px] text-slate-400"></i>
                                     )}
                                 </div>
                                 {showStatusFilterDropdown && (
-                                    <div className="absolute top-full left-0 mt-1 flex max-h-[250px] w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl z-50">
+                                    <div className="absolute top-full left-0 mt-1 flex max-h-[250px] w-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg z-50">
                                         <div className="overflow-y-auto py-1">
-                                            <div onClick={() => { setFilterStatus(""); setShowStatusFilterDropdown(false); }} className="cursor-pointer px-4 py-2.5 text-[13px] text-gray-700 hover:bg-indigo-50 font-medium">All Status</div>
+                                            <div onClick={() => { setFilterStatus(""); setShowStatusFilterDropdown(false); }} className="cursor-pointer px-4 py-2.5 text-[13px] text-slate-800 hover:bg-slate-50 font-medium">All Status</div>
                                             {statusOptions.map(s => (
-                                                <div key={s.value} onClick={() => { setFilterStatus(s.value); setShowStatusFilterDropdown(false); }} className={`cursor-pointer px-4 py-2.5 text-[13px] hover:bg-indigo-50 ${filterStatus === s.value ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-gray-700 font-medium'}`}>{s.label}</div>
+                                                <div key={s.value} onClick={() => { setFilterStatus(s.value); setShowStatusFilterDropdown(false); }} className={`cursor-pointer px-4 py-2.5 text-[13px] hover:bg-slate-50 ${filterStatus === s.value ? 'bg-indigo-50 text-indigo-600 font-semibold' : 'text-slate-800 font-medium'}`}>{s.label}</div>
                                             ))}
                                         </div>
                                     </div>
@@ -332,87 +321,87 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                         {/* Right Side: Search & Export */}
                         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
                             <div className="flex items-center gap-1.5 shrink-0">
-                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 shadow-sm"><i className="fas fa-file-csv"></i> CSV</button>
-                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm"><i className="fas fa-print text-gray-500"></i> Print</button>
+                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"><i className="fas fa-file-csv"></i> CSV</button>
+                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-600 transition-colors hover:bg-slate-50"><i className="fas fa-print"></i> Print</button>
                             </div>
                             <div className="relative w-full sm:w-[240px]">
-                                <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
-                                <input type="text" placeholder="Search project..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13px] outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white" />
+                                <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-[13px]"></i>
+                                <input type="text" placeholder="Search project..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-4 text-[13px] outline-none transition-colors focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 bg-white" />
                             </div>
                         </div>
                     </div>
 
-                    {/* 🟢 Data Table with Beautiful Header */}
-                    <div className="overflow-x-auto custom-table-scroll pb-2 border-t border-gray-100">
+                    {/* Data Table */}
+                    <div className="overflow-x-auto custom-table-scroll pb-2">
                         <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1200px]">
-                            <thead className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
+                            <thead className="bg-slate-50 border-b border-slate-200">
                                 <tr>
-                                    <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-12">
+                                    <th className="px-6 py-4 text-center text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-12">
                                         SL
                                     </th>
-                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-[28%]">
+                                    <th className="px-6 py-4 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-[28%]">
                                         Project Details
                                     </th>
-                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">
-                                        Client & Manager
+                                    <th className="px-6 py-4 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                                        Client &amp; Manager
                                     </th>
-                                    <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">
+                                    <th className="px-6 py-4 text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
                                         Value / Budget
                                     </th>
-                                    <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">
-                                        Status & Progress
+                                    <th className="px-6 py-4 text-center text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                                        Status &amp; Progress
                                     </th>
-                                    <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] no-print w-36">
+                                    <th className="px-6 py-4 text-center text-[11px] font-semibold text-slate-500 uppercase tracking-wide no-print w-36">
                                         Actions
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="text-[13.5px] text-gray-800 divide-y divide-gray-100">
+                            <tbody className="text-[13.5px] text-slate-800 divide-y divide-slate-200">
                                 {projects.data && projects.data.length > 0 ? (
                                     projects.data.map((project, index) => {
                                         const isCompleted = project.status === 'completed';
                                         const canModify = !isCompleted || isSuperAdmin;
 
                                         return (
-                                            <tr key={project.id} className="hover:bg-slate-50/80 transition-colors group">
-                                                <td className="px-6 py-4 font-medium text-gray-400 text-center">{projects.from ? projects.from + index : index + 1}</td>
-                                                
-                                                {/* 🟢 BEAUTIFIED: Project Details Column */}
+                                            <tr key={project.id} className="hover:bg-slate-50 transition-colors group">
+                                                <td className="px-6 py-4 font-mono text-slate-500 text-center">{projects.from ? projects.from + index : index + 1}</td>
+
+                                                {/* Project Details Column */}
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-start gap-3.5">
-                                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 shadow-sm group-hover:scale-105 transition-transform">
+                                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
                                                             <i className="fa-solid fa-layer-group text-[16px]"></i>
                                                         </div>
                                                         <div>
-                                                            <div className="font-extrabold text-[14.5px] text-gray-900 truncate max-w-[280px]" title={project.title}>
+                                                            <div className="font-semibold text-[14.5px] text-slate-900 truncate max-w-[280px]" title={project.title}>
                                                                 {project.title}
                                                             </div>
-                                                            <div className="flex items-center gap-2 mt-1">
+                                                            <div className="flex items-center gap-2 mt-1.5">
                                                                 {project.priority && (
-                                                                    <span className={`px-2 py-0.5 rounded text-[9.5px] font-black uppercase tracking-wider border ${getPriorityStyles(project.priority)}`}>
+                                                                    <span className={`px-2 py-0.5 rounded text-[9.5px] font-bold uppercase tracking-wide border ${getPriorityStyles(project.priority)}`}>
                                                                         {project.priority}
                                                                     </span>
                                                                 )}
-                                                                <span className="text-[11.5px] text-gray-500 font-semibold flex items-center gap-1">
-                                                                    <i className="fa-regular fa-calendar text-[10px] text-gray-400"></i> {project.deadline || "No Deadline"}
+                                                                <span className="text-[11.5px] text-slate-500 font-medium flex items-center gap-1">
+                                                                    <i className="fa-regular fa-calendar text-[10px]"></i> {project.deadline || "No Deadline"}
                                                                 </span>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </td>
 
-                                                {/* 🟢 BEAUTIFIED: Client & Manager Column */}
+                                                {/* Client & Manager Column */}
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-[12px] font-black uppercase shadow-sm">
+                                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-800 text-white text-[12px] font-bold uppercase">
                                                             {project.client?.name ? project.client.name.charAt(0) : '?'}
                                                         </div>
                                                         <div>
-                                                            <div className="font-bold text-gray-900 text-[13.5px]">
-                                                                {project.client?.name || <span className="text-gray-400 italic">No Client</span>}
+                                                            <div className="font-semibold text-slate-900 text-[13.5px]">
+                                                                {project.client?.name || <span className="text-slate-400 italic font-normal">No Client</span>}
                                                             </div>
-                                                            <div className="text-[11.5px] text-gray-500 mt-0.5 flex items-center gap-1.5 font-medium">
-                                                                <i className="fa-solid fa-user-tie text-[10px] text-indigo-400"></i> {project.project_manager?.name || 'Unassigned'}
+                                                            <div className="text-[11.5px] text-slate-500 mt-0.5 flex items-center gap-1.5 font-medium">
+                                                                <i className="fa-solid fa-user-tie text-[10px] text-indigo-600"></i> {project.project_manager?.name || 'Unassigned'}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -420,40 +409,38 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
                                                 {/* Value / Budget */}
                                                 <td className="px-6 py-4 text-right">
-                                                    <div className="font-black text-gray-900 text-[15px] tabular-nums bg-gray-50 px-2 py-1 rounded inline-block border border-gray-100">
-                                                        {project.budget ? `৳ ${Number(project.budget).toLocaleString('en-IN')}` : <span className="text-gray-400 text-[13px] font-medium italic">No budget set</span>}
+                                                    <div className="font-mono font-bold text-slate-900 text-[15px] tabular-nums">
+                                                        {project.budget ? <><Taka className="text-[12px]" />{Number(project.budget).toLocaleString('en-IN')}</> : <span className="text-slate-400 text-[13px] font-medium italic font-sans">No budget set</span>}
                                                     </div>
-                                                    {project.quantity && (
-                                                        <div className="text-[11.5px] font-semibold text-gray-500 mt-1">
-                                                            {Number(project.quantity).toLocaleString()} {project.unit_type}
-                                                        </div>
-                                                    )}
+                                                    <div className="text-[11.5px] font-medium text-slate-500 mt-1 flex justify-end items-center gap-1">
+                                                        <i className="fa-solid fa-box text-[10px]"></i> {project.items?.length || 0} items
+                                                    </div>
                                                 </td>
 
                                                 {/* Status & Progress */}
                                                 <td className="px-6 py-4 w-[180px]">
-                                                    <select 
-                                                        value={project.status} 
-                                                        onChange={(e) => handleQuickStatusChange(project.id, e.target.value)} 
-                                                        disabled={!canModify} 
-                                                        className={`w-full appearance-none bg-white border px-3 py-1.5 mb-2 rounded-lg text-[11px] font-bold uppercase tracking-wider outline-none text-center shadow-sm ${canModify ? 'cursor-pointer focus:ring-2 focus:ring-indigo-500/20' : 'cursor-not-allowed opacity-80'} ${getStatusStyles(project.status)}`}
+                                                    <select
+                                                        value={project.status}
+                                                        onChange={(e) => handleQuickStatusChange(project.id, e.target.value)}
+                                                        disabled={!canModify}
+                                                        className={`w-full appearance-none border px-3 py-1.5 mb-2 rounded-md text-[11px] font-bold uppercase tracking-wide outline-none text-center ${canModify ? 'cursor-pointer focus:ring-2 focus:ring-indigo-600/20' : 'cursor-not-allowed opacity-80'} ${getStatusStyles(project.status)}`}
+                                                        style={{ backgroundImage: 'none' }}
                                                     >
                                                         <option value="planning">Planning</option>
                                                         <option value="in_progress">In Progress</option>
                                                         <option value="on_hold">On Hold</option>
                                                         <option value="completed">Completed</option>
                                                     </select>
-                                                    
-                                                    {/* 🟢 Smart Progress Bar UI */}
-                                                    <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1 overflow-hidden">
-                                                        <div 
+
+                                                    <div className="w-full bg-slate-200 rounded-full h-1.5 mt-1 overflow-hidden">
+                                                        <div
                                                             className={`h-full rounded-full transition-all duration-500 ${
-                                                                (project.status === 'completed' ? 100 : (project.status === 'planning' ? 0 : project.progress)) === 100 ? 'bg-emerald-500' : 'bg-indigo-500'
-                                                            }`} 
+                                                                (project.status === 'completed' ? 100 : (project.status === 'planning' ? 0 : project.progress)) === 100 ? 'bg-emerald-500' : 'bg-indigo-600'
+                                                            }`}
                                                             style={{ width: `${project.status === 'completed' ? 100 : (project.status === 'planning' ? 0 : project.progress)}%` }}
                                                         ></div>
                                                     </div>
-                                                    <span className="text-[10px] font-bold text-gray-500 mt-1 block text-right">
+                                                    <span className="font-mono text-[10px] font-semibold text-slate-500 mt-1 block text-right">
                                                         {project.status === 'completed' ? 100 : (project.status === 'planning' ? 0 : (project.progress || 0))}%
                                                     </span>
                                                 </td>
@@ -462,25 +449,25 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                                 <td className="px-6 py-4 text-right no-print">
                                                     <div className="flex items-center justify-end gap-1.5">
                                                         {hasPermission('view_project') && (
-                                                            <button onClick={() => openViewModal(project)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors shadow-sm" title="View Details">
+                                                            <button onClick={() => openViewModal(project)} className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:border-slate-900 hover:text-slate-900 transition-colors bg-white shadow-sm" title="View Details">
                                                                 <i className="fa-regular fa-eye text-[13px]"></i>
                                                             </button>
                                                         )}
                                                         {canModify ? (
                                                             <>
                                                                 {hasPermission('edit_project') && (
-                                                                    <Link href={route('admin.projects.edit', project.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors shadow-sm" title="Edit">
+                                                                    <Link href={route('admin.projects.edit', project.id)} className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:border-indigo-600 hover:text-indigo-600 transition-colors bg-white shadow-sm" title="Edit">
                                                                         <i className="fa-regular fa-pen-to-square text-[13px]"></i>
                                                                     </Link>
                                                                 )}
                                                                 {hasPermission('delete_project') && (
-                                                                    <button onClick={() => handleDelete(project.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors shadow-sm" title="Delete">
+                                                                    <button onClick={() => handleDelete(project.id)} className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:border-red-500 hover:text-red-500 transition-colors bg-white shadow-sm" title="Delete">
                                                                         <i className="fa-regular fa-trash-can text-[13px]"></i>
                                                                     </button>
                                                                 )}
                                                             </>
                                                         ) : (
-                                                            <div className="flex items-center gap-1.5 bg-gray-100 px-2.5 py-1.5 rounded-lg text-[10.5px] font-bold text-gray-500 uppercase tracking-wider"><i className="fa-solid fa-lock text-[10px]"></i> Locked</div>
+                                                            <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1.5 rounded-md text-[10.5px] font-bold text-slate-500 uppercase tracking-wide border border-slate-200"><i className="fa-solid fa-lock text-[10px]"></i> Locked</div>
                                                         )}
                                                     </div>
                                                 </td>
@@ -489,13 +476,13 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan="6" className="px-6 py-20 text-center text-gray-500">
+                                        <td colSpan="6" className="px-6 py-20 text-center">
                                             <div className="flex flex-col items-center justify-center">
-                                                <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                                                    <i className="fa-solid fa-layer-group text-2xl text-gray-400"></i>
+                                                <div className="h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mb-4 border border-slate-100">
+                                                    <i className="fa-solid fa-layer-group text-2xl text-slate-300"></i>
                                                 </div>
-                                                <p className="text-[15px] font-bold text-gray-700">No projects found.</p>
-                                                <p className="text-[13px] text-gray-400 mt-1">Try adjusting your filters or create a new project.</p>
+                                                <p className="text-[15px] font-semibold text-slate-800">No projects found.</p>
+                                                <p className="text-[13px] text-slate-500 mt-1">Try adjusting your filters or create a new project.</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -506,8 +493,8 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
                     {/* Pagination */}
                     {projects.links && projects.links.length > 3 && (
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100 bg-white px-6 py-4">
-                            <div className="text-[13.5px] font-medium text-gray-500">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200 bg-white px-6 py-4">
+                            <div className="text-[13px] font-medium text-slate-500">
                                 Showing {projects.from || 0} to {projects.to || 0} of {projects.total || 0} projects
                             </div>
                             <div className="flex flex-wrap items-center gap-1.5">
@@ -515,12 +502,12 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                     <Link
                                         key={index}
                                         href={link.url || "#"}
-                                        className={`flex min-w-[36px] items-center justify-center rounded-lg border px-3 py-2 text-[13px] font-bold transition-all
+                                        className={`flex min-w-[36px] items-center justify-center rounded-md border px-3 py-2 text-[13px] font-semibold transition-colors shadow-sm
                                             ${link.active
-                                                ? 'border-indigo-600 bg-indigo-600 text-white shadow-md'
+                                                ? 'border-indigo-600 bg-indigo-600 text-white'
                                                 : link.url
-                                                    ? 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300'
-                                                    : 'border-gray-100 bg-gray-50 text-gray-400 pointer-events-none'
+                                                    ? 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                                                    : 'border-slate-100 bg-slate-50 text-slate-300 pointer-events-none'
                                             }
                                         `}
                                         preserveState
@@ -533,105 +520,150 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                 </div>
             </div>
 
-            {/* --- STUNNING VIEW DETAILS MODAL --- */}
+            {/* View Details Modal */}
             {showViewModal && selectedProject && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
-                    <div className="w-full max-w-4xl bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
+                    <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden">
 
-                        {/* 🟢 Premium Profile Header */}
-                        <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 px-8 py-8 shrink-0 overflow-hidden">
-                            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-white opacity-10 translate-x-10 -translate-y-10"></div>
-                            <div className="absolute left-0 bottom-0 h-24 w-24 rounded-full bg-black opacity-10 -translate-x-5 translate-y-5"></div>
+                        {/* Letterhead Header */}
+                        <div className="relative bg-slate-900 px-8 py-8 shrink-0 overflow-hidden border-b border-slate-800">
+                            <span className="absolute -right-6 -top-10 text-[160px] leading-none font-mono text-white/[0.03] select-none pointer-events-none">৳</span>
 
-                            <button onClick={() => setShowViewModal(false)} className="absolute top-5 right-5 bg-black/20 hover:bg-black/40 text-white h-9 w-9 rounded-full flex items-center justify-center transition-colors backdrop-blur-md z-20">
-                                <i className="fa-solid fa-xmark text-sm"></i>
+                            <button onClick={() => setShowViewModal(false)} className="absolute top-6 right-6 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-white hover:bg-white/10 transition-colors z-20">
+                                <i className="fa-solid fa-xmark"></i>
                             </button>
 
-                            <div className="relative z-10 flex flex-col sm:flex-row gap-5 items-start">
-                                <div className="h-16 w-16 shrink-0 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-white text-3xl shadow-lg ring-1 ring-white/30">
-                                    <i className="fa-regular fa-folder-open"></i>
-                                </div>
-                                <div>
-                                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                                        <span className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${selectedProject.status === 'completed' ? 'bg-emerald-500 text-white' : selectedProject.status === 'in_progress' ? 'bg-blue-500 text-white' : 'bg-white/20 text-white'}`}>
-                                            {selectedProject.status.replace('_', ' ')}
+                            <div className="relative z-10">
+                                <div className="flex flex-wrap items-center gap-2 mb-3">
+                                    <span className="font-mono text-[12px] text-slate-400">Ref. #{selectedProject.id}</span>
+                                    <span className="text-white/20">·</span>
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-[11px] font-semibold text-white capitalize">
+                                        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATUS_DOT[selectedProject.status] || '#94A3B8' }}></span>
+                                        {selectedProject.status.replace('_', ' ')}
+                                    </span>
+                                    {selectedProject.priority && (
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-[11px] font-semibold text-white capitalize">
+                                            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: PRIORITY_DOT[selectedProject.priority] || '#94A3B8' }}></span>
+                                            {selectedProject.priority} priority
                                         </span>
-                                        {selectedProject.priority && <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-widest bg-amber-500 text-white">Priority: {selectedProject.priority}</span>}
-                                    </div>
-                                    <h2 className="text-[26px] font-black text-white tracking-tight leading-tight">{selectedProject.title}</h2>
+                                    )}
                                 </div>
+                                <h2 className="text-[24px] sm:text-[27px] font-bold text-white tracking-tight leading-tight max-w-2xl">
+                                    {selectedProject.title}
+                                </h2>
                             </div>
                         </div>
 
                         {/* Modal Body */}
-                        <div className="p-6 md:p-8 overflow-y-auto custom-table-scroll space-y-6">
+                        <div className="p-6 md:p-8 overflow-y-auto custom-table-scroll space-y-5">
 
-                            {/* Top Info Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5"><i className="fa-solid fa-user-tie mr-1 text-indigo-400"></i> Client</span>
-                                    <div className="font-bold text-gray-900 text-[15px]">{selectedProject.client?.name || "N/A"}</div>
-                                    {selectedProject.client?.company_name && <div className="text-[12px] text-gray-500 mt-0.5">{selectedProject.client.company_name}</div>}
+                            {/* Top Info Strip */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-200 rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm">
+                                <div className="p-5">
+                                    <span className="block text-[11px] font-semibold text-slate-500 mb-1.5">Client</span>
+                                    <div className="font-semibold text-slate-900 text-[14.5px]">{selectedProject.client?.name || "N/A"}</div>
+                                    {selectedProject.client?.company_name && <div className="text-[12px] text-slate-500 mt-0.5">{selectedProject.client.company_name}</div>}
                                 </div>
-                                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5"><i className="fa-solid fa-user-shield mr-1 text-blue-400"></i> Project Manager</span>
-                                    <div className="font-bold text-gray-900 text-[15px]">{selectedProject.project_manager?.name || "Unassigned"}</div>
+                                <div className="p-5">
+                                    <span className="block text-[11px] font-semibold text-slate-500 mb-1.5">Project manager</span>
+                                    <div className="font-semibold text-slate-900 text-[14.5px]">{selectedProject.project_manager?.name || "Unassigned"}</div>
                                 </div>
-                                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5"><i className="fa-regular fa-calendar-days mr-1 text-rose-400"></i> Timeline</span>
-                                    <div className="font-bold text-gray-900 text-[13px]">{selectedProject.start_date || "-"} &rarr; {selectedProject.deadline || "-"}</div>
+                                <div className="p-5">
+                                    <span className="block text-[11px] font-semibold text-slate-500 mb-1.5">Timeline</span>
+                                    <div className="font-mono font-semibold text-slate-900 text-[13px]">{selectedProject.start_date || "-"} → {selectedProject.deadline || "-"}</div>
                                 </div>
                             </div>
 
-                            {/* Middle Info Row */}
+                            {/* Financials + Progress */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-center">
-                                    <span className="block text-[12px] font-bold uppercase tracking-wider text-gray-800 mb-4 border-b border-gray-100 pb-2"><i className="fa-solid fa-chart-pie text-emerald-500 mr-1.5"></i> Financials</span>
+                                <div className="p-6 rounded-xl border border-slate-200 shadow-sm bg-white">
+                                    <span className="block text-[12px] font-semibold text-slate-900 mb-4 pb-3 border-b border-slate-100">Financials</span>
                                     <div className="flex justify-between items-center mb-3">
-                                        <span className="text-gray-500 font-semibold text-[13px]">Total Budget:</span>
-                                        <span className="font-black text-emerald-700 text-[18px] bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-100 tabular-nums">
-                                            {selectedProject.budget ? `৳ ${Number(selectedProject.budget).toLocaleString('en-IN')}` : "Not Set"}
+                                        <span className="text-[13px] text-slate-500 font-medium">Total budget</span>
+                                        <span className="font-mono font-bold text-emerald-600 text-[18px] tabular-nums flex items-center">
+                                            {selectedProject.budget ? <><Taka className="text-[13px] text-emerald-600" />{Number(selectedProject.budget).toLocaleString('en-IN')}</> : <span className="font-sans font-semibold text-[14px]">Not set</span>}
                                         </span>
                                     </div>
                                     <div className="flex justify-between items-center">
-                                        <span className="text-gray-500 font-semibold text-[13px]">Quantity / Units:</span>
-                                        <span className="font-bold text-gray-800 text-[14.5px]">{selectedProject.quantity ? `${Number(selectedProject.quantity).toLocaleString()} ${selectedProject.unit_type}` : "N/A"}</span>
+                                        <span className="text-[13px] text-slate-500 font-medium">Items included</span>
+                                        <span className="font-mono font-semibold text-slate-900 text-[14px]">{selectedProject.items?.length || 0}</span>
                                     </div>
                                 </div>
 
-                                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-center">
-                                    <span className="block text-[12px] font-bold uppercase tracking-wider text-gray-800 mb-4 border-b border-gray-100 pb-2"><i className="fa-solid fa-spinner text-blue-500 mr-1.5"></i> Task Progress</span>
+                                <div className="p-6 rounded-xl border border-slate-200 shadow-sm bg-white">
+                                    <span className="block text-[12px] font-semibold text-slate-900 mb-4 pb-3 border-b border-slate-100">Task progress</span>
                                     <div className="flex justify-between items-end mb-2">
-                                        <span className="text-[13px] font-bold text-gray-600">Completion Level</span>
-                                        <span className={`text-[20px] font-black ${selectedProject.progress === 100 ? 'text-emerald-600' : 'text-blue-600'}`}>{selectedProject.progress || 0}%</span>
+                                        <span className="text-[13px] text-slate-500 font-medium">Completion level</span>
+                                        <span className={`font-mono text-[18px] font-bold ${selectedProject.progress === 100 ? 'text-emerald-600' : 'text-indigo-600'}`}>{selectedProject.progress || 0}%</span>
                                     </div>
-                                    <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden shadow-inner">
-                                        <div className={`h-full rounded-full transition-all duration-1000 ${selectedProject.progress === 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-blue-500 to-indigo-500'}`} style={{ width: `${selectedProject.progress || 0}%` }}></div>
+                                    <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                        <div className={`h-full rounded-full transition-all duration-700 ${selectedProject.progress === 100 ? 'bg-emerald-500' : 'bg-indigo-600'}`} style={{ width: `${selectedProject.progress || 0}%` }}></div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Description Box */}
-                            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                                <span className="block text-[12px] font-bold uppercase tracking-wider text-gray-800 mb-3 border-b border-gray-100 pb-2"><i className="fa-solid fa-align-left text-gray-400 mr-1.5"></i> Project Description</span>
-                                <div className="text-gray-600 text-[14.5px] leading-relaxed whitespace-pre-line bg-gray-50 p-4 rounded-xl border border-gray-100 min-h-[100px]">
-                                    {selectedProject.description || <span className="italic text-gray-400">No description provided for this project.</span>}
+                            {/* Description */}
+                            {selectedProject.description && selectedProject.description !== '<p><br></p>' && (
+                                <div className="p-6 rounded-xl border border-slate-200 shadow-sm bg-white">
+                                    <span className="block text-[12px] font-semibold text-slate-900 mb-4 pb-3 border-b border-slate-100">Project notes</span>
+                                    <div
+                                        className="text-slate-800 text-[14.5px] leading-relaxed"
+                                        dangerouslySetInnerHTML={{ __html: selectedProject.description }}
+                                    />
                                 </div>
-                            </div>
+                            )}
 
-                            {/* Links / Resources Box */}
+                            {/* Project Items Table */}
+                            {selectedProject.items && selectedProject.items.length > 0 && (
+                                <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                                    <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                                        <span className="text-[12px] font-semibold text-slate-900">Project items</span>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse bg-white">
+                                            <thead className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-200">
+                                                <tr>
+                                                    <th className="px-6 py-3.5 w-12">No.</th>
+                                                    <th className="px-6 py-3.5">Item</th>
+                                                    <th className="px-6 py-3.5 text-center">Qty / unit</th>
+                                                    <th className="px-6 py-3.5 text-right">Unit price</th>
+                                                    <th className="px-6 py-3.5 text-right">Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="text-[13px] text-slate-800 divide-y divide-slate-100">
+                                                {selectedProject.items.map((item, idx) => (
+                                                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                                        <td className="px-6 py-4 font-mono text-slate-400">{String(idx + 1).padStart(2, "0")}</td>
+                                                        <td className="px-6 py-4 font-semibold text-slate-900">
+                                                            {item.item_name}
+                                                            {item.description && item.description !== '<p><br></p>' && (
+                                                                <div className="text-[12px] text-slate-500 font-normal mt-1" dangerouslySetInnerHTML={{ __html: item.description }}></div>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-center font-mono text-slate-600">{Number(item.quantity).toLocaleString()} <span className="text-[10.5px] text-slate-400 uppercase ml-1 font-sans">{item.unit_type}</span></td>
+                                                        <td className="px-6 py-4 text-right font-mono text-slate-600 tabular-nums"><Taka className="text-[11px] text-slate-400" />{Number(item.unit_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                                        <td className="px-6 py-4 text-right font-mono font-bold text-emerald-600 tabular-nums"><Taka className="text-[11px] text-emerald-600" />{Number(item.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Links / Resources */}
                             {(selectedProject.repo_link || selectedProject.live_url) && (
-                                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                                    <span className="block text-[12px] font-bold uppercase tracking-wider text-gray-800 mb-4 border-b border-gray-100 pb-2"><i className="fa-solid fa-link text-gray-400 mr-1.5"></i> External Links & Resources</span>
-                                    <div className="flex flex-wrap gap-4">
+                                <div className="p-6 rounded-xl border border-slate-200 shadow-sm bg-white">
+                                    <span className="block text-[12px] font-semibold text-slate-900 mb-4 pb-3 border-b border-slate-100">External links</span>
+                                    <div className="flex flex-wrap gap-3">
                                         {selectedProject.repo_link && (
-                                            <a href={selectedProject.repo_link} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-gray-800 hover:bg-black text-white px-5 py-2.5 rounded-xl text-[13.5px] font-bold transition-colors shadow-sm">
-                                                <i className="fa-brands fa-github text-[16px]"></i> Code Repository
+                                            <a href={selectedProject.repo_link} target="_blank" rel="noreferrer" className="flex items-center gap-2 border border-slate-200 hover:border-slate-900 hover:bg-slate-50 text-slate-800 px-5 py-2.5 rounded-lg text-[13px] font-semibold transition-all">
+                                                <i className="fa-brands fa-github text-[15px]"></i> Code repository
                                             </a>
                                         )}
                                         {selectedProject.live_url && (
-                                            <a href={selectedProject.live_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-5 py-2.5 rounded-xl text-[13.5px] font-bold transition-colors shadow-sm">
-                                                <i className="fa-solid fa-globe text-[16px]"></i> Live Preview URL
+                                            <a href={selectedProject.live_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 border border-slate-200 hover:border-indigo-600 hover:text-indigo-600 hover:bg-indigo-50 text-slate-600 px-5 py-2.5 rounded-lg text-[13px] font-semibold transition-all">
+                                                <i className="fa-solid fa-globe text-[15px]"></i> Live preview
                                             </a>
                                         )}
                                     </div>
@@ -641,9 +673,9 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="px-6 py-5 border-t border-gray-200 bg-white flex justify-end shrink-0">
-                            <button onClick={() => setShowViewModal(false)} className="rounded-xl bg-gray-900 px-8 py-3 text-[14px] font-bold text-white transition-colors hover:bg-gray-800 shadow-md">
-                                Close Window
+                        <div className="px-6 py-5 border-t border-slate-200 bg-slate-50 flex justify-end shrink-0">
+                            <button onClick={() => setShowViewModal(false)} className="rounded-lg bg-slate-900 hover:bg-black px-8 py-3 text-[14px] font-semibold text-white transition-colors shadow-md">
+                                Close
                             </button>
                         </div>
                     </div>

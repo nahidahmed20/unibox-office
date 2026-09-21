@@ -9,7 +9,7 @@ use App\Models\ExpenseCategory;
 use App\Models\Account;
 use App\Models\Vendor;
 use App\Models\VendorLedger;
-use App\Models\AdvanceBalance;
+use App\Models\User;
 use App\Models\Advance;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
@@ -22,7 +22,6 @@ class ProjectExpenseController extends Controller
     {
         $query = ProjectExpense::with(['project.client', 'category', 'account', 'vendor', 'advanceUser']);
 
-        // 🟢 1. Deep Text Search (Title, Description, Payee, Client, Vendor, Account etc)
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -86,8 +85,26 @@ class ProjectExpenseController extends Controller
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->orderBy('name')->get();
         $vendors = Vendor::select('id', 'name', 'company_name', 'wallet_balance')->get();
 
-        $advances = AdvanceBalance::with('user:id,name')->get()->filter(fn ($b) => $b->balance > 0.009)->values()
-            ->map(fn ($b) => ['user_id' => $b->user_id, 'user' => $b->user, 'balance' => round($b->balance, 2)]);
+        $advances = User::select('id', 'name')
+            ->has('advances')
+            ->withSum('advances', 'amount')
+            ->withSum('advances', 'settled_amount')
+            ->withSum('advances', 'returned_amount')
+            ->get()
+            ->map(function ($user) {
+                $totalAdvance  = (float) ($user->advances_sum_amount ?? 0);
+                $totalSettled  = (float) ($user->advances_sum_settled_amount ?? 0);
+                $totalReturned = (float) ($user->advances_sum_returned_amount ?? 0);
+                $balance       = $totalAdvance - ($totalSettled + $totalReturned);
+
+                return [
+                    'user_id' => $user->id,
+                    'user'    => ['id' => $user->id, 'name' => $user->name],
+                    'balance' => round($balance, 2)
+                ];
+            })
+            ->filter(fn ($b) => $b['balance'] > 0.009)
+            ->values();
 
         return Inertia::render('Admin/ProjectExpenses/Create', compact('projects', 'categories', 'accounts', 'vendors', 'advances'));
     }
@@ -114,18 +131,44 @@ class ProjectExpenseController extends Controller
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->orderBy('name')->get();
         $vendors = Vendor::select('id', 'name', 'company_name', 'wallet_balance')->get();
 
-        $advances = AdvanceBalance::with('user:id,name')->get()->filter(fn ($b) => $b->balance > 0.009)->values()
-            ->map(fn ($b) => ['user_id' => $b->user_id, 'user' => $b->user, 'balance' => round($b->balance, 2)]);
-
         $walletEntries = $expense->vendor_id ? VendorLedger::where('vendor_id', $expense->vendor_id)->where('description', 'like', "%expense #{$expense->id}:%")->get() : collect();
         $vendors->each(function ($vendor) use ($expense, $walletEntries) {
             if ($vendor->id == $expense->vendor_id) $vendor->wallet_balance += $walletEntries->where('type', 'debit')->sum('amount') - $walletEntries->where('type', 'credit')->sum('amount');
         });
+
+        $advances = User::select('id', 'name')
+            ->has('advances')
+            ->withSum('advances', 'amount')
+            ->withSum('advances', 'settled_amount')
+            ->withSum('advances', 'returned_amount')
+            ->get()
+            ->map(function ($user) {
+                $totalAdvance  = (float) ($user->advances_sum_amount ?? 0);
+                $totalSettled  = (float) ($user->advances_sum_settled_amount ?? 0);
+                $totalReturned = (float) ($user->advances_sum_returned_amount ?? 0);
+                $balance       = $totalAdvance - ($totalSettled + $totalReturned);
+
+                return [
+                    'user_id' => $user->id,
+                    'user'    => ['id' => $user->id, 'name' => $user->name],
+                    'balance' => round($balance, 2)
+                ];
+            });
+
         $restore = (float) ($expense->advance_amount ?? 0);
         if ($expense->advance_user_id && $restore > 0) {
-            $advances = AdvanceBalance::with('user:id,name')->get()->map(fn ($b) => ['user_id' => $b->user_id, 'user' => $b->user, 'balance' => round($b->balance + ($b->user_id == $expense->advance_user_id ? $restore : 0), 2)])->filter(fn ($b) => $b['balance'] > 0)->values();
+            $advances = $advances->map(function ($b) use ($expense, $restore) {
+                if ($b['user_id'] == $expense->advance_user_id) {
+                    $b['balance'] = round($b['balance'] + $restore, 2);
+                }
+                return $b;
+            });
         }
+
+        $advances = $advances->filter(fn ($b) => $b['balance'] > 0)->values();
+
         $expense->paid_amount = $expense->payment_amount ?? $expense->paid_amount;
+
         return Inertia::render('Admin/ProjectExpenses/Edit', compact('expense', 'projects', 'categories', 'accounts', 'vendors', 'advances'));
     }
 
@@ -190,7 +233,6 @@ class ProjectExpenseController extends Controller
         }
     }
 
-    // 🟢 CORE LOGIC: Auto Split between Wallet and Cash
     private function processExpensePayment($validated, $request, $expenseModel = null)
     {
         $bill = (float) ($validated['total_bill'] ?? 0);
@@ -306,7 +348,6 @@ class ProjectExpenseController extends Controller
         }
     }
 
-    // 🟢 CORE LOGIC: Reverse Split Payments Accurately
     private function refundToSource(ProjectExpense $expense, float $oldTotalPaid): void
     {
         if (\App\Models\VendorPaymentDetail::where('project_expense_id', $expense->id)->whereHas('payment', fn ($q) => $q->where('status', 'completed'))->exists()) throw new \Exception('Void linked vendor payments before editing or deleting this expense.');
@@ -401,7 +442,6 @@ class ProjectExpenseController extends Controller
         }
 
         if ($remaining > 0.009) throw new \Exception('Advance history cannot be safely reversed.');
-        $actuallyRefunded = $amount - max($remaining, 0);
-        if ($actuallyRefunded > 0) AdvanceBalance::where('user_id', $userId)->decrement('total_used', $actuallyRefunded);
+
     }
 }

@@ -71,10 +71,11 @@ class SalaryController extends Controller
             'bonus'             => 'nullable|numeric|decimal:0,2|min:0',
             'deductions'        => 'nullable|numeric|decimal:0,2|min:0',
             'advance_deduction' => 'nullable|numeric|decimal:0,2|min:0',
-            'status'            => 'required|in:unpaid,paid',
+            'status'            => 'required|in:unpaid,paid,partially_paid',
             'payment_date'      => 'nullable|date',
             'payments'          => 'exclude_if:status,unpaid|nullable|array',
-            'payments.*.account_id' => 'exclude_if:status,unpaid|required_with:payments|exists:accounts,id',
+            'payments.*.account_id' => 'exclude_if:status,unpaid|nullable|exists:accounts,id',
+            'payments.*.bank_charge' => 'exclude_if:status,unpaid|nullable|numeric|decimal:0,2|min:0',
             'payments.*.amount'     => 'exclude_if:status,unpaid|required_with:payments|numeric|decimal:0,2|min:0',
         ]);
 
@@ -106,23 +107,25 @@ class SalaryController extends Controller
 
             $total_paid = 0;
 
-            if ($validated['status'] === 'paid' && $request->has('payments')) {
+            if ($validated['status'] !== 'unpaid' && $request->has('payments')) {
                 foreach ($validated['payments'] ?? [] as $payment) {
                     if ($payment['amount'] > 0) {
                         if (empty($payment['account_id'])) throw ValidationException::withMessages(['payments' => 'Select an account for each payment.']);
 
                         $salaryAmount = round((float) $payment['amount'], 2);
+                        $charge = round((float) ($payment['bank_charge'] ?? 0), 2);
 
                         $account = Account::whereKey($payment['account_id'])->lockForUpdate()->firstOrFail();
-                        if ((float) $account->current_balance < $salaryAmount) {
+                        if ((float) $account->current_balance < $salaryAmount + $charge) {
                             throw ValidationException::withMessages(['payments' => "Insufficient balance in {$account->name}."]);
                         }
-                        $account->decrement('current_balance', $salaryAmount);
+                        $account->decrement('current_balance', $salaryAmount + $charge);
 
                         $salary->transactions()->create([
                             'account_id'       => $account->id,
                             'type'             => 'debit',
-                            'amount'           => $salaryAmount,
+                            'amount'           => $salaryAmount + $charge,
+                            'bank_charge'      => $charge,
                             'transaction_date' => $validated['payment_date'] ?? now(),
                             'description'      => "Salary Payment: " . $salary->month_year,
                         ]);
@@ -157,10 +160,11 @@ class SalaryController extends Controller
             'bonus'             => 'nullable|numeric|decimal:0,2|min:0',
             'deductions'        => 'nullable|numeric|decimal:0,2|min:0',
             'advance_deduction' => 'nullable|numeric|decimal:0,2|min:0',
-            'status'            => 'required|in:unpaid,paid',
+            'status'            => 'required|in:unpaid,paid,partially_paid',
             'payment_date'      => 'nullable|date',
             'payments'          => 'exclude_if:status,unpaid|nullable|array',
-            'payments.*.account_id' => 'exclude_if:status,unpaid|required_with:payments|exists:accounts,id',
+            'payments.*.account_id' => 'exclude_if:status,unpaid|nullable|exists:accounts,id',
+            'payments.*.bank_charge' => 'exclude_if:status,unpaid|nullable|numeric|decimal:0,2|min:0',
             'payments.*.amount'     => 'exclude_if:status,unpaid|required_with:payments|numeric|decimal:0,2|min:0',
         ]);
 
@@ -187,23 +191,25 @@ class SalaryController extends Controller
 
             $total_paid = 0;
 
-            if ($validated['status'] === 'paid' && $request->has('payments')) {
+            if ($validated['status'] !== 'unpaid' && $request->has('payments')) {
                 foreach ($validated['payments'] ?? [] as $payment) {
                     if ($payment['amount'] > 0) {
                         if (empty($payment['account_id'])) throw ValidationException::withMessages(['payments' => 'Select an account for each payment.']);
 
                         $salaryAmount = round((float) $payment['amount'], 2);
+                        $charge = round((float) ($payment['bank_charge'] ?? 0), 2);
 
                         $account = Account::whereKey($payment['account_id'])->lockForUpdate()->firstOrFail();
-                        if ((float) $account->current_balance < $salaryAmount) {
+                        if ((float) $account->current_balance < $salaryAmount + $charge) {
                             throw ValidationException::withMessages(['payments' => "Insufficient balance in {$account->name}."]);
                         }
-                        $account->decrement('current_balance', $salaryAmount);
+                        $account->decrement('current_balance', $salaryAmount + $charge);
 
                         $salary->transactions()->create([
                             'account_id'       => $account->id,
                             'type'             => 'debit',
-                            'amount'           => $salaryAmount,
+                            'amount'           => $salaryAmount + $charge,
+                            'bank_charge'      => $charge,
                             'transaction_date' => $validated['payment_date'] ?? now(),
                             'description'      => "Salary Payment Updated: " . $salary->month_year
                         ]);
@@ -240,6 +246,7 @@ class SalaryController extends Controller
         $validated = $request->validate([
             'account_id' => 'required|exists:accounts,id',
             'amount'     => 'required|numeric|decimal:0,2|min:1|max:' . $salary->due_amount,
+            'bank_charge' => 'nullable|numeric|decimal:0,2|min:0',
             'date'       => 'required|date',
             'note'       => 'nullable|string'
         ]);
@@ -249,17 +256,19 @@ class SalaryController extends Controller
             if (round($validated['amount'], 2) > round($salary->due_amount, 2)) throw ValidationException::withMessages(['amount' => 'Payment cannot exceed salary due.']);
 
             $salaryAmount = round((float) $validated['amount'], 2);
+            $charge = round((float) ($validated['bank_charge'] ?? 0), 2);
 
             $account = Account::whereKey($validated['account_id'])->lockForUpdate()->firstOrFail();
-            if ((float) $account->current_balance < $salaryAmount) {
+            if ((float) $account->current_balance < $salaryAmount + $charge) {
                 throw ValidationException::withMessages(['account_id' => 'Selected account has insufficient balance.']);
             }
-            $account->decrement('current_balance', $salaryAmount);
+            $account->decrement('current_balance', $salaryAmount + $charge);
 
             $salary->transactions()->create([
                 'account_id'       => $account->id,
                 'type'             => 'debit',
-                'amount'           => $salaryAmount,
+                'amount'           => $salaryAmount + $charge,
+                'bank_charge'      => $charge,
                 'transaction_date' => $validated['date'],
                 'description'      => "Salary Installment Paid for " . $salary->month_year . " - " . ($validated['note'] ?? ''),
             ]);

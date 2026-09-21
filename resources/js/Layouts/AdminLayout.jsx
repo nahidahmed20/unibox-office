@@ -7,21 +7,20 @@ import axios from 'axios';
 /* ---------------------------------------------------------------- */
 
 const SectionLabel = ({ children }) => (
-    <div className="flex items-center gap-3 px-4 pb-2 pt-6 first:pt-2">
-        <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#78829D]">{children}</span>
-        <span className="h-px flex-1 bg-gradient-to-r from-white/[0.08] to-transparent" />
+    <div className="flex items-center gap-3 px-5 pb-2 pt-6 first:pt-2">
+        <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#5C6478]">{children}</span>
     </div>
 );
 
 const GroupLabel = ({ children }) => (
-    <div className="flex items-center gap-2 px-4 pb-1.5 pt-4 first:pt-1">
-        <span className="h-[4px] w-[4px] shrink-0 rounded-full bg-[var(--accent)]/60 shadow-[0_0_4px_var(--accent)]" />
-        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#636C84]">{children}</span>
+    <div className="flex items-center gap-2 px-3 pb-1.5 pt-3 first:pt-1">
+        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#636C84]/80">{children}</span>
+        <span className="h-px flex-1 bg-white/[0.04]" />
     </div>
 );
 
 const SubMenu = ({ children }) => (
-    <ul className="mb-2 mt-1 list-none space-y-0.5 rounded-xl bg-black/20 px-2 py-2 ring-1 ring-white/[0.02]">
+    <ul className="mb-2 mt-1 list-none space-y-0.5 rounded-xl bg-[#03050A]/40 px-2 py-2 ring-1 ring-white/[0.02]">
         {children}
     </ul>
 );
@@ -30,18 +29,18 @@ const topItemClass = (active) =>
     `group flex items-center gap-3.5 rounded-xl px-4 py-2.5 text-[14px] font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 ${
         active
             ? 'bg-[var(--accent-bg)] text-[var(--accent-bright)] shadow-[inset_3px_0_0_0_var(--accent)]'
-            : 'text-[#A0ABC0] hover:bg-white/[0.04] hover:text-white'
+            : 'text-[#A0ABC0] hover:bg-white/[0.04] hover:text-[#DDE1EA]'
     }`;
 
 const groupToggleClass = (open, isActive) =>
     `group flex w-full items-center gap-3.5 rounded-xl px-4 py-2.5 text-[14px] font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 ${
         open || isActive
             ? 'bg-white/[0.03] text-white'
-            : 'text-[#A0ABC0] hover:bg-white/[0.04] hover:text-white'
+            : 'text-[#A0ABC0] hover:bg-white/[0.04] hover:text-[#DDE1EA]'
     }`;
 
 const subItemClass = (active) =>
-    `flex items-center gap-3 rounded-lg py-2 pl-6 pr-3 text-[13px] font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 ${
+    `flex items-center gap-3 rounded-lg py-2 pl-4 pr-3 text-[13px] font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 ${
         active
             ? 'bg-[var(--accent)]/10 text-[var(--accent-bright)] shadow-[inset_2px_0_0_0_var(--accent)]'
             : 'text-[#858D9D] hover:bg-white/[0.04] hover:text-[#DDE1EA] hover:translate-x-1'
@@ -63,7 +62,7 @@ export default function AdminLayout({ children }) {
     const [profileDropdown, setProfileDropdown] = useState(false);
     const [quickAddDropdown, setQuickAddDropdown] = useState(false);
 
-    // 🟢 Global Search State
+    // Global Search State
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
@@ -80,15 +79,15 @@ export default function AdminLayout({ children }) {
         return userPermissions.includes(permission);
     };
 
-    // 🟢 UPDATE: Added Challan routes to activeRoutes
+    // 🟢 UPDATE: Reorganized active routes for perfectly logical groupings
     const activeRoutes = {
-        hr: route().current('admin.departments.*') || route().current('admin.designations.*') || route().current('admin.employees.*') || route().current('admin.attendances.*') || route().current('admin.leaves.*') || route().current('admin.salaries.*'),
         crm: route().current('admin.clients.*') || route().current('admin.projects.*') || route().current('admin.tasks.*') || route().current('admin.vendors.*'),
-        finance: route().current('admin.project-expenses.*') || route().current('admin.accounts.*') || route().current('admin.transactions.*') || route().current('admin.investments.*') || route().current('admin.invoices.*') || route().current('invoice-payments.*') || route().current('admin.client-advances.*') || route().current('admin.expenses.*') || route().current('admin.expense-categories.*') || route().current('admin.advances.*'),
+        hr: route().current('admin.employees.*') || route().current('admin.attendances.*') || route().current('admin.leaves.*') || route().current('admin.salaries.*') || route().current('admin.departments.*') || route().current('admin.designations.*'),
+        sales: route().current('admin.invoices.*') || route().current('invoice-payments.*') || route().current('admin.client-advances.*'),
+        accounting: route().current('admin.accounts.*') || route().current('admin.transactions.*') || route().current('admin.investments.*') || route().current('admin.project-expenses.*') || route().current('admin.expenses.*') || route().current('admin.expense-categories.*') || route().current('admin.advances.*'),
         office: route().current('admin.assets.*') || route().current('admin.requisitions.*') || route().current('admin.notices.*') || route().current('admin.challans.*'),
         report: route().current('admin.reports.*') || route().current('admin.account.transactions') || route().current('admin.client-dues') || route().current('admin.vendor-dues'),
-        settings: route().current('admin.invoice-settings.*') || route().current('admin.challan-settings.*'),
-        access: route().current('admin.users.*') || route().current('admin.roles.*') || route().current('admin.permissions.*'),
+        settings: route().current('admin.invoice-settings.*') || route().current('admin.challan-settings.*') || route().current('admin.users.*') || route().current('admin.roles.*') || route().current('admin.permissions.*'),
     };
 
     const [openMenus, setOpenMenus] = useState(activeRoutes);
@@ -102,7 +101,7 @@ export default function AdminLayout({ children }) {
         });
     };
 
-    // 🟢 Keyboard Shortcut (Cmd+K / Ctrl+K / Escape)
+    // Keyboard Shortcut (Cmd+K / Ctrl+K / Escape)
     useEffect(() => {
         const handleKeyDown = (e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -117,7 +116,7 @@ export default function AdminLayout({ children }) {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    // 🟢 Auto focus input when modal opens
+    // Auto focus input when modal opens
     useEffect(() => {
         if (searchOpen && searchInputRef.current) {
             setTimeout(() => searchInputRef.current?.focus(), 100);
@@ -127,7 +126,7 @@ export default function AdminLayout({ children }) {
         }
     }, [searchOpen]);
 
-    // 🟢 Live Search API Call (Debounced)
+    // Live Search API Call (Debounced)
     useEffect(() => {
         if (!searchQuery.trim() || searchQuery.length < 2) {
             setSearchResults([]);
@@ -218,18 +217,18 @@ export default function AdminLayout({ children }) {
                     </button>
                 </div>
 
-                <div className="brass-scroll flex-1 overflow-y-auto py-4">
+                <div className="brass-scroll flex-1 overflow-y-auto py-2">
                     <ul className="m-0 list-none space-y-1.5 p-0">
 
-                        <SectionLabel>Overview</SectionLabel>
-                        <li className="mx-3 mb-4">
+                        <li className="mx-3 mt-3 mb-2">
                             <Link href={route('dashboard')} className={topItemClass(route().current('dashboard'))}>
                                 <i className="fa-solid fa-chart-pie w-5 text-center text-[16px]"></i>
-                                <span>Dashboard</span>
+                                <span>Dashboard Overview</span>
                             </Link>
                         </li>
 
-                        <SectionLabel>Workspace Modules</SectionLabel>
+                        {/* ================= OPERATIONS ================= */}
+                        {(hasPermission('view_crm') || hasPermission('view_hr')) && <SectionLabel>Operations</SectionLabel>}
 
                         {/* CRM & Projects */}
                         {hasPermission('view_crm') && (
@@ -246,72 +245,10 @@ export default function AdminLayout({ children }) {
 
                                 {openMenus.crm && (
                                     <SubMenu>
-                                        <li><Link href={route('admin.clients.index')} className={subItemClass(route().current('admin.clients.*'))}><i className="fa-solid fa-users-line text-[11px] opacity-80"></i> Clients</Link></li>
-                                        <li><Link href={route('admin.projects.index')} className={subItemClass(route().current('admin.projects.*'))}><i className="fa-solid fa-rocket text-[11px] opacity-80"></i> Projects</Link></li>
-                                        <li><Link href={route('admin.tasks.index')} className={subItemClass(route().current('admin.tasks.*'))}><i className="fa-solid fa-list-check text-[11px] opacity-80"></i> Tasks</Link></li>
-                                        <li><Link href={route('admin.vendors.index')} className={subItemClass(route().current('admin.vendors.*'))}><i className="fa-solid fa-truck-field text-[11px] opacity-80"></i> Vendors</Link></li>
-                                    </SubMenu>
-                                )}
-                            </li>
-                        )}
-
-                        {/* Finance & Accounts */}
-                        {hasPermission('view_finance') && (
-                            <li className="mx-3 mt-1">
-                                <button
-                                    onClick={() => toggleMenu('finance')}
-                                    aria-expanded={openMenus.finance}
-                                    className={groupToggleClass(openMenus.finance, activeRoutes.finance)}
-                                >
-                                    <i className={groupIconClass(openMenus.finance, activeRoutes.finance) + ' fa-wallet'}></i>
-                                    Finance & Accounts
-                                    <i className={chevronClass(openMenus.finance)}></i>
-                                </button>
-
-                                {openMenus.finance && (
-                                    <SubMenu>
-                                        <GroupLabel>Cash, Bank & Capital</GroupLabel>
-                                        <li><Link href={route('admin.accounts.index')} className={subItemClass(route().current('admin.accounts.*'))}><i className="fa-solid fa-building-columns text-[11px] opacity-80"></i> Accounts Balance</Link></li>
-                                        <li><Link href={route('admin.transactions.index')} className={subItemClass(route().current('admin.transactions.*'))}><i className="fa-solid fa-money-bill-transfer text-[11px] opacity-80"></i> Transactions</Link></li>
-                                        <li><Link href={route('admin.investments.index')} className={subItemClass(route().current('admin.investments.*'))}><i className="fa-solid fa-arrow-trend-up text-[11px] opacity-80"></i> Investments</Link></li>
-
-                                        <GroupLabel>Sales & Receivables</GroupLabel>
-                                        <li><Link href={route('admin.invoices.index')} className={subItemClass(route().current('admin.invoices.*'))}><i className="fa-solid fa-file-invoice text-[11px] opacity-80"></i> Invoices</Link></li>
-                                        <li><Link href={route('invoice-payments.index')} className={subItemClass(route().current('invoice-payments.*'))}><i className="fa-solid fa-hand-holding-dollar text-[11px] opacity-80"></i> Receive Payments</Link></li>
-                                        <li><Link href={route('admin.client-advances.index')} className={subItemClass(route().current('admin.client-advances.*'))}><i className="fa-solid fa-sack-dollar text-[11px] opacity-80"></i> Client Advances</Link></li>
-
-                                        <GroupLabel>Expenses & Payables</GroupLabel>
-                                        {hasPermission('view_project_expenses') && (
-                                            <li><Link href={route('admin.project-expenses.index')} className={subItemClass(route().current('admin.project-expenses.*'))}><i className="fa-solid fa-file-invoice-dollar text-[11px] opacity-80"></i> Project Expenses</Link></li>
-                                        )}
-                                        <li><Link href={route('admin.expenses.index')} className={subItemClass(route().current('admin.expenses.*'))}><i className="fa-solid fa-receipt text-[11px] opacity-80"></i> Office Expenses</Link></li>
-                                        <li><Link href={route('admin.advances.index')} className={subItemClass(route().current('admin.advances.*'))}><i className="fa-solid fa-handshake-angle text-[11px] opacity-80"></i> Staff Advances</Link></li>
-                                        <li><Link href={route('admin.expense-categories.index')} className={subItemClass(route().current('admin.expense-categories.*'))}><i className="fa-solid fa-tags text-[11px] opacity-80"></i> Expense Categories</Link></li>
-                                    </SubMenu>
-                                )}
-                            </li>
-                        )}
-
-                        {/* Office Administration */}
-                        {hasPermission('view_office') && (
-                            <li className="mx-3 mt-1">
-                                <button
-                                    onClick={() => toggleMenu('office')}
-                                    aria-expanded={openMenus.office}
-                                    className={groupToggleClass(openMenus.office, activeRoutes.office)}
-                                >
-                                    <i className={groupIconClass(openMenus.office, activeRoutes.office) + ' fa-building'}></i>
-                                    Office Admin
-                                    <i className={chevronClass(openMenus.office)}></i>
-                                </button>
-                                {openMenus.office && (
-                                    <SubMenu>
-                                        <li><Link href={route('admin.requisitions.index')} className={subItemClass(route().current('admin.requisitions.*'))}><i className="fa-solid fa-clipboard-list text-[11px] opacity-80"></i> Requisitions</Link></li>
-                                        <li><Link href={route('admin.assets.index')} className={subItemClass(route().current('admin.assets.*'))}><i className="fa-solid fa-boxes-stacked text-[11px] opacity-80"></i> Assets</Link></li>
-
-                                        {/* 🟢 UPDATE: Added Delivery Challans Menu */}
-                                        <li><Link href={route('admin.challans.index')} className={subItemClass(route().current('admin.challans.*'))}><i className="fa-solid fa-truck-fast text-[11px] opacity-80"></i> Delivery Challans</Link></li>
-                                        <li><Link href={route('admin.notices.index')} className={subItemClass(route().current('admin.notices.*'))}><i className="fa-solid fa-bullhorn text-[11px] opacity-80"></i> Notices</Link></li>
+                                        <li><Link href={route('admin.clients.index')} className={subItemClass(route().current('admin.clients.*'))}><i className="fa-solid fa-building-user w-4 text-center text-[11px] opacity-70"></i> Clients</Link></li>
+                                        <li><Link href={route('admin.projects.index')} className={subItemClass(route().current('admin.projects.*'))}><i className="fa-solid fa-rocket w-4 text-center text-[11px] opacity-70"></i> Projects</Link></li>
+                                        <li><Link href={route('admin.tasks.index')} className={subItemClass(route().current('admin.tasks.*'))}><i className="fa-solid fa-list-check w-4 text-center text-[11px] opacity-70"></i> Tasks</Link></li>
+                                        <li><Link href={route('admin.vendors.index')} className={subItemClass(route().current('admin.vendors.*'))}><i className="fa-solid fa-truck-field w-4 text-center text-[11px] opacity-70"></i> Vendors</Link></li>
                                     </SubMenu>
                                 )}
                             </li>
@@ -331,13 +268,95 @@ export default function AdminLayout({ children }) {
                                 </button>
                                 {openMenus.hr && (
                                     <SubMenu>
-                                        <li><Link href={route('admin.employees.index')} className={subItemClass(route().current('admin.employees.*'))}><i className="fa-solid fa-id-badge text-[11px] opacity-80"></i> Employees</Link></li>
-                                        <li><Link href={route('admin.attendances.index')} className={subItemClass(route().current('admin.attendances.*'))}><i className="fa-solid fa-clock-rotate-left text-[11px] opacity-80"></i> Attendance</Link></li>
-                                        <li><Link href={route('admin.leaves.index')} className={subItemClass(route().current('admin.leaves.*'))}><i className="fa-solid fa-calendar-minus text-[11px] opacity-80"></i> Leaves</Link></li>
-                                        <li><Link href={route('admin.salaries.index')} className={subItemClass(route().current('admin.salaries.*'))}><i className="fa-solid fa-money-check-dollar text-[11px] opacity-80"></i> Payroll</Link></li>
-                                        <GroupLabel>HR Configuration</GroupLabel>
-                                        <li><Link href={route('admin.departments.index')} className={subItemClass(route().current('admin.departments.*'))}><i className="fa-solid fa-building-user text-[11px] opacity-80"></i> Departments</Link></li>
-                                        <li><Link href={route('admin.designations.index')} className={subItemClass(route().current('admin.designations.*'))}><i className="fa-solid fa-user-tie text-[11px] opacity-80"></i> Designations</Link></li>
+                                        <li><Link href={route('admin.employees.index')} className={subItemClass(route().current('admin.employees.*'))}><i className="fa-solid fa-id-badge w-4 text-center text-[11px] opacity-70"></i> Employees</Link></li>
+                                        <li><Link href={route('admin.attendances.index')} className={subItemClass(route().current('admin.attendances.*'))}><i className="fa-solid fa-clock-rotate-left w-4 text-center text-[11px] opacity-70"></i> Attendance</Link></li>
+                                        <li><Link href={route('admin.leaves.index')} className={subItemClass(route().current('admin.leaves.*'))}><i className="fa-solid fa-calendar-minus w-4 text-center text-[11px] opacity-70"></i> Leaves</Link></li>
+                                        <li><Link href={route('admin.salaries.index')} className={subItemClass(route().current('admin.salaries.*'))}><i className="fa-solid fa-money-check-dollar w-4 text-center text-[11px] opacity-70"></i> Payroll</Link></li>
+
+                                        <GroupLabel>Setup</GroupLabel>
+                                        <li><Link href={route('admin.departments.index')} className={subItemClass(route().current('admin.departments.*'))}><i className="fa-solid fa-sitemap w-4 text-center text-[11px] opacity-70"></i> Departments</Link></li>
+                                        <li><Link href={route('admin.designations.index')} className={subItemClass(route().current('admin.designations.*'))}><i className="fa-solid fa-user-tie w-4 text-center text-[11px] opacity-70"></i> Designations</Link></li>
+                                    </SubMenu>
+                                )}
+                            </li>
+                        )}
+
+                        {/* ================= FINANCE & ACCOUNTS ================= */}
+                        {hasPermission('view_finance') && <SectionLabel>Finance</SectionLabel>}
+
+                        {/* Sales & Billing */}
+                        {hasPermission('view_finance') && (
+                            <li className="mx-3 mt-1">
+                                <button
+                                    onClick={() => toggleMenu('sales')}
+                                    aria-expanded={openMenus.sales}
+                                    className={groupToggleClass(openMenus.sales, activeRoutes.sales)}
+                                >
+                                    <i className={groupIconClass(openMenus.sales, activeRoutes.sales) + ' fa-file-invoice-dollar'}></i>
+                                    Sales & Billing
+                                    <i className={chevronClass(openMenus.sales)}></i>
+                                </button>
+                                {openMenus.sales && (
+                                    <SubMenu>
+                                        <li><Link href={route('admin.invoices.index')} className={subItemClass(route().current('admin.invoices.*'))}><i className="fa-solid fa-file-invoice w-4 text-center text-[11px] opacity-70"></i> Invoices</Link></li>
+                                        <li><Link href={route('invoice-payments.index')} className={subItemClass(route().current('invoice-payments.*'))}><i className="fa-solid fa-hand-holding-dollar w-4 text-center text-[11px] opacity-70"></i> Received Payments</Link></li>
+                                        <li><Link href={route('admin.client-advances.index')} className={subItemClass(route().current('admin.client-advances.*'))}><i className="fa-solid fa-sack-dollar w-4 text-center text-[11px] opacity-70"></i> Client Advances</Link></li>
+                                    </SubMenu>
+                                )}
+                            </li>
+                        )}
+
+                        {/* Accounting & Expenses */}
+                        {hasPermission('view_finance') && (
+                            <li className="mx-3 mt-1">
+                                <button
+                                    onClick={() => toggleMenu('accounting')}
+                                    aria-expanded={openMenus.accounting}
+                                    className={groupToggleClass(openMenus.accounting, activeRoutes.accounting)}
+                                >
+                                    <i className={groupIconClass(openMenus.accounting, activeRoutes.accounting) + ' fa-wallet'}></i>
+                                    Accounting & Expenses
+                                    <i className={chevronClass(openMenus.accounting)}></i>
+                                </button>
+
+                                {openMenus.accounting && (
+                                    <SubMenu>
+                                        <GroupLabel>Core Accounts</GroupLabel>
+                                        <li><Link href={route('admin.accounts.index')} className={subItemClass(route().current('admin.accounts.*'))}><i className="fa-solid fa-building-columns w-4 text-center text-[11px] opacity-70"></i> Accounts Balance</Link></li>
+                                        <li><Link href={route('admin.transactions.index')} className={subItemClass(route().current('admin.transactions.*'))}><i className="fa-solid fa-money-bill-transfer w-4 text-center text-[11px] opacity-70"></i> Transactions</Link></li>
+                                        <li><Link href={route('admin.investments.index')} className={subItemClass(route().current('admin.investments.*'))}><i className="fa-solid fa-arrow-trend-up w-4 text-center text-[11px] opacity-70"></i> Investments</Link></li>
+
+                                        <GroupLabel>Payables</GroupLabel>
+                                        <li><Link href={route('admin.expenses.index')} className={subItemClass(route().current('admin.expenses.*'))}><i className="fa-solid fa-receipt w-4 text-center text-[11px] opacity-70"></i> Office Expenses</Link></li>
+                                        <li><Link href={route('admin.project-expenses.index')} className={subItemClass(route().current('admin.project-expenses.*'))}><i className="fa-solid fa-boxes-packing w-4 text-center text-[11px] opacity-70"></i> Project Expenses</Link></li>
+                                        <li><Link href={route('admin.advances.index')} className={subItemClass(route().current('admin.advances.*'))}><i className="fa-solid fa-handshake-angle w-4 text-center text-[11px] opacity-70"></i> Staff Advances</Link></li>
+                                        <li><Link href={route('admin.expense-categories.index')} className={subItemClass(route().current('admin.expense-categories.*'))}><i className="fa-solid fa-tags w-4 text-center text-[11px] opacity-70"></i> Expense Tags</Link></li>
+                                    </SubMenu>
+                                )}
+                            </li>
+                        )}
+
+                        {/* ================= ADMINISTRATION ================= */}
+                        {(hasPermission('view_office') || hasPermission('view_report')) && <SectionLabel>Administration</SectionLabel>}
+
+                        {/* Office Admin */}
+                        {hasPermission('view_office') && (
+                            <li className="mx-3 mt-1">
+                                <button
+                                    onClick={() => toggleMenu('office')}
+                                    aria-expanded={openMenus.office}
+                                    className={groupToggleClass(openMenus.office, activeRoutes.office)}
+                                >
+                                    <i className={groupIconClass(openMenus.office, activeRoutes.office) + ' fa-building'}></i>
+                                    Office & Assets
+                                    <i className={chevronClass(openMenus.office)}></i>
+                                </button>
+                                {openMenus.office && (
+                                    <SubMenu>
+                                        <li><Link href={route('admin.requisitions.index')} className={subItemClass(route().current('admin.requisitions.*'))}><i className="fa-solid fa-clipboard-list w-4 text-center text-[11px] opacity-70"></i> Requisitions</Link></li>
+                                        <li><Link href={route('admin.assets.index')} className={subItemClass(route().current('admin.assets.*'))}><i className="fa-solid fa-boxes-stacked w-4 text-center text-[11px] opacity-70"></i> Asset Register</Link></li>
+                                        <li><Link href={route('admin.challans.index')} className={subItemClass(route().current('admin.challans.*'))}><i className="fa-solid fa-truck-fast w-4 text-center text-[11px] opacity-70"></i> Delivery Challans</Link></li>
+                                        <li><Link href={route('admin.notices.index')} className={subItemClass(route().current('admin.notices.*'))}><i className="fa-solid fa-bullhorn w-4 text-center text-[11px] opacity-70"></i> Notice Board</Link></li>
                                     </SubMenu>
                                 )}
                             </li>
@@ -357,51 +376,45 @@ export default function AdminLayout({ children }) {
                                 </button>
                                 {openMenus.report && (
                                     <SubMenu>
-                                        <li><Link href={route('admin.reports.position')} className={subItemClass(route().current('admin.reports.position'))}><i className="fa-solid fa-scale-balanced text-[11px] opacity-80"></i> Financial Position</Link></li>
-                                        <li><Link href={route('admin.reports.daybook')} className={subItemClass(route().current('admin.reports.daybook'))}><i className="fa-solid fa-book-open text-[11px] opacity-80"></i> Daily Daybook</Link></li>
-                                        <li><Link href={route('admin.reports.financial')} className={subItemClass(route().current('admin.reports.financial'))}><i className="fa-solid fa-chart-area text-[11px] opacity-80"></i> Profit & Performance</Link></li>
-                                        <li><Link href={route('admin.account.transactions')} className={subItemClass(route().current('admin.account.transactions'))}><i className="fa-solid fa-money-check text-[11px] opacity-80"></i> Transaction Report</Link></li>
-                                        <li><Link href={route('admin.reports.client-ledger')} className={subItemClass(route().current('admin.reports.client-ledger'))}><i className="fa-solid fa-book-journal-whills text-[11px] opacity-80"></i> Client Ledger</Link></li>
-                                        <li><Link href={route('admin.client-dues')} className={subItemClass(route().current('admin.client-dues'))}><i className="fa-solid fa-file-invoice-dollar text-[11px] opacity-80"></i> Client Dues (পাওনা)</Link></li>
-                                        <li><Link href={route('admin.vendor-dues')} className={subItemClass(route().current('admin.vendor-dues'))}><i className="fa-solid fa-clock-rotate-left text-[11px] opacity-80"></i> Vendor Dues (দেনা)</Link></li>
+                                        <li><Link href={route('admin.reports.position')} className={subItemClass(route().current('admin.reports.position'))}><i className="fa-solid fa-scale-balanced w-4 text-center text-[11px] opacity-70"></i> Financial Position</Link></li>
+                                        <li><Link href={route('admin.reports.daybook')} className={subItemClass(route().current('admin.reports.daybook'))}><i className="fa-solid fa-book-open w-4 text-center text-[11px] opacity-70"></i> Daily Daybook</Link></li>
+                                        <li><Link href={route('admin.reports.financial')} className={subItemClass(route().current('admin.reports.financial'))}><i className="fa-solid fa-chart-area w-4 text-center text-[11px] opacity-70"></i> Profit & Loss</Link></li>
+                                        <li><Link href={route('admin.account.transactions')} className={subItemClass(route().current('admin.account.transactions'))}><i className="fa-solid fa-money-check w-4 text-center text-[11px] opacity-70"></i> Transactions Log</Link></li>
+
+                                        <GroupLabel>Dues & Ledgers</GroupLabel>
+                                        <li><Link href={route('admin.reports.client-ledger')} className={subItemClass(route().current('admin.reports.client-ledger'))}><i className="fa-solid fa-book-journal-whills w-4 text-center text-[11px] opacity-70"></i> Client Ledger</Link></li>
+                                        <li><Link href={route('admin.client-dues')} className={subItemClass(route().current('admin.client-dues'))}><i className="fa-solid fa-file-invoice-dollar w-4 text-center text-[11px] opacity-70"></i> Client Dues (পাওনা)</Link></li>
+                                        <li><Link href={route('admin.vendor-dues')} className={subItemClass(route().current('admin.vendor-dues'))}><i className="fa-solid fa-clock-rotate-left w-4 text-center text-[11px] opacity-70"></i> Vendor Dues (দেনা)</Link></li>
                                     </SubMenu>
                                 )}
                             </li>
                         )}
 
-                        {/* SETTINGS */}
+                        {/* ================= SYSTEM ================= */}
                         {hasPermission('view_settings') && (
                             <>
-                                <SectionLabel>System Configuration</SectionLabel>
-                                <li className="mx-3 mb-1">
-                                    <Link href={route('admin.invoice-settings.index')} className={topItemClass(route().current('admin.invoice-settings.*'))}>
-                                        <i className="fa-solid fa-file-invoice-dollar w-5 text-center text-[16px]"></i>
-                                        <span>Invoice Settings</span>
-                                    </Link>
-                                </li>
-                                {/* 🟢 UPDATE: Added Challan Settings Menu */}
-                                <li className="mx-3 mb-1">
-                                    <Link href={route('admin.challan-settings.index')} className={topItemClass(route().current('admin.challan-settings.*'))}>
-                                        <i className="fa-solid fa-file-signature w-5 text-center text-[16px]"></i>
-                                        <span>Challan Settings</span>
-                                    </Link>
-                                </li>
+                                <SectionLabel>System</SectionLabel>
 
-                                <li className="mx-3 mb-6 mt-1">
+                                <li className="mx-3 mt-1 mb-6">
                                     <button
-                                        onClick={() => toggleMenu('access')}
-                                        aria-expanded={openMenus.access}
-                                        className={groupToggleClass(openMenus.access, activeRoutes.access)}
+                                        onClick={() => toggleMenu('settings')}
+                                        aria-expanded={openMenus.settings}
+                                        className={groupToggleClass(openMenus.settings, activeRoutes.settings)}
                                     >
-                                        <i className={groupIconClass(openMenus.access, activeRoutes.access) + ' fa-user-shield'}></i>
-                                        Access Control
-                                        <i className={chevronClass(openMenus.access)}></i>
+                                        <i className={groupIconClass(openMenus.settings, activeRoutes.settings) + ' fa-gear'}></i>
+                                        Settings & Security
+                                        <i className={chevronClass(openMenus.settings)}></i>
                                     </button>
-                                    {openMenus.access && (
+                                    {openMenus.settings && (
                                         <SubMenu>
-                                            <li><Link href={route('admin.users.index')} className={subItemClass(route().current('admin.users.*'))}><i className="fa-solid fa-users text-[11px] opacity-80"></i> Users</Link></li>
-                                            <li><Link href={route('admin.roles.index')} className={subItemClass(route().current('admin.roles.*'))}><i className="fa-solid fa-user-tag text-[11px] opacity-80"></i> Roles</Link></li>
-                                            <li><Link href={route('admin.permissions.index')} className={subItemClass(route().current('admin.permissions.*'))}><i className="fa-solid fa-key text-[11px] opacity-80"></i> Permissions</Link></li>
+                                            <GroupLabel>Preferences</GroupLabel>
+                                            <li><Link href={route('admin.invoice-settings.index')} className={subItemClass(route().current('admin.invoice-settings.*'))}><i className="fa-solid fa-file-invoice-dollar w-4 text-center text-[11px] opacity-70"></i> Invoice Settings</Link></li>
+                                            <li><Link href={route('admin.challan-settings.index')} className={subItemClass(route().current('admin.challan-settings.*'))}><i className="fa-solid fa-file-signature w-4 text-center text-[11px] opacity-70"></i> Challan Settings</Link></li>
+
+                                            <GroupLabel>Access Control</GroupLabel>
+                                            <li><Link href={route('admin.users.index')} className={subItemClass(route().current('admin.users.*'))}><i className="fa-solid fa-users w-4 text-center text-[11px] opacity-70"></i> Users</Link></li>
+                                            <li><Link href={route('admin.roles.index')} className={subItemClass(route().current('admin.roles.*'))}><i className="fa-solid fa-user-shield w-4 text-center text-[11px] opacity-70"></i> Roles</Link></li>
+                                            <li><Link href={route('admin.permissions.index')} className={subItemClass(route().current('admin.permissions.*'))}><i className="fa-solid fa-key w-4 text-center text-[11px] opacity-70"></i> Permissions</Link></li>
                                         </SubMenu>
                                     )}
                                 </li>
@@ -413,7 +426,7 @@ export default function AdminLayout({ children }) {
 
             <div className="flex min-h-screen flex-col transition-all duration-300 md:ml-[270px]">
 
-                {/* 🟢 Premium Top Navbar */}
+                {/* Premium Top Navbar */}
                 <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-gray-200/80 bg-white/80 backdrop-blur-xl px-4 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] sm:px-6 print:hidden transition-all duration-300">
 
                     {/* Left Side: Toggle & Search Trigger */}
@@ -426,7 +439,7 @@ export default function AdminLayout({ children }) {
                             <i className="fa-solid fa-bars-staggered text-[17px]"></i>
                         </button>
 
-                        {/* 🟢 Functional Search Trigger */}
+                        {/* Functional Search Trigger */}
                         <button
                             type="button"
                             onClick={() => setSearchOpen(true)}
@@ -532,7 +545,7 @@ export default function AdminLayout({ children }) {
                     </div>
                 </header>
 
-                {/* 🟢 COMMAND PALETTE SEARCH MODAL */}
+                {/* COMMAND PALETTE SEARCH MODAL */}
                 {searchOpen && (
                     <div className="fixed inset-0 z-[100] flex items-start justify-center bg-gray-900/60 backdrop-blur-sm p-4 pt-16 sm:pt-24 animate-[fadeIn_0.15s_ease-out]">
                         <div

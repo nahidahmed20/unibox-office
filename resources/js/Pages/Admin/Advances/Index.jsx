@@ -5,7 +5,7 @@ import Swal from 'sweetalert2';
 import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 
-export default function Index({ advances = [], filters = {}, accounts = [], employees = [], totals = {} }) {
+export default function Index({ advances = [], filters = {}, accounts = [], employees = [], totals = {}, employeeBalances = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [showReturnModal, setShowReturnModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false);
@@ -202,20 +202,13 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
         });
     };
 
+    // 🟢 Select Styles (Fixed Portals to prevent clipping and duplicate renders)
     const selectStyles = {
         control: (provided, state) => ({ ...provided, minHeight: "44px", borderRadius: "0.75rem", border: state.isFocused ? "1px solid var(--accent)" : "1px solid #d1d5db", boxShadow: state.isFocused ? "0 0 0 3px rgba(200, 155, 60, 0.15)" : "none", fontSize: "13px", background: "#f8fafc", cursor: "pointer" }),
         option: (provided, state) => ({ ...provided, fontSize: "13px", backgroundColor: state.isSelected ? "var(--accent)" : state.isFocused ? "var(--accent-bg)" : "#fff", color: state.isSelected ? "#fff" : "#111827", cursor: "pointer" }),
-        menuPortal: base => ({ ...base, zIndex: 9999 }), menu: (base) => ({ ...base, borderRadius: "0.75rem", overflow: "hidden", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" })
+        menuPortal: base => ({ ...base, zIndex: 99999 }),
+        menu: (base) => ({ ...base, borderRadius: "0.75rem", overflow: "hidden", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" })
     };
-
-    const creatableOptions = [
-        { value: 'Office Work', label: 'Office Work' },
-        { value: 'Vehicle Maintenance', label: 'Vehicle Maintenance' },
-        { value: 'Staff Advance', label: 'Staff Advance' },
-        { value: 'Travel Expense', label: 'Travel Expense' },
-        { value: 'Utility Bill', label: 'Utility Bill' },
-        { value: 'Other', label: 'Other' },
-    ];
 
     return (
         <AdminLayout>
@@ -228,10 +221,36 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                 @media (max-width: 1024px) { .modal-scroll-container { overflow-y: auto !important; max-height: calc(95vh - 140px); } }
             `}} />
 
-            <div className="flex flex-col gap-8 w-full max-w-[1600px] mx-auto pb-12 px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-12 px-4 sm:px-6 lg:px-8 mt-4">
 
-                {/* 🟢 Premium Page Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mt-4">
+                {/* 🟢 TOP BAR: Outstanding Dues by Employee (Uses Global Data) */}
+                {employeeBalances && employeeBalances.length > 0 && (
+                    <div className="w-full bg-gradient-to-r from-rose-50 via-white to-white rounded-2xl border border-rose-200 shadow-sm p-4 sm:p-5 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+                            <i className="fa-solid fa-hand-holding-dollar text-9xl"></i>
+                        </div>
+                        <div className="flex items-center gap-2 mb-3 sm:mb-4 relative z-10">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-100 text-rose-600 shadow-inner">
+                                <i className="fa-solid fa-sack-dollar text-[14px]"></i>
+                            </div>
+                            <h3 className="text-[14.5px] sm:text-[16px] font-bold text-gray-800 tracking-tight">Outstanding Advances (To be Collected/Adjusted)</h3>
+                        </div>
+                        <div className="flex gap-3 overflow-x-auto pb-2 custom-table-scroll relative z-10 snap-x">
+                            {employeeBalances.map(emp => (
+                                <div key={emp.user_id} className="snap-start shrink-0 bg-white border border-rose-100 rounded-xl px-4 py-3 flex flex-col min-w-[180px] shadow-sm hover:shadow-md transition-shadow">
+                                    <span className="text-[12px] font-bold text-gray-500 truncate mb-1">
+                                        <i className="fa-regular fa-user mr-1.5 text-gray-400"></i>{emp.name || 'Unknown'}
+                                    </span>
+                                    <span className="text-[17px] font-black text-rose-600 tabular-nums">
+                                        ৳ {Number(emp.total_due).toLocaleString('en-IN')}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div>
                         <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-indigo-600">
                             <span className="h-1.5 w-1.5 rounded-full bg-indigo-600"></span> Financial Management
@@ -241,7 +260,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                     </div>
                 </div>
 
-                {/* 🟢 SUMMARY CARDS (Relies on Backend Totals) */}
+                {/* SUMMARY CARDS */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
                     <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-all group">
                         <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-blue-50 opacity-50 transition-transform group-hover:scale-110"></div>
@@ -312,7 +331,6 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         )}
                     </div>
 
-                    {/* --- 🟢 NEW PREMIUM TOOLBAR PANEL --- */}
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 px-5 sm:px-6 py-5 bg-white border-b border-gray-100">
                         {/* 1. Search Bar */}
                         <div className="relative w-full">
@@ -335,7 +353,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         </div>
 
                         {/* 2. Employee Dropdown Filter */}
-                        <div className="w-full">
+                        <div className="w-full relative z-10">
                             <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Filter by Employee</label>
                             <Select
                                 options={employees.map((e) => ({ value: e.id, label: e.name }))}
@@ -348,7 +366,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         </div>
 
                         {/* 3. Account Dropdown Filter */}
-                        <div className="w-full">
+                        <div className="w-full relative z-10">
                             <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Filter by Account</label>
                             <Select
                                 options={accounts.map((a) => ({ value: a.id, label: a.name }))}
@@ -360,32 +378,32 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                             />
                         </div>
 
-                        {/* 4. Show Rows & Actions */}
-                        <div className="w-full flex items-end justify-between gap-3">
-                            <div className="w-full">
-                                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Show Rows</label>
-                                <div className="relative w-full">
-                                    <select
-                                        value={perPage}
-                                        onChange={(e) => setPerPage(e.target.value)}
-                                        className="w-full appearance-none rounded-xl border border-gray-200 bg-gray-50/50 py-2.5 pl-4 pr-10 text-[13px] font-bold text-gray-800 outline-none cursor-pointer focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 h-[44px]"
-                                    >
-                                        <option value="10">10 Rows</option>
-                                        <option value="25">25 Rows</option>
-                                        <option value="50">50 Rows</option>
-                                        <option value="100">100 Rows</option>
-                                        <option value="all">All Data</option>
-                                    </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-indigo-500">
-                                        <i className="fa-solid fa-chevron-down text-[12px]"></i>
-                                    </div>
+                        {/* 4. Show Rows */}
+                    <div className="w-full flex items-end justify-between gap-3">
+                        <div className="w-full">
+                            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Show Rows</label>
+                            <div className="relative w-full">
+                                <select
+                                    value={perPage}
+                                    onChange={(e) => setPerPage(e.target.value)}
+                                    className="w-full appearance-none rounded-xl border border-gray-200 bg-gray-50/50 py-2.5 pl-4 pr-10 text-[13px] font-bold text-gray-800 outline-none cursor-pointer focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 h-[44px]"
+                                    style={{ backgroundImage: 'none' }}
+                                >
+                                    <option value="10">10 Rows</option>
+                                    <option value="25">25 Rows</option>
+                                    <option value="50">50 Rows</option>
+                                    <option value="100">100 Rows</option>
+                                    <option value="all">All Data</option>
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-indigo-500">
+                                    <i className="fa-solid fa-chevron-down text-[12px]"></i>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    </div>
 
-                    {/* Extra Toolbar Actions */}
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-5 py-3 bg-gray-50/40 border-b border-gray-100">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-5 py-3 bg-gray-50/40 border-b border-gray-100 relative z-0">
                         <div>
                             {(searchTerm || userFilter || accountFilter) && (
                                 <button onClick={clearAllFilters} className="text-[12px] font-bold text-rose-600 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
@@ -406,8 +424,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         </div>
                     </div>
 
-                    {/* Main Data Table */}
-                    <div className="overflow-x-auto custom-table-scroll pb-3">
+                    <div className="overflow-x-auto custom-table-scroll pb-3 relative z-0">
                         <table id="printable-advance-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1000px]">
                             <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-gray-200">
                                 <tr>
@@ -637,9 +654,8 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         </table>
                     </div>
 
-                    {/* Pagination Footer */}
                     {advances.links && advances.links.length > 3 && (
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100 bg-white px-5 sm:px-6 py-4">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100 bg-white px-5 sm:px-6 py-4 relative z-0">
                             <div className="text-[13.5px] font-medium text-gray-500 text-center sm:text-left">
                                 Showing {advances.from || 0} to {advances.to || 0} of {advances.total || 0} entries
                             </div>
@@ -657,7 +673,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                 </div>
             </div>
 
-            {/* --- WIDE & MODERN VIEW MODAL --- */}
+            {/* --- 🟢 1. VIEW MODAL --- */}
             {showViewModal && selectedAdvance && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
                     <div className="w-full max-w-4xl bg-white rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col relative my-auto max-h-[95vh] sm:max-h-[90vh] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
@@ -749,7 +765,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                 </div>
             )}
 
-            {/* --- WIDE & MODERN CREATE / EDIT FORM MODAL --- */}
+            {/* --- 🟢 2. CREATE / EDIT FORM MODAL --- */}
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-3 sm:p-6 overflow-y-auto">
                     <div className="w-full max-w-5xl bg-white rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col my-auto max-h-[95vh] sm:max-h-[90vh] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
@@ -769,9 +785,9 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         </div>
 
                         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-                            <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto lg:overflow-hidden brass-scroll">
+                            <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto brass-scroll">
 
-                                <div className="flex-1 p-5 sm:p-8 lg:overflow-y-auto brass-scroll bg-gray-50/30 space-y-5 sm:space-y-6">
+                                <div className="flex-1 p-5 sm:p-8 bg-gray-50/30 space-y-5 sm:space-y-6">
                                     {errors.error && (
                                         <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 sm:p-4 text-[13px] sm:text-[13.5px] font-semibold text-red-700 shadow-sm">
                                             <i className="fa-solid fa-circle-exclamation mt-0.5 text-lg"></i> {errors.error}
@@ -789,8 +805,8 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                 isDisabled={editMode}
                                                 isSearchable isClearable
                                                 styles={selectStyles}
-                                                menuPosition="fixed"
                                                 menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                                menuPosition="fixed"
                                             />
                                             {errors.account_id && <p className="text-rose-500 text-[11px] sm:text-[12px] mt-1.5 font-medium">{errors.account_id}</p>}
                                         </div>
@@ -804,8 +820,8 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                 placeholder="-- Select Employee --"
                                                 isSearchable isClearable
                                                 styles={selectStyles}
-                                                menuPosition="fixed"
                                                 menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                                menuPosition="fixed"
                                             />
                                             {errors.user_id && <p className="text-rose-500 text-[11px] sm:text-[12px] mt-1.5 font-medium">{errors.user_id}</p>}
                                         </div>
@@ -827,8 +843,8 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                 placeholder="-- Select or type Purpose --"
                                                 isClearable
                                                 styles={selectStyles}
-                                                menuPosition="fixed"
                                                 menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                                menuPosition="fixed"
                                             />
                                             {errors.purpose && <p className="text-rose-500 text-[11px] sm:text-[12px] mt-1.5 font-medium">{errors.purpose}</p>}
                                         </div>
@@ -847,7 +863,6 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                     </div>
                                 </div>
 
-                                {/* Right Side Sidebar */}
                                 <div className="w-full lg:w-[340px] shrink-0 bg-[#111827] p-5 sm:p-8 text-white flex flex-col justify-between space-y-6 lg:space-y-0">
                                     <div>
                                         <h3 className="text-[11.5px] sm:text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-5 sm:mb-6 border-b border-gray-800 pb-2 sm:pb-3">Transaction Details</h3>
@@ -901,7 +916,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                 </div>
             )}
 
-            {/* --- SLEEK CASH RETURN MODAL --- */}
+            {/* --- 🟢 3. CASH RETURN MODAL --- */}
             {showReturnModal && selectedAdvance && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4">
                     <div className="w-full max-w-md bg-white rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
@@ -934,8 +949,8 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                         placeholder="-- Select Cash/Bank Box --"
                                         isSearchable isClearable
                                         styles={selectStyles}
-                                        menuPosition="fixed"
                                         menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                        menuPosition="fixed"
                                     />
                                     {returnErrors.return_account_id && <p className="text-rose-500 text-[11px] sm:text-[12px] mt-1.5 font-bold">{returnErrors.return_account_id}</p>}
                                 </div>
