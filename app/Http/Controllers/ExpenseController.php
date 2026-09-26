@@ -73,7 +73,7 @@ class ExpenseController extends Controller
         $perPage = $request->input('per_page') === 'all' ? max($query->count(), 1) : \App\Support\Pagination::perPage($request, $query);
 
         $expenses = $query->latest()->paginate($perPage)->withQueryString();
-        $expenses = $query->orderBy('date', 'desc')->latest('id')->paginate($perPage)->withQueryString();
+        $expenses = $query->reorder()->orderBy('date', 'desc')->orderBy('id', 'desc')->paginate($perPage)->withQueryString();
 
         $categories = ExpenseCategory::select('id', 'name')->orderBy('name')->get();
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->orderBy('name')->get();
