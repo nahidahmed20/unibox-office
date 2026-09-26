@@ -8,6 +8,7 @@ use App\Models\Advance;
 use App\Models\AdvanceBalance;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -77,16 +78,28 @@ class ExpenseController extends Controller
         $categories = ExpenseCategory::select('id', 'name')->orderBy('name')->get();
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->orderBy('name')->get();
 
-        $advances = AdvanceBalance::with('user:id,name')
+        $advances = User::select('id', 'name')
+            ->has('advances')
+            ->withSum('advances', 'amount')
+            ->withSum('advances', 'settled_amount')
+            ->withSum('advances', 'returned_amount')
             ->get()
-            ->filter(fn ($b) => $b->balance > 0.009)
-            ->sortBy(fn ($b) => $b->user->name ?? '')
-            ->values()
-            ->map(fn ($b) => [
-                'user_id' => $b->user_id,
-                'user'    => $b->user,
-                'balance' => round($b->balance, 2),
-            ]);
+            ->map(function ($user) {
+                $given = (float)($user->advances_sum_amount ?? 0);
+                $settled = (float)($user->advances_sum_settled_amount ?? 0);
+                $returned = (float)($user->advances_sum_returned_amount ?? 0);
+
+                $availableBalance = $given - ($settled + $returned);
+
+                return [
+                    'user_id' => $user->id,
+                    'user'    => ['name' => $user->name],
+                    'balance' => round($availableBalance, 2),
+                ];
+            })
+            ->filter(fn ($a) => $a['balance'] > 0)
+            ->sortBy(fn ($a) => $a['user']['name'])
+            ->values();
 
         return Inertia::render('Admin/Expenses/Index', compact('expenses', 'totalAmount', 'thisMonthTotal', 'categories', 'accounts', 'advances') + [
             'filters' => $request->only('search', 'per_page', 'date_filter', 'start_date', 'end_date'),

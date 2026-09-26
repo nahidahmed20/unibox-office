@@ -3,7 +3,33 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
-import CreatableSelect from 'react-select/creatable';
+
+// 🟢 Custom Straight Taka Component
+const Taka = ({ className = "text-[14px]" }) => (
+    <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
+);
+
+// 🟢 Deeper Contrast Select Styles
+const selectStyles = {
+    control: (base, state) => ({
+        ...base, minHeight: '48px', borderRadius: '0.75rem',
+        borderColor: state.isFocused ? '#4F46E5' : '#94A3B8', // slate-400 for Deep borders
+        boxShadow: state.isFocused ? '0 0 0 3px rgba(79, 70, 229, 0.15)' : '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+        backgroundColor: '#FFFFFF',
+        '&:hover': { borderColor: state.isFocused ? '#4F46E5' : '#64748B' }
+    }),
+    option: (base, state) => ({
+        ...base, backgroundColor: state.isSelected ? '#4F46E5' : state.isFocused ? '#EEF2FF' : 'white',
+        color: state.isSelected ? '#FFFFFF' : '#0F172A', fontWeight: 700, fontSize: '14px', cursor: 'pointer',
+    }),
+    placeholder: (base) => ({ ...base, color: '#64748B', fontWeight: 700, fontSize: '14px' }),
+    singleValue: (base) => ({ ...base, color: '#0F172A', fontWeight: 800, fontSize: '14px' }),
+    input: (base) => ({ ...base, color: '#0F172A', fontWeight: 700, fontSize: '14px' }),
+    menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+    menu: (base) => ({ ...base, borderRadius: '0.75rem', overflow: 'hidden', border: '1px solid #94A3B8', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }),
+};
+
+const inputClass = "w-full rounded-xl border border-slate-400 bg-white px-4 py-3 text-[14px] font-extrabold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm";
 
 export default function Index({ advances = [], filters = {}, accounts = [], employees = [], totals = {}, employeeBalances = [] }) {
     const [showModal, setShowModal] = useState(false);
@@ -20,7 +46,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
     const advanceList = Array.isArray(advances) ? advances : (advances.data || []);
 
-    // 🟢 Filter States
+    // Filter States
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [userFilter, setUserFilter] = useState(filters.user_id ? Number(filters.user_id) : '');
     const [accountFilter, setAccountFilter] = useState(filters.account_id ? Number(filters.account_id) : '');
@@ -36,7 +62,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
         return_amount: '', return_account_id: ''
     });
 
-    // 🟢 Deep Search & Filter Trigger
+    // Deep Search & Filter Trigger
     useEffect(() => {
         if (isFirstRender.current) { isFirstRender.current = false; return; }
         const delayDebounceFn = setTimeout(() => {
@@ -192,7 +218,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
     const handleDelete = (id) => {
         Swal.fire({
-            title: 'Delete this transaction?', text: `Remaining money will be refunded to the account!`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#6b7280', confirmButtonText: 'Yes, Delete'
+            title: 'Delete this transaction?', text: `Remaining money will be refunded to the account!`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748B', confirmButtonText: 'Yes, Delete'
         }).then((result) => {
             if (result.isConfirmed) {
                 destroy(route('admin.advances.destroy', id), {
@@ -202,47 +228,48 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
         });
     };
 
-    // 🟢 Select Styles (Fixed Portals to prevent clipping and duplicate renders)
-    const selectStyles = {
-        control: (provided, state) => ({ ...provided, minHeight: "44px", borderRadius: "0.75rem", border: state.isFocused ? "1px solid var(--accent)" : "1px solid #d1d5db", boxShadow: state.isFocused ? "0 0 0 3px rgba(200, 155, 60, 0.15)" : "none", fontSize: "13px", background: "#f8fafc", cursor: "pointer" }),
-        option: (provided, state) => ({ ...provided, fontSize: "13px", backgroundColor: state.isSelected ? "var(--accent)" : state.isFocused ? "var(--accent-bg)" : "#fff", color: state.isSelected ? "#fff" : "#111827", cursor: "pointer" }),
-        menuPortal: base => ({ ...base, zIndex: 99999 }),
-        menu: (base) => ({ ...base, borderRadius: "0.75rem", overflow: "hidden", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" })
-    };
-
     return (
         <AdminLayout>
             <Head title="Advance Payments" />
             <style dangerouslySetInnerHTML={{__html: `
                 .custom-table-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
-                .custom-table-scroll::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
-                .custom-table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
-                .custom-table-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+                .custom-table-scroll::-webkit-scrollbar-track { background: transparent; border-radius: 8px; }
+                .custom-table-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 8px; }
+                .custom-table-scroll::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+                @media print {
+                    body * { visibility: hidden; }
+                    #printable-advance-table, #printable-advance-table * { visibility: visible; }
+                    #printable-advance-table { position: absolute; left: 0; top: 0; width: 100%; }
+                    .no-print { display: none !important; }
+                }
                 @media (max-width: 1024px) { .modal-scroll-container { overflow-y: auto !important; max-height: calc(95vh - 140px); } }
             `}} />
 
             <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-12 px-4 sm:px-6 lg:px-8 mt-4">
 
-                {/* 🟢 TOP BAR: Outstanding Dues by Employee (Uses Global Data) */}
+                {/* 🟢 PREMIUM OUTSTANDING ADVANCES CAROUSEL */}
                 {employeeBalances && employeeBalances.length > 0 && (
-                    <div className="w-full bg-gradient-to-r from-rose-50 via-white to-white rounded-2xl border border-rose-200 shadow-sm p-4 sm:p-5 relative overflow-hidden">
+                    <div className="w-full bg-slate-900 rounded-3xl border border-slate-700 shadow-xl p-5 sm:p-6 relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
-                            <i className="fa-solid fa-hand-holding-dollar text-9xl"></i>
+                            <i className="fa-solid fa-hand-holding-dollar text-9xl text-white"></i>
                         </div>
-                        <div className="flex items-center gap-2 mb-3 sm:mb-4 relative z-10">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-100 text-rose-600 shadow-inner">
-                                <i className="fa-solid fa-sack-dollar text-[14px]"></i>
+                        <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-rose-500/20 blur-3xl pointer-events-none"></div>
+
+                        <div className="flex items-center gap-3 mb-4 sm:mb-5 relative z-10">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 shadow-inner">
+                                <i className="fa-solid fa-sack-dollar text-[15px]"></i>
                             </div>
-                            <h3 className="text-[14.5px] sm:text-[16px] font-bold text-gray-800 tracking-tight">Outstanding Advances (To be Collected/Adjusted)</h3>
+                            <h3 className="text-[16px] sm:text-[18px] font-black text-white tracking-tight uppercase">Outstanding Advances <span className="text-slate-400 text-[12px] normal-case tracking-normal ml-1 font-bold">(To be Collected/Adjusted)</span></h3>
                         </div>
-                        <div className="flex gap-3 overflow-x-auto pb-2 custom-table-scroll relative z-10 snap-x">
+                        <div className="flex gap-4 overflow-x-auto pb-2 custom-table-scroll relative z-10 snap-x">
                             {employeeBalances.map(emp => (
-                                <div key={emp.user_id} className="snap-start shrink-0 bg-white border border-rose-100 rounded-xl px-4 py-3 flex flex-col min-w-[180px] shadow-sm hover:shadow-md transition-shadow">
-                                    <span className="text-[12px] font-bold text-gray-500 truncate mb-1">
-                                        <i className="fa-regular fa-user mr-1.5 text-gray-400"></i>{emp.name || 'Unknown'}
+                                <div key={emp.user_id} className="snap-start shrink-0 bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col min-w-[200px] shadow-sm backdrop-blur-sm transition-all hover:bg-white/10 hover:border-white/20">
+                                    <span className="text-[13px] font-bold text-slate-300 truncate mb-1.5 flex items-center gap-2">
+                                        <div className="h-6 w-6 rounded-md bg-white/10 flex items-center justify-center text-[10px] text-white"><i className="fa-solid fa-user"></i></div>
+                                        {emp.name || 'Unknown'}
                                     </span>
-                                    <span className="text-[17px] font-black text-rose-600 tabular-nums">
-                                        ৳ {Number(emp.total_due).toLocaleString('en-IN')}
+                                    <span className="text-[20px] font-black text-rose-400 tabular-nums">
+                                        <Taka className="text-[14px]" />{Number(emp.total_due).toLocaleString('en-IN')}
                                     </span>
                                 </div>
                             ))}
@@ -250,111 +277,125 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                     </div>
                 )}
 
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mt-2">
                     <div>
-                        <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-indigo-600">
-                            <span className="h-1.5 w-1.5 rounded-full bg-indigo-600"></span> Financial Management
+                        <div className="inline-flex items-center gap-2 mb-2.5 px-3 py-1 bg-indigo-100 border border-indigo-200 rounded-full text-[11px] font-black uppercase tracking-widest text-indigo-800 shadow-sm">
+                            <i className="fa-solid fa-money-bill-transfer"></i> Financial Management
                         </div>
-                        <h1 className="text-[24px] sm:text-[28px] font-extrabold text-gray-900 tracking-tight">Advance Payments</h1>
-                        <p className="text-[13.5px] sm:text-[14.5px] text-gray-500 mt-1.5 max-w-lg leading-relaxed">Manage and track advance payments given to employees, track settlements, and handle refunds.</p>
+                        <h1 className="text-[28px] sm:text-[32px] font-black text-slate-900 tracking-tight leading-none">Advance Payments</h1>
+                        <p className="text-[14.5px] font-bold text-slate-600 mt-2 max-w-lg">Manage and track advance payments given to employees, track settlements, and handle refunds.</p>
                     </div>
                 </div>
 
-                {/* SUMMARY CARDS */}
+                {/* 🟢 PREMIUM SUMMARY CARDS */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-                    <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-all group">
-                        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-blue-50 opacity-50 transition-transform group-hover:scale-110"></div>
-                        <div className="relative flex items-center gap-4 sm:gap-5">
-                            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-200">
-                                <i className="fa-solid fa-money-bill-transfer text-[18px] sm:text-[20px]"></i>
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-700 px-6 py-6 shadow-md border border-indigo-500 text-white min-w-[220px] group">
+                        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl group-hover:bg-white/20 transition-colors"></div>
+                        <div className="flex items-center gap-4 relative z-10">
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-indigo-100">
+                                <i className="fa-solid fa-money-bill-transfer text-2xl"></i>
                             </div>
                             <div>
-                                <p className="mb-1 text-[11px] sm:text-[11.5px] font-bold uppercase tracking-wider text-gray-500">Total Given</p>
-                                <h3 className="text-[20px] sm:text-[24px] font-black text-gray-900 m-0 tabular-nums tracking-tight">৳ {Number(totals.total_given || 0).toLocaleString('en-IN')}</h3>
+                                <p className="text-[11.5px] font-bold uppercase tracking-widest text-indigo-200">Total Given</p>
+                                <h3 className="text-[26px] font-black tracking-tight mt-0.5 tabular-nums flex items-center">
+                                    <Taka className="text-[16px] text-indigo-200 mr-1" />{Number(totals.total_given || 0).toLocaleString('en-IN')}
+                                </h3>
                             </div>
                         </div>
                     </div>
 
-                    <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50/30 p-5 sm:p-6 shadow-sm hover:shadow-md transition-all group">
-                        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-emerald-100 opacity-40 transition-transform group-hover:scale-110"></div>
-                        <div className="relative flex items-center gap-4 sm:gap-5">
-                            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-200">
-                                <i className="fa-solid fa-file-invoice-dollar text-[18px] sm:text-[20px]"></i>
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 px-6 py-6 shadow-md border border-emerald-500 text-white min-w-[220px] group">
+                        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl group-hover:bg-white/20 transition-colors"></div>
+                        <div className="flex items-center gap-4 relative z-10">
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-emerald-100">
+                                <i className="fa-solid fa-file-invoice-dollar text-2xl"></i>
                             </div>
                             <div>
-                                <p className="mb-1 text-[11px] sm:text-[11.5px] font-bold uppercase tracking-wider text-emerald-600/90">Total Expensed</p>
-                                <h3 className="text-[20px] sm:text-[24px] font-black text-emerald-700 m-0 tabular-nums tracking-tight">৳ {Number(totals.total_expensed || 0).toLocaleString('en-IN')}</h3>
+                                <p className="text-[11.5px] font-bold uppercase tracking-widest text-emerald-200">Total Expensed</p>
+                                <h3 className="text-[26px] font-black tracking-tight mt-0.5 tabular-nums flex items-center">
+                                    <Taka className="text-[16px] text-emerald-200 mr-1" />{Number(totals.total_expensed || 0).toLocaleString('en-IN')}
+                                </h3>
                             </div>
                         </div>
                     </div>
 
-                    <div className="relative overflow-hidden rounded-2xl border border-purple-200 bg-gradient-to-br from-white to-purple-50/30 p-5 sm:p-6 shadow-sm hover:shadow-md transition-all group">
-                        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-purple-100 opacity-40 transition-transform group-hover:scale-110"></div>
-                        <div className="relative flex items-center gap-4 sm:gap-5">
-                            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-200">
-                                <i className="fa-solid fa-hand-holding-dollar text-[18px] sm:text-[20px]"></i>
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 to-purple-700 px-6 py-6 shadow-md border border-violet-500 text-white min-w-[220px] group">
+                        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl group-hover:bg-white/20 transition-colors"></div>
+                        <div className="flex items-center gap-4 relative z-10">
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-violet-100">
+                                <i className="fa-solid fa-hand-holding-dollar text-2xl"></i>
                             </div>
                             <div>
-                                <p className="mb-1 text-[11px] sm:text-[11.5px] font-bold uppercase tracking-wider text-purple-600/90">Total Returned</p>
-                                <h3 className="text-[20px] sm:text-[24px] font-black text-purple-700 m-0 tabular-nums tracking-tight">৳ {Number(totals.total_returned || 0).toLocaleString('en-IN')}</h3>
+                                <p className="text-[11.5px] font-bold uppercase tracking-widest text-violet-200">Total Returned</p>
+                                <h3 className="text-[26px] font-black tracking-tight mt-0.5 tabular-nums flex items-center">
+                                    <Taka className="text-[16px] text-violet-200 mr-1" />{Number(totals.total_returned || 0).toLocaleString('en-IN')}
+                                </h3>
                             </div>
                         </div>
                     </div>
 
-                    <div className="relative overflow-hidden rounded-2xl border border-rose-200 bg-gradient-to-br from-white to-rose-50/30 p-5 sm:p-6 shadow-sm hover:shadow-md transition-all group">
-                        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-rose-100 opacity-40 transition-transform group-hover:scale-110"></div>
-                        <div className="relative flex items-center gap-4 sm:gap-5">
-                            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg shadow-rose-200">
-                                <i className="fa-solid fa-triangle-exclamation text-[18px] sm:text-[20px]"></i>
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 px-6 py-6 shadow-md border border-rose-400 text-white min-w-[220px] group">
+                        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl group-hover:bg-white/20 transition-colors"></div>
+                        <div className="flex items-center gap-4 relative z-10">
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-rose-100">
+                                <i className="fa-solid fa-triangle-exclamation text-2xl"></i>
                             </div>
                             <div>
-                                <p className="mb-1 text-[11px] sm:text-[11.5px] font-bold uppercase tracking-wider text-rose-600/90">Total Due Amount</p>
-                                <h3 className="text-[20px] sm:text-[24px] font-black text-rose-700 m-0 tabular-nums tracking-tight">৳ {Number(totals.total_due || 0).toLocaleString('en-IN')}</h3>
+                                <p className="text-[11.5px] font-bold uppercase tracking-widest text-rose-200">Total Due Amount</p>
+                                <h3 className="text-[26px] font-black tracking-tight mt-0.5 tabular-nums flex items-center">
+                                    <Taka className="text-[16px] text-rose-200 mr-1" />{Number(totals.total_due || 0).toLocaleString('en-IN')}
+                                </h3>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
+                {/* 🟢 MAIN DATA CARD */}
+                <div className="rounded-2xl border border-slate-300 bg-white shadow-md overflow-hidden flex flex-col">
 
-                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 px-5 sm:px-6 py-4 sm:py-5 gap-4 bg-gray-50/40">
-                        <div className="text-[15px] sm:text-[16px] font-bold text-gray-900 flex items-center gap-2.5">
-                            <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                                <i className="fa-solid fa-list-check text-[13px] sm:text-[14px]"></i>
+                    {/* Card Header */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 px-6 py-5 gap-4 bg-slate-50">
+                        <div className="text-[16px] font-black text-slate-900 flex items-center gap-2.5">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 border border-indigo-200 text-indigo-700 shadow-sm">
+                                <i className="fa-solid fa-list-check text-[15px]"></i>
                             </div>
                             Advance History Directory
                         </div>
-                        {hasPermission('create_advance') && (
-                            <button onClick={openCreateModal} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-[13.5px] font-bold text-white transition-all hover:bg-indigo-700 shadow-sm hover:shadow-md w-full md:w-auto">
-                                <i className="fa-solid fa-plus"></i> Log Advance
+                        <div className="flex items-center gap-3">
+                            <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-all hover:bg-emerald-100 shadow-sm">
+                                <i className="fas fa-file-csv"></i> CSV
                             </button>
-                        )}
+                            {hasPermission('create_advance') && (
+                                <button onClick={openCreateModal} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-[13.5px] font-bold text-white transition-all hover:bg-indigo-700 shadow-md hover:-translate-y-0.5 ml-2">
+                                    <i className="fa-solid fa-plus text-[12px]"></i> Log Advance
+                                </button>
+                            )}
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 px-5 sm:px-6 py-5 bg-white border-b border-gray-100">
-                        {/* 1. Search Bar */}
+                    {/* Filters Toolbar */}
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 px-6 py-5 bg-white border-b border-slate-200">
+
                         <div className="relative w-full">
-                            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Search Text</label>
-                            <div className="absolute bottom-0 left-0 flex items-center pl-3 pb-3 pointer-events-none">
-                                <i className="fa-solid fa-magnifying-glass text-indigo-400 text-[13px]"></i>
-                            </div>
+                            <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Search</label>
+                            <i className="fa-solid fa-magnifying-glass absolute left-4 top-[38px] text-slate-400 text-[13.5px]"></i>
                             <input
                                 type="text"
                                 placeholder="Search here..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full rounded-xl border border-gray-200 bg-gray-50/50 py-2.5 pl-9 pr-10 text-[13px] text-gray-800 outline-none transition-all focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm placeholder:text-gray-400 font-medium h-[44px]"
+                                className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-10 text-[13.5px] font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm bg-white"
                             />
                             {searchTerm && (
-                                <button onClick={() => setSearchTerm('')} className="absolute bottom-0 right-0 flex items-center pr-3 pb-3 text-gray-400 hover:text-rose-500 transition-colors" title="Clear">
+                                <button onClick={() => setSearchTerm('')} className="absolute bottom-3.5 right-4 flex items-center text-slate-400 hover:text-rose-500 transition-colors">
                                     <i className="fa-solid fa-circle-xmark text-[14px]"></i>
                                 </button>
                             )}
                         </div>
 
-                        {/* 2. Employee Dropdown Filter */}
-                        <div className="w-full relative z-10">
-                            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Filter by Employee</label>
+                        <div className="w-full relative z-30">
+                            <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Employee</label>
                             <Select
                                 options={employees.map((e) => ({ value: e.id, label: e.name }))}
                                 value={employees.map((e) => ({ value: e.id, label: e.name })).find(opt => opt.value === userFilter) || null}
@@ -365,9 +406,8 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                             />
                         </div>
 
-                        {/* 3. Account Dropdown Filter */}
-                        <div className="w-full relative z-10">
-                            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Filter by Account</label>
+                        <div className="w-full relative z-20">
+                            <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Account</label>
                             <Select
                                 options={accounts.map((a) => ({ value: a.id, label: a.name }))}
                                 value={accounts.map((a) => ({ value: a.id, label: a.name })).find(opt => opt.value === accountFilter) || null}
@@ -378,15 +418,13 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                             />
                         </div>
 
-                        {/* 4. Show Rows */}
-                    <div className="w-full flex items-end justify-between gap-3">
                         <div className="w-full">
-                            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Show Rows</label>
+                            <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Show Rows</label>
                             <div className="relative w-full">
                                 <select
                                     value={perPage}
                                     onChange={(e) => setPerPage(e.target.value)}
-                                    className="w-full appearance-none rounded-xl border border-gray-200 bg-gray-50/50 py-2.5 pl-4 pr-10 text-[13px] font-bold text-gray-800 outline-none cursor-pointer focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 h-[44px]"
+                                    className="w-full appearance-none rounded-xl border border-slate-300 bg-white py-2.5 pl-4 pr-10 text-[13.5px] font-bold text-slate-900 outline-none cursor-pointer focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm"
                                     style={{ backgroundImage: 'none' }}
                                 >
                                     <option value="10">10 Rows</option>
@@ -395,52 +433,52 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                     <option value="100">100 Rows</option>
                                     <option value="all">All Data</option>
                                 </select>
-                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-indigo-500">
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
                                     <i className="fa-solid fa-chevron-down text-[12px]"></i>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    </div>
 
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-5 py-3 bg-gray-50/40 border-b border-gray-100 relative z-0">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 bg-slate-50 border-b border-slate-200">
                         <div>
                             {(searchTerm || userFilter || accountFilter) && (
-                                <button onClick={clearAllFilters} className="text-[12px] font-bold text-rose-600 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                                <button onClick={clearAllFilters} className="text-[12.5px] font-bold text-rose-600 hover:text-rose-700 bg-rose-100/50 border border-rose-200 px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-sm transition-colors">
                                     <i className="fa-solid fa-rotate-left"></i> Reset Filters
                                 </button>
                             )}
                         </div>
                         <div className="flex flex-wrap items-center justify-end gap-2">
-                            <button onClick={handleCopy} className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-bold text-gray-700 transition-all hover:bg-gray-50 shadow-sm" title="Copy to clipboard">
+                            <button onClick={handleCopy} className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-700 transition-all hover:bg-slate-100 shadow-sm">
                                 <i className="fa-regular fa-copy text-blue-500"></i> <span className="hidden sm:inline">Copy</span>
                             </button>
-                            <button onClick={handleExportCSV} className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] font-bold text-emerald-700 transition-all hover:bg-emerald-100 shadow-sm" title="Export as CSV">
+                            <button onClick={handleExportCSV} className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-all hover:bg-emerald-100 shadow-sm">
                                 <i className="fa-solid fa-file-csv"></i> <span className="hidden sm:inline">CSV</span>
                             </button>
-                            <button onClick={handlePrint} className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] font-bold text-gray-700 transition-all hover:bg-gray-50 shadow-sm" title="Print document">
-                                <i className="fa-solid fa-print text-gray-500"></i> <span className="hidden sm:inline">Print</span>
+                            <button onClick={handlePrint} className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-700 transition-all hover:bg-slate-100 shadow-sm">
+                                <i className="fa-solid fa-print text-slate-500"></i> <span className="hidden sm:inline">Print</span>
                             </button>
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto custom-table-scroll pb-3 relative z-0">
-                        <table id="printable-advance-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1000px]">
-                            <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-gray-200">
+                    {/* Data Table */}
+                    <div className="overflow-x-auto custom-table-scroll pb-3">
+                        <table id="printable-advance-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1100px]">
+                            <thead className="bg-slate-100 text-[11.5px] font-black uppercase tracking-widest text-slate-500 border-b-2 border-slate-300 sticky top-0 z-0">
                                 <tr>
-                                    <th className="px-6 py-4.5 w-12 expand-btn-col"></th>
+                                    <th className="px-6 py-4.5 w-12 expand-btn-col text-center"></th>
                                     <th className="px-6 py-4.5">Date</th>
                                     <th className="px-6 py-4.5">Account</th>
                                     <th className="px-6 py-4.5">Employee Profile</th>
-                                    <th className="px-6 py-4.5 text-right">Given</th>
-                                    <th className="px-6 py-4.5 text-right">Expensed</th>
-                                    <th className="px-6 py-4.5 text-right">Returned</th>
-                                    <th className="px-6 py-4.5 text-right">Due</th>
+                                    <th className="px-6 py-4.5 text-right bg-indigo-50/50 border-l border-slate-200">Given</th>
+                                    <th className="px-6 py-4.5 text-right bg-emerald-50/50 border-x border-slate-200">Expensed</th>
+                                    <th className="px-6 py-4.5 text-right bg-blue-50/50">Returned</th>
+                                    <th className="px-6 py-4.5 text-right bg-rose-50/50 border-x border-slate-200">Due</th>
                                     <th className="px-6 py-4.5 text-center">Status</th>
-                                    <th className="px-6 py-4.5 text-center actions-col">Actions</th>
+                                    <th className="px-6 py-4.5 text-center actions-col w-32">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="text-[13.5px] text-gray-800 divide-y divide-gray-100">
+                            <tbody className="text-[13.5px] text-slate-800 divide-y divide-slate-200">
                                 {groupedAdvances.length > 0 ? (
                                     groupedAdvances.map((group) => {
                                         const isExpanded = !!expandedRows[group.user_id];
@@ -449,91 +487,95 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
                                         return (
                                             <React.Fragment key={group.user_id}>
-                                                <tr className={`transition-colors group ${isExpanded ? 'bg-indigo-50/30' : 'hover:bg-slate-50/80'}`}>
+                                                <tr className={`transition-colors group ${isExpanded ? 'bg-indigo-50/40' : 'hover:bg-slate-50/80'}`}>
                                                     <td className="px-6 py-4 text-center expand-btn-col">
                                                         {hasMultiple && (
                                                             <button
                                                                 onClick={() => toggleExpand(group.user_id)}
-                                                                className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors hover:bg-indigo-600 hover:text-white focus:outline-none shadow-sm"
+                                                                className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-500 transition-colors hover:bg-indigo-600 hover:text-white hover:border-indigo-600 shadow-sm"
                                                             >
-                                                                <i className={`fa-solid fa-chevron-${isExpanded ? 'down' : 'right'} text-[10px]`}></i>
+                                                                <i className={`fa-solid fa-chevron-${isExpanded ? 'down' : 'right'} text-[11px]`}></i>
                                                             </button>
                                                         )}
                                                     </td>
-                                                    <td className="px-6 py-4 font-medium text-gray-500">
+                                                    <td className="px-6 py-4 font-bold text-slate-600">
                                                         {hasMultiple ? (
-                                                            <span className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg text-[11px] font-black border border-indigo-100">{group.records.length} entries</span>
+                                                            <span className="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest border border-indigo-200 shadow-sm">{group.records.length} entries</span>
                                                         ) : (
                                                             <>
-                                                                <div className="font-semibold text-gray-700">{single.date}</div>
+                                                                <div className="font-extrabold text-slate-800">{single.date}</div>
                                                                 {single.created_at && (
-                                                                    <div className="text-[11.5px] text-gray-400 mt-0.5 font-medium">
+                                                                    <div className="text-[11.5px] text-slate-400 mt-1 font-bold">
                                                                         {formatTime(single.created_at)}
                                                                     </div>
                                                                 )}
                                                             </>
                                                         )}
                                                     </td>
-                                                    <td className="px-6 py-4 font-bold text-gray-700">
-                                                        {hasMultiple ? <span className="text-gray-400 italic font-normal text-[12.5px]">Multiple Accounts</span> : (single.account?.name || 'N/A')}
+                                                    <td className="px-6 py-4 font-black text-slate-700">
+                                                        {hasMultiple ? <span className="text-slate-400 italic font-medium text-[12.5px]">Multiple Accounts</span> : (
+                                                            <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[12.5px] font-black text-slate-700 shadow-sm">
+                                                                <i className="fa-solid fa-building-columns text-indigo-500"></i> {single.account?.name || 'N/A'}
+                                                            </span>
+                                                        )}
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-[12px] font-bold uppercase shadow-sm">
+                                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-[13px] font-black uppercase shadow-sm">
                                                                 {(group.user?.name || '?').charAt(0)}
                                                             </div>
                                                             <div>
-                                                                <Link href={route('admin.advances.employeeLedger', group.user_id)} className="font-bold text-gray-900 hover:text-indigo-600 transition-colors text-[14px]">
+                                                                <Link href={route('admin.advances.employeeLedger', group.user_id)} className="font-black text-slate-900 hover:text-indigo-600 transition-colors text-[14.5px]">
                                                                     {group.user?.name}
                                                                 </Link>
-                                                                {!hasMultiple && single.purpose && <div className="text-[11.5px] text-gray-500 mt-0.5"><i className="fa-solid fa-bullseye text-[10px] mr-1 text-gray-400"></i>{single.purpose}</div>}
+                                                                {!hasMultiple && single.purpose && <div className="text-[12px] font-bold text-slate-500 mt-1 truncate max-w-[200px]" title={single.purpose}><i className="fa-solid fa-bullseye text-[10px] mr-1.5 text-slate-400"></i>{single.purpose}</div>}
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-4 text-right font-black text-gray-900 tabular-nums">
-                                                        ৳ {group.total_given.toLocaleString('en-IN')}
+                                                    <td className="px-6 py-4 text-right font-black text-indigo-700 tabular-nums bg-indigo-50/20 border-l border-slate-100 text-[15px]">
+                                                        <Taka className="text-[13px] mr-1 opacity-70"/>{group.total_given.toLocaleString('en-IN')}
                                                     </td>
-                                                    <td className="px-6 py-4 text-right font-bold text-emerald-600 tabular-nums">
-                                                        {group.total_expensed > 0 ? `৳ ${group.total_expensed.toLocaleString('en-IN')}` : <span className="text-gray-300">-</span>}
+                                                    <td className="px-6 py-4 text-right font-black text-emerald-600 tabular-nums bg-emerald-50/20 border-x border-slate-100 text-[14.5px]">
+                                                        {group.total_expensed > 0 ? <><Taka className="text-[12px] mr-1 opacity-70"/>{group.total_expensed.toLocaleString('en-IN')}</> : <span className="text-slate-300">-</span>}
                                                     </td>
-                                                    <td className="px-6 py-4 text-right font-bold text-blue-600 tabular-nums">
-                                                        {group.total_returned > 0 ? `৳ ${group.total_returned.toLocaleString('en-IN')}` : <span className="text-gray-300">-</span>}
+                                                    <td className="px-6 py-4 text-right font-black text-blue-600 tabular-nums bg-blue-50/20 text-[14.5px]">
+                                                        {group.total_returned > 0 ? <><Taka className="text-[12px] mr-1 opacity-70"/>{group.total_returned.toLocaleString('en-IN')}</> : <span className="text-slate-300">-</span>}
                                                     </td>
-                                                    <td className="px-6 py-4 text-right font-black text-rose-600 text-[14.5px] tabular-nums">
-                                                        {group.total_due > 0 ? `৳ ${group.total_due.toLocaleString('en-IN')}` : <span className="text-gray-300 font-medium">-</span>}
+                                                    <td className="px-6 py-4 text-right font-black text-rose-600 text-[15px] tabular-nums bg-rose-50/20 border-x border-slate-100">
+                                                        {group.total_due > 0 ? <><Taka className="text-[13px] mr-1 opacity-80"/>{group.total_due.toLocaleString('en-IN')}</> : <span className="text-slate-300 font-bold">-</span>}
                                                     </td>
                                                     <td className="px-6 py-4 text-center">
-                                                        <span className={`inline-flex px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${group.total_due > 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                                        <span className={`inline-flex items-center px-3.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border shadow-sm ${group.total_due > 0 ? 'bg-rose-50 text-rose-700 border-rose-300' : 'bg-emerald-50 text-emerald-700 border-emerald-300'}`}>
                                                             {group.total_due > 0 ? 'unsettled' : 'settled'}
                                                         </span>
                                                     </td>
-                                                    <td className="px-6 py-4 text-center actions-col">
+                                                    <td className="px-6 py-4 text-center actions-col no-print">
                                                         {hasMultiple ? (
                                                             <button
                                                                 onClick={() => toggleExpand(group.user_id)}
-                                                                className="rounded-xl bg-indigo-50 border border-indigo-100 px-3 py-1.5 text-[12px] font-bold text-indigo-600 transition-colors hover:bg-indigo-600 hover:text-white shadow-sm"
+                                                                className="rounded-xl bg-white border border-slate-300 px-4 py-2 text-[12px] font-black uppercase tracking-widest text-slate-700 transition-colors hover:bg-indigo-600 hover:text-white hover:border-indigo-600 shadow-sm"
                                                             >
                                                                 {isExpanded ? 'Hide' : 'View'} ({group.records.length})
                                                             </button>
                                                         ) : (
-                                                            <div className="flex items-center justify-center gap-1.5">
+                                                            <div className="flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                                                 {hasPermission('view_client_advance') && (
-                                                                    <button onClick={() => openViewModal(single)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors shadow-sm" title="View">
+                                                                    <button onClick={() => openViewModal(single)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-300 text-slate-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors shadow-sm" title="View">
                                                                         <i className="fa-regular fa-eye text-[13px]"></i>
                                                                     </button>
                                                                 )}
                                                                 {hasPermission('return_advance') && single.status !== 'settled' && group.total_due > 0 && (
-                                                                    <button onClick={() => openReturnModal(single)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors shadow-sm" title="Refund Cash">
+                                                                    <button onClick={() => openReturnModal(single)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-300 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-300 transition-colors shadow-sm" title="Refund Cash">
                                                                         <i className="fa-solid fa-money-bill-transfer text-[13px]"></i>
                                                                     </button>
                                                                 )}
                                                                 {hasPermission('edit_advance') && (
-                                                                    <button onClick={() => openEditModal(single)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors shadow-sm" title="Edit">
+                                                                    <button onClick={() => openEditModal(single)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-300 text-slate-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 transition-colors shadow-sm" title="Edit">
                                                                         <i className="fa-regular fa-pen-to-square text-[13px]"></i>
                                                                     </button>
                                                                 )}
                                                                 {hasPermission('delete_advance') && (
-                                                                    <button onClick={() => handleDelete(single.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors shadow-sm" title="Delete">
+                                                                    <button onClick={() => handleDelete(single.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-300 text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 transition-colors shadow-sm" title="Delete">
                                                                         <i className="fa-regular fa-trash-can text-[13px]"></i>
                                                                     </button>
                                                                 )}
@@ -542,27 +584,27 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                     </td>
                                                 </tr>
 
+                                                {/* Expanded Transactions Row */}
                                                 {isExpanded && hasMultiple && (
                                                     <tr>
-                                                        <td colSpan="10" className="px-4 sm:px-8 py-4 sm:py-6 bg-slate-50/80 border-b border-gray-200 shadow-inner">
-                                                            <div className="rounded-2xl border border-gray-200 bg-white overflow-x-auto shadow-sm">
-                                                                <table className="w-full border-collapse min-w-[900px]">
-                                                                    <thead className="bg-gray-100 text-[10px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-200">
+                                                        <td colSpan="10" className="px-6 py-8 bg-slate-100 border-b border-slate-300 shadow-inner">
+                                                            <div className="rounded-2xl border border-slate-300 bg-white overflow-hidden shadow-md">
+                                                                <table className="w-full border-collapse">
+                                                                    <thead className="bg-slate-50 text-[10.5px] font-black uppercase tracking-widest text-slate-500 border-b-2 border-slate-200">
                                                                         <tr>
-                                                                            <th className="px-4 py-3 w-4 border-r border-gray-200"></th>
-                                                                            <th className="px-4 py-3">Date</th>
-                                                                            <th className="px-4 py-3">Account</th>
-                                                                            <th className="px-4 py-3">Reson</th>
-                                                                            <th className="px-4 py-3">Purpose</th>
-                                                                            <th className="px-4 py-3 text-right">Given</th>
-                                                                            <th className="px-4 py-3 text-right">Expensed</th>
-                                                                            <th className="px-4 py-3 text-right">Returned</th>
-                                                                            <th className="px-4 py-3 text-right">Due</th>
-                                                                            <th className="px-4 py-3 text-center">Status</th>
-                                                                            <th className="px-4 py-3 text-center actions-col">Actions</th>
+                                                                            <th className="px-5 py-4 w-4 border-r border-slate-200"></th>
+                                                                            <th className="px-5 py-4">Date</th>
+                                                                            <th className="px-5 py-4">Account</th>
+                                                                            <th className="px-5 py-4 w-[25%]">Purpose & Notes</th>
+                                                                            <th className="px-5 py-4 text-right bg-indigo-50/50">Given</th>
+                                                                            <th className="px-5 py-4 text-right bg-emerald-50/50 border-l border-slate-200">Expensed</th>
+                                                                            <th className="px-5 py-4 text-right bg-blue-50/50">Returned</th>
+                                                                            <th className="px-5 py-4 text-right bg-rose-50/50 border-x border-slate-200">Due</th>
+                                                                            <th className="px-5 py-4 text-center">Status</th>
+                                                                            <th className="px-5 py-4 text-center actions-col no-print">Actions</th>
                                                                         </tr>
                                                                     </thead>
-                                                                    <tbody className="text-[13px] text-gray-700 divide-y divide-gray-100">
+                                                                    <tbody className="text-[13px] text-slate-800 divide-y divide-slate-100">
                                                                         {group.records.map((adv) => {
                                                                             const expensed = parseFloat(adv.settled_amount || 0);
                                                                             const returned = parseFloat(adv.returned_amount || 0);
@@ -570,56 +612,56 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                                             const due = totalGiven - expensed - returned;
 
                                                                             return (
-                                                                                <tr key={adv.id} className="hover:bg-slate-50 transition-colors">
-                                                                                    <td className="px-4 py-3.5 border-r border-gray-100"></td>
-                                                                                    <td className="px-4 py-3.5 font-medium text-gray-600">
+                                                                                <tr key={adv.id} className="hover:bg-slate-50 transition-colors group/sub">
+                                                                                    <td className="px-5 py-4 border-r border-slate-100 bg-slate-50/50"></td>
+                                                                                    <td className="px-5 py-4 font-bold text-slate-600 whitespace-nowrap">
                                                                                         <div>{adv.date}</div>
                                                                                     </td>
-                                                                                    <td className="px-4 py-3.5 font-bold text-teal-700">
-                                                                                        {adv.account?.name || 'N/A'}
+                                                                                    <td className="px-5 py-4 font-black text-slate-700 whitespace-nowrap">
+                                                                                        <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11.5px] font-black text-slate-700 shadow-sm">
+                                                                                            <i className="fa-solid fa-building-columns text-indigo-500"></i> {adv.account?.name || 'N/A'}
+                                                                                        </span>
                                                                                     </td>
-                                                                                    <td className="px-4 py-3.5 text-gray-600 font-medium max-w-[150px] truncate">
-                                                                                        {adv.notes || '-'}
+                                                                                    <td className="px-5 py-4">
+                                                                                        <div className="font-extrabold text-slate-900 truncate max-w-[200px]" title={adv.purpose}>{adv.purpose || '-'}</div>
+                                                                                        {adv.notes && <div className="text-[11.5px] text-slate-500 font-bold mt-1 truncate max-w-[200px] italic" title={adv.notes}>{adv.notes}</div>}
                                                                                     </td>
-                                                                                    <td className="px-4 py-3.5 text-gray-600 font-medium">
-                                                                                        {adv.purpose || '-'}
+                                                                                    <td className="px-5 py-4 text-right font-black text-indigo-700 tabular-nums bg-indigo-50/20">
+                                                                                        <Taka className="text-[12px] mr-0.5 opacity-70"/>{totalGiven.toLocaleString('en-IN')}
                                                                                     </td>
-                                                                                    <td className="px-4 py-3.5 text-right font-black text-gray-900 tabular-nums">
-                                                                                        ৳ {totalGiven.toLocaleString('en-IN')}
+                                                                                    <td className="px-5 py-4 text-right font-bold text-emerald-600 tabular-nums bg-emerald-50/20 border-l border-slate-100">
+                                                                                        {expensed > 0 ? <><Taka className="text-[11px] mr-0.5 opacity-70"/>{expensed.toLocaleString('en-IN')}</> : <span className="text-slate-300">-</span>}
                                                                                     </td>
-                                                                                    <td className="px-4 py-3.5 text-right font-bold text-emerald-600 tabular-nums">
-                                                                                        {expensed > 0 ? `৳ ${expensed.toLocaleString('en-IN')}` : '-'}
+                                                                                    <td className="px-5 py-4 text-right font-bold text-blue-600 tabular-nums bg-blue-50/20">
+                                                                                        {returned > 0 ? <><Taka className="text-[11px] mr-0.5 opacity-70"/>{returned.toLocaleString('en-IN')}</> : <span className="text-slate-300">-</span>}
                                                                                     </td>
-                                                                                    <td className="px-4 py-3.5 text-right font-bold text-blue-600 tabular-nums">
-                                                                                        {returned > 0 ? `৳ ${returned.toLocaleString('en-IN')}` : '-'}
+                                                                                    <td className="px-5 py-4 text-right font-black text-rose-600 tabular-nums bg-rose-50/20 border-x border-slate-100">
+                                                                                        {due > 0 ? <><Taka className="text-[12px] mr-0.5 opacity-80"/>{due.toLocaleString('en-IN')}</> : '0'}
                                                                                     </td>
-                                                                                    <td className="px-4 py-3.5 text-right font-black text-rose-600 tabular-nums">
-                                                                                        {due > 0 ? `৳ ${due.toLocaleString('en-IN')}` : '0'}
-                                                                                    </td>
-                                                                                    <td className="px-4 py-3.5 text-center">
-                                                                                        <span className={`inline-flex px-2.5 py-0.5 rounded-md text-[9.5px] font-bold uppercase tracking-wider border ${adv.status === 'settled' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                                                                                    <td className="px-5 py-4 text-center">
+                                                                                        <span className={`inline-flex px-2.5 py-1 rounded-md text-[9.5px] font-black uppercase tracking-widest border shadow-sm ${adv.status === 'settled' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-rose-50 text-rose-700 border-rose-300'}`}>
                                                                                             {adv.status}
                                                                                         </span>
                                                                                     </td>
-                                                                                    <td className="px-4 py-3.5 text-center actions-col">
-                                                                                        <div className="flex items-center justify-center gap-1.5">
+                                                                                    <td className="px-5 py-4 text-right actions-col no-print">
+                                                                                        <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover/sub:opacity-100 transition-opacity duration-200">
                                                                                             {hasPermission('view_client_advance') && (
-                                                                                                <button onClick={() => openViewModal(adv)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors shadow-sm" title="View">
+                                                                                                <button onClick={() => openViewModal(adv)} className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm" title="View">
                                                                                                     <i className="fa-regular fa-eye text-[12px]"></i>
                                                                                                 </button>
                                                                                             )}
                                                                                             {hasPermission('return_advance') && adv.status !== 'settled' && due > 0 && (
-                                                                                                <button onClick={() => openReturnModal(adv)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors shadow-sm" title="Refund Cash">
+                                                                                                <button onClick={() => openReturnModal(adv)} className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-500 hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors shadow-sm" title="Refund Cash">
                                                                                                     <i className="fa-solid fa-money-bill-transfer text-[12px]"></i>
                                                                                                 </button>
                                                                                             )}
                                                                                             {hasPermission('edit_advance') && (
-                                                                                                <button onClick={() => openEditModal(adv)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors shadow-sm" title="Edit">
+                                                                                                <button onClick={() => openEditModal(adv)} className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-500 hover:border-amber-500 hover:text-amber-600 hover:bg-amber-50 transition-colors shadow-sm" title="Edit">
                                                                                                     <i className="fa-regular fa-pen-to-square text-[12px]"></i>
                                                                                                 </button>
                                                                                             )}
                                                                                             {hasPermission('delete_advance') && (
-                                                                                                <button onClick={() => handleDelete(adv.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors shadow-sm" title="Delete">
+                                                                                                <button onClick={() => handleDelete(adv.id)} className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-500 hover:border-rose-500 hover:text-rose-600 hover:bg-rose-50 transition-colors shadow-sm" title="Delete">
                                                                                                     <i className="fa-regular fa-trash-can text-[12px]"></i>
                                                                                                 </button>
                                                                                             )}
@@ -639,13 +681,13 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan="10" className="px-6 py-20 text-center text-gray-500">
+                                        <td colSpan="10" className="px-6 py-24 text-center text-slate-500">
                                             <div className="flex flex-col items-center justify-center">
-                                                <div className="h-16 w-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4 text-gray-400">
+                                                <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 border border-slate-200 shadow-sm text-slate-300">
                                                     <i className="fa-solid fa-hand-holding-dollar text-2xl"></i>
                                                 </div>
-                                                <p className="text-[15px] font-bold text-gray-700">No advance records found.</p>
-                                                <p className="text-[13px] text-gray-400 mt-1">Try adjusting your search query or log a new advance.</p>
+                                                <p className="text-[16px] font-black text-slate-800">No advance records found.</p>
+                                                <p className="text-[13.5px] font-bold text-slate-500 mt-1">Try adjusting your filters or log a new advance.</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -654,17 +696,18 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         </table>
                     </div>
 
+                    {/* Pagination */}
                     {advances.links && advances.links.length > 3 && (
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100 bg-white px-5 sm:px-6 py-4 relative z-0">
-                            <div className="text-[13.5px] font-medium text-gray-500 text-center sm:text-left">
-                                Showing {advances.from || 0} to {advances.to || 0} of {advances.total || 0} entries
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200 bg-slate-50 px-6 py-4 no-print">
+                            <div className="text-[13.5px] font-bold text-slate-600">
+                                Showing <strong className="text-slate-900 font-black">{advances.from || 0}</strong> to <strong className="text-slate-900 font-black">{advances.to || 0}</strong> of <strong className="text-slate-900 font-black">{advances.total || 0}</strong> entries
                             </div>
                             <div className="flex flex-wrap justify-center items-center gap-1.5">
                                 {advances.links.map((link, i) => (
                                     link.url === null ? (
-                                        <span key={i} className="flex min-w-[36px] items-center justify-center rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-[13px] text-gray-400 cursor-not-allowed" dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }} />
+                                        <span key={i} className="flex min-w-[36px] items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-400 cursor-not-allowed" dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }} />
                                     ) : (
-                                        <Link key={i} href={link.url} preserveState className={`flex min-w-[36px] items-center justify-center rounded-lg border px-3 py-2 text-[13px] font-bold transition-all ${link.active ? 'border-indigo-600 bg-indigo-600 text-white shadow-md' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300'}`} dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "«").replace("&raquo;", "»") }} />
+                                        <Link key={i} href={link.url} preserveState className={`flex min-w-[36px] items-center justify-center rounded-lg border px-3 py-2 text-[13px] font-black transition-all ${link.active ? 'border-indigo-600 bg-indigo-600 text-white shadow-md' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:border-slate-400'}`} dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "«").replace("&raquo;", "»") }} />
                                     )
                                 ))}
                             </div>
@@ -675,88 +718,88 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
             {/* --- 🟢 1. VIEW MODAL --- */}
             {showViewModal && selectedAdvance && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
-                    <div className="w-full max-w-4xl bg-white rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col relative my-auto max-h-[95vh] sm:max-h-[90vh] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
+                    <div className="w-full max-w-4xl bg-gray-50 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col relative my-auto max-h-[95vh] sm:max-h-[90vh] overflow-hidden animate-[scaleIn_0.2s_ease-out] border border-slate-700/30">
 
-                        <div className="absolute top-4 sm:top-6 left-5 sm:left-6 z-20 hidden sm:block">
-                            <span className={`inline-flex items-center px-3.5 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest border shadow-sm ${selectedAdvance.status === 'settled' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                        <div className="absolute top-6 left-0 z-20 hidden sm:block">
+                            <span className={`inline-flex items-center px-4 py-2 rounded-r-xl text-[11px] font-black uppercase tracking-widest shadow-lg ${selectedAdvance.status === 'settled' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
                                 {selectedAdvance.status}
                             </span>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-4 sm:px-8 sm:py-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white sm:pl-36 shrink-0 gap-4 sm:gap-0 relative">
-                            <div className="sm:hidden mb-2">
-                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${selectedAdvance.status === 'settled' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                        <div className="relative bg-slate-900 px-8 py-8 shrink-0 overflow-hidden border-b border-slate-700 sm:pl-40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <span className="absolute right-0 top-0 h-40 w-40 rounded-full bg-white/5 opacity-50 translate-x-10 -translate-y-10 blur-2xl pointer-events-none"></span>
+
+                            <div className="sm:hidden mb-2 relative z-10">
+                                <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm border border-white/20 ${selectedAdvance.status === 'settled' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
                                     {selectedAdvance.status}
                                 </span>
                             </div>
-                            <div className="pr-10 sm:pr-0">
-                                <h3 className="text-[18px] sm:text-[20px] font-black text-gray-900 tracking-tight leading-tight">Advance Payment Details</h3>
-                                <p className="text-[12px] sm:text-[13px] text-gray-500 font-medium mt-0.5">Reference: #{String(selectedAdvance.id).padStart(5, '0')}</p>
+
+                            <div className="relative z-10">
+                                <h3 className="text-[22px] sm:text-[26px] font-black text-white tracking-tight leading-tight">Advance Payment Details</h3>
+                                <p className="text-[13px] sm:text-[14px] text-slate-400 font-bold mt-1">Reference: #{String(selectedAdvance.id).padStart(5, '0')}</p>
                             </div>
-                            <button onClick={() => setShowViewModal(false)} className="absolute top-4 right-5 sm:static flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600 transition-colors">
+                            <button onClick={() => setShowViewModal(false)} className="absolute top-6 right-6 sm:static flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-red-500 transition-colors shadow-sm border border-white/10 z-20">
                                 <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
 
-                        <div className="p-5 sm:p-8 flex flex-col md:flex-row gap-5 sm:gap-8 bg-gray-50/50 overflow-y-auto brass-scroll">
-                            <div className="flex-1 space-y-4 sm:space-y-6">
-                                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-                                    <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 text-xl sm:text-2xl font-black border border-indigo-100 uppercase shadow-inner shrink-0">
+                        <div className="p-6 sm:p-8 flex flex-col md:flex-row gap-6 sm:gap-8 bg-slate-50 overflow-y-auto custom-table-scroll">
+                            <div className="flex-1 space-y-5 sm:space-y-6">
+                                <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-300 shadow-md flex items-center gap-4">
+                                    <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-700 text-2xl sm:text-3xl font-black border border-indigo-200 uppercase shadow-inner shrink-0">
                                         {selectedAdvance.user?.name ? selectedAdvance.user.name.charAt(0) : 'U'}
                                     </div>
                                     <div className="overflow-hidden">
-                                        <span className="block text-[10.5px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-0.5 sm:mb-1">Employee / Issued To</span>
-                                        <h2 className="text-[16px] sm:text-[20px] font-extrabold text-gray-900 m-0 truncate">{selectedAdvance.user?.name || "N/A"}</h2>
+                                        <span className="block text-[11px] sm:text-[11.5px] font-black uppercase tracking-widest text-slate-400 mb-1">Employee / Issued To</span>
+                                        <h2 className="text-[18px] sm:text-[22px] font-black text-slate-900 m-0 truncate">{selectedAdvance.user?.name || "N/A"}</h2>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-                                    <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                        <span className="block text-[10.5px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1 sm:mb-1.5">Payment Account</span>
-                                        <div className="font-bold text-gray-800 text-[13px] sm:text-[14px] flex items-center gap-2">
-                                            <i className="fa-solid fa-building-columns text-blue-500"></i>
-                                            <span className="truncate">{selectedAdvance.account?.name || "N/A"}</span>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-300 shadow-md">
+                                        <span className="block text-[11px] sm:text-[11.5px] font-black uppercase tracking-widest text-slate-400 mb-1.5"><i className="fa-solid fa-building-columns mr-1 text-slate-300"></i> Payment Account</span>
+                                        <div className="font-black text-slate-900 text-[14px] sm:text-[15px] truncate">
+                                            {selectedAdvance.account?.name || "N/A"}
                                         </div>
                                     </div>
-                                    <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                        <span className="block text-[10.5px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1 sm:mb-1.5">Given Date</span>
-                                        <div className="font-bold text-gray-800 text-[13px] sm:text-[14px] flex items-center gap-2">
-                                            <i className="fa-regular fa-calendar-days text-rose-500"></i>
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-300 shadow-md">
+                                        <span className="block text-[11px] sm:text-[11.5px] font-black uppercase tracking-widest text-slate-400 mb-1.5"><i className="fa-regular fa-calendar-days mr-1 text-slate-300"></i> Given Date</span>
+                                        <div className="font-black text-slate-900 text-[14px] sm:text-[15px]">
                                             {selectedAdvance.date || "-"}
                                         </div>
                                     </div>
-                                    <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-sm sm:col-span-2">
-                                        <span className="block text-[10.5px] sm:text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1 sm:mb-1.5">Purpose</span>
-                                        <div className="font-bold text-gray-800 text-[13px] sm:text-[14px] flex items-center gap-2">
-                                            <i className="fa-solid fa-bullseye text-indigo-600"></i>
-                                            <span className="break-words">{selectedAdvance.purpose || "-"}</span>
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-300 shadow-md sm:col-span-2">
+                                        <span className="block text-[11px] sm:text-[11.5px] font-black uppercase tracking-widest text-slate-400 mb-1.5"><i className="fa-solid fa-bullseye mr-1 text-slate-300"></i> Purpose</span>
+                                        <div className="font-black text-slate-900 text-[14px] sm:text-[15px] break-words">
+                                            {selectedAdvance.purpose || "-"}
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                    <span className="block text-[11px] sm:text-[12px] font-bold uppercase tracking-wider text-gray-800 mb-2"><i className="fa-solid fa-align-left text-gray-400 mr-2"></i> Notes & Details</span>
-                                    <div className="text-gray-600 text-[13px] sm:text-[14px] leading-relaxed whitespace-pre-line">
-                                        {selectedAdvance.notes || <span className="italic text-gray-400">No additional note provided.</span>}
+                                <div className="bg-white p-6 rounded-2xl border border-slate-300 shadow-md">
+                                    <span className="block text-[12px] sm:text-[13px] font-black uppercase tracking-widest text-slate-800 mb-3 pb-2 border-b border-slate-200"><i className="fa-solid fa-align-left text-slate-400 mr-2"></i> Notes & Details</span>
+                                    <div className="text-slate-700 text-[14px] sm:text-[15px] font-bold leading-relaxed whitespace-pre-line bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                        {selectedAdvance.notes || <span className="italic text-slate-400 font-medium">No additional note provided.</span>}
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="w-full md:w-[300px] lg:w-[320px] shrink-0 bg-gray-900 rounded-3xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden flex flex-col justify-between">
-                                <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/5 blur-2xl pointer-events-none"></div>
-                                <div>
-                                    <h4 className="text-[11px] sm:text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-4 sm:mb-6 border-b border-gray-800 pb-2 sm:pb-3">Financial Status</h4>
-                                    <div className="space-y-3 sm:space-y-4">
-                                        <div className="flex justify-between items-end"><span className="text-[12.5px] sm:text-[13.5px] text-gray-300">Total Given</span><span className="text-[15px] sm:text-[16px] font-bold text-white tabular-nums">৳ {Number(selectedAdvance.amount).toLocaleString('en-IN')}</span></div>
-                                        <div className="flex justify-between items-end"><span className="text-[12.5px] sm:text-[13.5px] text-emerald-400">Expensed / Adjusted</span><span className="text-[15px] sm:text-[16px] font-bold text-emerald-400 tabular-nums">৳ {Number(selectedAdvance.settled_amount).toLocaleString('en-IN')}</span></div>
-                                        <div className="flex justify-between items-end"><span className="text-[12.5px] sm:text-[13.5px] text-blue-400">Cash Returned</span><span className="text-[15px] sm:text-[16px] font-bold text-blue-400 tabular-nums">৳ {Number(selectedAdvance.returned_amount).toLocaleString('en-IN')}</span></div>
+                            <div className="w-full md:w-[320px] lg:w-[340px] shrink-0 bg-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden flex flex-col justify-between border border-slate-700">
+                                <span className="absolute -right-4 -top-10 text-[160px] leading-none font-mono text-white/[0.04] select-none pointer-events-none">৳</span>
+                                <div className="relative z-10">
+                                    <h4 className="text-[12px] sm:text-[13px] font-black text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-700 pb-3"><i className="fa-solid fa-chart-pie mr-1.5 text-slate-500"></i> Financial Status</h4>
+                                    <div className="space-y-5">
+                                        <div className="flex justify-between items-end"><span className="text-[13.5px] sm:text-[14.5px] font-bold text-slate-300">Total Given</span><span className="text-[18px] sm:text-[20px] font-black text-white tabular-nums">৳ {Number(selectedAdvance.amount).toLocaleString('en-IN')}</span></div>
+                                        <div className="flex justify-between items-end"><span className="text-[13.5px] sm:text-[14.5px] font-bold text-emerald-400">Expensed / Adjusted</span><span className="text-[18px] sm:text-[20px] font-black text-emerald-400 tabular-nums">৳ {Number(selectedAdvance.settled_amount).toLocaleString('en-IN')}</span></div>
+                                        <div className="flex justify-between items-end"><span className="text-[13.5px] sm:text-[14.5px] font-bold text-blue-400">Cash Returned</span><span className="text-[18px] sm:text-[20px] font-black text-blue-400 tabular-nums">৳ {Number(selectedAdvance.returned_amount).toLocaleString('en-IN')}</span></div>
                                     </div>
                                 </div>
-                                <div className="pt-4 sm:pt-5 border-t border-gray-800 mt-5 sm:mt-6">
+                                <div className="pt-6 sm:pt-8 border-t border-slate-800 mt-6 sm:mt-8 relative z-10">
                                     <div className="flex justify-between items-end">
-                                        <span className="text-[12px] sm:text-[13px] text-rose-300 font-bold uppercase tracking-wider">Currently Due</span>
-                                        <span className="text-[20px] sm:text-[24px] font-black text-rose-400 tabular-nums">৳ {Number(selectedAdvance.amount - selectedAdvance.settled_amount - selectedAdvance.returned_amount).toLocaleString('en-IN')}</span>
+                                        <span className="text-[13px] sm:text-[14px] text-rose-400 font-black uppercase tracking-widest">Currently Due</span>
+                                        <span className="text-[26px] sm:text-[30px] font-black text-rose-500 tabular-nums tracking-tight">৳ {Number(selectedAdvance.amount - selectedAdvance.settled_amount - selectedAdvance.returned_amount).toLocaleString('en-IN')}</span>
                                     </div>
                                 </div>
                             </div>
@@ -767,68 +810,80 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
             {/* --- 🟢 2. CREATE / EDIT FORM MODAL --- */}
             {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-3 sm:p-6 overflow-y-auto">
-                    <div className="w-full max-w-5xl bg-white rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col my-auto max-h-[95vh] sm:max-h-[90vh] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
+                    <div className="w-full max-w-3xl bg-white rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden animate-[fadeIn_0.2s_ease-out] border border-slate-700/30">
 
-                        <div className="flex items-center justify-between px-5 py-4 sm:px-8 sm:py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white shrink-0">
+                        <div className="flex items-center justify-between px-6 py-5 sm:px-8 sm:py-6 border-b border-slate-700 bg-slate-900 shrink-0 relative overflow-hidden">
+                            <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-white/5 blur-2xl -translate-y-10 translate-x-10 pointer-events-none"></div>
                             <div>
-                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-1.5">
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/10 text-indigo-200 text-[10px] font-black uppercase tracking-widest mb-2 shadow-sm border border-white/10">
                                     <i className="fa-solid fa-hand-holding-dollar"></i> {editMode ? 'Update' : 'New Entry'}
                                 </div>
-                                <h3 className="text-[18px] sm:text-[20px] font-extrabold text-gray-900 tracking-tight">
+                                <h3 className="text-[22px] sm:text-[24px] font-black text-white tracking-tight relative z-10">
                                     {editMode ? "Modify Advance Info" : "Log New Advance Payment"}
                                 </h3>
                             </div>
-                            <button onClick={() => setShowModal(false)} className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-600 transition-colors">
+                            <button onClick={() => setShowModal(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white hover:bg-red-500 transition-colors border border-white/10 shadow-sm relative z-10">
                                 <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-                            <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto brass-scroll">
+                        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden h-full">
+                            <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto custom-table-scroll bg-slate-50">
 
-                                <div className="flex-1 p-5 sm:p-8 bg-gray-50/30 space-y-5 sm:space-y-6">
+                                <div className="flex-1 p-6 sm:p-8 space-y-6">
                                     {errors.error && (
-                                        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 sm:p-4 text-[13px] sm:text-[13.5px] font-semibold text-red-700 shadow-sm">
-                                            <i className="fa-solid fa-circle-exclamation mt-0.5 text-lg"></i> {errors.error}
+                                        <div className="flex items-start gap-3 rounded-xl border border-red-300 bg-red-50 p-4 text-[13.5px] font-bold text-red-700 shadow-sm">
+                                            <i className="fa-solid fa-triangle-exclamation mt-0.5 text-lg"></i> {errors.error}
                                         </div>
                                     )}
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                                        <div>
-                                            <label className="block text-[11px] sm:text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2 sm:mb-2.5">Select Account <span className="text-rose-500">*</span></label>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-6 rounded-2xl border border-slate-300 shadow-md">
+                                        <div className="relative z-[60] md:col-span-2">
+                                            <label className="block text-[12px] font-black text-slate-800 uppercase tracking-widest mb-2"><i className="fa-solid fa-building-columns mr-1.5 text-indigo-500"></i> Select Account <span className="text-red-600">*</span></label>
                                             <Select
-                                                options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${Number(a.current_balance).toLocaleString('en-IN')})` }))}
-                                                value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
+                                                options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` }))}
+                                                value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
                                                 onChange={(selected) => setData("account_id", selected ? selected.value : "")}
-                                                placeholder="-- Choose Account --"
+                                                placeholder="Search Account..."
                                                 isDisabled={editMode}
                                                 isSearchable isClearable
                                                 styles={selectStyles}
                                                 menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
                                                 menuPosition="fixed"
                                             />
-                                            {errors.account_id && <p className="text-rose-500 text-[11px] sm:text-[12px] mt-1.5 font-medium">{errors.account_id}</p>}
+                                            {errors.account_id && <p className="text-red-600 text-[12px] mt-1.5 font-bold">{errors.account_id}</p>}
                                         </div>
 
-                                        <div>
-                                            <label className="block text-[11px] sm:text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2 sm:mb-2.5">Employee <span className="text-rose-500">*</span></label>
+                                        <div className="relative z-[50]">
+                                            <label className="block text-[12px] font-black text-slate-800 uppercase tracking-widest mb-2"><i className="fa-solid fa-user-tie mr-1.5 text-indigo-500"></i> Employee <span className="text-red-600">*</span></label>
                                             <Select
                                                 options={employees.map((e) => ({ value: e.id, label: e.name }))}
                                                 value={employees.map((e) => ({ value: e.id, label: e.name })).find((opt) => Number(opt.value) === Number(data.user_id)) || null}
                                                 onChange={(selected) => setData("user_id", selected ? selected.value : "")}
-                                                placeholder="-- Select Employee --"
+                                                placeholder="Search Employee..."
                                                 isSearchable isClearable
                                                 styles={selectStyles}
                                                 menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
                                                 menuPosition="fixed"
                                             />
-                                            {errors.user_id && <p className="text-rose-500 text-[11px] sm:text-[12px] mt-1.5 font-medium">{errors.user_id}</p>}
+                                            {errors.user_id && <p className="text-red-600 text-[12px] mt-1.5 font-bold">{errors.user_id}</p>}
                                         </div>
 
-                                        <div className="md:col-span-2">
-                                            <label className="block text-[11px] sm:text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2 sm:mb-2.5">Purpose</label>
-                                            <CreatableSelect
+                                        <div>
+                                            <label className="block text-[12px] font-black text-emerald-700 uppercase tracking-widest mb-2">Amount (৳) <span className="text-red-600">*</span></label>
+                                            <div className="relative">
+                                                <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600 text-[18px]" />
+                                                <input type="number" step="any" value={data.amount} onChange={e => setData('amount', e.target.value)} className="w-full rounded-xl border border-emerald-400 bg-emerald-50/50 pl-10 pr-4 py-3 text-[16px] font-black text-emerald-800 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 shadow-sm transition-all tabular-nums" placeholder="0.00" required />
+                                            </div>
+                                            {errors.amount && <p className="text-red-600 text-[12px] mt-1.5 font-bold">{errors.amount}</p>}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-6 rounded-2xl border border-slate-300 shadow-md">
+                                        <div className="relative z-[40] md:col-span-2">
+                                            <label className="block text-[12px] font-black text-slate-800 uppercase tracking-widest mb-2">Purpose</label>
+                                            <Select
                                                 options={[
                                                     { value: 'Office Work', label: 'Office Work' },
                                                     { value: 'Vehicle Maintenance', label: 'Vehicle Maintenance' },
@@ -839,76 +894,42 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                 ]}
                                                 value={data.purpose ? { value: data.purpose, label: data.purpose } : null}
                                                 onChange={(selected) => setData('purpose', selected ? selected.value : '')}
-                                                onCreateOption={(inputValue) => setData('purpose', inputValue)}
-                                                placeholder="-- Select or type Purpose --"
+                                                placeholder="Select Purpose..."
                                                 isClearable
                                                 styles={selectStyles}
                                                 menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
                                                 menuPosition="fixed"
                                             />
-                                            {errors.purpose && <p className="text-rose-500 text-[11px] sm:text-[12px] mt-1.5 font-medium">{errors.purpose}</p>}
+                                            {errors.purpose && <p className="text-red-600 text-[12px] mt-1.5 font-bold">{errors.purpose}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[12px] font-black text-slate-800 uppercase tracking-widest mb-2">Date <span className="text-red-600">*</span></label>
+                                            <input type="date" value={data.date} onChange={e => setData('date', e.target.value)} className={`${inputClass} cursor-pointer`} required />
+                                            {errors.date && <p className="text-red-600 text-[12px] mt-1.5 font-bold">{errors.date}</p>}
                                         </div>
 
                                         <div className="md:col-span-2">
-                                            <label className="block text-[11px] sm:text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2 sm:mb-2.5">Notes / Description</label>
+                                            <label className="block text-[12px] font-black text-slate-800 uppercase tracking-widest mb-2">Notes / Description <span className="text-slate-400 font-bold normal-case tracking-normal">(Optional)</span></label>
                                             <textarea
                                                 value={data.notes}
                                                 onChange={e => setData('notes', e.target.value)}
-                                                rows="3"
-                                                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-[13.5px] sm:text-[14px] text-gray-900 outline-none resize-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm"
+                                                rows="2"
+                                                className="w-full rounded-xl border border-slate-400 bg-white p-4 text-[14px] font-bold text-slate-900 outline-none resize-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm transition-all min-h-[90px]"
                                                 placeholder="Optional additional details..."
                                             ></textarea>
-                                            {errors.notes && <p className="text-rose-500 text-[11px] sm:text-[12px] mt-1.5 font-medium">{errors.notes}</p>}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="w-full lg:w-[340px] shrink-0 bg-[#111827] p-5 sm:p-8 text-white flex flex-col justify-between space-y-6 lg:space-y-0">
-                                    <div>
-                                        <h3 className="text-[11.5px] sm:text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-5 sm:mb-6 border-b border-gray-800 pb-2 sm:pb-3">Transaction Details</h3>
-                                        <div className="space-y-5 sm:space-y-6">
-                                            <div>
-                                                <label className="block text-[12.5px] sm:text-[13px] font-medium text-emerald-400 mb-2">Amount (BDT) <span className="text-rose-500">*</span></label>
-                                                <div className="relative">
-                                                    <i className="fa-solid fa-bangladeshi-taka-sign absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500"></i>
-                                                    <input
-                                                        type="number" step="0.01" min="1"
-                                                        value={data.amount}
-                                                        onChange={e => setData('amount', e.target.value)}
-                                                        className="w-full rounded-xl border border-emerald-500/30 bg-emerald-900/20 pl-9 pr-4 py-3.5 sm:py-4 text-[16px] sm:text-[18px] font-bold text-emerald-400 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                                                        placeholder="0.00" required
-                                                    />
-                                                </div>
-                                                {errors.amount && <p className="text-rose-400 text-xs mt-1.5 font-medium">{errors.amount}</p>}
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-[12.5px] sm:text-[13px] font-medium text-gray-300 mb-2">Date <span className="text-rose-400">*</span></label>
-                                                <input
-                                                    type="date" value={data.date} onChange={e => setData('date', e.target.value)}
-                                                    className="w-full rounded-xl border border-gray-700 bg-gray-800 px-4 py-3 sm:py-3.5 text-[14px] sm:text-[15px] font-semibold text-white outline-none focus:border-indigo-500 transition-all cursor-pointer" required style={{ colorScheme: 'dark' }}
-                                                />
-                                                {errors.date && <p className="text-rose-400 text-xs mt-1.5 font-medium">{errors.date}</p>}
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-[12.5px] sm:text-[13px] font-medium text-gray-300 mb-2">Status</label>
-                                                <select value={data.status} onChange={e => setData('status', e.target.value)} className="w-full appearance-none rounded-xl border border-gray-700 bg-gray-800 px-4 py-3 sm:py-3.5 text-[13.5px] sm:text-[14px] font-semibold text-white outline-none focus:border-indigo-500 cursor-pointer">
-                                                    <option value="unsettled">Unsettled (Not adjusted)</option>
-                                                    <option value="settled">Settled (Fully Adjusted)</option>
-                                                </select>
-                                            </div>
+                                            {errors.notes && <p className="text-red-600 text-[12px] mt-1.5 font-bold">{errors.notes}</p>}
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="px-5 py-4 sm:px-8 sm:py-5 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3 shrink-0 lg:rounded-b-3xl">
-                                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-5 sm:px-6 py-2.5 sm:py-3 text-[13.5px] sm:text-[14.5px] font-bold text-gray-700 transition-all hover:bg-gray-100 shadow-sm">
+                            <div className="px-8 py-6 border-t border-slate-300 bg-white flex justify-end gap-4 shrink-0 rounded-b-3xl">
+                                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-slate-400 bg-white px-8 py-3.5 text-[14px] font-bold text-slate-800 transition-colors hover:bg-slate-50 shadow-sm">
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={processing} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 sm:px-8 py-2.5 sm:py-3 text-[13.5px] sm:text-[14.5px] font-bold text-white transition-all shadow-md hover:bg-indigo-700 disabled:opacity-70">
-                                    {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> <span className="hidden sm:inline">Processing...</span></> : <><i className="fa-solid fa-save"></i> {editMode ? "Update" : "Save Advance"}</>}
+                                <button type="submit" disabled={processing} className="rounded-xl bg-indigo-600 px-10 py-3.5 text-[14px] font-bold text-white transition-all shadow-md hover:bg-indigo-700 hover:-translate-y-0.5 disabled:opacity-70 disabled:hover:translate-y-0 border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1 flex items-center gap-2">
+                                    {processing ? <><i className="fa-solid fa-spinner fa-spin text-lg"></i> Processing...</> : <><i className="fa-solid fa-check text-lg"></i> {editMode ? "Update" : "Save Advance"}</>}
                                 </button>
                             </div>
                         </form>
@@ -918,65 +939,75 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
             {/* --- 🟢 3. CASH RETURN MODAL --- */}
             {showReturnModal && selectedAdvance && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-md bg-white rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-                        <div className="flex items-center justify-between px-5 sm:px-6 py-4 sm:py-5 border-b border-emerald-100 bg-emerald-50 shrink-0">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 overflow-y-auto">
+                    <div className="w-full max-w-xl bg-white rounded-3xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden animate-[scaleIn_0.2s_ease-out] border border-slate-700/30">
+                        <div className="flex items-center justify-between px-8 py-6 border-b border-slate-700 bg-slate-900 shrink-0 relative overflow-hidden">
+                            <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-white/5 blur-2xl -translate-y-10 translate-x-10 pointer-events-none"></div>
                             <div>
-                                <h3 className="text-[16px] sm:text-[18px] font-extrabold text-emerald-800 flex items-center gap-2 tracking-tight">
-                                    <i className="fa-solid fa-money-bill-transfer text-emerald-600"></i> Refund Leftover
-                                </h3>
-                                <p className="text-[11.5px] sm:text-[12.5px] text-emerald-600 font-medium mt-1">Returning cash from <b>{selectedAdvance.user?.name || 'N/A'}</b></p>
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black uppercase tracking-widest mb-2 shadow-sm">
+                                    <i className="fa-solid fa-hand-holding-dollar"></i> Settle Payment
+                                </div>
+                                <h3 className="text-[22px] font-black text-white tracking-tight relative z-10">Refund Cash</h3>
                             </div>
-                            <button onClick={() => setShowReturnModal(false)} className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 hover:bg-white transition-colors shadow-sm">
-                                <i className="fa-solid fa-xmark text-[14px] sm:text-[15px]"></i>
+                            <button onClick={() => setShowReturnModal(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white hover:bg-red-500 transition-colors shadow-sm border border-white/10 relative z-10">
+                                <i className="fa-solid fa-xmark text-lg"></i>
                             </button>
                         </div>
 
-                        <form onSubmit={handleReturnSubmit} className="flex flex-col overflow-hidden">
-                            <div className="p-5 sm:p-6 overflow-y-auto brass-scroll">
+                        <form onSubmit={handleReturnSubmit} className="flex flex-col overflow-hidden h-full">
+                            <div className="p-8 overflow-y-auto custom-table-scroll space-y-6 bg-slate-50">
                                 {returnErrors.error && (
-                                    <div className="mb-4 sm:mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 sm:p-4 text-[13px] sm:text-[13.5px] font-medium text-red-700 shadow-sm">
-                                        <i className="fa-solid fa-circle-exclamation mt-0.5"></i> {returnErrors.error}
+                                    <div className="mb-2 flex items-start gap-3 rounded-xl border border-red-300 bg-red-50 p-4 text-[13.5px] font-bold text-red-700 shadow-sm">
+                                        <i className="fa-solid fa-triangle-exclamation mt-0.5 text-lg"></i> {returnErrors.error}
                                     </div>
                                 )}
 
-                                <div className="mb-4">
-                                    <label className="block text-[12px] sm:text-[13px] font-bold text-gray-700 uppercase tracking-wider mb-2 sm:mb-2.5">Return To Account <span className="text-rose-500">*</span></label>
-                                    <Select
-                                        options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${Number(a.current_balance).toLocaleString('en-IN')})` }))}
-                                        value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(returnData.return_account_id)) || null}
-                                        onChange={(selected) => setReturnData("return_account_id", selected ? selected.value : "")}
-                                        placeholder="-- Select Cash/Bank Box --"
-                                        isSearchable isClearable
-                                        styles={selectStyles}
-                                        menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
-                                        menuPosition="fixed"
-                                    />
-                                    {returnErrors.return_account_id && <p className="text-rose-500 text-[11px] sm:text-[12px] mt-1.5 font-bold">{returnErrors.return_account_id}</p>}
+                                <div className="flex items-center justify-between rounded-2xl border border-slate-300 bg-white p-6 shadow-md">
+                                    <div>
+                                        <span className="block text-[11.5px] font-black uppercase tracking-widest text-slate-400 mb-1"><i className="fa-solid fa-user-tie mr-1 text-slate-300"></i> Employee</span>
+                                        <strong className="text-slate-900 text-[18px] font-black">{selectedAdvance.user?.name}</strong>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="block text-[11.5px] font-black uppercase tracking-widest text-rose-500 mb-1">Base Due</span>
+                                        <strong className="text-rose-600 text-[24px] font-black tabular-nums leading-none"><Taka className="text-[16px] mr-0.5 opacity-80" />{parseFloat(selectedAdvance.amount - selectedAdvance.settled_amount - selectedAdvance.returned_amount).toLocaleString('en-IN')}</strong>
+                                    </div>
                                 </div>
 
-                                <div>
-                                    <label className="block text-[12px] sm:text-[13px] font-bold text-gray-700 uppercase tracking-wider mb-2 sm:mb-2.5">Refund Amount <span className="text-rose-500">*</span></label>
-                                    <div className="relative">
-                                        <i className="fa-solid fa-bangladeshi-taka-sign absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-[14px] sm:text-[15px]"></i>
-                                        <input
-                                            type="number" step="0.01" value={returnData.return_amount} onChange={e => setReturnData('return_amount', e.target.value)}
-                                            className="w-full rounded-xl border border-gray-300 bg-gray-50 pl-9 pr-4 py-3 sm:py-3.5 text-[16px] sm:text-[18px] font-bold text-emerald-700 outline-none transition-all focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
-                                            placeholder="0.00" required autoFocus
+                                <div className="bg-white p-6 rounded-2xl border border-slate-300 shadow-md space-y-6">
+                                    <div className="relative z-[60]">
+                                        <label className="block text-[12px] font-black text-slate-800 uppercase tracking-widest mb-2">Return To Account <span className="text-red-600">*</span></label>
+                                        <Select
+                                            options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${Number(a.current_balance).toLocaleString('en-IN')})` }))}
+                                            value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(returnData.return_account_id)) || null}
+                                            onChange={(selected) => setReturnData("return_account_id", selected ? selected.value : "")}
+                                            placeholder="-- Select Cash/Bank Box --"
+                                            isSearchable isClearable
+                                            styles={selectStyles}
+                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                            menuPosition="fixed"
                                         />
+                                        {returnErrors.return_account_id && <p className="text-red-600 text-[12px] mt-1.5 font-bold">{returnErrors.return_account_id}</p>}
                                     </div>
-                                    {returnErrors.return_amount && <p className="text-rose-500 text-[11px] sm:text-[12px] mt-1.5 font-bold">{returnErrors.return_amount}</p>}
 
-                                    <div className="mt-4 sm:mt-5 rounded-xl border border-blue-100 bg-blue-50 p-3 sm:p-4 text-[12px] sm:text-[13px] text-blue-800 flex items-start gap-2.5 shadow-sm font-medium">
-                                        <i className="fa-solid fa-circle-info mt-0.5 text-blue-500 shrink-0 text-base sm:text-lg"></i>
-                                        <p className="m-0 leading-relaxed">This amount will be directly deposited back into <b>{accounts.find(a => a.id === returnData.return_account_id)?.name || 'the selected'}</b> account balance.</p>
+                                    <div>
+                                        <label className="block text-[12px] font-black text-emerald-700 uppercase tracking-widest mb-2">Refund Amount (৳) <span className="text-red-600">*</span></label>
+                                        <div className="relative">
+                                            <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600 text-[18px]" />
+                                            <input
+                                                type="number" step="any" max={selectedAdvance.amount - selectedAdvance.settled_amount - selectedAdvance.returned_amount}
+                                                value={returnData.return_amount} onChange={e => setReturnData('return_amount', e.target.value)}
+                                                className="w-full rounded-xl border border-emerald-400 bg-emerald-50/50 pl-10 pr-4 py-3.5 text-[18px] font-black text-emerald-800 outline-none transition-all focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 shadow-sm tabular-nums"
+                                                placeholder="0.00" required autoFocus
+                                            />
+                                        </div>
+                                        {returnErrors.return_amount && <p className="text-red-600 text-[12px] mt-1.5 font-bold">{returnErrors.return_amount}</p>}
                                     </div>
                                 </div>
                             </div>
-                            <div className="px-5 sm:px-6 py-4 sm:py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0 lg:rounded-b-3xl">
-                                <button type="button" onClick={() => setShowReturnModal(false)} className="rounded-xl border border-gray-300 bg-white px-4 sm:px-5 py-2 sm:py-2.5 text-[13px] sm:text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">Cancel</button>
-                                <button type="submit" disabled={returnProcessing} className="rounded-xl bg-emerald-600 px-5 sm:px-6 py-2 sm:py-2.5 text-[13px] sm:text-[14px] font-bold text-white transition-all hover:bg-emerald-700 shadow-md disabled:opacity-70 flex items-center gap-2">
-                                    {returnProcessing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-check"></i> Confirm Refund</>}
+                            <div className="px-8 py-6 border-t border-slate-300 bg-white flex justify-end gap-4 shrink-0 rounded-b-3xl">
+                                <button type="button" onClick={() => setShowReturnModal(false)} className="rounded-xl border border-slate-400 bg-white px-8 py-3.5 text-[14px] font-bold text-slate-800 hover:bg-slate-50 shadow-sm transition-colors">Cancel</button>
+                                <button type="submit" disabled={returnProcessing} className="rounded-xl bg-emerald-600 px-10 py-3.5 text-[14px] font-bold text-white hover:bg-emerald-700 shadow-md disabled:opacity-70 transition-all flex items-center gap-2 border-b-4 border-emerald-800 active:border-b-0 active:translate-y-1">
+                                    {returnProcessing ? <><i className="fa-solid fa-spinner fa-spin text-lg"></i> Processing...</> : <><i className="fa-solid fa-check text-lg"></i> Confirm Refund</>}
                                 </button>
                             </div>
                         </form>

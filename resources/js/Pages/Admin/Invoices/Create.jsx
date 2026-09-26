@@ -19,30 +19,30 @@ const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 ${className}`}>৳</span>
 );
 
-// Modernized Select Styles matching Projects
+// 🟢 Deeper Contrast Select Styles (Matches Projects)
 const selectStyles = {
     control: (base, state) => ({
         ...base,
         minHeight: '48px',
-        borderRadius: '10px',
-        borderColor: state.isFocused ? '#4F46E5' : '#E2E8F0',
-        boxShadow: state.isFocused ? '0 0 0 4px rgba(79, 70, 229, 0.15)' : 'none',
-        backgroundColor: '#F8FAFC',
-        '&:hover': { borderColor: '#4F46E5' },
+        borderRadius: '0.75rem',
+        borderColor: state.isFocused ? '#4F46E5' : '#94A3B8', // slate-400 for Deep borders
+        boxShadow: state.isFocused ? '0 0 0 3px rgba(79, 70, 229, 0.15)' : '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+        backgroundColor: '#FFFFFF',
+        '&:hover': { borderColor: state.isFocused ? '#4F46E5' : '#64748B' }, // hover effect slate-500
     }),
     option: (base, state) => ({
         ...base,
         backgroundColor: state.isSelected ? '#4F46E5' : state.isFocused ? '#EEF2FF' : 'white',
-        color: state.isSelected ? '#FFFFFF' : '#1E293B',
-        fontWeight: 600,
+        color: state.isSelected ? '#FFFFFF' : '#0F172A',
+        fontWeight: 700,
         fontSize: '14px',
         cursor: 'pointer',
     }),
-    placeholder: (base) => ({ ...base, color: '#94A3B8', fontWeight: 600, fontSize: '14px' }),
-    singleValue: (base) => ({ ...base, color: '#1E293B', fontWeight: 700, fontSize: '14px' }),
-    input: (base) => ({ ...base, color: '#1E293B', fontWeight: 600, fontSize: '14px' }),
+    placeholder: (base) => ({ ...base, color: '#64748B', fontWeight: 700, fontSize: '14px' }),
+    singleValue: (base) => ({ ...base, color: '#0F172A', fontWeight: 800, fontSize: '14px' }),
+    input: (base) => ({ ...base, color: '#0F172A', fontWeight: 700, fontSize: '14px' }),
     menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-    menu: (base) => ({ ...base, borderRadius: '10px', overflow: 'hidden', border: '1px solid #E2E8F0' }),
+    menu: (base) => ({ ...base, borderRadius: '0.75rem', overflow: 'hidden', border: '1px solid #94A3B8', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }),
 };
 
 export default function Create({ clients = [], projects = [], nextInvoiceNumber }) {
@@ -216,8 +216,8 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
         });
     };
 
-    // Modernized general input classes matching Projects
-    const inputClass = "w-full rounded-lg border border-slate-200 bg-slate-50 hover:bg-white px-4 py-3 text-[14px] font-semibold text-slate-800 outline-none focus:bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 transition-colors";
+    // 🟢 Deeper Contrast Input Classes
+    const inputClass = "w-full rounded-xl border border-slate-400 bg-white px-4 py-3 text-[14px] font-extrabold text-slate-900 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm transition-all";
 
     const portal = { menuPortalTarget: typeof document !== 'undefined' ? document.body : null, menuPosition: "fixed", styles: selectStyles };
     const payable = Math.max(0, Number(data.grand_total) - Number(data.use_advance_amount || 0));
@@ -227,12 +227,14 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
             <Head title="Create Invoice" />
 
             <style dangerouslySetInnerHTML={{__html: `
-                .ql-editor { min-height: 100px; font-size: 14px; background: #F8FAFC; border-radius: 0 0 0.5rem 0.5rem; font-weight: 500; color: #1E293B; }
-                .ql-editor.ql-blank::before { color: #94A3B8; font-style: normal; font-weight: 500; }
+                /* 🟢 Deeper Quill Editor Borders */
+                .ql-editor { min-height: 100px; font-size: 14px; background: #FFFFFF; border-radius: 0 0 0.75rem 0.75rem; font-weight: 600; color: #0F172A; }
+                .ql-editor.ql-blank::before { color: #64748B; font-style: normal; font-weight: 600; }
                 .ql-editor:focus { background: #ffffff; }
-                .ql-toolbar.ql-snow { border-radius: 0.5rem 0.5rem 0 0; background: #ffffff; border-color: #E2E8F0 !important; }
-                .ql-container.ql-snow { border-color: #E2E8F0 !important; }
-                .quill-wrapper { border-radius: 0.5rem; overflow: hidden; transition: box-shadow 0.15s ease; }
+                .ql-toolbar.ql-snow { border-radius: 0.75rem 0.75rem 0 0; background: #F8FAFC; border-color: #94A3B8 !important; border-width: 1px; }
+                .ql-container.ql-snow { border-color: #94A3B8 !important; border-width: 1px; border-top: none !important; }
+                .quill-wrapper { border-radius: 0.75rem; overflow: hidden; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1); transition: all 0.2s ease; }
+                .quill-wrapper:focus-within { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
                 .quill-wrapper:focus-within .ql-toolbar.ql-snow,
                 .quill-wrapper:focus-within .ql-container.ql-snow { border-color: #4F46E5 !important; }
                 input[type=number]::-webkit-inner-spin-button { opacity: .4; }
@@ -241,18 +243,21 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
             <div className="flex flex-col gap-8 w-full max-w-[1400px] mx-auto pb-12 mt-4">
 
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 pb-6 border-b border-slate-200">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 pb-6 border-b-2 border-slate-300">
                     <div>
-                        <p className="text-[13px] font-semibold text-slate-500 mb-1">New billing</p>
-                        <h1 className="text-[28px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">Create invoice</h1>
-                        <p className="text-[14px] text-slate-500 mt-2 max-w-md">Pick a client, add the work you did, and send a clean bill.</p>
-                    </div>
-                    <div className="flex items-center gap-5">
-                        <div className="text-right hidden sm:block">
-                            <p className="text-[12.5px] font-semibold text-slate-500">Invoice No.</p>
-                            <p className="text-[18px] font-bold text-indigo-600 tabular-nums">{data.invoice_number || "—"}</p>
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-800 text-[11px] font-black uppercase tracking-widest mb-3 shadow-sm">
+                            <i className="fa-solid fa-file-invoice"></i> New billing
                         </div>
-                        <Link href={route("admin.invoices.index")} className="flex w-fit items-center justify-center gap-2 text-[13px] font-semibold text-slate-600 hover:text-indigo-600 transition-colors border border-slate-200 hover:border-indigo-600 px-5 py-2.5 rounded-lg bg-white shadow-sm">
+                        <h1 className="text-[28px] sm:text-[32px] font-black text-slate-900 tracking-tight leading-none">Create Invoice</h1>
+                        <p className="text-[14.5px] font-bold text-slate-500 mt-2 max-w-md">Pick a client, add the work you did, and send a clean bill.</p>
+                    </div>
+                    <div className="flex items-center gap-6">
+                        <div className="text-right hidden sm:block">
+                            <p className="text-[12.5px] font-black text-slate-500 uppercase tracking-widest mb-1">Invoice No.</p>
+                            <p className="text-[20px] font-black text-indigo-700 tabular-nums">{data.invoice_number || "—"}</p>
+                        </div>
+                        <div className="h-10 w-[2px] bg-slate-200 hidden sm:block"></div>
+                        <Link href={route("admin.invoices.index")} className="flex w-fit items-center justify-center gap-2 text-[14px] font-black text-slate-700 hover:text-indigo-700 transition-colors border-2 border-slate-300 hover:border-indigo-500 hover:bg-indigo-50 px-5 py-2.5 rounded-xl bg-white shadow-sm">
                             <i className="fa-solid fa-arrow-left-long"></i> All Invoices
                         </Link>
                     </div>
@@ -265,17 +270,28 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
                     <div ref={leftColumnRef} className="flex-1 w-full flex flex-col gap-8">
 
                         {/* Billing Details */}
-                        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
-                            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600">
-                                    <i className="fa-regular fa-address-card text-[15px]"></i>
+                        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-400 shadow-md">
+                            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200">
+                                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700">
+                                    <i className="fa-regular fa-address-card text-[16px]"></i>
                                 </div>
-                                <h3 className="text-[15px] font-semibold text-slate-900">Billing details</h3>
+                                <h3 className="text-[18px] font-black text-slate-900">Billing details</h3>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* 🟢 Date moved to the very first place */}
+                                <div>
+                                    <label className="block text-[13px] font-black text-slate-800 mb-2">Invoice date <span className="text-red-600">*</span></label>
+                                    <input type="date" value={data.invoice_date} onChange={(e) => setData("invoice_date", e.target.value)} className={`${inputClass} cursor-pointer`} required />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[13px] font-black text-red-600 mb-2">Payment due date <span className="text-red-600">*</span></label>
+                                    <input type="date" value={data.due_date} onChange={(e) => setData("due_date", e.target.value)} className="w-full rounded-xl border border-red-400 bg-red-50/50 px-4 py-3 text-[14px] font-extrabold text-red-700 outline-none focus:bg-white focus:border-red-600 focus:ring-2 focus:ring-red-600/20 shadow-sm transition-colors cursor-pointer" required />
+                                </div>
+
                                 <div className="md:col-span-2">
-                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Select client <span className="text-red-500">*</span></label>
+                                    <label className="block text-[13px] font-black text-slate-800 mb-2">Select client <span className="text-red-600">*</span></label>
                                     <Select
                                         options={clientOptions}
                                         value={clientOptions.find(o => o.value === data.client_id) || null}
@@ -286,32 +302,22 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
                                         styles={selectStyles}
                                         isClearable placeholder="Search client…" {...portal}
                                     />
-                                    {errors.client_id && <span className="text-red-500 text-[12px] font-semibold mt-2 block">{errors.client_id}</span>}
-                                </div>
-
-                                <div>
-                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Invoice date <span className="text-red-500">*</span></label>
-                                    <input type="date" value={data.invoice_date} onChange={(e) => setData("invoice_date", e.target.value)} className={inputClass} required />
-                                </div>
-
-                                <div>
-                                    <label className="block text-[12.5px] font-semibold text-red-600 mb-2.5">Payment due date <span className="text-red-500">*</span></label>
-                                    <input type="date" value={data.due_date} onChange={(e) => setData("due_date", e.target.value)} className="w-full rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[14px] font-semibold text-red-700 outline-none focus:bg-white focus:border-red-500 focus:ring-4 focus:ring-red-500/20 transition-colors cursor-pointer" required />
+                                    {errors.client_id && <span className="text-red-600 text-[12px] font-bold mt-2 block">{errors.client_id}</span>}
                                 </div>
 
                                 <div className="md:col-span-2">
-                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Payment status <span className="text-red-500">*</span></label>
-                                    <div className="flex flex-wrap gap-2 p-1.5 bg-slate-50 border border-slate-200 rounded-lg w-fit">
+                                    <label className="block text-[13px] font-black text-slate-800 mb-2">Payment status <span className="text-red-600">*</span></label>
+                                    <div className="flex flex-wrap gap-2 p-2 bg-slate-50 border border-slate-300 rounded-xl w-fit shadow-inner">
                                         {STATUS.map(s => {
                                             const isActive = data.status === s.value;
                                             return (
                                                 <button
                                                     key={s.value} type="button"
                                                     onClick={() => setData("status", s.value)}
-                                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-[13px] font-semibold transition-colors ${isActive ? "text-white shadow-sm" : "text-slate-600 hover:bg-slate-200/50"}`}
-                                                    style={{ backgroundColor: isActive ? s.color : "transparent" }}
+                                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-black transition-all border ${isActive ? "text-white shadow-md border-transparent" : "text-slate-700 bg-white hover:bg-slate-100 border-slate-300"}`}
+                                                    style={{ backgroundColor: isActive ? s.color : undefined }}
                                                 >
-                                                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: isActive ? "rgba(255,255,255,0.9)" : s.color }}></span>
+                                                    <span className="h-2.5 w-2.5 rounded-full shadow-sm border border-black/10" style={{ backgroundColor: isActive ? "rgba(255,255,255,0.9)" : s.color }}></span>
                                                     {s.label}
                                                 </button>
                                             );
@@ -322,35 +328,35 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
                         </div>
 
                         {/* Line Items */}
-                        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
-                            <div className="flex justify-between items-center mb-2 pb-4 border-b border-slate-100">
+                        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-400 shadow-md">
+                            <div className="flex justify-between items-center mb-2 pb-4 border-b border-slate-200">
                                 <div className="flex items-center gap-3">
-                                    <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600">
-                                        <i className="fa-solid fa-boxes-stacked text-[15px]"></i>
+                                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700">
+                                        <i className="fa-solid fa-boxes-stacked text-[16px]"></i>
                                     </div>
-                                    <h3 className="text-[15px] font-semibold text-slate-900 m-0">Services and items</h3>
+                                    <h3 className="text-[18px] font-black text-slate-900 m-0">Services and items</h3>
                                 </div>
-                                <button type="button" onClick={addItemRow} className="border border-slate-200 bg-white text-slate-700 px-4 py-2.5 rounded-lg text-[13px] font-semibold hover:border-indigo-600 hover:text-indigo-600 shadow-sm transition-colors flex items-center gap-2">
-                                    <i className="fa-solid fa-plus text-[11px]"></i> Add item
+                                <button type="button" onClick={addItemRow} className="border-2 border-slate-300 bg-white text-slate-800 px-5 py-2.5 rounded-xl text-[13.5px] font-black hover:border-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 shadow-sm transition-all flex items-center gap-2">
+                                    <i className="fa-solid fa-plus text-[12px]"></i> Add item
                                 </button>
                             </div>
 
-                            <div className="divide-y divide-slate-100">
+                            <div className="divide-y divide-slate-300">
                                 {data.items.map((item, index) => (
                                     <div key={index} className="py-6">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <span className="font-mono text-[12px] font-semibold text-indigo-600 tracking-wide bg-indigo-50 px-2.5 py-1 rounded-md">
-                                                No. {String(index + 1).padStart(2, "0")}
+                                        <div className="flex justify-between items-center mb-5">
+                                            <span className="font-mono text-[13px] font-black text-indigo-800 tracking-widest bg-indigo-100 border border-indigo-200 px-3 py-1.5 rounded-lg shadow-sm">
+                                                ITEM NO. {String(index + 1).padStart(2, "0")}
                                             </span>
-                                            <button type="button" onClick={() => removeItemRow(index)} disabled={data.items.length === 1} className="text-[12px] font-semibold text-slate-400 hover:text-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5">
-                                                <i className="fa-solid fa-trash-can text-[11px]"></i> Remove
+                                            <button type="button" onClick={() => removeItemRow(index)} disabled={data.items.length === 1} className="text-[13px] font-black text-slate-500 hover:text-red-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 bg-slate-100 hover:bg-red-50 border border-slate-300 hover:border-red-300 px-4 py-2 rounded-lg shadow-sm">
+                                                <i className="fa-solid fa-trash-can text-[12px]"></i> Remove
                                             </button>
                                         </div>
 
-                                        <div className="flex flex-col gap-5">
+                                        <div className="flex flex-col gap-6">
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <div>
-                                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Project (optional)</label>
+                                                    <label className="block text-[13px] font-black text-slate-800 mb-2">Project <span className="text-slate-500 font-bold normal-case">(optional)</span></label>
                                                     <Select
                                                         options={getAvailableProjectOptions(index)}
                                                         value={projectOptions.find(o => o.value === item.project_id) || null}
@@ -388,13 +394,13 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Service title <span className="text-red-500">*</span></label>
+                                                    <label className="block text-[13px] font-black text-slate-800 mb-2">Service title <span className="text-red-600">*</span></label>
                                                     <input type="text" value={item.item_name} onChange={(e) => updateItem(index, "item_name", e.target.value)} placeholder="E.g. Web Development" className={inputClass} required />
                                                 </div>
                                             </div>
 
                                             <div>
-                                                <label className="block text-[12.5px] font-semibold text-slate-600 mb-2.5">Description</label>
+                                                <label className="block text-[13px] font-black text-slate-800 mb-2">Description</label>
                                                 <div className="quill-wrapper">
                                                     <ReactQuill theme="snow" value={item.description} onChange={(val) => updateItem(index, "description", val)} />
                                                 </div>
@@ -402,32 +408,32 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
 
                                             {/* Math Row */}
                                             <div className="flex flex-wrap items-end gap-x-6 gap-y-4 pt-2">
-                                                <div className="w-20">
-                                                    <label className="block text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Qty</label>
-                                                    <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateItem(index, "quantity", e.target.value)}
-                                                        className="w-full font-mono border-0 border-b-2 border-slate-200 focus:border-indigo-600 outline-none py-1.5 text-[14px] font-semibold text-slate-800 bg-transparent focus:ring-0 transition-colors" placeholder="0" />
-                                                </div>
                                                 <div className="w-24">
-                                                    <label className="block text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Unit</label>
+                                                    <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Qty</label>
+                                                    <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateItem(index, "quantity", e.target.value)}
+                                                        className="w-full font-mono border-0 border-b-2 border-slate-400 focus:border-indigo-600 outline-none py-1.5 text-[15px] font-black text-slate-900 bg-transparent focus:ring-0 transition-colors" placeholder="0" />
+                                                </div>
+                                                <div className="w-28">
+                                                    <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Unit</label>
                                                     <select value={item.unit_type} onChange={e => updateItem(index, "unit_type", e.target.value)}
-                                                        className="w-full border-0 border-b-2 border-slate-200 focus:border-indigo-600 outline-none py-1.5 bg-transparent text-[13px] font-semibold text-slate-800 cursor-pointer focus:ring-0 transition-colors">
+                                                        className="w-full border-0 border-b-2 border-slate-400 focus:border-indigo-600 outline-none py-1.5 bg-transparent text-[14px] font-black text-slate-900 cursor-pointer focus:ring-0 transition-colors">
                                                         <option value="piece">Pcs</option><option value="kg">Kg</option><option value="set">Set</option><option value="box">Box</option><option value="sqft">SqFt</option>
                                                     </select>
                                                 </div>
-                                                <span className="font-mono text-[15px] text-slate-300 pb-2">×</span>
-                                                <div className="w-32">
-                                                    <label className="block text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Unit price</label>
+                                                <span className="font-mono text-[16px] font-black text-slate-400 pb-2">×</span>
+                                                <div className="w-36">
+                                                    <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Unit price</label>
                                                     <div className="relative">
-                                                        <Taka className="absolute left-0 top-1/2 -translate-y-1/2 text-[13px] text-slate-400" />
+                                                        <Taka className="absolute left-0 top-1/2 -translate-y-1/2 text-[14px] text-slate-500 font-black" />
                                                         <input type="number" step="any" min="0" value={item.unit_price} onChange={(e) => updateItem(index, "unit_price", e.target.value)}
-                                                            className="w-full font-mono border-0 border-b-2 border-slate-200 focus:border-indigo-600 outline-none py-1.5 pl-5 text-[14px] font-semibold text-slate-800 bg-transparent text-right focus:ring-0 transition-colors" placeholder="0" />
+                                                            className="w-full font-mono border-0 border-b-2 border-slate-400 focus:border-indigo-600 outline-none py-1.5 pl-6 text-[15px] font-black text-slate-900 bg-transparent text-right focus:ring-0 transition-colors" placeholder="0" />
                                                     </div>
                                                 </div>
-                                                <span className="font-mono text-[15px] text-slate-300 pb-2">=</span>
+                                                <span className="font-mono text-[16px] font-black text-slate-400 pb-2">=</span>
                                                 <div className="ml-auto text-right">
-                                                    <label className="block text-[10.5px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Line total</label>
-                                                    <div className="font-mono text-[19px] font-bold text-emerald-600 tabular-nums">
-                                                        <Taka className="text-[13px] text-emerald-600" />{fmt(item.total)}
+                                                    <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Line total</label>
+                                                    <div className="font-mono text-[22px] font-black text-emerald-600 tabular-nums">
+                                                        <Taka className="text-[15px] text-emerald-600" />{fmt(item.total)}
                                                     </div>
                                                 </div>
                                             </div>
@@ -438,12 +444,12 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
                         </div>
 
                         {/* Terms and Notes */}
-                        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
-                            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 text-slate-600">
-                                    <i className="fa-solid fa-file-contract text-[15px]"></i>
+                        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-400 shadow-md">
+                            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200">
+                                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-700">
+                                    <i className="fa-solid fa-file-contract text-[16px]"></i>
                                 </div>
-                                <h3 className="text-[15px] font-semibold text-slate-900">Terms and notes</h3>
+                                <h3 className="text-[18px] font-black text-slate-900">Terms and notes</h3>
                             </div>
                             <div className="quill-wrapper">
                                 <ReactQuill theme="snow" value={data.notes || ''} onChange={(val) => setData("notes", val)} placeholder="Payment terms, bank details, or a thank-you note…" />
@@ -453,69 +459,69 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
                     </div>
 
                     {/* Right Column (Sticky Summary) */}
-                    <div ref={stickyWrapperRef} className="w-full xl:w-[340px] shrink-0 relative">
+                    <div ref={stickyWrapperRef} className="w-full xl:w-[360px] shrink-0 relative">
                         <div ref={stickyInnerRef} style={stickyStyle} className="flex flex-col gap-6 z-20">
-                            <div className="bg-slate-900 rounded-2xl p-6 sm:p-7 shadow-xl relative overflow-hidden text-white border border-slate-800">
+                            <div className="bg-slate-900 rounded-3xl p-8 shadow-2xl relative overflow-hidden text-white border border-slate-700">
                                 {/* Decorative Taka */}
-                                <span className="absolute -right-3 -top-8 text-[130px] leading-none font-mono text-white/[0.03] select-none pointer-events-none">৳</span>
+                                <span className="absolute -right-4 -top-10 text-[160px] leading-none font-mono text-white/[0.04] select-none pointer-events-none">৳</span>
 
                                 <div className="relative">
-                                    <div className="flex items-center gap-2 border-b border-white/10 pb-4 mb-5">
-                                        <i className="fa-solid fa-receipt text-indigo-400"></i>
-                                        <p className="text-[14px] font-bold text-white">Invoice summary</p>
+                                    <div className="flex items-center gap-2 border-b border-white/10 pb-5 mb-6">
+                                        <i className="fa-solid fa-receipt text-indigo-400 text-lg"></i>
+                                        <p className="text-[15px] font-black uppercase tracking-widest text-white">Invoice summary</p>
                                     </div>
 
-                                    <div className="flex flex-col gap-4">
+                                    <div className="flex flex-col gap-5">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-[13px] text-slate-400">Subtotal</span>
-                                            <span className="font-mono text-[14px] font-semibold"><Taka className="text-[12px] text-slate-400"/>{fmt(data.sub_total)}</span>
+                                            <span className="text-[14px] font-bold text-slate-300">Subtotal</span>
+                                            <span className="font-mono text-[16px] font-bold"><Taka className="text-[13px] text-slate-400"/>{fmt(data.sub_total)}</span>
                                         </div>
 
                                         <div className="flex justify-between items-center gap-4">
-                                            <label htmlFor="tax" className="text-[13px] text-slate-400">Tax / VAT (%)</label>
+                                            <label htmlFor="tax" className="text-[14px] font-bold text-slate-300">Tax / VAT (%)</label>
                                             <input id="tax" type="number" min="0" value={data.tax} onChange={(e) => setData("tax", e.target.value)}
-                                                className="w-20 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 text-right text-[13px] font-bold tabular-nums text-white outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30" />
+                                                className="w-24 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-right text-[14px] font-black tabular-nums text-white outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/50" />
                                         </div>
 
-                                        <div className="flex justify-between items-center gap-4 pb-4 border-b border-white/10">
-                                            <label htmlFor="discount" className="text-[13px] text-slate-400">Discount (৳)</label>
+                                        <div className="flex justify-between items-center gap-4 pb-5 border-b border-white/10">
+                                            <label htmlFor="discount" className="text-[14px] font-bold text-slate-300">Discount (৳)</label>
                                             <input id="discount" type="number" min="0" value={data.discount} onChange={(e) => setData("discount", e.target.value)}
-                                                className="w-24 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5 text-right text-[13px] font-bold tabular-nums text-red-400 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-500/30" />
+                                                className="w-28 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-right text-[14px] font-black tabular-nums text-red-400 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-500/50" />
                                         </div>
 
-                                        <div className="pt-2 pb-4">
-                                            <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Grand total</span>
-                                            <div className="flex items-baseline gap-1 font-mono text-[32px] font-bold tracking-tight">
-                                                <Taka className="text-[18px] text-indigo-400" />
+                                        <div className="pt-2 pb-5">
+                                            <span className="block text-[12px] font-black text-slate-400 uppercase tracking-widest mb-2">Grand total</span>
+                                            <div className="flex items-baseline gap-1.5 font-mono text-[36px] font-black tracking-tight text-white tabular-nums">
+                                                <Taka className="text-[22px] text-indigo-400" />
                                                 <span>{fmt(data.grand_total)}</span>
                                             </div>
                                         </div>
 
                                         {/* Advance Usage Section */}
                                         {availableAdvance > 0 && (
-                                            <div className="border-t border-white/10 pt-5 pb-2">
-                                                <div className="mb-3 flex items-center justify-between">
-                                                    <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-emerald-400">
+                                            <div className="border-t border-white/10 pt-6 pb-2">
+                                                <div className="mb-4 flex flex-col gap-2">
+                                                    <span className="flex items-center gap-2 text-[14px] font-bold text-emerald-400">
                                                         <i className="fa-solid fa-piggy-bank"></i> Client advance
                                                     </span>
-                                                    <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-300 border border-emerald-500/20">
-                                                        Balance: ৳{fmt(availableAdvance)}
+                                                    <span className="w-fit rounded-lg bg-emerald-500/20 px-3 py-1.5 text-[12px] font-bold text-emerald-300 border border-emerald-500/30">
+                                                        Available Balance: ৳{fmt(availableAdvance)}
                                                     </span>
                                                 </div>
-                                                <div className="relative mb-3">
-                                                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[12px] font-medium text-slate-400">Use</span>
+                                                <div className="relative mb-5">
+                                                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-400">Use Amount</span>
                                                     <input type="number" min="0" max={availableAdvance} value={data.use_advance_amount} onChange={(e) => setData("use_advance_amount", e.target.value)}
-                                                        className="w-full rounded-lg border border-emerald-500/20 bg-emerald-500/5 py-2 pl-10 pr-3 text-right text-[14px] font-bold tabular-nums text-emerald-400 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30" />
+                                                        className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-3 pl-24 pr-4 text-right text-[15px] font-black tabular-nums text-emerald-400 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/50 shadow-inner" />
                                                 </div>
-                                                <div className="flex items-center justify-between text-[13px] pt-1">
-                                                    <span className="text-slate-400">Due after advance</span>
-                                                    <span className="font-mono font-bold tabular-nums text-white"><Taka className="text-[12px] text-slate-400"/>{fmt(payable)}</span>
+                                                <div className="flex items-center justify-between text-[14px] pt-2">
+                                                    <span className="text-slate-300 font-bold">Due after advance</span>
+                                                    <span className="font-mono font-black text-[18px] tabular-nums text-rose-400"><Taka className="text-[13px] text-rose-400"/>{fmt(payable)}</span>
                                                 </div>
                                             </div>
                                         )}
 
-                                        <button type="submit" disabled={processing} className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-lg text-[14px] font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-60">
-                                            {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Saving…</> : <><i className="fa-solid fa-cloud-arrow-up"></i> Create invoice</>}
+                                        <button type="submit" disabled={processing} className="w-full mt-6 bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-xl text-[15px] font-extrabold transition-all shadow-[0_4px_14px_0_rgba(79,70,229,0.39)] hover:shadow-[0_6px_20px_rgba(79,70,229,0.23)] hover:-translate-y-0.5 flex items-center justify-center gap-2.5 disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none">
+                                            {processing ? <><i className="fa-solid fa-spinner fa-spin text-lg"></i> Creating Invoice…</> : <><i className="fa-solid fa-cloud-arrow-up text-lg"></i> Create Invoice</>}
                                         </button>
                                     </div>
                                 </div>

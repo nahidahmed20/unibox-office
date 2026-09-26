@@ -72,6 +72,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         setYearFilter("");
         setDateFrom("");
         setDateTo("");
+        setPerPage(25);
     };
 
     const expList = project_expenses.data || project_expenses || [];
@@ -249,169 +250,200 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                         </div>
                     </div>
 
-                    {/* 🟢 NEW ADVANCED FILTER BAR */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 px-6 py-5 bg-white border-b border-gray-100">
+                    {/* 🟢 STUNNING ADVANCED FILTER BAR */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 px-6 py-5 bg-white border-b border-gray-100">
 
                         {/* 1. Client Filter */}
-                        <div>
-                            <label className="block text-[11.5px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Filter by Client</label>
-                            <select value={clientFilter} onChange={handleClientChange} className="w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-[13px] font-bold text-gray-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer">
+                        <div className="relative">
+                            <select value={clientFilter} onChange={handleClientChange} className="w-full appearance-none rounded-xl border border-gray-300 bg-white pl-4 pr-10 py-2.5 text-[13px] font-bold text-gray-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer">
                                 <option value="">-- All Clients --</option>
                                 {uniqueClients.map(client => (
                                     <option key={client.id} value={client.id}>{client.name} {client.company_name ? `(${client.company_name})` : ''}</option>
                                 ))}
                             </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
+                                <i className="fa-solid fa-chevron-down text-[11px]"></i>
+                            </div>
                         </div>
 
                         {/* 2. Project Filter */}
-                        <div>
-                            <label className="block text-[11.5px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Filter by Project</label>
-                            <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-[13px] font-bold text-gray-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer">
+                        <div className="relative">
+                            <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="w-full appearance-none rounded-xl border border-gray-300 bg-white pl-4 pr-10 py-2.5 text-[13px] font-bold text-gray-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer">
                                 <option value="">-- All Projects --</option>
                                 {filteredProjectsList.map(p => (
                                     <option key={p.id} value={p.id}>{p.title}</option>
                                 ))}
                             </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
+                                <i className="fa-solid fa-chevron-down text-[11px]"></i>
+                            </div>
                         </div>
 
                         {/* 3. Vendor Filter */}
-                        <div>
-                            <label className="block text-[11.5px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Filter by Vendor</label>
-                            <select value={vendorFilter} onChange={(e) => setVendorFilter(e.target.value)} className="w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-[13px] font-bold text-gray-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer">
+                        <div className="relative">
+                            <select value={vendorFilter} onChange={(e) => setVendorFilter(e.target.value)} className="w-full appearance-none rounded-xl border border-gray-300 bg-white pl-4 pr-10 py-2.5 text-[13px] font-bold text-gray-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer">
                                 <option value="">-- All Vendors --</option>
                                 {vendors.map(v => (
                                     <option key={v.id} value={v.id}>{v.name} {v.company_name ? `(${v.company_name})` : ''}</option>
                                 ))}
                             </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
+                                <i className="fa-solid fa-chevron-down text-[11px]"></i>
+                            </div>
                         </div>
 
                         {/* 4. Text Search */}
-                        <div>
-                            <label className="block text-[11.5px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Search Expense</label>
-                            <div className="relative">
-                                <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. Leaflet, Transport..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full rounded-xl border border-gray-300 py-2.5 pl-9 pr-4 text-[13px] font-medium outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 bg-white shadow-sm"
-                                />
-                            </div>
+                        <div className="relative">
+                            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                            <input
+                                type="text"
+                                placeholder="Search bills or payee..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13px] font-bold text-gray-800 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 bg-white shadow-sm"
+                            />
                         </div>
                     </div>
 
-                    {/* Secondary Filters (Date, Rows, Clear) */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-gray-50/50 border-b border-gray-100">
-                        {/* Date Filters */}
-                        <div className="flex flex-wrap items-center gap-2">
-                             <div className="relative w-full sm:w-[120px]">
-                                <select value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); if (e.target.value) { setDateFrom(""); setDateTo(""); } }} className="w-full appearance-none rounded-xl border border-gray-300 bg-white px-3 py-2 text-[12.5px] font-bold text-gray-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm">
-                                    <option value="">All Years</option>
-                                    {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-                                </select>
-                            </div>
-                            <span className="text-gray-300 hidden sm:block">|</span>
-                            <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setYearFilter(''); }} className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-[12.5px] font-medium outline-none shadow-sm cursor-pointer" />
-                            <span className="text-gray-400 font-bold">–</span>
-                            <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setYearFilter(''); }} className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-[12.5px] font-medium outline-none shadow-sm cursor-pointer" />
+                    {/* Secondary Filters (Show Rows, Date Range, Clear) */}
+                    <div className="flex flex-col lg:flex-row lg:items-center gap-4 px-6 py-4 bg-gray-50/50 border-b border-gray-100">
 
-                            {(dateFrom || dateTo || yearFilter || clientFilter || projectFilter || vendorFilter || searchTerm) && (
-                                <button onClick={clearAllFilters} className="ml-2 px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-500 hover:text-white transition-colors text-[12px] font-bold shadow-sm flex items-center gap-1.5">
-                                    <i className="fa-solid fa-rotate-left"></i> Reset
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Pagination Rows Selector */}
-                        <div className="flex items-center gap-2 text-[12.5px]">
-                            <span className="font-bold text-gray-500 uppercase tracking-wide">Show:</span>
-                            <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-[13px] font-bold text-gray-800 outline-none cursor-pointer shadow-sm">
+                        {/* 🟢 Premium SHOW ENTRIES Dropdown */}
+                        <div className="relative w-full sm:w-[130px]">
+                            <select
+                                value={perPage}
+                                onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
+                                className="appearance-none w-full bg-white border border-gray-300 rounded-xl pl-4 pr-9 py-2.5 text-[13px] font-bold text-gray-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer"
+                            >
                                 <option value={10}>10 Rows</option>
                                 <option value={25}>25 Rows</option>
                                 <option value={50}>50 Rows</option>
                                 <option value={100}>100 Rows</option>
-                                <option value="all">All Data</option>
+                                <option value="all">All Rows</option>
                             </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-400">
+                                <i className="fa-solid fa-chevron-down text-[11px]"></i>
+                            </div>
                         </div>
+
+                        {/* 🟢 Premium Year Filter */}
+                        <div className="relative w-full sm:w-[130px]">
+                            <select
+                                value={yearFilter}
+                                onChange={(e) => { setYearFilter(e.target.value); if (e.target.value) { setDateFrom(""); setDateTo(""); } }}
+                                className="appearance-none w-full bg-white border border-gray-300 rounded-xl pl-4 pr-9 py-2.5 text-[13px] font-bold text-gray-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer"
+                            >
+                                <option value="">All Years</option>
+                                {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-400">
+                                <i className="fa-solid fa-calendar text-[11px]"></i>
+                            </div>
+                        </div>
+
+                        <span className="hidden lg:block text-gray-300 mx-1">|</span>
+
+                        {/* 🟢 Unified Date Range Picker */}
+                        <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-xl px-2 shadow-sm focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all w-full sm:w-auto">
+                            <input
+                                type="date"
+                                value={dateFrom}
+                                onChange={(e) => { setDateFrom(e.target.value); setYearFilter(''); }}
+                                className="border-none bg-transparent px-2 py-2.5 text-[12.5px] font-bold text-gray-700 outline-none focus:ring-0 cursor-pointer w-full"
+                            />
+                            <span className="text-gray-400 font-bold">-</span>
+                            <input
+                                type="date"
+                                value={dateTo}
+                                onChange={(e) => { setDateTo(e.target.value); setYearFilter(''); }}
+                                className="border-none bg-transparent px-2 py-2.5 text-[12.5px] font-bold text-gray-700 outline-none focus:ring-0 cursor-pointer w-full"
+                            />
+                        </div>
+
+                        {/* 🟢 Premium Reset Button */}
+                        {(dateFrom || dateTo || yearFilter || clientFilter || projectFilter || vendorFilter || searchTerm || perPage !== 25) && (
+                            <button onClick={clearAllFilters} className="h-[42px] px-4 rounded-xl border border-rose-200 bg-rose-50 text-[12.5px] font-bold text-rose-600 transition-colors hover:bg-rose-100 hover:border-rose-300 shadow-sm flex items-center justify-center gap-1.5 sm:ml-auto whitespace-nowrap">
+                                <i className="fa-solid fa-rotate-left"></i> Reset Filters
+                            </button>
+                        )}
                     </div>
 
                     {/* Data Table */}
                     <div className="overflow-x-auto custom-table-scroll pb-2">
                         <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1100px]">
-                            <thead className="bg-slate-50 text-[10.5px] font-bold uppercase tracking-wider text-slate-500 border-b border-gray-200">
+                            <thead className="bg-gray-50 text-[10.5px] font-extrabold uppercase tracking-wider text-gray-500 border-b border-gray-200">
                                 <tr>
-                                    <th className="px-6 py-4.5 w-12">SL</th>
+                                    <th className="px-6 py-4.5 w-12 text-center">SL</th>
                                     <th className="px-6 py-4.5">Date</th>
-                                    <th className="px-6 py-4.5">Project & Expense</th>
+                                    <th className="px-6 py-4.5 w-[25%]">Project & Expense</th>
                                     <th className="px-6 py-4.5">Vendor / Payee</th>
-                                    <th className="px-6 py-4.5 text-right bg-blue-50/40">Total Bill</th>
+                                    <th className="px-6 py-4.5 text-right bg-blue-50/40 border-l border-gray-100">Total Bill</th>
                                     <th className="px-6 py-4.5 text-right bg-emerald-50/40">Paid Amount</th>
                                     <th className="px-6 py-4.5 text-right bg-rose-50/40 border-r border-gray-100">Due Amount</th>
                                     <th className="px-6 py-4.5 text-center">Status</th>
-                                    <th className="px-6 py-4.5 text-center no-print w-40">Actions</th>
+                                    <th className="px-6 py-4.5 text-center no-print w-36">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="text-[13.5px] text-gray-800 divide-y divide-gray-100">
                                 {expList.length > 0 ? (
                                     expList.map((exp, index) => (
-                                        <tr key={exp.id} className="hover:bg-slate-50/80 transition-colors group">
-                                            <td className="px-6 py-4 font-medium text-gray-400">
+                                        <tr key={exp.id} className="hover:bg-indigo-50/30 transition-colors group">
+                                            <td className="px-6 py-4 font-bold text-gray-400 text-center">
                                                 {project_expenses.from ? project_expenses.from + index : index + 1}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="inline-flex px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200 text-gray-700 text-[12px] font-bold">
-                                                    {exp.date}
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-100 border border-gray-200 text-gray-700 text-[12px] font-bold shadow-sm">
+                                                    <i className="fa-regular fa-calendar text-[10px]"></i> {exp.date}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="font-bold text-gray-900 text-[14px]">
-                                                    {exp.project?.title || <span className="text-gray-400 italic">No Project</span>}
+                                                <div className="font-extrabold text-gray-900 text-[14.5px] mb-1">
+                                                    {exp.project?.title || <span className="text-gray-400 italic">No Project Assigned</span>}
                                                 </div>
                                                 {exp.project?.client && (
-                                                    <div className="text-[11.5px] font-bold text-indigo-600 mt-0.5" title="Client Name">
+                                                    <div className="text-[11.5px] font-bold text-indigo-600 mb-1" title="Client Name">
                                                         <i className="fa-regular fa-building mr-1 opacity-75"></i>
                                                         {exp.project.client.name} {exp.project.client.company_name ? `(${exp.project.client.company_name})` : ''}
                                                     </div>
                                                 )}
-                                                <div className="text-[12px] font-medium text-gray-500 mt-1 truncate max-w-[250px]" title={exp.title}>{exp.title}</div>
+                                                <div className="text-[12px] font-medium text-gray-500 truncate max-w-[250px]" title={exp.title}>• {exp.title}</div>
                                             </td>
 
                                             <td className="px-6 py-4">
-                                                <div className="font-bold text-gray-800 flex items-center gap-2">
-                                                    <i className="fa-solid fa-user-tie text-[12px] text-gray-400"></i> {exp.payee_name || exp.vendor?.name || <span className="italic text-gray-400">Payee not recorded</span>}
+                                                <div className="font-bold text-gray-800 flex items-center gap-2 mb-1.5">
+                                                    <i className="fa-solid fa-user-tie text-[12px] text-gray-400"></i> {exp.payee_name || exp.vendor?.name || <span className="italic text-gray-400 font-medium">Payee not recorded</span>}
                                                 </div>
-                                                <div className="text-[11px] font-medium text-gray-500 mt-1 flex items-center gap-1.5">
+                                                <div className="text-[11.5px] font-bold text-gray-500 flex items-center gap-1.5">
                                                     {exp.account_id ? <><i className="fa-solid fa-building-columns text-blue-500"></i> {exp.account?.name}</>
-                                                    : exp.advance_user_id ? <><i className="fa-solid fa-hand-holding-dollar text-emerald-500"></i> Advance</>
+                                                    : exp.advance_user_id ? <><i className="fa-solid fa-hand-holding-dollar text-emerald-500"></i> Employee Advance</>
                                                     : exp.paid_amount > 0 ? <><i className="fa-solid fa-wallet text-purple-500"></i> Vendor Wallet</>
                                                     : 'N/A'}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-right bg-blue-50/20 group-hover:bg-blue-50/40 transition-colors">
-                                                <span className="font-bold text-blue-700 tabular-nums">
-                                                    <i className="fa-solid fa-bangladeshi-taka-sign text-[11.5px] mr-1 opacity-60"></i>
+                                            <td className="px-6 py-4 text-right bg-blue-50/20 group-hover:bg-blue-50/40 transition-colors border-l border-gray-50">
+                                                <span className="font-black text-blue-700 text-[15px] tabular-nums">
+                                                    <i className="fa-solid fa-bangladeshi-taka-sign text-[12px] mr-1.5 opacity-70"></i>
                                                     {parseFloat(exp.total_bill).toLocaleString('en-IN')}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right bg-emerald-50/20 group-hover:bg-emerald-50/40 transition-colors">
                                                 {parseFloat(exp.paid_amount) > 0 ? (
-                                                    <span className="font-bold text-emerald-600 tabular-nums">
-                                                        <i className="fa-solid fa-bangladeshi-taka-sign text-[11.5px] mr-1 opacity-60"></i>
+                                                    <span className="font-black text-emerald-600 text-[15px] tabular-nums">
+                                                        <i className="fa-solid fa-bangladeshi-taka-sign text-[12px] mr-1.5 opacity-70"></i>
                                                         {parseFloat(exp.paid_amount).toLocaleString('en-IN')}
                                                     </span>
-                                                ) : <span className="text-gray-300">-</span>}
+                                                ) : <span className="text-gray-300 font-bold">-</span>}
                                             </td>
-                                            <td className="px-6 py-4 text-right bg-rose-50/20 group-hover:bg-rose-50/40 transition-colors border-r border-gray-100">
+                                            <td className="px-6 py-4 text-right bg-rose-50/20 group-hover:bg-rose-50/40 transition-colors border-r border-gray-50">
                                                 {parseFloat(exp.due_amount) > 0 ? (
-                                                    <span className="font-black text-rose-600 text-[14.5px] tabular-nums">
-                                                        <i className="fa-solid fa-bangladeshi-taka-sign text-[13px] mr-1 opacity-80"></i>
+                                                    <span className="font-black text-rose-600 text-[15px] tabular-nums">
+                                                        <i className="fa-solid fa-bangladeshi-taka-sign text-[12px] mr-1.5 opacity-80"></i>
                                                         {parseFloat(exp.due_amount).toLocaleString('en-IN')}
                                                     </span>
-                                                ) : <span className="text-gray-300 font-medium">-</span>}
+                                                ) : <span className="text-gray-300 font-bold">-</span>}
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <span className={`inline-flex items-center px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border
+                                                <span className={`inline-flex items-center px-3.5 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-widest border shadow-sm
                                                     ${exp.payment_status === 'paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                     : exp.payment_status === 'partial' ? 'bg-amber-50 text-amber-700 border-amber-200'
                                                     : 'bg-rose-50 text-rose-700 border-rose-200'}
@@ -419,25 +451,26 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                     {exp.payment_status}
                                                 </span>
                                             </td>
+                                            {/* 🟢 FIXED: REMOVED HOVER CLASSES SO BUTTONS ALWAYS SHOW */}
                                             <td className="px-6 py-4 text-center no-print">
                                                 <div className="flex items-center justify-center gap-1.5">
                                                     {hasPermission('edit_project_expense') && exp.vendor_id && parseFloat(exp.paid_amount) > 0 && (
-                                                        <button onClick={() => handleMoveToWallet(exp)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-500 hover:text-white border border-purple-200 hover:border-purple-500 transition-all shadow-sm" title="Move to Vendor Wallet">
+                                                        <button onClick={() => handleMoveToWallet(exp)} className="h-8 w-8 rounded-lg bg-white border border-gray-200 text-purple-500 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-300 flex items-center justify-center transition-all shadow-sm" title="Move to Vendor Wallet">
                                                             <i className="fa-solid fa-money-bill-transfer text-[12px]"></i>
                                                         </button>
                                                     )}
                                                     {hasPermission('view_project_expense') && (
-                                                        <button onClick={() => openViewModal(exp)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors shadow-sm" title="View Details">
+                                                        <button onClick={() => openViewModal(exp)} className="h-8 w-8 rounded-lg bg-white border border-gray-200 text-gray-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 flex items-center justify-center transition-all shadow-sm" title="View Details">
                                                             <i className="fa-regular fa-eye text-[13px]"></i>
                                                         </button>
                                                     )}
                                                     {hasPermission('edit_project_expense') && (
-                                                        <Link href={route('admin.project-expenses.edit', exp.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors shadow-sm" title="Edit">
+                                                        <Link href={route('admin.project-expenses.edit', exp.id)} className="h-8 w-8 rounded-lg bg-white border border-gray-200 text-gray-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 flex items-center justify-center transition-all shadow-sm" title="Edit">
                                                             <i className="fa-regular fa-pen-to-square text-[13px]"></i>
                                                         </Link>
                                                     )}
                                                     {hasPermission('delete_project_expense') && (
-                                                        <button onClick={() => handleDelete(exp.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors shadow-sm" title="Delete">
+                                                        <button onClick={() => handleDelete(exp.id)} className="h-8 w-8 rounded-lg bg-white border border-gray-200 text-gray-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 flex items-center justify-center transition-all shadow-sm" title="Delete">
                                                             <i className="fa-regular fa-trash-can text-[13px]"></i>
                                                         </button>
                                                     )}
@@ -447,13 +480,13 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="9" className="px-6 py-20 text-center text-gray-500">
-                                            <div className="flex flex-col items-center justify-center">
-                                                <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                                                    <i className="fa-solid fa-receipt text-2xl text-gray-400"></i>
+                                        <td colSpan="9" className="px-6 py-24 text-center">
+                                            <div className="inline-flex flex-col items-center justify-center">
+                                                <div className="h-16 w-16 bg-gray-50 border border-gray-100 shadow-sm rounded-full flex items-center justify-center mb-4 text-gray-300">
+                                                    <i className="fa-solid fa-file-invoice text-2xl"></i>
                                                 </div>
-                                                <p className="text-[15px] font-bold text-gray-700">No matching expenses found.</p>
-                                                <p className="text-[13px] text-gray-400 mt-1">Try resetting your filters or adjusting your search.</p>
+                                                <p className="text-[15px] font-extrabold text-gray-700">No matching expenses found</p>
+                                                <p className="text-[13px] font-medium text-gray-400 mt-1">Try resetting your filters or log a new bill.</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -464,21 +497,21 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
                     {/* Pagination */}
                     {project_expenses.links && project_expenses.links.length > 3 && (
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100 bg-white px-6 py-4">
-                            <div className="text-[13.5px] font-medium text-gray-500">
-                                {project_expenses.total > 0 && `Showing ${project_expenses.from || 0} to ${project_expenses.to || 0} of ${project_expenses.total || 0} records`}
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100 bg-gray-50/50 px-6 py-4">
+                            <div className="text-[13px] font-semibold text-gray-500">
+                                {project_expenses.total > 0 && <>Showing <span className="font-bold text-gray-900">{project_expenses.from || 0}</span> to <span className="font-bold text-gray-900">{project_expenses.to || 0}</span> of <span className="font-bold text-gray-900">{project_expenses.total || 0}</span> records</>}
                             </div>
                             <div className="flex flex-wrap items-center gap-1.5">
                                 {project_expenses.links.map((link, index) => (
                                     <Link
                                         key={index}
                                         href={link.url || "#"}
-                                        className={`flex min-w-[36px] items-center justify-center rounded-lg border px-3 py-2 text-[13px] font-bold transition-all
+                                        className={`flex min-w-[34px] items-center justify-center rounded-lg border px-3 py-1.5 text-[12.5px] font-bold transition-all
                                             ${link.active
                                                 ? 'border-indigo-600 bg-indigo-600 text-white shadow-md'
                                                 : link.url
                                                     ? 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300'
-                                                    : 'border-gray-100 bg-gray-50 text-gray-400 pointer-events-none'
+                                                    : 'border-gray-100 bg-transparent text-gray-300 pointer-events-none'
                                             }
                                         `}
                                         preserveState
@@ -493,57 +526,57 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
             {/* --- 🟢 STUNNING VIEW DETAILS MODAL --- */}
             {showViewModal && selectedExpense && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
-                    <div className="w-full max-w-5xl bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col relative my-auto animate-[fadeIn_0.2s_ease-out] overflow-hidden">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0f172a]/80 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
+                    <div className="w-full max-w-4xl bg-gray-50 rounded-2xl shadow-2xl flex flex-col relative my-auto animate-[scaleIn_0.2s_ease-out] overflow-hidden border border-gray-700/20">
 
-                        <div className={`absolute top-6 left-0 px-4 py-1.5 text-white text-[11.5px] font-black tracking-widest uppercase rounded-r-lg shadow-md z-20
+                        <div className={`absolute top-6 left-0 px-5 py-2 text-white text-[11px] font-black tracking-widest uppercase rounded-r-xl shadow-lg z-20
                             ${selectedExpense.payment_status === 'paid' ? 'bg-emerald-500' : selectedExpense.payment_status === 'partial' ? 'bg-amber-500' : 'bg-rose-500'}`}>
                             {selectedExpense.payment_status}
                         </div>
 
-                        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white pl-28 shrink-0">
+                        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-200 bg-white pl-32 shrink-0">
                             <div>
-                                <h3 className="text-[20px] font-extrabold text-gray-900 tracking-tight">Expense Receipt</h3>
-                                <p className="text-[13px] text-gray-500 font-medium mt-0.5">Reference ID: #{String(selectedExpense.id).padStart(6, '0')}</p>
+                                <h3 className="text-[20px] font-black text-gray-900 tracking-tight">Expense Receipt</h3>
+                                <p className="text-[13px] text-gray-500 font-bold mt-1">Reference ID: #{String(selectedExpense.id).padStart(6, '0')}</p>
                             </div>
                             <div className="flex items-center gap-3 relative z-20">
-                                <button className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-[13px] font-bold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm">
+                                <button className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-[13px] font-bold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm">
                                     <i className="fa-solid fa-print text-gray-500"></i> Print
                                 </button>
-                                <button onClick={() => setShowViewModal(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors">
+                                <button onClick={() => setShowViewModal(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors">
                                     <i className="fa-solid fa-xmark text-lg"></i>
                                 </button>
                             </div>
                         </div>
 
-                        <div className="p-6 md:p-8 overflow-y-auto custom-table-scroll bg-white">
+                        <div className="p-6 md:p-8 overflow-y-auto custom-table-scroll bg-gray-50">
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                                <div className="bg-gray-50/80 rounded-2xl p-5 border border-gray-100 flex flex-col justify-center">
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Project & Client</span>
-                                    <div className="text-[15px] font-bold text-gray-900 flex flex-col gap-1">
+                                <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm flex flex-col justify-center">
+                                    <span className="block text-[11.5px] font-bold uppercase tracking-wider text-gray-400 mb-2">Project & Client</span>
+                                    <div className="text-[15px] font-extrabold text-gray-900 flex flex-col gap-1.5">
                                         <div className="flex items-start gap-2.5">
-                                            <i className="fa-solid fa-folder text-indigo-500 mt-0.5"></i>
+                                            <i className="fa-solid fa-folder text-indigo-500 mt-1"></i>
                                             <span className="leading-tight">{selectedExpense.project?.title || "N/A"}</span>
                                         </div>
                                         {selectedExpense.project?.client && (
-                                            <div className="flex items-start gap-2 text-[12.5px] text-gray-500 font-medium ml-1">
+                                            <div className="flex items-start gap-2.5 text-[12.5px] text-gray-500 font-bold">
                                                 <i className="fa-regular fa-building mt-0.5 opacity-70"></i>
                                                 <span>{selectedExpense.project.client.name}</span>
                                             </div>
                                         )}
                                     </div>
                                 </div>
-                                <div className="bg-gray-50/80 rounded-2xl p-5 border border-gray-100 flex flex-col justify-center">
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Vendor / Payee</span>
-                                    <div className="text-[15px] font-bold text-gray-900 flex items-start gap-2.5">
+                                <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm flex flex-col justify-center">
+                                    <span className="block text-[11.5px] font-bold uppercase tracking-wider text-gray-400 mb-2">Vendor / Payee</span>
+                                    <div className="text-[15px] font-extrabold text-gray-900 flex items-start gap-2.5">
                                         <i className="fa-solid fa-user-tie text-blue-500 mt-0.5"></i>
                                         <span className="leading-tight">{selectedExpense.payee_name || selectedExpense.vendor?.name || "N/A"}</span>
                                     </div>
                                 </div>
-                                <div className="bg-gray-50/80 rounded-2xl p-5 border border-gray-100 flex flex-col justify-center">
-                                    <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Expense Date</span>
-                                    <div className="text-[15px] font-bold text-gray-800 flex items-start gap-2.5">
+                                <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm flex flex-col justify-center">
+                                    <span className="block text-[11.5px] font-bold uppercase tracking-wider text-gray-400 mb-2">Expense Date</span>
+                                    <div className="text-[15px] font-extrabold text-gray-800 flex items-start gap-2.5">
                                         <i className="fa-regular fa-calendar-days text-rose-500 mt-0.5"></i>
                                         {selectedExpense.date}
                                     </div>
@@ -552,57 +585,57 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
                             <div className="flex flex-col md:flex-row gap-8">
                                 <div className="flex-1 space-y-6">
-                                    <div>
-                                        <h4 className="text-[13px] font-bold text-gray-900 mb-3 border-b border-gray-100 pb-2">Expense Title</h4>
-                                        <div className="text-[15px] font-bold text-indigo-700 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                                    <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                                        <h4 className="text-[13px] font-extrabold text-gray-900 mb-3 border-b border-gray-100 pb-2">Expense Title</h4>
+                                        <div className="text-[15px] font-black text-indigo-800 bg-indigo-50 px-4 py-3 rounded-xl border border-indigo-100">
                                             {selectedExpense.title}
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <h4 className="text-[13px] font-bold text-gray-900 mb-3 border-b border-gray-100 pb-2">Payment Source</h4>
-                                        <div className="flex items-center gap-4 bg-gray-50 border border-gray-100 rounded-xl p-4">
+                                    <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                                        <h4 className="text-[13px] font-extrabold text-gray-900 mb-3 border-b border-gray-100 pb-2">Payment Source</h4>
+                                        <div className="flex items-center gap-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
                                             {selectedExpense.account_id ? (
-                                                <><div className="h-12 w-12 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600"><i className="fa-solid fa-building-columns text-[18px]"></i></div><div><p className="text-[14.5px] font-bold text-gray-900">{selectedExpense.account?.name}</p><p className="text-[12px] text-gray-500 mt-0.5">Paid from Bank / Cash</p></div></>
+                                                <><div className="h-12 w-12 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600"><i className="fa-solid fa-building-columns text-[18px]"></i></div><div><p className="text-[14.5px] font-black text-gray-900">{selectedExpense.account?.name}</p><p className="text-[12px] font-bold text-gray-500 mt-0.5">Paid from Bank / Cash</p></div></>
                                             ) : selectedExpense.advance_user_id ? (
-                                                <><div className="h-12 w-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600"><i className="fa-solid fa-hand-holding-dollar text-[18px]"></i></div><div><p className="text-[14.5px] font-bold text-gray-900">{selectedExpense.advance_user?.name}</p><p className="text-[12px] text-gray-500 mt-0.5">Paid from Employee Advance</p></div></>
+                                                <><div className="h-12 w-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600"><i className="fa-solid fa-hand-holding-dollar text-[18px]"></i></div><div><p className="text-[14.5px] font-black text-gray-900">{selectedExpense.advance_user?.name}</p><p className="text-[12px] font-bold text-gray-500 mt-0.5">Paid from Employee Advance</p></div></>
                                             ) : selectedExpense.paid_amount > 0 ? (
-                                                <><div className="h-12 w-12 rounded-2xl bg-purple-100 flex items-center justify-center text-purple-600"><i className="fa-solid fa-wallet text-[18px]"></i></div><div><p className="text-[14.5px] font-bold text-gray-900">Vendor Wallet</p><p className="text-[12px] text-gray-500 mt-0.5">Deducted from vendor balance</p></div></>
+                                                <><div className="h-12 w-12 rounded-2xl bg-purple-100 flex items-center justify-center text-purple-600"><i className="fa-solid fa-wallet text-[18px]"></i></div><div><p className="text-[14.5px] font-black text-gray-900">Vendor Wallet</p><p className="text-[12px] font-bold text-gray-500 mt-0.5">Deducted from vendor balance</p></div></>
                                             ) : (
-                                                <><div className="h-12 w-12 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400"><i className="fa-solid fa-ban text-[18px]"></i></div><div><p className="text-[14.5px] font-bold text-gray-900">Unpaid / N/A</p></div></>
+                                                <><div className="h-12 w-12 rounded-2xl bg-gray-200 flex items-center justify-center text-gray-500"><i className="fa-solid fa-ban text-[18px]"></i></div><div><p className="text-[14.5px] font-black text-gray-900">Unpaid / N/A</p></div></>
                                             )}
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <h4 className="text-[13px] font-bold text-gray-900 mb-3 border-b border-gray-100 pb-2">Remarks / Description</h4>
-                                        <div className="bg-gray-50/80 p-5 rounded-xl text-[14px] text-gray-700 leading-relaxed min-h-[100px] border border-gray-100">
-                                            {selectedExpense.description || <span className="text-gray-400 italic font-medium">No remarks provided for this transaction.</span>}
+                                    <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                                        <h4 className="text-[13px] font-extrabold text-gray-900 mb-3 border-b border-gray-100 pb-2">Remarks / Description</h4>
+                                        <div className="bg-gray-50 p-5 rounded-xl text-[14px] font-medium text-gray-700 leading-relaxed min-h-[100px] border border-gray-200">
+                                            {selectedExpense.description || <span className="text-gray-400 italic">No remarks provided for this transaction.</span>}
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="w-full md:w-[340px] shrink-0 bg-gray-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden flex flex-col justify-between">
+                                <div className="w-full md:w-[340px] shrink-0 bg-gray-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden flex flex-col justify-between border border-gray-700">
                                     <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/5 blur-2xl pointer-events-none"></div>
 
                                     <div>
-                                        <h4 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-800 pb-3">Amount Summary</h4>
+                                        <h4 className="text-[12px] font-extrabold text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-800 pb-3">Amount Summary</h4>
                                         <div className="space-y-5">
                                             <div className="flex justify-between items-end">
-                                                <span className="text-[14px] text-gray-300">Total Billed</span>
-                                                <span className="text-[18px] font-bold text-white tabular-nums">৳ {parseFloat(selectedExpense.total_bill).toLocaleString('en-IN')}</span>
+                                                <span className="text-[14px] font-bold text-gray-300">Total Billed</span>
+                                                <span className="text-[18px] font-black text-white tabular-nums">৳ {parseFloat(selectedExpense.total_bill).toLocaleString('en-IN')}</span>
                                             </div>
                                             <div className="flex justify-between items-end">
-                                                <span className="text-[14px] text-emerald-400">Total Paid</span>
-                                                <span className="text-[18px] font-bold text-emerald-400 tabular-nums">৳ {parseFloat(selectedExpense.paid_amount).toLocaleString('en-IN')}</span>
+                                                <span className="text-[14px] font-bold text-emerald-400">Total Paid</span>
+                                                <span className="text-[18px] font-black text-emerald-400 tabular-nums">৳ {parseFloat(selectedExpense.paid_amount).toLocaleString('en-IN')}</span>
                                             </div>
                                         </div>
                                     </div>
 
                                     <div className="pt-6 border-t border-gray-800 mt-8">
                                         <div className="flex justify-between items-end">
-                                            <span className="text-[13.5px] text-rose-300 font-bold uppercase tracking-wider">Due Balance</span>
-                                            <span className="text-[28px] font-black text-rose-400 tabular-nums tracking-tight">৳ {parseFloat(selectedExpense.due_amount).toLocaleString('en-IN')}</span>
+                                            <span className="text-[13.5px] text-rose-400 font-extrabold uppercase tracking-wider">Due Balance</span>
+                                            <span className="text-[28px] font-black text-rose-500 tabular-nums tracking-tight">৳ {parseFloat(selectedExpense.due_amount).toLocaleString('en-IN')}</span>
                                         </div>
                                     </div>
                                 </div>
