@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+import Select from 'react-select'; // 🟢 Added React Select Import
 
 export default function Index({ project_expenses = { data: [], links: [] }, projects = [], categories = [], vendors = [], totals = null, filters = {} }) {
     const { auth } = usePage().props;
@@ -59,8 +60,9 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         return () => clearTimeout(delayDebounceFn);
     }, [searchTerm, clientFilter, projectFilter, vendorFilter, perPage, yearFilter, dateFrom, dateTo]);
 
-    const handleClientChange = (e) => {
-        setClientFilter(e.target.value);
+    // 🟢 UPDATED: React Select Handler
+    const handleClientChange = (selectedOption) => {
+        setClientFilter(selectedOption ? selectedOption.value : '');
         setProjectFilter('');
     };
 
@@ -73,6 +75,39 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
         setDateFrom("");
         setDateTo("");
         setPerPage(25);
+    };
+
+    // 🟢 ADDED: Custom Styles for React Select
+    const customSelectStyles = {
+        control: (provided, state) => ({
+            ...provided,
+            minHeight: "42px",
+            borderRadius: "0.75rem",
+            border: state.isFocused ? "1px solid #6366f1" : "1px solid #d1d5db",
+            boxShadow: state.isFocused ? "0 0 0 2px rgba(99, 102, 241, 0.2)" : "none",
+            fontSize: "13px",
+            fontWeight: "bold",
+            color: "#374151",
+            backgroundColor: "#fff",
+            cursor: "pointer",
+        }),
+        option: (provided, state) => ({
+            ...provided,
+            fontSize: "13px",
+            fontWeight: "bold",
+            backgroundColor: state.isSelected ? "#4f46e5" : state.isFocused ? "#f3f4f6" : "#fff",
+            color: state.isSelected ? "#fff" : "#374151",
+            cursor: "pointer",
+        }),
+        singleValue: (provided) => ({ ...provided, color: "#374151" }),
+        placeholder: (provided) => ({ ...provided, color: "#9ca3af", fontWeight: "normal" }),
+        menu: (provided) => ({
+            ...provided,
+            zIndex: 50,
+            borderRadius: "0.75rem",
+            overflow: "hidden",
+            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+        })
     };
 
     const expList = project_expenses.data || project_expenses || [];
@@ -272,43 +307,59 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                     {/* 🟢 STUNNING ADVANCED FILTER BAR */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 px-6 py-5 bg-white border-b border-gray-100">
 
-                        {/* 1. Client Filter */}
-                        <div className="relative">
-                            <select value={clientFilter} onChange={handleClientChange} className="w-full appearance-none rounded-xl border border-gray-300 bg-white pl-4 pr-10 py-2.5 text-[13px] font-bold text-gray-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer">
-                                <option value="">-- All Clients --</option>
-                                {uniqueClients.map(client => (
-                                    <option key={client.id} value={client.id}>{client.name} {client.company_name ? `(${client.company_name})` : ''}</option>
-                                ))}
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
-                                <i className="fa-solid fa-chevron-down text-[11px]"></i>
-                            </div>
+                        {/* 1. Client Filter (Searchable) */}
+                        <div className="relative z-40">
+                            <Select
+                                options={uniqueClients.map(client => ({ 
+                                    value: client.id, 
+                                    label: `${client.name} ${client.company_name ? `(${client.company_name})` : ''}` 
+                                }))}
+                                value={clientFilter ? { 
+                                    value: clientFilter, 
+                                    label: uniqueClients.find(c => c.id == clientFilter)?.name + (uniqueClients.find(c => c.id == clientFilter)?.company_name ? ` (${uniqueClients.find(c => c.id == clientFilter)?.company_name})` : '') 
+                                } : null}
+                                onChange={handleClientChange}
+                                isClearable
+                                placeholder="All Clients..."
+                                styles={customSelectStyles}
+                            />
                         </div>
 
-                        {/* 2. Project Filter */}
-                        <div className="relative">
-                            <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="w-full appearance-none rounded-xl border border-gray-300 bg-white pl-4 pr-10 py-2.5 text-[13px] font-bold text-gray-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer">
-                                <option value="">-- All Projects --</option>
-                                {filteredProjectsList.map(p => (
-                                    <option key={p.id} value={p.id}>{p.title}</option>
-                                ))}
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
-                                <i className="fa-solid fa-chevron-down text-[11px]"></i>
-                            </div>
+                        {/* 2. Project Filter (Searchable) */}
+                        <div className="relative z-30">
+                            <Select
+                                options={filteredProjectsList.map(p => ({ 
+                                    value: p.id, 
+                                    label: p.title 
+                                }))}
+                                value={projectFilter ? { 
+                                    value: projectFilter, 
+                                    label: filteredProjectsList.find(p => p.id == projectFilter)?.title 
+                                } : null}
+                                onChange={(opt) => setProjectFilter(opt ? opt.value : '')}
+                                isClearable
+                                placeholder="All Projects..."
+                                styles={customSelectStyles}
+                                isDisabled={!clientFilter && filteredProjectsList.length === 0}
+                            />
                         </div>
 
-                        {/* 3. Vendor Filter */}
-                        <div className="relative">
-                            <select value={vendorFilter} onChange={(e) => setVendorFilter(e.target.value)} className="w-full appearance-none rounded-xl border border-gray-300 bg-white pl-4 pr-10 py-2.5 text-[13px] font-bold text-gray-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer">
-                                <option value="">-- All Vendors --</option>
-                                {vendors.map(v => (
-                                    <option key={v.id} value={v.id}>{v.name} {v.company_name ? `(${v.company_name})` : ''}</option>
-                                ))}
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
-                                <i className="fa-solid fa-chevron-down text-[11px]"></i>
-                            </div>
+                        {/* 3. Vendor Filter (Searchable) */}
+                        <div className="relative z-20">
+                            <Select
+                                options={vendors.map(v => ({ 
+                                    value: v.id, 
+                                    label: `${v.name} ${v.company_name ? `(${v.company_name})` : ''}` 
+                                }))}
+                                value={vendorFilter ? { 
+                                    value: vendorFilter, 
+                                    label: vendors.find(v => v.id == vendorFilter)?.name + (vendors.find(v => v.id == vendorFilter)?.company_name ? ` (${vendors.find(v => v.id == vendorFilter)?.company_name})` : '') 
+                                } : null}
+                                onChange={(opt) => setVendorFilter(opt ? opt.value : '')}
+                                isClearable
+                                placeholder="All Vendors..."
+                                styles={customSelectStyles}
+                            />
                         </div>
 
                         {/* 4. Text Search */}
@@ -319,7 +370,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                 placeholder="Search bills or payee..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13px] font-bold text-gray-800 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 bg-white shadow-sm"
+                                className="w-full h-[42px] rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13px] font-bold text-gray-800 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 bg-white shadow-sm"
                             />
                         </div>
                     </div>
