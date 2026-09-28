@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Salary;
 use App\Models\User;
 use App\Models\AdvanceBalance;
+use App\Models\Advance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -48,8 +49,26 @@ class SalaryController extends Controller
             ->orderBy('name')
             ->get();
 
-        $balances = AdvanceBalance::all()->keyBy('user_id');
-        $users->each(fn ($user) => $user->setAttribute('advance_balance', round($balances->get($user->id)?->balance ?? 0, 2)));
+        // 🟢 FIX: Properly Check for NULL values to prevent PHP crashes
+        $employeeBalances = User::select('id')
+            ->has('advances')
+            ->withSum('advances', 'amount')
+            ->withSum('advances', 'settled_amount')
+            ->withSum('advances', 'returned_amount')
+            ->get()
+            ->keyBy('id');
+
+        $users->each(function ($user) use ($employeeBalances) {
+            if ($employeeBalances->has($user->id)) {
+                $emp = $employeeBalances->get($user->id);
+                $given = (float)($emp->advances_sum_amount ?? 0);
+                $settled = (float)($emp->advances_sum_settled_amount ?? 0);
+                $returned = (float)($emp->advances_sum_returned_amount ?? 0);
+                $user->setAttribute('advance_balance', round($given - ($settled + $returned), 2));
+            } else {
+                $user->setAttribute('advance_balance', 0); // যাদের অ্যাডভান্স নেই
+            }
+        });
 
         $accounts = Account::where('is_active', true)->get();
 
@@ -135,12 +154,13 @@ class SalaryController extends Controller
                 }
             }
 
-            app(\App\Services\AdvanceSettlementService::class)->consume($salary, $salary->user_id, (float) ($validated['advance_deduction'] ?? 0));
+            $advanceAmount = (float) ($validated['advance_deduction'] ?? 0);
+            if ($advanceAmount > 0) {
+                $this->consumeAdvance($salary->user_id, $advanceAmount);
+            }
 
             $salary->paid_amount = $total_paid;
             $salary->due_amount = $net_pay - $total_paid;
-
-            // 🟢 MAGIC: Always save as 'paid' or 'unpaid' in Database
             $salary->status = $salary->due_amount <= 0 ? 'paid' : 'unpaid';
             $salary->save();
         });
@@ -179,7 +199,10 @@ class SalaryController extends Controller
 
         DB::transaction(function () use ($salary, $validated, $net_pay, $request) {
             $salary = Salary::whereKey($salary->id)->lockForUpdate()->firstOrFail();
-            app(\App\Services\AdvanceSettlementService::class)->refund($salary);
+            
+            if ($salary->advance_deduction > 0) {
+                $this->refundAdvance($salary->user_id, $salary->advance_deduction);
+            }
 
             foreach ($salary->transactions as $txn) {
                 $account = Account::find($txn->account_id);
@@ -219,6 +242,11 @@ class SalaryController extends Controller
                 }
             }
 
+            $newAdvanceAmount = (float) ($validated['advance_deduction'] ?? 0);
+            if ($newAdvanceAmount > 0) {
+                $this->consumeAdvance($validated['user_id'], $newAdvanceAmount);
+            }
+
             $salary->update([
                 'user_id'           => $validated['user_id'],
                 'month_year'        => $validated['month_year'],
@@ -226,14 +254,13 @@ class SalaryController extends Controller
                 'allowances'        => $validated['allowances'] ?? 0,
                 'bonus'             => $validated['bonus'] ?? 0,
                 'deductions'        => $validated['deductions'] ?? 0,
-                'advance_deduction' => $validated['advance_deduction'] ?? 0,
+                'advance_deduction' => $newAdvanceAmount,
                 'net_pay'           => $net_pay,
                 'paid_amount'       => $total_paid,
                 'due_amount'        => $net_pay - $total_paid,
                 'status'            => ($net_pay - $total_paid) <= 0 ? 'paid' : 'unpaid',
                 'payment_date'      => $validated['payment_date'] ?? null,
             ]);
-            app(\App\Services\AdvanceSettlementService::class)->consume($salary, $salary->user_id, (float) ($validated['advance_deduction'] ?? 0));
         });
 
         return redirect()->back()->with('success', 'Salary updated successfully.');
@@ -244,44 +271,70 @@ class SalaryController extends Controller
         $salary = Salary::findOrFail($id);
 
         $validated = $request->validate([
-            'account_id' => 'required|exists:accounts,id',
-            'amount'     => 'required|numeric|decimal:0,2|min:1|max:' . $salary->due_amount,
-            'bank_charge' => 'nullable|numeric|decimal:0,2|min:0',
             'date'       => 'required|date',
-            'note'       => 'nullable|string'
+            'note'       => 'nullable|string',
+            'advance_deduction' => 'nullable|numeric|decimal:0,2|min:0',
+            'payments'   => 'nullable|array',
+            'payments.*.account_id' => 'required_with:payments|exists:accounts,id',
+            'payments.*.amount'     => 'required_with:payments|numeric|decimal:0,2|min:1',
+            'payments.*.bank_charge'=> 'nullable|numeric|decimal:0,2|min:0',
         ]);
 
         DB::transaction(function () use ($salary, $validated) {
             $salary = Salary::whereKey($salary->id)->lockForUpdate()->firstOrFail();
-            if (round($validated['amount'], 2) > round($salary->due_amount, 2)) throw ValidationException::withMessages(['amount' => 'Payment cannot exceed salary due.']);
 
-            $salaryAmount = round((float) $validated['amount'], 2);
-            $charge = round((float) ($validated['bank_charge'] ?? 0), 2);
+            $totalBankPaymentAmount = collect($validated['payments'] ?? [])->sum('amount');
+            $advanceCutAmount = (float) ($validated['advance_deduction'] ?? 0);
+            
+            $totalPaymentAmount = $totalBankPaymentAmount + $advanceCutAmount;
 
-            $account = Account::whereKey($validated['account_id'])->lockForUpdate()->firstOrFail();
-            if ((float) $account->current_balance < $salaryAmount + $charge) {
-                throw ValidationException::withMessages(['account_id' => 'Selected account has insufficient balance.']);
+            if ($totalPaymentAmount <= 0) {
+                throw ValidationException::withMessages(['payments' => 'Please provide a payment amount or advance deduction.']);
             }
-            $account->decrement('current_balance', $salaryAmount + $charge);
 
-            $salary->transactions()->create([
-                'account_id'       => $account->id,
-                'type'             => 'debit',
-                'amount'           => $salaryAmount + $charge,
-                'bank_charge'      => $charge,
-                'transaction_date' => $validated['date'],
-                'description'      => "Salary Installment Paid for " . $salary->month_year . " - " . ($validated['note'] ?? ''),
-            ]);
+            if (round($totalPaymentAmount, 2) > round($salary->due_amount, 2)) {
+                throw ValidationException::withMessages(['payments' => 'Total payment splits and advance deduction cannot exceed the remaining due amount.']);
+            }
 
-            $salary->paid_amount += $salaryAmount;
-            $salary->due_amount -= $salaryAmount;
+            if ($advanceCutAmount > 0) {
+                $this->consumeAdvance($salary->user_id, $advanceCutAmount);
+                $salary->advance_deduction += $advanceCutAmount;
+                $salary->paid_amount += $advanceCutAmount;
+                $salary->due_amount -= $advanceCutAmount;
+            }
 
-            // 🟢 MAGIC: Always save as 'paid' or 'unpaid' in Database
+            if (!empty($validated['payments'])) {
+                foreach ($validated['payments'] as $payment) {
+                    if (empty($payment['account_id'])) throw ValidationException::withMessages(['payments' => 'Select an account for each payment.']);
+                    
+                    $salaryAmount = round((float) $payment['amount'], 2);
+                    $charge = round((float) ($payment['bank_charge'] ?? 0), 2);
+
+                    $account = Account::whereKey($payment['account_id'])->lockForUpdate()->firstOrFail();
+                    if ((float) $account->current_balance < $salaryAmount + $charge) {
+                        throw ValidationException::withMessages(['payments' => "Insufficient balance in {$account->name}."]);
+                    }
+                    $account->decrement('current_balance', $salaryAmount + $charge);
+
+                    $salary->transactions()->create([
+                        'account_id'       => $account->id,
+                        'type'             => 'debit',
+                        'amount'           => $salaryAmount + $charge,
+                        'bank_charge'      => $charge,
+                        'transaction_date' => $validated['date'],
+                        'description'      => "Salary Installment Paid for " . $salary->month_year . " - " . ($validated['note'] ?? ''),
+                    ]);
+
+                    $salary->paid_amount += $salaryAmount;
+                    $salary->due_amount -= $salaryAmount;
+                }
+            }
+
             $salary->status = $salary->due_amount <= 0 ? 'paid' : 'unpaid';
             $salary->save();
         });
 
-        return redirect()->back()->with('success', 'Payment installment added successfully.');
+        return redirect()->back()->with('success', 'Due Payment processed successfully.');
     }
 
     public function destroy(string $id)
@@ -291,7 +344,9 @@ class SalaryController extends Controller
         DB::transaction(function () use ($salary) {
             $salary = Salary::whereKey($salary->id)->lockForUpdate()->firstOrFail();
 
-            app(\App\Services\AdvanceSettlementService::class)->refund($salary);
+            if ($salary->advance_deduction > 0) {
+                $this->refundAdvance($salary->user_id, $salary->advance_deduction);
+            }
 
             foreach ($salary->transactions as $txn) {
                 $account = Account::find($txn->account_id);
@@ -304,5 +359,67 @@ class SalaryController extends Controller
         });
 
         return redirect()->back()->with('success', 'Salary deleted successfully.');
+    }
+
+    private function consumeAdvance(int $userId, float $amount): void
+    {
+        $remaining = $amount;
+        $advances = Advance::where('user_id', $userId)
+            ->where('status', 'unsettled')
+            ->whereRaw('(amount - settled_amount - returned_amount) > 0')
+            ->orderBy('date')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($advances as $advance) {
+            if ($remaining <= 0) break;
+
+            $available = (float) $advance->amount - (float) $advance->settled_amount - (float) $advance->returned_amount;
+            $deduct = min($available, $remaining);
+
+            $advance->settled_amount += $deduct;
+            if (($advance->settled_amount + $advance->returned_amount) >= $advance->amount) {
+                $advance->status = 'settled';
+            }
+            $advance->save();
+
+            $remaining -= $deduct;
+        }
+
+        if ($remaining > 0.009) {
+            throw new \Exception('কর্মীর পর্যাপ্ত অ্যাডভান্স ব্যালেন্স নেই!');
+        }
+
+        AdvanceBalance::where('user_id', $userId)->increment('total_used', $amount);
+    }
+
+    private function refundAdvance(int $userId, float $amount): void
+    {
+        $remaining = $amount;
+        $advances = Advance::where('user_id', $userId)
+            ->where('settled_amount', '>', 0)
+            ->orderBy('date', 'desc')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($advances as $advance) {
+            if ($remaining <= 0) break;
+
+            $refundable = min((float) $advance->settled_amount, $remaining);
+            $advance->settled_amount -= $refundable;
+
+            if ($advance->status === 'settled' && ($advance->settled_amount + $advance->returned_amount) < $advance->amount) {
+                $advance->status = 'unsettled';
+            }
+            $advance->save();
+
+            $remaining -= $refundable;
+        }
+
+        if ($remaining > 0.009) {
+            throw new \Exception('Advance history cannot be safely reversed.');
+        }
+
+        AdvanceBalance::where('user_id', $userId)->decrement('total_used', $amount);
     }
 }
