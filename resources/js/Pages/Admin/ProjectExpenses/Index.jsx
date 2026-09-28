@@ -114,7 +114,17 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
             if (result.isConfirmed) {
                 router.delete(route('admin.project-expenses.destroy', id), {
                     preserveScroll: true,
-                    onSuccess: () => Swal.fire({ icon: "success", title: "Deleted!", text: "Record removed successfully.", timer: 1500, showConfirmButton: false })
+                    onSuccess: () => Swal.fire({ icon: "success", title: "Deleted!", text: "Record removed successfully.", timer: 1500, showConfirmButton: false }),
+
+                    onError: (err) => {
+                        const errorMessage = err.error || Object.values(err)[0] || "Something went wrong! Cannot delete this record.";
+                        Swal.fire({
+                            icon: "error",
+                            title: "Action Failed",
+                            text: errorMessage,
+                            confirmButtonColor: "#ef4444"
+                        });
+                    }
                 });
             }
         });
@@ -134,7 +144,16 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                 router.post(route('admin.project-expenses.move-to-wallet', exp.id), {}, {
                     preserveScroll: true,
                     onSuccess: () => Swal.fire({ icon: "success", title: "Moved!", text: "Amount added to Vendor Wallet.", timer: 1500, showConfirmButton: false }),
-                    onError: (errors) => Swal.fire("Error", errors.error || "Something went wrong.", "error")
+
+                    onError: (err) => {
+                        const errorMessage = err.error || Object.values(err)[0] || "Something went wrong while moving to wallet.";
+                        Swal.fire({
+                            icon: "error",
+                            title: "Action Failed",
+                            text: errorMessage,
+                            confirmButtonColor: "#ef4444"
+                        });
+                    }
                 });
             }
         });

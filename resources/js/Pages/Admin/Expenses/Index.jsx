@@ -160,11 +160,28 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
         if (data.pay_type === 'advance' && !data.advance_user_id) return Swal.fire("Required", "Please select an Advance User.", "warning");
 
         post(editMode ? route("admin.expenses.update", data.id) : route("admin.expenses.store"), {
+            forceFormData: true,
             onSuccess: () => {
                 reset(); setShowModal(false);
-                Swal.fire({ icon: "success", title: editMode ? "Updated Successfully!" : "Logged Successfully!", timer: 1500, showConfirmButton: false, toast: true, position: 'top-end' });
+                Swal.fire({
+                    icon: "success",
+                    title: editMode ? "Updated Successfully!" : "Logged Successfully!",
+                    timer: 1500,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: 'top-end'
+                });
             },
-            forceFormData: true,
+            onError: (err) => {
+                const errorMessage = err.error || Object.values(err)[0] || "Something went wrong! Please check the form.";
+
+                Swal.fire({
+                    icon: "error",
+                    title: "Oops! Error Occurred",
+                    text: errorMessage,
+                    confirmButtonColor: "#ef4444"
+                });
+            }
         });
     };
 
@@ -382,19 +399,19 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                                 {parseFloat(exp.bank_charge) > 0 && <div className="text-[9.5px] sm:text-[10.5px] font-black text-slate-400 mt-1 uppercase tracking-wider">+ ৳{parseFloat(exp.bank_charge).toLocaleString('en-IN')}</div>}
                                             </td>
                                             <td className="px-4 sm:px-6 py-4 text-center no-print">
-                                                {/* 🟢 Action buttons are always visible (removed hover opacity class) */}
                                                 <div className="flex items-center justify-center gap-1.5 sm:gap-2">
-                                                    {hasPermission('view_expence') && (
+                                                    {/* 🟢 FIX 4: Added both 'expense' and 'expence' to avoid spelling errors from database side */}
+                                                    {(hasPermission('view_expense') || hasPermission('view_expence')) && (
                                                         <button onClick={() => openViewModal(exp)} className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-white border border-slate-300 text-slate-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 flex items-center justify-center transition-all shadow-sm" title="View Details">
                                                             <i className="fa-regular fa-eye text-[12px] sm:text-[13px]"></i>
                                                         </button>
                                                     )}
-                                                    {hasPermission('edit_expence') && (
+                                                    {(hasPermission('edit_expense') || hasPermission('edit_expence')) && (
                                                         <button onClick={() => openEditModal(exp)} className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-white border border-slate-300 text-slate-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300 flex items-center justify-center transition-all shadow-sm" title="Edit Expense">
                                                             <i className="fa-regular fa-pen-to-square text-[12px] sm:text-[13px]"></i>
                                                         </button>
                                                     )}
-                                                    {hasPermission('delete_expence') && (
+                                                    {(hasPermission('delete_expense') || hasPermission('delete_expence')) && (
                                                         <button onClick={() => handleDelete(exp.id)} className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-white border border-slate-300 text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 flex items-center justify-center transition-all shadow-sm" title="Delete Expense">
                                                             <i className="fa-regular fa-trash-can text-[12px] sm:text-[13px]"></i>
                                                         </button>
@@ -442,13 +459,10 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                 </div>
             </div>
 
-            {/* --- 🟢 CREATE / EDIT FORM MODAL (100% Native Tailwind Responsive) --- */}
+            {/* --- 🟢 CREATE / EDIT FORM MODAL --- */}
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 sm:p-6 md:p-8">
-                    {/* MODAL WRAPPER */}
                     <div className="w-full max-w-5xl bg-slate-50 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] md:max-h-[95vh] overflow-hidden border border-slate-700/30 animate-[scaleIn_0.2s_ease-out]">
-
-                        {/* Modal Header */}
                         <div className="shrink-0 flex items-center justify-between px-5 sm:px-8 py-4 sm:py-5 border-b border-slate-700 bg-slate-900 relative overflow-hidden">
                             <div className="absolute right-0 top-0 h-32 w-32 bg-white/5 rounded-full blur-2xl -translate-y-10 translate-x-10 pointer-events-none"></div>
                             <div>
@@ -464,11 +478,8 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                             </button>
                         </div>
 
-                        {/* Modal Body Container (Scrollable) */}
                         <div className="flex-1 overflow-y-auto custom-table-scroll p-4 sm:p-6 md:p-8">
                             <form onSubmit={handleSubmit} className="flex flex-col xl:flex-row gap-6 sm:gap-8 items-start relative">
-
-                                {/* Left Column (Form Inputs) */}
                                 <div className="flex-1 w-full space-y-5 sm:space-y-6">
                                     {errors.error && (
                                         <div className="flex items-start gap-3 rounded-xl border border-red-300 bg-red-50 p-3 sm:p-4 text-[12.5px] sm:text-[13.5px] font-bold text-red-700 shadow-sm">
@@ -477,7 +488,6 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                         </div>
                                     )}
 
-                                    {/* Card 1: Basic Info */}
                                     <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-sm border border-slate-300">
                                         <h4 className="text-[12px] sm:text-[13px] font-black text-slate-800 uppercase tracking-widest mb-4 border-b border-slate-200 pb-2"><i className="fa-solid fa-circle-info mr-1.5 text-indigo-500"></i> Basic Information</h4>
 
@@ -485,11 +495,8 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                             <div>
                                                 <label className="block text-[11.5px] sm:text-[12.5px] font-black text-slate-800 uppercase tracking-widest mb-2 sm:mb-2.5">Transaction Date <span className="text-red-600">*</span></label>
                                                 <input
-                                                    type="date"
-                                                    value={data.date}
-                                                    onChange={e => setData('date', e.target.value)}
-                                                    className={`${inputClass} cursor-pointer`}
-                                                    required
+                                                    type="date" value={data.date} onChange={e => setData('date', e.target.value)}
+                                                    className={`${inputClass} cursor-pointer`} required
                                                 />
                                                 {errors.date && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.date}</p>}
                                             </div>
@@ -500,11 +507,8 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                                     options={categories.map((c) => ({ value: c.id, label: c.name }))}
                                                     value={categories.map((c) => ({ value: c.id, label: c.name })).find((opt) => Number(opt.value) === Number(data.expense_category_id)) || null}
                                                     onChange={(selected) => setData("expense_category_id", selected ? selected.value : "")}
-                                                    placeholder="Search Category..."
-                                                    isSearchable isClearable
-                                                    styles={selectStyles}
-                                                    menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
-                                                    menuPosition="fixed"
+                                                    placeholder="Search Category..." isSearchable isClearable styles={selectStyles}
+                                                    menuPortalTarget={typeof window !== 'undefined' ? document.body : null} menuPosition="fixed"
                                                 />
                                                 {errors.expense_category_id && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.expense_category_id}</p>}
                                             </div>
@@ -512,12 +516,8 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                             <div className="md:col-span-2">
                                                 <label className="block text-[11.5px] sm:text-[12.5px] font-black text-slate-800 uppercase tracking-widest mb-2 sm:mb-2.5">Expense Title / Subject <span className="text-red-600">*</span></label>
                                                 <input
-                                                    type="text"
-                                                    value={data.title}
-                                                    onChange={e => setData('title', e.target.value)}
-                                                    className={inputClass}
-                                                    placeholder="e.g. Monthly Electricity Bill"
-                                                    required
+                                                    type="text" value={data.title} onChange={e => setData('title', e.target.value)}
+                                                    className={inputClass} placeholder="e.g. Monthly Electricity Bill" required
                                                 />
                                                 {errors.title && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.title}</p>}
                                             </div>
@@ -525,9 +525,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                             <div className="md:col-span-2">
                                                 <label className="block text-[11.5px] sm:text-[12.5px] font-black text-slate-800 uppercase tracking-widest mb-2 sm:mb-2.5">Description / Notes <span className="text-slate-400 font-bold normal-case tracking-normal">(Optional)</span></label>
                                                 <textarea
-                                                    value={data.description}
-                                                    onChange={e => setData('description', e.target.value)}
-                                                    rows="2"
+                                                    value={data.description} onChange={e => setData('description', e.target.value)} rows="2"
                                                     className="w-full rounded-xl border border-slate-400 bg-white p-3 sm:p-4 text-[13px] sm:text-[14px] font-bold text-slate-900 outline-none transition-shadow focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 resize-none min-h-[80px] shadow-sm"
                                                     placeholder="Add any extra context or breakdown..."
                                                 ></textarea>
@@ -535,10 +533,8 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                         </div>
                                     </div>
 
-                                    {/* Card 2: Payment Source */}
                                     <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-sm border border-slate-300 relative z-50">
                                         <h4 className="text-[12px] sm:text-[13px] font-black text-slate-800 uppercase tracking-widest mb-4 border-b border-slate-200 pb-2"><i className="fa-solid fa-wallet mr-1.5 text-emerald-500"></i> Payment Source</h4>
-
                                         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-5">
                                             <label className={`flex-1 cursor-pointer rounded-xl sm:rounded-2xl border-2 p-3 sm:p-4 text-center transition-all flex items-center justify-center gap-3 shadow-sm ${data.pay_type === 'account' ? 'border-indigo-500 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-500/20' : 'border-slate-300 bg-white hover:border-indigo-400 text-slate-600'}`}>
                                                 <input type="radio" className="sr-only" checked={data.pay_type === 'account'} onChange={() => { setData('pay_type', 'account'); setData('advance_user_id', ''); }} />
@@ -566,16 +562,14 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                                     options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` }))}
                                                     value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
                                                     onChange={(selected) => setData("account_id", selected ? selected.value : "")}
-                                                    placeholder="Type to search account..."
-                                                    isSearchable isClearable styles={selectStyles} menuPortalTarget={typeof window !== 'undefined' ? document.body : null} menuPosition="fixed"
+                                                    placeholder="Type to search account..." isSearchable isClearable styles={selectStyles} menuPortalTarget={typeof window !== 'undefined' ? document.body : null} menuPosition="fixed"
                                                 />
                                             ) : (
                                                 <Select
                                                     options={advanceOptions}
                                                     value={advanceOptions.find((opt) => Number(opt.value) === Number(data.advance_user_id)) || null}
                                                     onChange={(selected) => setData("advance_user_id", selected ? selected.value : "")}
-                                                    placeholder="Type to search employee..."
-                                                    isSearchable isClearable styles={selectStyles} menuPortalTarget={typeof window !== 'undefined' ? document.body : null} menuPosition="fixed"
+                                                    placeholder="Type to search employee..." isSearchable isClearable styles={selectStyles} menuPortalTarget={typeof window !== 'undefined' ? document.body : null} menuPosition="fixed"
                                                 />
                                             )}
                                             {errors.account_id && data.pay_type === 'account' && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.account_id}</p>}
@@ -583,21 +577,17 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                         </div>
                                     </div>
 
-                                    {/* Card 3: Attachment */}
                                     <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-sm border border-slate-300">
                                         <h4 className="text-[12px] sm:text-[13px] font-black text-slate-800 uppercase tracking-widest mb-3 sm:mb-4 border-b border-slate-200 pb-2"><i className="fa-solid fa-paperclip mr-1.5 text-slate-500"></i> Attachment <span className="text-slate-400 font-bold normal-case tracking-normal">(Optional)</span></h4>
                                         <input type="file" onChange={e => setData('attachment', e.target.files[0])} className="w-full rounded-xl border border-dashed border-slate-400 bg-slate-50 px-3 sm:px-4 py-2 sm:py-3 text-[12px] sm:text-[13px] font-bold text-slate-600 outline-none file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-100 file:px-3 sm:file:px-4 file:py-1.5 file:text-[11px] sm:file:text-[12px] file:font-black file:text-indigo-700 hover:file:bg-indigo-200 transition-all cursor-pointer shadow-sm" accept="image/*,application/pdf" />
                                     </div>
                                 </div>
 
-                                {/* Right Column (Summary & Action Buttons) - STICKY NATIVELY ON DESKTOP */}
                                 <div className="w-full xl:w-[380px] shrink-0 xl:sticky xl:top-0">
                                     <div className="bg-slate-900 rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-xl border border-slate-700 relative overflow-hidden text-white">
                                         <span className="absolute -right-4 -top-10 text-[120px] sm:text-[160px] leading-none font-mono text-white/[0.04] select-none pointer-events-none">৳</span>
-
                                         <div className="relative z-10">
                                             <h3 className="text-[12px] sm:text-[13px] font-black text-slate-400 uppercase tracking-widest mb-4 sm:mb-6 border-b border-slate-700 pb-2 sm:pb-3">Financial Summary</h3>
-
                                             <div className="space-y-4 sm:space-y-6">
                                                 <div>
                                                     <label className="block text-[12px] sm:text-[13px] font-bold text-slate-300 mb-2 sm:mb-2.5">Expense Amount <span className="text-rose-500">*</span></label>
@@ -645,12 +635,10 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                 </div>
             )}
 
-            {/* --- 🟢 VIEW DETAILS MODAL (Fully Responsive Layout) --- */}
+            {/* --- 🟢 VIEW DETAILS MODAL --- */}
             {showViewModal && selectedExpense && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 sm:p-6 md:p-8">
                     <div className="w-full max-w-4xl bg-gray-50 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[90vh] md:max-h-[95vh] overflow-hidden border border-slate-700/30 animate-[scaleIn_0.2s_ease-out]">
-
-                        {/* Modal Header */}
                         <div className="relative bg-slate-900 px-5 sm:px-8 py-5 sm:py-8 shrink-0 overflow-hidden border-b border-slate-700">
                             <span className="absolute -right-6 -top-10 text-[100px] sm:text-[160px] leading-none font-mono text-white/[0.03] select-none pointer-events-none">৳</span>
                             <div className="absolute right-0 top-0 h-32 w-32 sm:h-40 sm:w-40 rounded-full bg-white/5 opacity-50 translate-x-10 -translate-y-10 blur-2xl pointer-events-none"></div>
@@ -674,9 +662,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                             </div>
                         </div>
 
-                        {/* Modal Body */}
                         <div className="flex-1 overflow-y-auto custom-table-scroll p-4 sm:p-6 md:p-8">
-
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
                                 <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-slate-300 shadow-sm flex flex-col justify-center">
                                     <span className="block text-[10.5px] sm:text-[11.5px] font-black uppercase tracking-widest text-slate-400 mb-1.5 sm:mb-2"><i className="fa-solid fa-tag mr-1 text-indigo-500"></i> Category</span>
@@ -718,9 +704,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                         <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-slate-300 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
                                             <span className="text-[12px] sm:text-[13px] font-black uppercase tracking-widest text-slate-800"><i className="fa-solid fa-paperclip mr-1.5 text-slate-400"></i> Receipt Document</span>
                                             <a
-                                                href={`/storage/${selectedExpense.attachment}`}
-                                                target="_blank"
-                                                rel="noreferrer"
+                                                href={`/storage/${selectedExpense.attachment}`} target="_blank" rel="noreferrer"
                                                 className="flex items-center justify-center gap-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-[12px] sm:text-[13px] font-black transition-colors shadow-sm w-full sm:w-auto"
                                             >
                                                 <i className="fa-solid fa-download"></i> View Document
@@ -731,7 +715,6 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
 
                                 <div className="w-full md:w-[320px] shrink-0 bg-slate-900 rounded-2xl sm:rounded-3xl p-5 sm:p-8 text-white shadow-xl relative overflow-hidden flex flex-col justify-between border border-slate-700">
                                     <div className="absolute top-0 right-0 -mr-8 -mt-8 w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-white/5 blur-2xl pointer-events-none"></div>
-
                                     <div>
                                         <h4 className="text-[11px] sm:text-[12px] font-black text-slate-400 uppercase tracking-widest mb-4 sm:mb-6 border-b border-slate-700 pb-2 sm:pb-3"><i className="fa-solid fa-calculator mr-1.5"></i> Amount Summary</h4>
                                         <div className="space-y-4 sm:space-y-5">
@@ -747,7 +730,6 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                             )}
                                         </div>
                                     </div>
-
                                     <div className="pt-5 sm:pt-6 border-t border-slate-700 mt-6 sm:mt-8 relative z-10">
                                         <div className="flex justify-between items-end">
                                             <span className="text-[12px] sm:text-[14px] text-indigo-300 font-black uppercase tracking-widest">Total Deduction</span>
@@ -760,7 +742,6 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                             </div>
                         </div>
 
-                        {/* Modal Footer */}
                         <div className="px-4 sm:px-8 py-3 sm:py-4 border-t border-slate-300 bg-white flex justify-end shrink-0">
                             <button onClick={() => setShowViewModal(false)} className="rounded-xl bg-slate-900 px-6 sm:px-10 py-3 sm:py-3.5 text-[13px] sm:text-[14px] font-bold text-white transition-colors hover:bg-black shadow-md w-full sm:w-auto">
                                 Close Window

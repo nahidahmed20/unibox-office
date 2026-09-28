@@ -126,7 +126,29 @@ export default function Create({ projects = [], categories = [], accounts = [], 
             return Swal.fire("Return Cash Box Required", "Please select a Cash Box to return the extra money.", "warning");
         }
 
-        post(route('admin.project-expenses.store'));
+        post(route('admin.project-expenses.store'), {
+            preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () => {
+                Swal.fire({
+                    icon: "success",
+                    title: "Logged Successfully!",
+                    timer: 1500,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: 'top-end'
+                });
+            },
+            onError: (err) => {
+                const errorMessage = err.error || Object.values(err)[0] || "Something went wrong! Please check the form.";
+                Swal.fire({
+                    icon: "error",
+                    title: "Submission Failed",
+                    text: errorMessage,
+                    confirmButtonColor: "#ef4444"
+                });
+            }
+        });
     };
 
     return (

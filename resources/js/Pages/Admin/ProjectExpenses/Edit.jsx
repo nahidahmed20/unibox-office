@@ -123,10 +123,33 @@ export default function Edit({ expense, projects = [], categories = [], accounts
 
     const handleSubmit = (e) => {
         e.preventDefault();
+
         if (isOverpaid && !data.return_account_id && !data.vendor_id) {
             return Swal.fire("Action Required", `You entered ${overpaymentAmount} BDT extra. You must select either a Vendor (to save as advance) or a Return Cash Box.`, "warning");
         }
-        put(route('admin.project-expenses.update', data.id));
+
+        put(route('admin.project-expenses.update', data.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                Swal.fire({
+                    icon: "success",
+                    title: "Updated Successfully!",
+                    timer: 1500,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: 'top-end'
+                });
+            },
+            onError: (err) => {
+                const errorMessage = err.error || Object.values(err)[0] || "Something went wrong! Please check the form.";
+                Swal.fire({
+                    icon: "error",
+                    title: "Update Failed",
+                    text: errorMessage,
+                    confirmButtonColor: "#ef4444"
+                });
+            }
+        });
     };
 
     return (

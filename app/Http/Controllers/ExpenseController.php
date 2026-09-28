@@ -26,18 +26,14 @@ class ExpenseController extends Controller
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('title', 'like', "%{$searchTerm}%")
                 ->orWhere('description', 'like', "%{$searchTerm}%")
-
                 ->orWhere('amount', 'like', "%{$searchTerm}%")
                 ->orWhere('date', 'like', "%{$searchTerm}%")
-
                 ->orWhereHas('category', function ($cq) use ($searchTerm) {
                     $cq->where('name', 'like', "%{$searchTerm}%");
                 })
-
                 ->orWhereHas('account', function ($aq) use ($searchTerm) {
                     $aq->where('name', 'like', "%{$searchTerm}%");
                 })
-
                 ->orWhereHas('advance_user', function ($uq) use ($searchTerm) {
                     $uq->where('name', 'like', "%{$searchTerm}%");
                 });
@@ -63,16 +59,17 @@ class ExpenseController extends Controller
             }
         }
 
+        // 🟢 FIX 2: Added bank_charge to the sum so that totals match perfectly
         $thisMonthTotal = Expense::whereMonth('date', Carbon::now()->month)
                                 ->whereYear('date', Carbon::now()->year)
-                                ->sum('amount');
+                                ->sum(DB::raw('amount + COALESCE(bank_charge, 0)'));
 
         // Filtered total amount
-        $totalAmount = (clone $query)->sum('amount');
+        $totalAmount = (clone $query)->sum(DB::raw('amount + COALESCE(bank_charge, 0)'));
 
         $perPage = $request->input('per_page') === 'all' ? max($query->count(), 1) : \App\Support\Pagination::perPage($request, $query);
 
-        $expenses = $query->latest()->paginate($perPage)->withQueryString();
+        // 🟢 FIX 3: Removed the duplicate pagination query execution
         $expenses = $query->reorder()->orderBy('date', 'desc')->orderBy('id', 'desc')->paginate($perPage)->withQueryString();
 
         $categories = ExpenseCategory::select('id', 'name')->orderBy('name')->get();
@@ -121,6 +118,9 @@ class ExpenseController extends Controller
         try {
             DB::transaction(function () use ($validated) {
                 $insertData = collect($validated)->except(['pay_type'])->toArray();
+
+                $insertData['bank_charge'] = $validated['bank_charge'] ?? 0;
+
                 if ($validated['pay_type'] === 'account') $insertData['advance_user_id'] = null;
                 if ($validated['pay_type'] === 'advance') $insertData['account_id'] = null;
                 $insertData['logged_by'] = auth()->id() ?? 1;
@@ -146,6 +146,8 @@ class ExpenseController extends Controller
         $oldAttachment = $expense->attachment;
         if ($request->hasFile('attachment')) {
             $validated['attachment'] = $request->file('attachment')->store('expenses', 'public');
+        } else {
+            unset($validated['attachment']);
         }
 
         try {
@@ -153,6 +155,9 @@ class ExpenseController extends Controller
                 $this->refundToSource($expense, (float) $expense->amount);
 
                 $updateData = collect($validated)->except(['pay_type'])->toArray();
+
+                $updateData['bank_charge'] = $validated['bank_charge'] ?? 0;
+
                 if ($validated['pay_type'] === 'account') $updateData['advance_user_id'] = null;
                 if ($validated['pay_type'] === 'advance') $updateData['account_id'] = null;
 
@@ -196,9 +201,9 @@ class ExpenseController extends Controller
             'title'               => 'required|string|max:255',
             'expense_category_id' => 'required|exists:expense_categories,id',
             'account_id'          => 'nullable|exists:accounts,id',
-            'advance_user_id'     => 'nullable|exists:users,id', // 🟢 Using User ID like Project Expenses
+            'advance_user_id'     => 'nullable|exists:users,id',
             'amount'              => 'required|numeric|decimal:0,2|min:0.01',
-            'bank_charge' => 'nullable|numeric|decimal:0,2|min:0',
+            'bank_charge'         => 'nullable|numeric|decimal:0,2|min:0',
             'date'                => 'required|date',
             'description'         => 'nullable|string',
             'attachment'          => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
@@ -227,7 +232,7 @@ class ExpenseController extends Controller
                 'account_id'       => $account->id,
                 'type'             => 'debit',
                 'amount'           => $amount,
-                'bank_charge' => $charge,
+                'bank_charge'      => $charge,
                 'transaction_date' => $validated['date'],
                 'description'      => 'Office Expense: ' . $validated['title'],
             ]);
@@ -248,8 +253,6 @@ class ExpenseController extends Controller
         }
     }
 
-    // 🟢 FIXED: Imported consumeAdvance from ProjectExpenseController
-    // 🟢 FIXED: Imported refundAdvance from ProjectExpenseController
     private function refundAdvance(int $userId, float $amount): void
     {
         $remaining = $amount;
