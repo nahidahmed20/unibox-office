@@ -328,7 +328,7 @@ class AdvanceController extends Controller
         }
     }
 
-    public function employeeLedger($userId)
+    public function employeeLedger(Request $request, $userId)
     {
         $employee = User::with('employeeProfile')
             ->withSum('advances', 'amount')
@@ -336,7 +336,52 @@ class AdvanceController extends Controller
             ->withSum('advances', 'returned_amount')
             ->findOrFail($userId);
 
-        $advancesHistory = Advance::where('user_id', $userId)->latest()->get();
+        $perPage = 15; 
+
+        $advancesHistory = Advance::where('user_id', $userId)
+            ->latest()
+            ->paginate($perPage, ['*'], 'taken_page') 
+            ->withQueryString();
+
+        $settlements = \App\Models\AdvanceSettlement::whereHas('advance', function ($q) use ($userId) {
+            $q->where('user_id', $userId);
+        })
+        ->with('settleable')
+        ->latest()
+        ->paginate($perPage, ['*'], 'settled_page') 
+        ->withQueryString()
+        ->through(function ($settlement) {
+            $type = 'Unknown';
+            $reference = '#';
+            $description = 'Settled';
+            $date = $settlement->created_at->format('Y-m-d');
+
+            if ($settlement->settleable_type === \App\Models\Salary::class) {
+                $type = 'Salary Deduction';
+                $reference = 'Payslip: ' . ($settlement->settleable->month_year ?? 'N/A');
+                $description = 'Deducted from salary';
+                $date = $settlement->settleable->payment_date ?? clone $settlement->created_at;
+            } elseif ($settlement->settleable_type === \App\Models\ProjectExpense::class) {
+                $type = 'Project Expense';
+                $reference = 'Exp: ' . ($settlement->settleable->title ?? 'N/A');
+                $description = $settlement->settleable->description ?? 'Used for project expense';
+                $date = $settlement->settleable->date ?? clone $settlement->created_at;
+            } elseif ($settlement->settleable_type === \App\Models\Expense::class) {
+                $type = 'Office Expense';
+                $reference = 'Exp: ' . ($settlement->settleable->title ?? 'N/A');
+                $description = $settlement->settleable->description ?? 'Used for office expense';
+                $date = $settlement->settleable->date ?? clone $settlement->created_at;
+            }
+
+            return [
+                'id' => $settlement->id,
+                'date' => $date,
+                'type' => $type,
+                'reference' => $reference,
+                'description' => $description,
+                'amount' => $settlement->amount,
+            ];
+        });
 
         $totalAdvance = $employee->advances_sum_amount ?? 0;
         $totalSettled = $employee->advances_sum_settled_amount ?? 0;
@@ -346,6 +391,7 @@ class AdvanceController extends Controller
         return Inertia::render('Admin/Advances/Ledger', [
             'employee' => $employee,
             'advancesHistory' => $advancesHistory,
+            'settlements' => $settlements,
             'summary' => [
                 'total_advance'  => $totalAdvance,
                 'total_settled'  => $totalSettled,
