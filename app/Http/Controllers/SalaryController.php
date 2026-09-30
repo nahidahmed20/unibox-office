@@ -7,6 +7,7 @@ use App\Models\Salary;
 use App\Models\User;
 use App\Models\AdvanceBalance;
 use App\Models\Advance;
+use App\Models\AdvanceSettlement; // 🟢 Added this model
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -49,7 +50,6 @@ class SalaryController extends Controller
             ->orderBy('name')
             ->get();
 
-        // 🟢 FIX: Properly Check for NULL values to prevent PHP crashes
         $employeeBalances = User::select('id')
             ->has('advances')
             ->withSum('advances', 'amount')
@@ -66,7 +66,7 @@ class SalaryController extends Controller
                 $returned = (float)($emp->advances_sum_returned_amount ?? 0);
                 $user->setAttribute('advance_balance', round($given - ($settled + $returned), 2));
             } else {
-                $user->setAttribute('advance_balance', 0); // যাদের অ্যাডভান্স নেই
+                $user->setAttribute('advance_balance', 0);
             }
         });
 
@@ -156,7 +156,8 @@ class SalaryController extends Controller
 
             $advanceAmount = (float) ($validated['advance_deduction'] ?? 0);
             if ($advanceAmount > 0) {
-                $this->consumeAdvance($salary->user_id, $advanceAmount);
+                // 🟢 Passed $salary to create Settlement record
+                $this->consumeAdvance($salary->user_id, $advanceAmount, $salary);
             }
 
             $salary->paid_amount = $total_paid;
@@ -201,7 +202,8 @@ class SalaryController extends Controller
             $salary = Salary::whereKey($salary->id)->lockForUpdate()->firstOrFail();
             
             if ($salary->advance_deduction > 0) {
-                $this->refundAdvance($salary->user_id, $salary->advance_deduction);
+                // 🟢 Passed $salary to reverse Settlement record
+                $this->refundAdvance($salary->user_id, $salary->advance_deduction, $salary);
             }
 
             foreach ($salary->transactions as $txn) {
@@ -244,7 +246,8 @@ class SalaryController extends Controller
 
             $newAdvanceAmount = (float) ($validated['advance_deduction'] ?? 0);
             if ($newAdvanceAmount > 0) {
-                $this->consumeAdvance($validated['user_id'], $newAdvanceAmount);
+                // 🟢 Passed $salary to create Settlement record
+                $this->consumeAdvance($validated['user_id'], $newAdvanceAmount, $salary);
             }
 
             $salary->update([
@@ -297,7 +300,8 @@ class SalaryController extends Controller
             }
 
             if ($advanceCutAmount > 0) {
-                $this->consumeAdvance($salary->user_id, $advanceCutAmount);
+                // 🟢 Passed $salary to create Settlement record
+                $this->consumeAdvance($salary->user_id, $advanceCutAmount, $salary);
                 $salary->advance_deduction += $advanceCutAmount;
                 $salary->paid_amount += $advanceCutAmount;
                 $salary->due_amount -= $advanceCutAmount;
@@ -345,7 +349,8 @@ class SalaryController extends Controller
             $salary = Salary::whereKey($salary->id)->lockForUpdate()->firstOrFail();
 
             if ($salary->advance_deduction > 0) {
-                $this->refundAdvance($salary->user_id, $salary->advance_deduction);
+                // 🟢 Passed $salary to reverse Settlement record
+                $this->refundAdvance($salary->user_id, $salary->advance_deduction, $salary);
             }
 
             foreach ($salary->transactions as $txn) {
@@ -361,7 +366,8 @@ class SalaryController extends Controller
         return redirect()->back()->with('success', 'Salary deleted successfully.');
     }
 
-    private function consumeAdvance(int $userId, float $amount): void
+    // 🟢 Updated to accept $settleable and create AdvanceSettlement
+    private function consumeAdvance(int $userId, float $amount, $settleable): void
     {
         $remaining = $amount;
         $advances = Advance::where('user_id', $userId)
@@ -383,6 +389,14 @@ class SalaryController extends Controller
             }
             $advance->save();
 
+            // 🟢 Create Settlement Record for Ledger
+            AdvanceSettlement::create([
+                'advance_id'      => $advance->id,
+                'settleable_type' => get_class($settleable),
+                'settleable_id'   => $settleable->id,
+                'amount'          => $deduct,
+            ]);
+
             $remaining -= $deduct;
         }
 
@@ -393,7 +407,8 @@ class SalaryController extends Controller
         AdvanceBalance::where('user_id', $userId)->increment('total_used', $amount);
     }
 
-    private function refundAdvance(int $userId, float $amount): void
+    // 🟢 Updated to accept $settleable and delete AdvanceSettlement
+    private function refundAdvance(int $userId, float $amount, $settleable): void
     {
         $remaining = $amount;
         $advances = Advance::where('user_id', $userId)
@@ -421,5 +436,10 @@ class SalaryController extends Controller
         }
 
         AdvanceBalance::where('user_id', $userId)->decrement('total_used', $amount);
+
+        // 🟢 Remove Settlement Record from Ledger
+        AdvanceSettlement::where('settleable_type', get_class($settleable))
+            ->where('settleable_id', $settleable->id)
+            ->delete();
     }
 }

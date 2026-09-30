@@ -3,7 +3,7 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
-export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
+export default function ClientDues({ clientDues, filters, grandTotalDue = 0, grandTotalAdvance = 0 }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
     const permissions = auth?.permissions || [];
@@ -66,14 +66,14 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
             const billed = parseFloat(c.total_invoiced || 0);
             const paid = parseFloat(c.total_paid || 0);
             const due = billed - paid;
-            return `"${idx + 1}","${c.name}","${c.company_name || "Individual"}","${c.phone || "N/A"}","${billed}","${paid}","${c.available_advance}","${due > 0 ? due : 0}"`;
+            return `"${idx + 1}","${c.name}","${c.company_name || "Individual"}","${c.phone || "N/A"}","${billed}","${paid}","${c.available_advance || 0}","${due > 0 ? due : 0}"`;
         });
 
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", `Client_Dues_Report_${new Date().toISOString().slice(0,10)}.csv`);
+        link.setAttribute("download", `Client_Dues_Report_${new Date().toISOString().slice(0, 10)}.csv`);
         link.click();
     };
 
@@ -120,8 +120,8 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
         <AdminLayout>
             <Head title="Accounts Receivable (Dues)" />
 
-            {/* Custom Table Scrollbar */}
-            <style dangerouslySetInnerHTML={{__html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 .custom-table-scroll::-webkit-scrollbar { height: 8px; }
                 .custom-table-scroll::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
                 .custom-table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
@@ -130,7 +130,6 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
 
             <div className="flex flex-col gap-8 w-full max-w-[1500px] mx-auto pb-12">
 
-                {/* 🟢 Premium Page Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div>
                         <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-indigo-600">
@@ -143,9 +142,10 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                     </div>
                 </div>
 
-                {/* 🟢 Redesigned Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {/* Card 1 */}
+                {/* 🟢 3 Summary Cards (Grid 3 Columns) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+                    {/* Card 1: Active Clients */}
                     <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-all group">
                         <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-blue-50 opacity-50 transition-transform group-hover:scale-110"></div>
                         <div className="relative flex items-center gap-5">
@@ -159,7 +159,7 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                         </div>
                     </div>
 
-                    {/* Card 2: Highlighted Due Card */}
+                    {/* Card 2: Market Outstanding */}
                     <div className="relative overflow-hidden rounded-2xl border border-rose-200 bg-gradient-to-br from-white to-rose-50/50 p-6 shadow-sm hover:shadow-md transition-all group">
                         <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-rose-100 opacity-40 transition-transform group-hover:scale-110"></div>
                         <div className="relative flex items-center gap-5">
@@ -175,23 +175,37 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                             </div>
                         </div>
                     </div>
+
+                    {/* 🟢 Card 3: Total Available Advance */}
+                    <div className="relative overflow-hidden rounded-2xl border border-purple-200 bg-gradient-to-br from-white to-purple-50/50 p-6 shadow-sm hover:shadow-md transition-all group">
+                        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-purple-100 opacity-40 transition-transform group-hover:scale-110"></div>
+                        <div className="relative flex items-center gap-5">
+                            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-200">
+                                <i className="fa-solid fa-wallet text-[24px]"></i>
+                            </div>
+                            <div>
+                                <p className="mb-1 text-[12px] font-bold uppercase tracking-wider text-purple-600/90">Total Available Advance</p>
+                                <h3 className="text-[30px] font-black text-purple-700 m-0 tabular-nums tracking-tight">
+                                    <i className="fa-solid fa-bangladeshi-taka-sign text-[22px] mr-1.5 opacity-80"></i>
+                                    {Number(grandTotalAdvance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </h3>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                {/* 🟢 Main Data Card */}
+                {/* Toolbar & Table */}
                 <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
-
-                    {/* Toolbar / Actions */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-5 border-b border-gray-100 bg-gray-50/40">
                         <div className="flex flex-wrap items-center gap-4 text-[13.5px] text-gray-600">
-                            {/* Rows per page */}
                             <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
                                 <span className="bg-gray-50/80 px-4 py-2.5 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select 
-                                        value={perPage} 
-                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                    <select
+                                        value={perPage}
+                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
                                         className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
                                     >
                                         <option value={10}>10 Rows</option>
@@ -210,7 +224,6 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
 
                             <div className="h-8 w-px bg-gray-200 hidden md:block"></div>
 
-                            {/* Export Buttons */}
                             <div className="flex items-center gap-2">
                                 <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-300 shadow-sm">
                                     <i className="fas fa-copy text-blue-500"></i> Copy
@@ -224,7 +237,6 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                             </div>
                         </div>
 
-                        {/* Search Bar */}
                         <div className="relative w-full sm:w-[320px]">
                             <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13.5px]"></i>
                             <input
@@ -237,7 +249,6 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                         </div>
                     </div>
 
-                    {/* Data Table */}
                     <div className="overflow-x-auto custom-table-scroll pb-3">
                         <table id="printable-client-dues-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1100px]">
                             <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-gray-200">
@@ -260,7 +271,6 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                                                     <i className="fa-solid fa-check-double text-2xl text-gray-400"></i>
                                                 </div>
                                                 <p className="text-[15px] font-bold text-gray-700">No due records found.</p>
-                                                <p className="text-[13px] text-gray-400 mt-1">All clients are cleared or adjust your search.</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -278,7 +288,6 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3.5">
-                                                        {/* 🟢 Premium Gradient Avatar */}
                                                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-[14px] font-extrabold uppercase shadow-sm">
                                                             {(client.name || '?').charAt(0)}
                                                         </div>
@@ -300,22 +309,16 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                                                         </div>
                                                     </div>
                                                 </td>
-
-                                                {/* Total Billed */}
                                                 <td className="px-6 py-4 text-right bg-blue-50/20 group-hover:bg-blue-50/40 transition-colors">
                                                     <span className="font-bold text-blue-700 tabular-nums">
                                                         {invoiced > 0 ? <><i className="fa-solid fa-bangladeshi-taka-sign text-[11.5px] mr-1 opacity-60"></i>{invoiced.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</> : <span className="text-gray-300">-</span>}
                                                     </span>
                                                 </td>
-
-                                                {/* Total Received */}
                                                 <td className="px-6 py-4 text-right bg-emerald-50/20 group-hover:bg-emerald-50/40 transition-colors">
                                                     <span className="font-bold text-emerald-600 tabular-nums">
                                                         {paid > 0 ? <><i className="fa-solid fa-bangladeshi-taka-sign text-[11.5px] mr-1 opacity-60"></i>{paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</> : <span className="text-gray-300">-</span>}
                                                     </span>
                                                 </td>
-
-                                                {/* Net Due */}
                                                 <td className="px-6 py-4 text-right bg-rose-50/20 group-hover:bg-rose-50/40 transition-colors border-r border-gray-100">
                                                     {due > 0 ? (
                                                         <span className="font-black text-[15.5px] text-rose-600 tabular-nums">
@@ -326,8 +329,6 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                                                         <span className="text-gray-300 font-medium">-</span>
                                                     )}
                                                 </td>
-
-                                                {/* Available Advance */}
                                                 <td className="px-6 py-4 text-right tabular-nums">
                                                     {advance > 0 ? (
                                                         <span className="inline-flex items-center font-bold text-purple-700 bg-purple-50 px-2.5 py-1.5 rounded-lg border border-purple-100">
@@ -338,8 +339,6 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                                                         <span className="text-gray-300">-</span>
                                                     )}
                                                 </td>
-
-                                                {/* Action Column */}
                                                 <td className="px-6 py-4 text-center no-print">
                                                     <Link
                                                         href={route('admin.reports.client-ledger', { client_id: client.id })}
@@ -364,22 +363,28 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
                                 {clientDues.total > 0 && `Showing ${clientDues.from || 0} to ${clientDues.to || 0} of ${clientDues.total || 0} clients`}
                             </div>
                             <div className="flex flex-wrap items-center gap-1.5">
-                                {clientDues.links.map((link, index) => (
-                                    <Link
-                                        key={index}
-                                        href={link.url || "#"}
-                                        className={`flex min-w-[36px] items-center justify-center rounded-lg border px-3 py-2 text-[13px] font-bold transition-all
-                                            ${link.active
-                                                ? 'border-indigo-600 bg-indigo-600 text-white shadow-md'
-                                                : link.url
-                                                    ? 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300'
-                                                    : 'border-gray-100 bg-gray-50 text-gray-400 pointer-events-none'
-                                            }
-                                        `}
-                                        preserveState
-                                        dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "«").replace("&raquo;", "»") }}
-                                    />
-                                ))}
+                                {clientDues.links.map((link, index) => {
+                                    let labelHtml = link.label.replace("&laquo;", "«").replace("&raquo;", "»");
+                                    if (link.label.includes("Previous")) labelHtml = '<i class="fa-solid fa-chevron-left text-[10px]"></i>';
+                                    if (link.label.includes("Next")) labelHtml = '<i class="fa-solid fa-chevron-right text-[10px]"></i>';
+
+                                    return link.url ? (
+                                        <Link
+                                            key={index}
+                                            href={link.url}
+                                            preserveState
+                                            preserveScroll
+                                            className={`flex min-w-[36px] items-center justify-center rounded-lg border px-3 py-2 text-[13px] font-bold transition-all ${link.active ? 'border-indigo-600 bg-indigo-600 text-white shadow-md' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`}
+                                            dangerouslySetInnerHTML={{ __html: labelHtml }}
+                                        />
+                                    ) : (
+                                        <span
+                                            key={index}
+                                            className="flex min-w-[36px] items-center justify-center rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-[13px] font-bold text-gray-400 cursor-not-allowed"
+                                            dangerouslySetInnerHTML={{ __html: labelHtml }}
+                                        />
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -387,4 +392,4 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0 }) {
             </div>
         </AdminLayout>
     );
-}``
+}

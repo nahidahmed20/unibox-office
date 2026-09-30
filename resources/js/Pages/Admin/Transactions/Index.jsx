@@ -389,12 +389,24 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                             <td className="px-6 py-4 font-bold text-slate-700 whitespace-nowrap">
                                                 <div className="flex items-center gap-1.5 bg-white border border-slate-200 shadow-sm px-2.5 py-1.5 rounded-lg w-max text-[12px]"><i className="fa-regular fa-calendar text-[11px] text-slate-400"></i>{trx.transaction_date}</div>
                                             </td>
-                                            <td className="px-6 py-4 font-black text-indigo-700 whitespace-nowrap">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 border border-indigo-200 shadow-sm">
-                                                        <i className="fa-solid fa-building-columns text-[12px]"></i>
+
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 border border-indigo-200 shadow-sm shrink-0">
+                                                        <i className="fa-solid fa-building-columns text-[13px]"></i>
                                                     </div>
-                                                    {trx.account?.name || <span className="text-slate-400 italic">Deleted Account</span>}
+                                                    <div className="flex flex-col">
+                                                        <span className="font-black text-indigo-700 text-[14px]">
+                                                            {trx.account?.name || <span className="text-slate-400 italic">Deleted Account</span>}
+                                                        </span>
+                                                        {trx.account && (
+                                                            <span className="text-[11px] font-bold text-slate-500 mt-0.5 flex items-center gap-1 bg-slate-100 w-max px-2 py-0.5 rounded border border-slate-200 shadow-sm">
+                                                                <i className="fa-solid fa-wallet text-slate-400 text-[10px]"></i> Bal: 
+                                                                <Taka className="text-[10px] ml-0.5" /> 
+                                                                {parseFloat(trx.account.current_balance || 0).toLocaleString('en-IN')}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </td>
 
@@ -435,7 +447,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                                 {trx.type === 'credit' ? '+' : '-'} <Taka className="text-[13px] ml-0.5" /> {parseFloat(trx.amount).toLocaleString('en-IN')}
                                             </td>
                                             <td className="px-6 py-4 text-right no-print">
-                                                <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                <div className="flex items-center justify-end gap-2 transition-opacity duration-200">
                                                     {hasPermission('view_transaction') && (
                                                         <button onClick={() => openViewModal(trx)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-300 text-slate-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors shadow-sm" title="View Details">
                                                             <i className="fa-regular fa-eye text-[13px]"></i>

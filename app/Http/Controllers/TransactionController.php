@@ -13,15 +13,32 @@ class TransactionController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Transaction::with('account');
+        // 🟢 শুধুমাত্র টেবিলের নির্দিষ্ট কলাম সিলেক্ট করা হলো
+        $query = Transaction::with('account')->select('transactions.*');
+
+        // 🟢 MAGIC: Running Balance Calculation (ঐ লেনদেন পর্যন্ত মোট কত ব্যালেন্স ছিল)
+        $query->selectSub(function ($q) {
+            $q->selectRaw("SUM(CASE WHEN type = 'credit' THEN amount ELSE -amount END)")
+              ->from('transactions as t2')
+              ->whereColumn('t2.account_id', 'transactions.account_id')
+              ->where(function ($q2) {
+                  // আগের তারিখের সব ট্রানজেকশন যোগ করবে
+                  $q2->whereColumn('t2.transaction_date', '<', 'transactions.transaction_date')
+                     ->orWhere(function ($q3) {
+                         // একই তারিখ হলে ID অনুযায়ী হিসাব করবে
+                         $q3->whereColumn('t2.transaction_date', '=', 'transactions.transaction_date')
+                            ->whereColumn('t2.id', '<=', 'transactions.id');
+                     });
+              });
+        }, 'running_balance');
 
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
-                $q->where('description', 'like', "%{$searchTerm}%")
-                  ->orWhere('reference_number', 'like', "%{$searchTerm}%")
-                  ->orWhere('amount', 'like', "%{$searchTerm}%")
-                  ->orWhere('type', 'like', "%{$searchTerm}%")
+                $q->where('transactions.description', 'like', "%{$searchTerm}%")
+                  ->orWhere('transactions.reference_number', 'like', "%{$searchTerm}%")
+                  ->orWhere('transactions.amount', 'like', "%{$searchTerm}%")
+                  ->orWhere('transactions.type', 'like', "%{$searchTerm}%")
                   ->orWhereHasMorph('transactionable', [\App\Models\VendorPayment::class], fn ($q) => $q->whereHas('vendor', fn ($vendor) => $vendor->where('name', 'like', "%{$searchTerm}%")))
                   ->orWhereHasMorph('transactionable', [\App\Models\ProjectExpense::class], fn ($q) => $q->where('payee_name', 'like', "%{$searchTerm}%")->orWhereHas('vendor', fn ($vendor) => $vendor->where('name', 'like', "%{$searchTerm}%"))->orWhereHas('project', fn ($project) => $project->where('title', 'like', "%{$searchTerm}%")))
                   ->orWhereHas('account', function ($aq) use ($searchTerm) {
@@ -32,21 +49,21 @@ class TransactionController extends Controller
 
         // 🟢 Advanced Filters
         if ($request->filled('account_id')) {
-            $query->where('account_id', $request->account_id);
+            $query->where('transactions.account_id', $request->account_id);
         }
         if ($request->filled('type')) {
-            $query->where('type', $request->type);
+            $query->where('transactions.type', $request->type);
         }
         if ($request->filled('date_from')) {
-            $query->whereDate('transaction_date', '>=', $request->date_from);
+            $query->whereDate('transactions.transaction_date', '>=', $request->date_from);
         }
         if ($request->filled('date_to')) {
-            $query->whereDate('transaction_date', '<=', $request->date_to);
+            $query->whereDate('transactions.transaction_date', '<=', $request->date_to);
         }
 
-        // 🟢 Top Summary Calculations (Removed bank_charge)
-        $totalCredit = (clone $query)->where('type', 'credit')->sum('amount');
-        $totalDebit  = (clone $query)->where('type', 'debit')->sum('amount');
+        // 🟢 Top Summary Calculations
+        $totalCredit = (clone $query)->where('transactions.type', 'credit')->sum('transactions.amount');
+        $totalDebit  = (clone $query)->where('transactions.type', 'debit')->sum('transactions.amount');
         $netBalance  = $totalCredit - $totalDebit;
 
         $totalCount = $query->count();
@@ -57,12 +74,12 @@ class TransactionController extends Controller
         }
 
         $transactions = $query
-            ->orderByDesc('transaction_date')
-            ->orderByDesc('id')
+            ->orderByDesc('transactions.transaction_date')
+            ->orderByDesc('transactions.id')
             ->paginate($perPage)
             ->withQueryString();
 
-        // 🟢 MAGIC: Eager Load Morph Relations to identify the exact person/vendor
+        // 🟢 MAGIC: Eager Load Morph Relations
         try {
             $transactions->getCollection()->loadMorph('transactionable', [
                 \App\Models\Advance::class => ['user'],

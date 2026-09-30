@@ -463,8 +463,9 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
                                             <td className="px-6 py-4 text-center"><StatusPill status={inv.status} /></td>
 
+                                            {/* 🟢 Removed hover hide classes here */}
                                             <td className="no-print px-6 py-4 text-center">
-                                                <div className="flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                <div className="flex items-center justify-center gap-1.5">
                                                     {hasPermission('view_invoices') && (
                                                         <button onClick={() => openViewModal(inv)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-500 transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 shadow-sm" title="View details">
                                                             <i className="fa-regular fa-eye text-[13px]"></i>
