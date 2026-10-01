@@ -183,8 +183,19 @@ export default function Show({ vendor, payments, ledgers, bills, stats }) {
                                                                     <i className="fa-solid fa-folder-open text-indigo-400"></i> {d.expense.project.title}
                                                                 </div>
                                                             )}
-                                                            <div className="text-[11.5px] text-gray-500 font-medium mt-1.5 flex items-center gap-2 border-t border-gray-200 pt-1.5">
-                                                                <span>Bill Settled: <strong className="text-gray-800 tabular-nums">৳{Number(d.amount).toLocaleString('en-IN')}</strong></span>
+                                                            <div className="text-[11.5px] text-gray-500 font-medium mt-1.5 flex flex-wrap items-center gap-4 border-t border-gray-200 pt-1.5">
+                                                                <span>
+                                                                    Bill Settled: <strong className="text-gray-800 tabular-nums">৳{Number(d.amount).toLocaleString('en-IN')}</strong>
+                                                                </span>
+
+                                                                {/* 🟢 এখানে Current Due বা বকেয়া টাকার পরিমাণ যুক্ত করা হলো */}
+                                                                {d.expense && (
+                                                                    <span className="border-l border-gray-300 pl-4">
+                                                                        Current Due: <strong className={`${Number(d.expense.due_amount) > 0 ? 'text-rose-600' : 'text-emerald-600'} tabular-nums`}>
+                                                                            ৳{Number(d.expense.due_amount).toLocaleString('en-IN')}
+                                                                        </strong>
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     )) : (

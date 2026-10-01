@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+import CustomSelect from '@/Components/CustomSelect';
 
 export default function Index({ accounts = { data: [], links: [] }, summary = {}, filters = {} }) {
 
@@ -315,10 +316,9 @@ export default function Index({ accounts = { data: [], links: [] }, summary = {}
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select
-                                        value={perPage}
-                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
-                                        className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-slate-900 outline-none cursor-pointer border-none focus:ring-0 w-[120px]"
+                                    <select value={perPage} onChange={(e) =>
+ setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
+                                        className="bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-slate-900 outline-none cursor-pointer border-none focus:ring-0 w-[120px]"
                                     >
                                         <option value={10}>10 Rows</option>
                                         <option value={25}>25 Rows</option>
@@ -326,9 +326,6 @@ export default function Index({ accounts = { data: [], links: [] }, summary = {}
                                         <option value={100}>100 Rows</option>
                                         <option value="all">All Data</option>
                                     </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400">
-                                        <i className="fa-solid fa-chevron-down text-[11px]"></i>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -524,7 +521,7 @@ export default function Index({ accounts = { data: [], links: [] }, summary = {}
                                     <div>
                                         <label className="block text-[12.5px] font-black text-slate-800 uppercase tracking-widest mb-2">Account Type <span className="text-red-600">*</span></label>
                                         <div className="relative">
-                                            <select
+                                            <CustomSelect
                                                 value={data.type}
                                                 onChange={e => setData('type', e.target.value)}
                                                 className="w-full appearance-none bg-white rounded-xl border border-slate-400 px-4 py-3 text-[14px] font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 cursor-pointer shadow-sm"
@@ -534,8 +531,7 @@ export default function Index({ accounts = { data: [], links: [] }, summary = {}
                                                 <option value="cash">💵 Cash Account</option>
                                                 <option value="bank">🏦 Bank Account</option>
                                                 <option value="mobile_banking">📱 Mobile Banking</option>
-                                            </select>
-                                            <i className="fa-solid fa-chevron-down text-[12px] text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                            </CustomSelect>
                                         </div>
                                     </div>
 
@@ -581,7 +577,7 @@ export default function Index({ accounts = { data: [], links: [] }, summary = {}
                                     <div>
                                         <label className="block text-[12.5px] font-black text-slate-800 uppercase tracking-widest mb-2">Account Status</label>
                                         <div className="relative">
-                                            <select
+                                            <CustomSelect
                                                 value={data.is_active}
                                                 onChange={e => setData('is_active', e.target.value)}
                                                 className="w-full appearance-none bg-white rounded-xl border border-slate-400 px-4 py-3 text-[14px] font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 cursor-pointer shadow-sm"
@@ -589,8 +585,7 @@ export default function Index({ accounts = { data: [], links: [] }, summary = {}
                                             >
                                                 <option value={1}>✅ Active</option>
                                                 <option value={0}>❌ Inactive</option>
-                                            </select>
-                                            <i className="fa-solid fa-chevron-down text-[12px] text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                            </CustomSelect>
                                         </div>
                                     </div>
                                 </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+import CustomSelect from '@/Components/CustomSelect';
 
 /* ---------- Design tokens ---------- */
 const fmt = (num) => Number(num || 0).toLocaleString('en-IN');
@@ -226,14 +227,14 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                     </div>
                     <div className="flex flex-wrap items-center gap-3 border-t border-white/10 bg-white/[0.03] px-6 py-4 sm:px-8">
                         <span className="flex items-center gap-2 text-[13px] font-medium text-slate-400"><i className="fa-solid fa-calendar-days"></i> Period</span>
-                        <select
+                        <CustomSelect
                             value={filterYear}
                             onChange={(e) => { setFilterYear(e.target.value); setFilterMonth(''); setStartDate(''); setEndDate(''); }}
                             className={`${darkInput} w-[140px]`}
                         >
                             <option value="" className="text-slate-900">All years (সব)</option>
                             {years.map(y => <option key={y} value={y} className="text-slate-900">{y}</option>)}
-                        </select>
+                        </CustomSelect>
                         <input
                             type="month" value={filterMonth}
                             onChange={(e) => { setFilterMonth(e.target.value); setFilterYear(''); setStartDate(''); setEndDate(''); }}

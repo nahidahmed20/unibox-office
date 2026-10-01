@@ -112,6 +112,12 @@ body {
     width: calc(100vw - 1.5rem) !important;
   }
 }
+
+/* Remove default chevron from appearance-none selects to fix double icons */
+select.appearance-none {
+    background-image: none !important;
+}
+
 .pagination-btn {
     width: 38px;
     height: 38px;

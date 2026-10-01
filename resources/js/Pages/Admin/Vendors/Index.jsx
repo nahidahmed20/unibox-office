@@ -4,6 +4,7 @@ import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import axios from 'axios';
 import Select from 'react-select';
+import CustomSelect from '@/Components/CustomSelect';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -139,6 +140,20 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         printWindow.focus();
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
     };
+
+    // React-select custom styles
+    const selectStyles = {
+        control: (base, state) => ({
+            ...base, minHeight: '42px', borderRadius: '0.75rem', fontSize: '14px', fontWeight: 'bold', backgroundColor: 'white', border: state.isFocused ? '1px solid #6366f1' : '1px solid #d1d5db', boxShadow: state.isFocused ? '0 0 0 4px rgba(99, 102, 241, 0.1)' : 'none', cursor: 'pointer', transition: 'all 0.2s'
+        }),
+        option: (base, state) => ({
+            ...base, fontSize: '14px', fontWeight: 'bold', backgroundColor: state.isSelected ? '#4f46e5' : state.isFocused ? '#f8fafc' : 'white', color: state.isSelected ? 'white' : '#1f2937', cursor: 'pointer'
+        }),
+        menu: (base) => ({ ...base, zIndex: 9999, borderRadius: '0.75rem', overflow: 'hidden' }),
+        valueContainer: (base) => ({ ...base, padding: '2px 16px' }),
+        singleValue: (base) => ({ ...base, color: '#1f2937' })
+    };
+    const selectMenuPortalTarget = typeof document !== 'undefined' ? document.body : null;
 
     const openCreateModal = () => {
         clearErrors(); setData({ id: '', name: '', company_name: '', phone: '', address: '', opening_balance: 0 }); setEditMode(false); setShowModal(true);
@@ -379,10 +394,9 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select
-                                        value={perPage}
-                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
-                                        className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
+                                    <select value={perPage} onChange={(e) =>
+ setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
+                                        className="bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
                                     >
                                         <option value={10}>10 Rows</option>
                                         <option value={25}>25 Rows</option>
@@ -775,11 +789,15 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                             <>
                                                 <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Select Account <span className="text-red-500">*</span></label>
                                                 <div className="relative">
-                                                    <select value={payForm.data.account_id} onChange={e => payForm.setData("account_id", e.target.value)} className="w-full appearance-none bg-white rounded-xl border border-gray-300 px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm" required>
-                                                        <option value="">-- Choose Account --</option>
-                                                        {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name} (Bal: ৳ {Number(acc.current_balance).toLocaleString('en-IN')})</option>)}
-                                                    </select>
-                                                    <i className="fa-solid fa-chevron-down text-[12px] text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                                    <Select
+                                                        options={accounts.map(acc => ({ value: acc.id, label: `${acc.name} (Bal: ৳ ${Number(acc.current_balance).toLocaleString('en-IN')})` }))}
+                                                        value={payForm.data.account_id ? { value: payForm.data.account_id, label: accounts.find(a => a.id == payForm.data.account_id) ? `${accounts.find(a => a.id == payForm.data.account_id).name} (Bal: ৳ ${Number(accounts.find(a => a.id == payForm.data.account_id).current_balance).toLocaleString('en-IN')})` : '' } : null}
+                                                        onChange={opt => payForm.setData("account_id", opt ? opt.value : "")}
+                                                        placeholder="-- Choose Account --"
+                                                        isClearable
+                                                        styles={selectStyles}
+                                                        menuPortalTarget={selectMenuPortalTarget}
+                                                    />
                                                 </div>
                                                 {payForm.errors.account_id && <span className="mt-1.5 block text-[12px] font-bold text-red-500">{payForm.errors.account_id}</span>}
                                             </>
@@ -787,11 +805,15 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                             <>
                                                 <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Select Employee <span className="text-red-500">*</span></label>
                                                 <div className="relative">
-                                                    <select value={payForm.data.advance_user_id} onChange={e => payForm.setData("advance_user_id", e.target.value)} className="w-full appearance-none bg-white rounded-xl border border-gray-300 px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm" required>
-                                                        <option value="">-- Choose Employee --</option>
-                                                        {advances.map(adv => <option key={adv.id} value={adv.user_id}>{adv.user?.name} (Avail: ৳ {Number(adv.available_balance).toLocaleString('en-IN')})</option>)}
-                                                    </select>
-                                                    <i className="fa-solid fa-chevron-down text-[12px] text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                                    <Select
+                                                        options={advances.map(adv => ({ value: adv.user_id, label: `${adv.user?.name} (Avail: ৳ ${Number(adv.available_balance).toLocaleString('en-IN')})` }))}
+                                                        value={payForm.data.advance_user_id ? { value: payForm.data.advance_user_id, label: advances.find(a => a.user_id == payForm.data.advance_user_id) ? `${advances.find(a => a.user_id == payForm.data.advance_user_id).user?.name} (Avail: ৳ ${Number(advances.find(a => a.user_id == payForm.data.advance_user_id).available_balance).toLocaleString('en-IN')})` : '' } : null}
+                                                        onChange={opt => payForm.setData("advance_user_id", opt ? opt.value : "")}
+                                                        placeholder="-- Choose Employee --"
+                                                        isClearable
+                                                        styles={selectStyles}
+                                                        menuPortalTarget={selectMenuPortalTarget}
+                                                    />
                                                 </div>
                                                 {payForm.errors.advance_user_id && <span className="mt-1.5 block text-[12px] font-bold text-red-500">{payForm.errors.advance_user_id}</span>}
                                             </>
@@ -919,7 +941,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                             {walletAction === 'deposit' ? 'Pay From Account' : 'Receive To Account'} <span className="text-red-500">*</span>
                                         </label>
                                         <div className="relative">
-                                            <select
+                                            <CustomSelect
                                                 value={walletForm.data.account_id}
                                                 onChange={e => walletForm.setData("account_id", e.target.value)}
                                                 className="w-full appearance-none bg-white rounded-xl border border-gray-300 px-4 py-3.5 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 cursor-pointer shadow-sm"
@@ -929,8 +951,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                                 {accounts.map(acc => (
                                                     <option key={acc.id} value={acc.id}>{acc.name} (Bal: ৳ {Number(acc.current_balance).toLocaleString('en-IN')})</option>
                                                 ))}
-                                            </select>
-                                            <i className="fa-solid fa-chevron-down text-[12px] text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                            </CustomSelect>
                                         </div>
                                         {walletForm.errors.account_id && <span className="mt-1.5 block text-[12px] font-bold text-red-500">{walletForm.errors.account_id}</span>}
                                     </div>

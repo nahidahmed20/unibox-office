@@ -38,6 +38,7 @@ use App\Models\Invoice;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Models\Project;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -48,6 +49,31 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+
+
+
+Route::get('/fix-old-projects', function () {
+    // যেসব প্রজেক্টের কোনো item নেই সেগুলো খুঁজে বের করা
+    $projects = Project::doesntHave('items')->get();
+    $count = 0;
+
+    foreach ($projects as $project) {
+        // যদি প্রজেক্টের আগে থেকে কোনো বাজেট থেকে থাকে
+        if ($project->budget > 0) {
+            $project->items()->create([
+                'item_name'   => 'General Project Module',
+                'description' => 'Migrated from old project record',
+                'quantity'    => 1,
+                'unit_type'   => 'Unit',
+                'unit_price'  => $project->budget,
+                'total'       => $project->budget,
+            ]);
+            $count++;
+        }
+    }
+
+    return "Successfully fixed {$count} old projects by adding default items!";
+});
 
     // Profile Routes
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -124,6 +150,9 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/project-expenses/{id}/move-to-wallet', [ProjectExpenseController::class, 'moveToWallet'])->name('admin.project-expenses.move-to-wallet');
     Route::get('/admin/global-search', [GlobalSearchController::class, 'search'])->name('admin.global-search');
+
+    // Database Backup
+    Route::get('/backup/download', [\App\Http\Controllers\BackupController::class, 'download'])->name('admin.backup.download');
 
     // Challan Routes
     Route::resource('challans', ChallanController::class)->except(['show'])->names('admin.challans');

@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
+import CustomSelect from '@/Components/CustomSelect';
 
 const INVESTOR_TYPE_META = {
     lender: { label: 'Lender', bn: 'ধার', chip: 'border-amber-500 bg-amber-50 text-amber-700', avatar: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
@@ -274,10 +275,9 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select
-                                        value={perPage}
-                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
-                                        className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-slate-900 outline-none cursor-pointer border-none focus:ring-0 w-[120px]"
+                                    <select value={perPage} onChange={(e) =>
+ setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
+                                        className="bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-slate-900 outline-none cursor-pointer border-none focus:ring-0 w-[120px]"
                                     >
                                         <option value="10">10 Rows</option>
                                         <option value="25">25 Rows</option>
@@ -285,9 +285,6 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
                                         <option value={100}>100 Rows</option>
                                         <option value="all">All Data</option>
                                     </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400">
-                                        <i className="fa-solid fa-chevron-down text-[11px]"></i>
-                                    </div>
                                 </div>
                             </div>
 

@@ -7,6 +7,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import CustomSelect from '@/Components/CustomSelect';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -276,10 +277,9 @@ export default function Index({ notices = { data: [], links: [] } }) {
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select 
-                                        value={perPage} 
-                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
-                                        className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
+                                    <select value={perPage} onChange={(e) =>
+ setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                        className="bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
                                     >
                                         <option value={10}>10 Rows</option>
                                         <option value={25}>25 Rows</option>
@@ -529,15 +529,14 @@ export default function Index({ notices = { data: [], links: [] } }) {
                                 <div>
                                     <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Status</label>
                                     <div className="relative">
-                                        <select
+                                        <CustomSelect
                                             value={data.is_active}
                                             onChange={e => setData('is_active', e.target.value)}
                                             className="w-full appearance-none bg-none [background-image:none] rounded-xl border border-gray-300 bg-white px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm"
                                         >
                                             <option value="1">Active (Published)</option>
                                             <option value="0">Inactive (Draft / Hidden)</option>
-                                        </select>
-                                        <i className="fa-solid fa-chevron-down text-[12px] text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                        </CustomSelect>
                                     </div>
                                     {errors.is_active && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.is_active}</p>}
                                 </div>

@@ -5,6 +5,7 @@ import Swal from "sweetalert2";
 import Select from "react-select";
 import ReactQuill from "react-quill";
 import 'react-quill/dist/quill.snow.css';
+import CustomSelect from '@/Components/CustomSelect';
 
 // Updated Priorities with modern vibrant colors
 const PRIORITIES = [
@@ -285,13 +286,12 @@ export default function Edit({ project, clients = [], managers = [] }) {
                                 <div>
                                     <label className="block text-[13px] font-black text-slate-800 mb-2">Current status <span className="text-red-600">*</span></label>
                                     <div className="relative">
-                                        <select value={data.status} onChange={(e) => setData("status", e.target.value)} className={`${inputClass} appearance-none cursor-pointer pr-10`} style={{ backgroundImage: 'none' }}>
+                                        <CustomSelect value={data.status} onChange={(e) => setData("status", e.target.value)} className={`${inputClass} appearance-none cursor-pointer pr-10`} style={{ backgroundImage: 'none' }}>
                                             <option value="planning">Planning (Not Started)</option>
                                             <option value="in_progress">In Progress (Active)</option>
                                             <option value="on_hold">On Hold (Paused)</option>
                                             <option value="completed">Completed (Done)</option>
-                                        </select>
-                                        <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 text-[12px] pointer-events-none"></i>
+                                        </CustomSelect>
                                     </div>
                                 </div>
                                 <div>
@@ -384,10 +384,10 @@ export default function Edit({ project, clients = [], managers = [] }) {
                                                 </div>
                                                 <div className="w-28">
                                                     <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Unit</label>
-                                                    <select value={item.unit_type} onChange={e => updateItem(index, "unit_type", e.target.value)}
+                                                    <CustomSelect value={item.unit_type} onChange={e => updateItem(index, "unit_type", e.target.value)}
                                                         className="w-full border-0 border-b-2 border-slate-400 focus:border-indigo-600 outline-none py-1.5 bg-transparent text-[14px] font-black text-slate-900 cursor-pointer focus:ring-0 transition-colors">
                                                         <option value="piece">Pcs</option><option value="kg">Kg</option><option value="set">Set</option><option value="box">Box</option><option value="sqft">SqFt</option>
-                                                    </select>
+                                                    </CustomSelect>
                                                 </div>
                                                 <span className="font-mono text-[16px] font-black text-slate-400 pb-2">×</span>
                                                 <div className="w-36">

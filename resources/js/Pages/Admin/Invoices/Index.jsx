@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
+import CustomSelect from '@/Components/CustomSelect';
 
 /* ---------- Design tokens & Helpers ---------- */
 const fmt = (n) => Number(n || 0).toLocaleString('en-IN');
@@ -330,10 +331,9 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
                         {/* Show Rows Dropdown */}
                         <div className="relative w-full sm:w-[130px]">
-                            <select
-                                value={perPage}
-                                onChange={(e) => handleFilterChange('per_page', e.target.value === "all" ? "all" : Number(e.target.value))}
-                                className="appearance-none w-full bg-white border border-slate-300 rounded-xl pl-4 pr-9 py-2.5 text-[13px] font-bold text-slate-800 outline-none transition-all focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm cursor-pointer"
+                            <select value={perPage} onChange={(e) =>
+ handleFilterChange('per_page', e.target.value === "all" ? "all" : Number(e.target.value))}
+                                className="w-full bg-white border border-slate-300 rounded-xl pl-4 pr-9 py-2.5 text-[13px] font-bold text-slate-800 outline-none transition-all focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm cursor-pointer"
                             >
                                 <option value={10}>10 Rows</option>
                                 <option value={25}>25 Rows</option>
@@ -341,21 +341,18 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 <option value={100}>100 Rows</option>
                                 <option value="all">All Rows</option>
                             </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400">
-                                <i className="fa-solid fa-chevron-down text-[11px]"></i>
-                            </div>
                         </div>
 
                         {/* Year Filter */}
                         <div className="relative w-full sm:w-[130px]">
-                            <select
+                            <CustomSelect
                                 value={year}
                                 onChange={(e) => handleFilterChange('year', e.target.value)}
                                 className="appearance-none w-full bg-white border border-slate-300 rounded-xl pl-4 pr-9 py-2.5 text-[13px] font-bold text-slate-800 outline-none transition-all focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm cursor-pointer"
                             >
                                 <option value="">All Years</option>
                                 {years.map((y) => <option key={y} value={y}>{y}</option>)}
-                            </select>
+                            </CustomSelect>
                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400">
                                 <i className="fa-solid fa-calendar text-[11px]"></i>
                             </div>

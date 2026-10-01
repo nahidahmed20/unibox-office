@@ -5,6 +5,7 @@ import Swal from 'sweetalert2';
 import Select from 'react-select';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import CustomSelect from '@/Components/CustomSelect';
 
 export default function Edit({ challan, clients = [], projects = [] }) {
     const { data, setData, put, processing, errors } = useForm({
@@ -56,9 +57,9 @@ export default function Edit({ challan, clients = [], projects = [] }) {
                         </div>
                         <div>
                             <label className="block text-[12px] font-bold text-gray-600 uppercase mb-2">Status</label>
-                            <select value={data.status} onChange={(e) => setData("status", e.target.value)} className="w-full rounded-xl border-gray-300 py-3 px-4 font-bold outline-none focus:border-indigo-500 bg-white">
+                            <CustomSelect value={data.status} onChange={(e) => setData("status", e.target.value)} className="w-full rounded-xl border-gray-300 py-3 px-4 font-bold outline-none focus:border-indigo-500 bg-white">
                                 <option value="pending">Pending</option><option value="delivered">Delivered</option><option value="canceled">Canceled</option>
-                            </select>
+                            </CustomSelect>
                         </div>
                         <div>
                             <label className="block text-[12px] font-bold text-gray-600 uppercase mb-2">Challan Date</label>

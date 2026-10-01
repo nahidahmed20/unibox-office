@@ -3,6 +3,7 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { useForm, Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 import Select from "react-select";
+import CustomSelect from '@/Components/CustomSelect';
 
 // 🟢 Custom Straight Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
@@ -283,7 +284,8 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                         <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full lg:w-auto">
                             <div className="flex items-center bg-white border border-slate-300 rounded-xl px-3 py-2.5 shadow-sm focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all w-full sm:w-auto">
                                 <span className="text-[12px] font-black text-slate-500 mr-2 uppercase tracking-wide">Show</span>
-                                <select value={perPage} onChange={(e) => setPerPage(e.target.value)} className="w-full sm:w-auto border-none bg-transparent text-[13px] font-bold text-slate-900 outline-none cursor-pointer p-0 focus:ring-0">
+                                <select value={perPage} onChange={(e) =>
+ setPerPage(e.target.value)} className="w-full sm:w-auto border-none bg-transparent text-[13px] font-bold text-slate-900 outline-none cursor-pointer p-0 focus:ring-0">
                                     <option value="10">10</option>
                                     <option value="25">25</option>
                                     <option value="50">50</option>
@@ -301,15 +303,14 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                             </div>
 
                             <div className="relative w-full sm:w-auto">
-                                <select value={dateFilter} onChange={(e) => { setDateFilter(e.target.value); if(e.target.value !== 'custom') { setStartDate(''); setEndDate(''); } }} className="appearance-none w-full sm:w-[150px] rounded-xl border border-slate-300 bg-white pl-4 pr-9 py-2.5 text-[13.5px] font-bold text-slate-800 outline-none transition-all focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm cursor-pointer">
+                                <CustomSelect value={dateFilter} onChange={(e) => { setDateFilter(e.target.value); if(e.target.value !== 'custom') { setStartDate(''); setEndDate(''); } }} className="appearance-none w-full sm:w-[150px] rounded-xl border border-slate-300 bg-white pl-4 pr-9 py-2.5 text-[13.5px] font-bold text-slate-800 outline-none transition-all focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm cursor-pointer">
                                     <option value="all">All Time</option>
                                     <option value="today">Today</option>
                                     <option value="this_week">This Week</option>
                                     <option value="this_month">This Month</option>
                                     <option value="this_year">This Year</option>
                                     <option value="custom">Custom Range</option>
-                                </select>
-                                <i className="fa-solid fa-chevron-down absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[11px] pointer-events-none"></i>
+                                </CustomSelect>
                             </div>
 
                             {dateFilter === "custom" && (

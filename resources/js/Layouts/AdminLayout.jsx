@@ -415,6 +415,8 @@ export default function AdminLayout({ children }) {
                                             <li><Link href={route('admin.users.index')} className={subItemClass(route().current('admin.users.*'))}><i className="fa-solid fa-users w-4 text-center text-[11px] opacity-70"></i> Users</Link></li>
                                             <li><Link href={route('admin.roles.index')} className={subItemClass(route().current('admin.roles.*'))}><i className="fa-solid fa-user-shield w-4 text-center text-[11px] opacity-70"></i> Roles</Link></li>
                                             <li><Link href={route('admin.permissions.index')} className={subItemClass(route().current('admin.permissions.*'))}><i className="fa-solid fa-key w-4 text-center text-[11px] opacity-70"></i> Permissions</Link></li>
+                                            <GroupLabel>System Data</GroupLabel>
+                                            <li><a href={route('admin.backup.download')} className={subItemClass(false)}><i className="fa-solid fa-database w-4 text-center text-[11px] opacity-70 text-indigo-400"></i> Backup Database</a></li>
                                         </SubMenu>
                                     )}
                                 </li>

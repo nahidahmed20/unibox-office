@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { useForm, Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
+import CustomSelect from '@/Components/CustomSelect';
 
 /* =========================================
    REUSABLE SEARCHABLE SELECT COMPONENT
@@ -348,10 +349,9 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select 
-                                        value={perPage} 
-                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
-                                        className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
+                                    <select value={perPage} onChange={(e) =>
+ setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                        className="bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
                                     >
                                         <option value={10}>10 Rows</option>
                                         <option value={25}>25 Rows</option>
@@ -667,7 +667,7 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
                                         <div>
                                             <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Priority Level</label>
                                             <div className="relative">
-                                                <select 
+                                                <CustomSelect 
                                                     value={data.priority} 
                                                     onChange={(e) => setData("priority", e.target.value)} 
                                                     className="w-full appearance-none bg-white rounded-xl border border-gray-300 px-4 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm"
@@ -676,15 +676,14 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
                                                     <option value="medium">Medium</option>
                                                     <option value="high">High</option>
                                                     <option value="urgent">Urgent</option>
-                                                </select>
-                                                <i className="fa-solid fa-chevron-down text-[11px] text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                                </CustomSelect>
                                             </div>
                                         </div>
 
                                         <div>
                                             <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Workflow Status</label>
                                             <div className="relative">
-                                                <select 
+                                                <CustomSelect 
                                                     value={data.status} 
                                                     onChange={(e) => setData("status", e.target.value)} 
                                                     className="w-full appearance-none bg-white rounded-xl border border-gray-300 px-4 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm"
@@ -693,8 +692,7 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
                                                     <option value="in_progress">In Progress</option>
                                                     <option value="review">Review</option>
                                                     <option value="done">Done</option>
-                                                </select>
-                                                <i className="fa-solid fa-chevron-down text-[11px] text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                                </CustomSelect>
                                             </div>
                                         </div>
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+import CustomSelect from '@/Components/CustomSelect';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -166,10 +167,10 @@ export default function TransactionsReport({ transactions = { data: [], links: [
                             <div className="flex items-center rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
                                 <span className="bg-slate-50 px-3.5 py-2 text-[12.5px] font-bold text-slate-600 border-r border-slate-200">Show</span>
                                 <div className="relative">
-                                    <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} className="appearance-none bg-transparent pl-3 pr-8 py-2 text-[13px] font-bold text-slate-800 outline-none cursor-pointer border-none focus:ring-0 w-[100px]">
+                                    <select value={perPage} onChange={(e) =>
+ setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} className="bg-transparent pl-3 pr-8 py-2 text-[13px] font-bold text-slate-800 outline-none cursor-pointer border-none focus:ring-0 w-[100px]">
                                         <option value={10}>10</option><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option><option value="all">All</option>
                                     </select>
-                                    <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
                                 </div>
                             </div>
                         </div>
@@ -192,28 +193,28 @@ export default function TransactionsReport({ transactions = { data: [], links: [
                         </div>
 
                         {/* Account Select */}
-                        <div className="relative xl:col-span-1">
+                        <div className="relative xl:col-span-1 z-30">
                             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Account</label>
-                            <div className="relative">
-                                <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-sm">
-                                    <option value="">All Accounts</option>
-                                    {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
-                                </select>
-                                <i className="fa-solid fa-chevron-down absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[11px] pointer-events-none"></i>
-                            </div>
+                            <Select
+                                options={accounts.map(acc => ({ value: acc.id, label: acc.name }))}
+                                value={accountId ? { value: accountId, label: accounts.find(a => a.id == accountId)?.name } : null}
+                                onChange={(opt) => setAccountId(opt ? opt.value : '')}
+                                placeholder="All Accounts"
+                                isClearable
+                                styles={selectStyles}
+                            />
                         </div>
 
                         {/* Source Type Select */}
                         <div className="relative xl:col-span-1">
                             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Type</label>
                             <div className="relative">
-                                <select value={sourceType} onChange={(e) => setSourceType(e.target.value)} className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-sm">
+                                <CustomSelect value={sourceType} onChange={(e) => setSourceType(e.target.value)} className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-sm">
                                     <option value="">All Types</option>
                                     {Object.keys(sourceMeta).map(key => (
                                         <option key={key} value={key}>{sourceMeta[key].label}</option>
                                     ))}
-                                </select>
-                                <i className="fa-solid fa-chevron-down absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[11px] pointer-events-none"></i>
+                                </CustomSelect>
                             </div>
                         </div>
 

@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
+import CustomSelect from '@/Components/CustomSelect';
 
 // 🟢 Custom Straight Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
@@ -421,11 +422,10 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         <div className="w-full">
                             <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Show Rows</label>
                             <div className="relative w-full">
-                                <select
-                                    value={perPage}
-                                    onChange={(e) => setPerPage(e.target.value)}
-                                    className="w-full appearance-none rounded-xl border border-slate-300 bg-white py-2.5 pl-4 pr-10 text-[13.5px] font-bold text-slate-900 outline-none cursor-pointer focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm"
-                                    style={{ backgroundImage: 'none' }}
+                                <select value={perPage} onChange={(e) =>
+ setPerPage(e.target.value)}
+                                    className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-4 pr-10 text-[13.5px] font-bold text-slate-900 outline-none cursor-pointer focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm"
+                                    
                                 >
                                     <option value="10">10 Rows</option>
                                     <option value="25">25 Rows</option>
@@ -433,9 +433,6 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                     <option value="100">100 Rows</option>
                                     <option value="all">All Data</option>
                                 </select>
-                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
-                                    <i className="fa-solid fa-chevron-down text-[12px]"></i>
-                                </div>
                             </div>
                         </div>
                     </div>

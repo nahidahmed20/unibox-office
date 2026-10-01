@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
+import CustomSelect from '@/Components/CustomSelect';
 
 const Taka = ({ className = "text-[13px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 ${className}`}>৳</span>
@@ -11,7 +12,7 @@ const Taka = ({ className = "text-[13px]" }) => (
 const STATUS_DOT = { planning: "#94A3B8", in_progress: "#4F46E5", on_hold: "#EF4444", completed: "#10B981" };
 const PRIORITY_DOT = { low: "#10B981", medium: "#F59E0B", high: "#F97316", urgent: "#EF4444" };
 
-export default function Index({ projects = { data: [], links: [] }, clients = [], managers = [], is_super_admin = false }) {
+export default function Index({ projects = { data: [], links: [] }, clients = [], managers = [], is_super_admin = false, filters = {} }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
     const permissions = auth?.permissions || [];
@@ -21,14 +22,14 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedProject, setSelectedProject] = useState(null);
 
-    const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get("search") || "");
-    const [perPage, setPerPage] = useState(() => new URLSearchParams(window.location.search).get("per_page") || 25);
+    const [searchTerm, setSearchTerm] = useState(filters.search || "");
+    const [perPage, setPerPage] = useState(filters.per_page || 25);
 
-    const [filterClient, setFilterClient] = useState(() => new URLSearchParams(window.location.search).get("client_id") || "");
+    const [filterClient, setFilterClient] = useState(filters.client_id || "");
     const [showClientFilterDropdown, setShowClientFilterDropdown] = useState(false);
     const [clientFilterSearch, setClientFilterSearch] = useState("");
 
-    const [filterStatus, setFilterStatus] = useState(() => new URLSearchParams(window.location.search).get("status") || "");
+    const [filterStatus, setFilterStatus] = useState(filters.status || "");
     const [showStatusFilterDropdown, setShowStatusFilterDropdown] = useState(false);
 
     const filterRef = useRef(null);
@@ -132,13 +133,31 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
     const handleDelete = (id) => {
         Swal.fire({
-            title: "Are you sure?", text: "This project will be deleted permanently!", icon: "warning",
-            showCancelButton: true, confirmButtonColor: "#EF4444", cancelButtonColor: "#64748B", confirmButtonText: "Yes, Delete"
+            title: "Are you sure?",
+            text: "This project will be deleted permanently!",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#EF4444",
+            cancelButtonColor: "#64748B",
+            confirmButtonText: "Yes, Delete"
         }).then((result) => {
             if (result.isConfirmed) {
                 router.delete(route("admin.projects.destroy", id), {
                     preserveScroll: true,
-                    onSuccess: () => Swal.fire({ icon: "success", title: "Deleted!", timer: 1500, showConfirmButton: false }),
+                    onSuccess: (page) => {
+                        if (page.props.flash && page.props.flash.error) {
+                            Swal.fire({ icon: "error", title: "Cannot Delete!", text: page.props.flash.error });
+                        } else {
+                            Swal.fire({ icon: "success", title: "Deleted!", timer: 1500, showConfirmButton: false });
+                        }
+                    },
+                    onError: (errors) => {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Failed!",
+                            text: errors.error || "Failed to delete the project. It may have related data."
+                        });
+                    }
                 });
             }
         });
@@ -150,9 +169,9 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
     const getStatusStyles = (status) => {
         const styles = {
             planning: "bg-slate-100 text-slate-700 border-slate-300",
-            in_progress: "bg-indigo-50 text-indigo-700 border-indigo-300",
-            completed: "bg-emerald-50 text-emerald-700 border-emerald-300",
-            on_hold: "bg-red-50 text-red-700 border-red-300",
+            in_progress: "bg-indigo-100 text-indigo-700 border-indigo-300",
+            completed: "bg-emerald-100 text-emerald-700 border-emerald-300",
+            on_hold: "bg-rose-100 text-rose-700 border-rose-300",
         };
         return styles[status] || styles.planning;
     };
@@ -283,11 +302,10 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select
-                                        value={perPage}
-                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
-                                        className="appearance-none bg-transparent pl-4 pr-10 py-2.5 text-[14px] font-bold text-slate-900 outline-none cursor-pointer border-none focus:ring-0 w-[120px]"
-                                        style={{ backgroundImage: 'none' }}
+                                    <select value={perPage} onChange={(e) =>
+ setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
+                                        className="bg-transparent pl-4 pr-10 py-2.5 text-[14px] font-bold text-slate-900 outline-none cursor-pointer border-none focus:ring-0 w-[120px]"
+
                                     >
                                         <option value={10}>10 Rows</option>
                                         <option value={25}>25 Rows</option>
@@ -295,9 +313,6 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                         <option value={100}>100 Rows</option>
                                         <option value="all">All Data</option>
                                     </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400">
-                                        <i className="fa-solid fa-chevron-down text-[11px]"></i>
-                                    </div>
                                 </div>
                             </div>
 
@@ -463,13 +478,13 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                                         value={project.status}
                                                         onChange={(e) => handleQuickStatusChange(project.id, e.target.value)}
                                                         disabled={!canModify}
-                                                        className={`w-full appearance-none border-2 px-3 py-1.5 mb-2 rounded-lg text-[11px] font-black uppercase tracking-widest outline-none text-center shadow-sm ${canModify ? 'cursor-pointer focus:ring-2 focus:ring-indigo-600/20' : 'cursor-not-allowed opacity-80'} ${getStatusStyles(project.status)}`}
-                                                        style={{ backgroundImage: 'none' }}
+                                                        className={`w-full appearance-none border px-3 py-1.5 mb-2 rounded-lg text-[11px] font-black uppercase tracking-widest outline-none text-center shadow-sm transition-all ${canModify ? 'cursor-pointer hover:brightness-95 focus:ring-2 focus:ring-indigo-600/20' : 'cursor-not-allowed opacity-80'} ${getStatusStyles(project.status)}`}
+                                                        style={{ textAlignLast: 'center' }}
                                                     >
-                                                        <option value="planning">Planning</option>
-                                                        <option value="in_progress">In Progress</option>
-                                                        <option value="on_hold">On Hold</option>
-                                                        <option value="completed">Completed</option>
+                                                        <option value="planning" className="bg-white text-slate-800">Planning</option>
+                                                        <option value="in_progress" className="bg-white text-slate-800">In Progress</option>
+                                                        <option value="on_hold" className="bg-white text-slate-800">On Hold</option>
+                                                        <option value="completed" className="bg-white text-slate-800">Completed</option>
                                                     </select>
 
                                                     <div className="w-full bg-slate-200 rounded-full h-2 mt-1.5 overflow-hidden border border-slate-300">

@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
+import CustomSelect from '@/Components/CustomSelect';
 
 // 🟢 Custom Taka Component
 const Taka = ({ className = "text-[16px]" }) => (
@@ -304,10 +305,9 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select 
-                                            value={perPage} 
-                                            onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
-                                            className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
+                                    <select value={perPage} onChange={(e) =>
+ setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                            className="bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
                                         >
                                         <option value={10}>10 Rows</option>
                                         <option value={25}>25 Rows</option>
@@ -618,7 +618,7 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
                                     <div>
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Condition <span className="text-red-500">*</span></label>
                                         <div className="relative">
-                                            <select
+                                            <CustomSelect
                                                 value={data.condition}
                                                 onChange={e => setData('condition', e.target.value)}
                                                 className="w-full appearance-none bg-white rounded-xl border border-gray-300 px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm"
@@ -628,8 +628,7 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
                                                 <option value="good">👍 Good / Working</option>
                                                 <option value="damaged">💥 Damaged</option>
                                                 <option value="under_repair">🔧 Under Repair</option>
-                                            </select>
-                                            <i className="fa-solid fa-chevron-down text-[12px] text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                            </CustomSelect>
                                         </div>
                                         {errors.condition && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.condition}</p>}
                                     </div>

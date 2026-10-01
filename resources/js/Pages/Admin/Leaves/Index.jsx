@@ -8,6 +8,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import CustomSelect from '@/Components/CustomSelect';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -301,10 +302,9 @@ export default function Index({ leaves = { data: [], links: [] }, users = [] }) 
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select 
-                                        value={perPage} 
-                                        onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
-                                        className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
+                                    <select value={perPage} onChange={(e) =>
+ setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                        className="bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
                                     >
                                         <option value={10}>10 Rows</option>
                                         <option value={25}>25 Rows</option>
@@ -576,7 +576,7 @@ export default function Index({ leaves = { data: [], links: [] }, users = [] }) 
                                     <div>
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Leave Type <span className="text-red-500">*</span></label>
                                         <div className="relative">
-                                            <select
+                                            <CustomSelect
                                                 value={data.type}
                                                 onChange={e => setData('type', e.target.value)}
                                                 className="w-full appearance-none bg-none [background-image:none] rounded-xl border border-gray-300 bg-white px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm"
@@ -588,8 +588,7 @@ export default function Index({ leaves = { data: [], links: [] }, users = [] }) 
                                                 <option value="Maternity">Maternity Leave</option>
                                                 <option value="Paternity">Paternity Leave</option>
                                                 <option value="Unpaid">Unpaid Leave</option>
-                                            </select>
-                                            <i className="fa-solid fa-chevron-down text-[12px] text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                            </CustomSelect>
                                         </div>
                                         {errors.type && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.type}</p>}
                                     </div>
@@ -597,7 +596,7 @@ export default function Index({ leaves = { data: [], links: [] }, users = [] }) 
                                     <div>
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Approval Status <span className="text-red-500">*</span></label>
                                         <div className="relative">
-                                            <select
+                                            <CustomSelect
                                                 value={data.status}
                                                 onChange={e => setData('status', e.target.value)}
                                                 className="w-full appearance-none bg-none [background-image:none] rounded-xl border border-gray-300 bg-white px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm"
@@ -606,8 +605,7 @@ export default function Index({ leaves = { data: [], links: [] }, users = [] }) 
                                                 <option value="pending">Pending</option>
                                                 <option value="approved">Approved</option>
                                                 <option value="rejected">Rejected</option>
-                                            </select>
-                                            <i className="fa-solid fa-chevron-down text-[12px] text-gray-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                            </CustomSelect>
                                         </div>
                                         {errors.status && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.status}</p>}
                                     </div>

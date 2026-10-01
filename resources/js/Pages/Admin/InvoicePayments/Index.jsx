@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import AdminLayout from "@/Layouts/AdminLayout";
 import { Head, router, Link, usePage, useForm } from "@inertiajs/react";
 import Swal from "sweetalert2";
+import CustomSelect from '@/Components/CustomSelect';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -360,22 +361,17 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                         <div className="flex flex-wrap items-center gap-3 w-full justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="relative w-[130px]">
-                                    <select value={perPage} onChange={e => { setPerPage(e.target.value === "all" ? "all" : Number(e.target.value)); applyFilters({ per_page: e.target.value === "all" ? "all" : Number(e.target.value) }); }} className="appearance-none w-full bg-white border border-slate-300 rounded-xl pl-4 pr-9 py-2.5 text-[13px] font-bold text-slate-800 outline-none transition-all focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm cursor-pointer">
+                                    <select value={perPage} onChange={e =>
+ { setPerPage(e.target.value === "all" ? "all" : Number(e.target.value)); applyFilters({ per_page: e.target.value === "all" ? "all" : Number(e.target.value) }); }} className="w-full bg-white border border-slate-300 rounded-xl pl-4 pr-9 py-2.5 text-[13px] font-bold text-slate-800 outline-none transition-all focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm cursor-pointer">
                                         <option value={10}>10 Rows</option><option value={25}>25 Rows</option><option value={50}>50 Rows</option><option value={100}>100 Rows</option><option value="all">All Data</option>
                                     </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400">
-                                        <i className="fa-solid fa-chevron-down text-[11px]"></i>
-                                    </div>
                                 </div>
                                 <div className="h-6 w-px bg-slate-300 mx-1"></div>
                                 <div className="relative w-[200px]">
-                                    <select value={clientId} onChange={e => { setClientId(e.target.value); applyFilters({ client_id: e.target.value }); }} className="appearance-none w-full bg-white border border-slate-300 rounded-xl pl-4 pr-9 py-2.5 text-[13px] font-bold text-slate-800 outline-none transition-all focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm cursor-pointer">
+                                    <CustomSelect value={clientId} onChange={e => { setClientId(e.target.value); applyFilters({ client_id: e.target.value }); }} className="appearance-none w-full bg-white border border-slate-300 rounded-xl pl-4 pr-9 py-2.5 text-[13px] font-bold text-slate-800 outline-none transition-all focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm cursor-pointer">
                                         <option value="">All Clients</option>
                                         {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                    </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400">
-                                        <i className="fa-solid fa-chevron-down text-[11px]"></i>
-                                    </div>
+                                    </CustomSelect>
                                 </div>
                             </div>
                             <div className="relative w-[280px]">

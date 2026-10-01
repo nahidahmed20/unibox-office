@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+import CustomSelect from '@/Components/CustomSelect';
 
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
@@ -308,10 +309,9 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select
-                                        value={perPage}
-                                        onChange={(e) => handleFilterChange('per_page', e.target.value === "all" ? "all" : Number(e.target.value))}
-                                        className="appearance-none bg-none [background-image:none] bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-slate-900 outline-none cursor-pointer border-none focus:ring-0 w-[120px]"
+                                    <select value={perPage} onChange={(e) =>
+ handleFilterChange('per_page', e.target.value === "all" ? "all" : Number(e.target.value))}
+                                        className="bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-slate-900 outline-none cursor-pointer border-none focus:ring-0 w-[120px]"
                                     >
                                         <option value={10}>10 Rows</option>
                                         <option value={25}>25 Rows</option>
@@ -319,9 +319,6 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                         <option value={100}>100 Rows</option>
                                         <option value="all">All Data</option>
                                     </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400">
-                                        <i className="fa-solid fa-chevron-down text-[11px]"></i>
-                                    </div>
                                 </div>
                             </div>
 
@@ -340,20 +337,18 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                             </div>
 
                             <div className="relative w-full lg:w-[160px]">
-                                <select value={accountId} onChange={(e) => handleFilterChange('account_id', e.target.value)} className="w-full appearance-none rounded-xl border border-slate-300 bg-white pl-3 pr-8 py-2.5 text-[13px] font-bold text-slate-800 outline-none focus:border-indigo-600 cursor-pointer shadow-sm focus:ring-2 focus:ring-indigo-600/20 transition-all">
+                                <CustomSelect value={accountId} onChange={(e) => handleFilterChange('account_id', e.target.value)} className="w-full appearance-none rounded-xl border border-slate-300 bg-white pl-3 pr-8 py-2.5 text-[13px] font-bold text-slate-800 outline-none focus:border-indigo-600 cursor-pointer shadow-sm focus:ring-2 focus:ring-indigo-600/20 transition-all">
                                     <option value="">All Accounts</option>
                                     {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                                </select>
-                                <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[11px] pointer-events-none"></i>
+                                </CustomSelect>
                             </div>
 
                             <div className="relative w-full lg:w-[150px]">
-                                <select value={typeFilter} onChange={(e) => handleFilterChange('type', e.target.value)} className="w-full appearance-none rounded-xl border border-slate-300 bg-white pl-3 pr-8 py-2.5 text-[13px] font-bold text-slate-800 outline-none focus:border-indigo-600 cursor-pointer shadow-sm focus:ring-2 focus:ring-indigo-600/20 transition-all">
+                                <CustomSelect value={typeFilter} onChange={(e) => handleFilterChange('type', e.target.value)} className="w-full appearance-none rounded-xl border border-slate-300 bg-white pl-3 pr-8 py-2.5 text-[13px] font-bold text-slate-800 outline-none focus:border-indigo-600 cursor-pointer shadow-sm focus:ring-2 focus:ring-indigo-600/20 transition-all">
                                     <option value="">All Types</option>
                                     <option value="credit">Deposit (In)</option>
                                     <option value="debit">Withdrawal (Out)</option>
-                                </select>
-                                <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[11px] pointer-events-none"></i>
+                                </CustomSelect>
                             </div>
 
                             {(searchTerm || accountId || typeFilter || dateFrom || dateTo) && (
@@ -547,7 +542,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                         <div>
                                             <label className="block text-[12px] font-black text-slate-800 uppercase tracking-widest mb-2">From Account (Source) <span className="text-red-600">*</span></label>
                                             <div className="relative">
-                                                <select
+                                                <CustomSelect
                                                     value={transferData.from_account_id}
                                                     onChange={(e) => setTransferData('from_account_id', e.target.value)}
                                                     className={`${inputClass} appearance-none pr-10 cursor-pointer`}
@@ -556,8 +551,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                                 >
                                                     <option value="">Select source account...</option>
                                                     {accounts.map(a => <option key={a.id} value={a.id}>{a.name} (Bal: ৳{parseFloat(a.current_balance).toLocaleString('en-IN')})</option>)}
-                                                </select>
-                                                <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-[12px] pointer-events-none"></i>
+                                                </CustomSelect>
                                             </div>
                                             {transferErrors.from_account_id && <p className="text-red-600 text-[11px] font-bold mt-1.5">{transferErrors.from_account_id}</p>}
                                         </div>
@@ -571,7 +565,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                         <div>
                                             <label className="block text-[12px] font-black text-slate-800 uppercase tracking-widest mb-2">To Account (Destination) <span className="text-red-600">*</span></label>
                                             <div className="relative">
-                                                <select
+                                                <CustomSelect
                                                     value={transferData.to_account_id}
                                                     onChange={(e) => setTransferData('to_account_id', e.target.value)}
                                                     className={`${inputClass} appearance-none pr-10 cursor-pointer`}
@@ -580,8 +574,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                                 >
                                                     <option value="">Select destination account...</option>
                                                     {accounts.map(a => <option key={a.id} value={a.id}>{a.name} (Bal: ৳{parseFloat(a.current_balance).toLocaleString('en-IN')})</option>)}
-                                                </select>
-                                                <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-[12px] pointer-events-none"></i>
+                                                </CustomSelect>
                                             </div>
                                             {transferErrors.to_account_id && <p className="text-red-600 text-[11px] font-bold mt-1.5">{transferErrors.to_account_id}</p>}
                                         </div>
@@ -666,7 +659,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                 <div className="bg-white p-6 rounded-2xl border border-slate-300 shadow-md">
                                     <label className="block text-[12px] font-black text-slate-800 uppercase tracking-widest mb-2">Select Account <span className="text-red-600">*</span></label>
                                     <div className="relative">
-                                        <select
+                                        <CustomSelect
                                             value={data.account_id}
                                             onChange={(e) => setData('account_id', e.target.value)}
                                             className={`${inputClass} appearance-none pr-10 cursor-pointer`}
@@ -675,8 +668,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                         >
                                             <option value="">Choose an account...</option>
                                             {accounts.map(a => <option key={a.id} value={a.id}>{a.name} (Bal: ৳{parseFloat(a.current_balance).toLocaleString('en-IN')})</option>)}
-                                        </select>
-                                        <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-[12px] pointer-events-none"></i>
+                                        </CustomSelect>
                                     </div>
                                     {errors.account_id && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.account_id}</p>}
                                 </div>

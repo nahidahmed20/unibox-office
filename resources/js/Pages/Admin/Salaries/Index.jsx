@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
+import CustomSelect from '@/Components/CustomSelect';
 
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
@@ -358,10 +359,10 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                             <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
                                 <span className="bg-gray-50 px-4 py-2.5 text-[12px] font-bold text-gray-500 border-r border-gray-200">Show</span>
                                 <div className="relative">
-                                    <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} className="appearance-none bg-none bg-transparent pl-4 pr-9 py-2.5 text-[13.5px] font-semibold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[110px]">
+                                    <select value={perPage} onChange={(e) =>
+ setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} className="bg-transparent pl-4 pr-9 py-2.5 text-[13.5px] font-semibold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[110px]">
                                         <option value={10}>10 Rows</option><option value={25}>25 Rows</option><option value={50}>50 Rows</option><option value={100}>100 Rows</option><option value="all">All Data</option>
                                     </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400"><i className="fa-solid fa-chevron-down text-[10px]"></i></div>
                                 </div>
                             </div>
                             <div className="h-6 w-px bg-gray-200 hidden sm:block mx-1"></div>
@@ -561,10 +562,10 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                                     <div>
                                         <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Payment Status</label>
-                                        <select value={data.status} onChange={e => setData('status', e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-[11.5px] text-[14px] font-bold text-gray-800 outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer">
+                                        <CustomSelect value={data.status} onChange={e => setData('status', e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-[11.5px] text-[14px] font-bold text-gray-800 outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer">
                                             <option value="unpaid">Unpaid</option>
                                             <option value="paid">Paid</option>
-                                        </select>
+                                        </CustomSelect>
                                     </div>
                                     {data.status === 'paid' && (
                                         <div>

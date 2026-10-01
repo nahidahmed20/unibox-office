@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select'; // 🟢 Added React Select Import
+import CustomSelect from '@/Components/CustomSelect';
 
 export default function Index({ project_expenses = { data: [], links: [] }, projects = [], categories = [], vendors = [], totals = null, filters = {} }) {
     const { auth } = usePage().props;
@@ -380,10 +381,9 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
                         {/* 🟢 Premium SHOW ENTRIES Dropdown */}
                         <div className="relative w-full sm:w-[130px]">
-                            <select
-                                value={perPage}
-                                onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
-                                className="appearance-none w-full bg-white border border-gray-300 rounded-xl pl-4 pr-9 py-2.5 text-[13px] font-bold text-gray-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer"
+                            <select value={perPage} onChange={(e) =>
+ setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
+                                className="w-full bg-white border border-gray-300 rounded-xl pl-4 pr-9 py-2.5 text-[13px] font-bold text-gray-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer"
                             >
                                 <option value={10}>10 Rows</option>
                                 <option value={25}>25 Rows</option>
@@ -391,21 +391,18 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                 <option value={100}>100 Rows</option>
                                 <option value="all">All Rows</option>
                             </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-400">
-                                <i className="fa-solid fa-chevron-down text-[11px]"></i>
-                            </div>
                         </div>
 
                         {/* 🟢 Premium Year Filter */}
                         <div className="relative w-full sm:w-[130px]">
-                            <select
+                            <CustomSelect
                                 value={yearFilter}
                                 onChange={(e) => { setYearFilter(e.target.value); if (e.target.value) { setDateFrom(""); setDateTo(""); } }}
                                 className="appearance-none w-full bg-white border border-gray-300 rounded-xl pl-4 pr-9 py-2.5 text-[13px] font-bold text-gray-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer"
                             >
                                 <option value="">All Years</option>
                                 {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-                            </select>
+                            </CustomSelect>
                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-400">
                                 <i className="fa-solid fa-calendar text-[11px]"></i>
                             </div>

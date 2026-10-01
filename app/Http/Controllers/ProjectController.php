@@ -15,18 +15,20 @@ class ProjectController extends Controller
     {
         $query = Project::with(['client', 'projectManager', 'items']);
 
+        // Search logic
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function($q) use ($searchTerm) {
                 $q->where('title', 'like', "%{$searchTerm}%")
-                  ->orWhere('status', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('client', function($cq) use ($searchTerm) {
-                      $cq->where('name', 'like', "%{$searchTerm}%")
-                         ->orWhere('company_name', 'like', "%{$searchTerm}%");
-                  });
+                ->orWhere('status', 'like', "%{$searchTerm}%")
+                ->orWhereHas('client', function($cq) use ($searchTerm) {
+                    $cq->where('name', 'like', "%{$searchTerm}%")
+                        ->orWhere('company_name', 'like', "%{$searchTerm}%");
+                });
             });
         }
 
+        // Filters
         $query->when($request->filled('client_id'), fn($q) => $q->where('client_id', $request->client_id));
         $query->when($request->filled('status'), fn($q) => $q->where('status', $request->status));
 
@@ -34,7 +36,7 @@ class ProjectController extends Controller
             $totalCount = clone $query->count();
             $perPage = $totalCount > 0 ? $totalCount : 1;
         } else {
-            $perPage = \App\Support\Pagination::perPage($request, $query);
+            $perPage = (int) $request->input('per_page', 25);
         }
 
         $projects = $query->latest('created_at')->paginate($perPage)->withQueryString();
@@ -52,7 +54,6 @@ class ProjectController extends Controller
             'is_super_admin' => $isSuperAdmin
         ]);
     }
-
     public function create()
     {
         $clients = Client::select('id', 'name', 'company_name')->latest()->get();
@@ -137,6 +138,7 @@ class ProjectController extends Controller
             'repo_link'          => 'nullable|url|max:255',
             'live_url'           => 'nullable|url|max:255',
             'items'              => 'required|array|min:1',
+            'items.*.id'         => 'nullable|integer',
             'items.*.item_name'  => 'required|string|max:255',
             'items.*.description'=> 'nullable|string',
             'items.*.quantity'   => 'required|numeric|min:1',
@@ -155,8 +157,21 @@ class ProjectController extends Controller
 
             $project->update($projectData);
 
-            $project->items()->delete();
-            $project->items()->createMany($validated['items']);
+            $submittedItemIds = collect($validated['items'])->pluck('id')->filter()->toArray();
+
+            if (!empty($submittedItemIds)) {
+                $project->items()->whereNotIn('id', $submittedItemIds)->delete();
+            } else {
+                $project->items()->delete();
+            }
+
+            foreach ($validated['items'] as $itemData) {
+                if (!empty($itemData['id'])) {
+                    $project->items()->where('id', $itemData['id'])->update(collect($itemData)->except(['id'])->toArray());
+                } else {
+                    $project->items()->create(collect($itemData)->except(['id'])->toArray());
+                }
+            }
         });
 
         return redirect()->route('admin.projects.index')->with('success', 'Project updated successfully.');
@@ -196,14 +211,17 @@ class ProjectController extends Controller
         $hasInvoice = DB::table('invoice_items')->where('project_id', $id)->exists();
 
         if ($hasInvoice) {
-            return redirect()->back()->with('error', 'This project cannot be deleted because an invoice has already been generated for it.');
+            return redirect()->back()->withErrors(['error' => 'This project cannot be deleted because an invoice has already been generated for it.']);
         }
 
         if ($project->status === 'completed' && !$isSuperAdmin) {
-            abort(403, 'Completed projects can only be deleted by Super Admin.');
+            return redirect()->back()->withErrors(['error' => 'Completed projects can only be deleted by Super Admin.']);
         }
 
-        $project->delete();
+        DB::transaction(function () use ($project) {
+            $project->items()->delete();
+            $project->delete();
+        });
 
         return redirect()->back()->with('success', 'Project deleted successfully.');
     }
