@@ -35,6 +35,7 @@ export default function Index({ settings }) {
     const { data, setData, post, processing, errors } = useForm({
         show_logo: settings?.show_logo ?? true,
         show_watermark: settings?.show_watermark ?? true,
+        show_status_stamp: settings?.show_status_stamp ?? true,
         show_client_info: settings?.show_client_info ?? true,
         show_invoice_meta: settings?.show_invoice_meta ?? true,
         show_notes: settings?.show_notes ?? true,
@@ -94,6 +95,7 @@ export default function Index({ settings }) {
 
                             <ToggleSwitch label="Show Company Logo" checked={data.show_logo} onChange={(val) => setData('show_logo', val)} />
                             <ToggleSwitch label="Show Background Watermark" checked={data.show_watermark} onChange={(val) => setData('show_watermark', val)} />
+                            <ToggleSwitch label="Show Paid / Partially Paid Stamp" checked={data.show_status_stamp} onChange={(val) => setData('show_status_stamp', val)} />
                             <ToggleSwitch label="Show Client Information" checked={data.show_client_info} onChange={(val) => setData('show_client_info', val)} />
                             <ToggleSwitch label="Show Invoice Date & Number" checked={data.show_invoice_meta} onChange={(val) => setData('show_invoice_meta', val)} />
                             <ToggleSwitch label="Show Terms & Notes" checked={data.show_notes} onChange={(val) => setData('show_notes', val)} />

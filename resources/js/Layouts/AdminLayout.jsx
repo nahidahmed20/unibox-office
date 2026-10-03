@@ -378,6 +378,7 @@ export default function AdminLayout({ children }) {
                                     <SubMenu>
                                         <li><Link href={route('admin.reports.position')} className={subItemClass(route().current('admin.reports.position'))}><i className="fa-solid fa-scale-balanced w-4 text-center text-[11px] opacity-70"></i> Financial Position</Link></li>
                                         <li><Link href={route('admin.reports.daybook')} className={subItemClass(route().current('admin.reports.daybook'))}><i className="fa-solid fa-book-open w-4 text-center text-[11px] opacity-70"></i> Daily Daybook</Link></li>
+                                        <li><Link href={route('admin.reports.monthly-balance')} className={subItemClass(route().current('admin.reports.monthly-balance'))}><i className="fa-solid fa-calendar-days w-4 text-center text-[11px] opacity-70"></i> Monthly Balance</Link></li>
                                         <li><Link href={route('admin.reports.financial')} className={subItemClass(route().current('admin.reports.financial'))}><i className="fa-solid fa-chart-area w-4 text-center text-[11px] opacity-70"></i> Profit & Loss</Link></li>
                                         <li><Link href={route('admin.account.transactions')} className={subItemClass(route().current('admin.account.transactions'))}><i className="fa-solid fa-money-check w-4 text-center text-[11px] opacity-70"></i> Transactions Log</Link></li>
 

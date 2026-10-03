@@ -14,6 +14,7 @@ class InvoiceSetting extends Model
     protected $casts = [
         'show_logo' => 'boolean',
         'show_watermark' => 'boolean',
+        'show_status_stamp' => 'boolean',
         'show_client_info' => 'boolean',
         'show_invoice_meta' => 'boolean',
         'show_notes' => 'boolean',

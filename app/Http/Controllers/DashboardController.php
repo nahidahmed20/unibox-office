@@ -34,9 +34,11 @@ class DashboardController extends Controller
             ->get()
             ->sum(fn ($investment) => max((float) $investment->amount - (float) ($investment->returned_principal ?? 0), 0));
 
-        // 3. Receivables & Payables
+        $unpaidSalaries = Salary::whereIn('status', ['unpaid', 'partially_paid'])->sum('due_amount');
+
+        // 3. Receivables & Market Payables (ভেন্ডর ও বাজারের দেনা)
         $totalReceivables = $totalClientDue + $employeeAdvance + $vendorAdvance;
-        $totalPayables = $vendorDue + $clientAdvance + $actualInvestmentBalance;
+        $totalPayables = $vendorDue + $clientAdvance + $unpaidSalaries;
 
         // 4. Monthly Operational Data
         $monthlyRevenue = Invoice::whereIn('id', $validInvoiceIds)
@@ -50,10 +52,6 @@ class DashboardController extends Controller
             ->whereYear('transaction_date', $currentYear)
             ->selectRaw('COALESCE(SUM(amount - bank_charge), 0) total')->value('total');
 
-        $unpaidSalaries = Salary::whereIn('status', ['unpaid', 'partially_paid'])->sum('due_amount');
-
-
-        $totalPayables += $unpaidSalaries;
 
         $monthlyExpenses = Expense::whereMonth('date', $currentMonth)
             ->whereYear('date', $currentYear)
@@ -77,6 +75,7 @@ class DashboardController extends Controller
 
         $stats = [
             'overallNetWorth' => $overallNetWorth,
+            'netWorthAfterInvestment' => $overallNetWorth - $actualInvestmentBalance,
 
             // 🟢 NEW: Revenue Data passed to frontend
             'totalBilledRevenue' => $totalInvoiced, // বকেয়া সহ ইনকাম

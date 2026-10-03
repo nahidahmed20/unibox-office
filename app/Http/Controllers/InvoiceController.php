@@ -383,7 +383,17 @@ class InvoiceController extends Controller
 
     public function print($id)
     {
-        $invoice = Invoice::with(['client', 'items.project'])->findOrFail($id);
+        $invoice = Invoice::with(['client', 'items.project', 'payments'])->findOrFail($id);
+
+        $advanceUsed = round((float) $invoice->payments->where('method', 'Client Advance')->sum('amount') + (float) ($invoice->getRawOriginal('advance_used') ?? 0), 2);
+        $cashPaid = round((float) $invoice->payments->where('method', '!=', 'Client Advance')->sum('amount'), 2);
+        $totalPaid = round($advanceUsed + $cashPaid, 2);
+        $payableDue = max(0, round((float) $invoice->grand_total - $totalPaid, 2));
+
+        $invoice->setAttribute('advance_amount', $advanceUsed);
+        $invoice->setAttribute('cash_paid', $cashPaid);
+        $invoice->setAttribute('total_paid', $totalPaid);
+        $invoice->setAttribute('payable_due', $payableDue);
 
         $settings = InvoiceSetting::first();
 

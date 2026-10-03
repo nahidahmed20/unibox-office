@@ -89,13 +89,19 @@ export default function Dashboard({ stats, recentPendingInvoices = [], recentNot
                                 {stats.overallNetWorth > 0 ? '+' : ''}৳ {(Number(stats.overallNetWorth) || 0).toLocaleString('en-IN')}
                             </h1>
 
-                            {/* 🟢 NEW: Formula Breakdown (So you instantly know Due is included) */}
+                            {/* 🟢 Formula Breakdown */}
                             <div className="flex flex-wrap items-center gap-1.5 mt-3.5 text-[11px] font-bold text-gray-500">
-                                <span className="text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded shadow-sm">ক্যাশ/সম্পদ</span>
+                                <span className="text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded shadow-sm" title="ক্যাশ/ব্যাংক ব্যালেন্স + অফিসের স্থায়ী সম্পদ">
+                                    ক্যাশ ও সম্পদ: ৳ {(Number(stats.totalBalance) + Number(stats.totalAssets)).toLocaleString('en-IN')}
+                                </span>
                                 <span className="text-gray-400">+</span>
-                                <span className="text-blue-700 bg-blue-50 border border-blue-100 px-2 py-1 rounded shadow-sm">মোট বকেয়া (পাবো)</span>
+                                <span className="text-blue-700 bg-blue-50 border border-blue-100 px-2 py-1 rounded shadow-sm" title="মার্কেটে ক্লায়েন্ট ও ভেন্ডর পাওনা">
+                                    পাওনা: ৳ {(Number(stats.totalReceivables) || 0).toLocaleString('en-IN')}
+                                </span>
                                 <span className="text-gray-400">-</span>
-                                <span className="text-rose-700 bg-rose-50 border border-rose-100 px-2 py-1 rounded shadow-sm">দেনা (দিতে হবে)</span>
+                                <span className="text-rose-700 bg-rose-50 border border-rose-100 px-2 py-1 rounded shadow-sm" title="মার্কেটে ভেন্ডর ও বকেয়া বেতন দেনা">
+                                    দেনা: ৳ {(Number(stats.totalPayables) || 0).toLocaleString('en-IN')}
+                                </span>
                             </div>
 
                             {/* Revenue Overview (Billed vs Collected) */}
@@ -119,9 +125,9 @@ export default function Dashboard({ stats, recentPendingInvoices = [], recentNot
                                 <h2 className="text-[32px] font-black text-emerald-800 tracking-tight tabular-nums relative z-10">
                                     ৳ {(Number(stats.totalReceivables) || 0).toLocaleString('en-IN')}
                                 </h2>
-                                <p className="text-[12px] font-bold text-emerald-700/80 mt-2">
-                                    Client Dues: ৳ {Number(stats.totalClientDue).toLocaleString()} <br/>
-                                    Staff/Vendor Adv: ৳ {(Number(stats.employeeAdvance) + Number(stats.vendorAdvance)).toLocaleString()}
+                                <p className="text-[12px] font-bold text-emerald-700/80 mt-2 leading-relaxed">
+                                    Client Dues: ৳ {Number(stats.totalClientDue).toLocaleString('en-IN')} <br/>
+                                    Vendor/Staff Adv: ৳ {(Number(stats.employeeAdvance) + Number(stats.vendorAdvance)).toLocaleString('en-IN')}
                                 </p>
                             </div>
 
@@ -131,9 +137,9 @@ export default function Dashboard({ stats, recentPendingInvoices = [], recentNot
                                 <h2 className="text-[32px] font-black text-rose-800 tracking-tight tabular-nums relative z-10">
                                     ৳ {(Number(stats.totalPayables) || 0).toLocaleString('en-IN')}
                                 </h2>
-                                <p className="text-[12px] font-bold text-rose-700/80 mt-2">
-                                    Vendor Due: ৳ {Number(stats.vendorDue).toLocaleString()} <br/>
-                                    Unpaid Salary & Others: ৳ {(Number(stats.unpaidSalaries) + Number(stats.clientAdvance)).toLocaleString()}
+                                <p className="text-[12px] font-bold text-rose-700/80 mt-2 leading-relaxed">
+                                    Vendor Due: ৳ {Number(stats.vendorDue).toLocaleString('en-IN')} <br/>
+                                    Unpaid Salary & Others: ৳ {(Number(stats.unpaidSalaries) + Number(stats.clientAdvance)).toLocaleString('en-IN')}
                                 </p>
                             </div>
                         </div>
@@ -148,7 +154,7 @@ export default function Dashboard({ stats, recentPendingInvoices = [], recentNot
                     <StatCard label="Cash In (This Month)" value={money(stats.monthlyCashIn)} icon="fa-arrow-down-to-bracket" gradient="bg-gradient-to-br from-emerald-400 to-teal-500" note="Invoices collected + Client Adv" noteColor="text-emerald-600"/>
                     <StatCard label="Cash Out (This Month)" value={money(stats.monthlyCashOut)} icon="fa-arrow-right-from-bracket" gradient="bg-gradient-to-br from-rose-400 to-red-500" note="Project Bills + Office Exp + Salaries" noteColor="text-rose-600"/>
 
-                    <StatCard label="Total Investment" value={money(stats.totalInvestment)} icon="fa-chart-line" gradient="bg-gradient-to-br from-purple-500 to-indigo-600" note="Total capital invested in company" noteColor="text-purple-600"/>
+                    <StatCard label="Total Investment" value={money(stats.totalInvestment)} icon="fa-chart-line" gradient="bg-gradient-to-br from-purple-500 to-indigo-600" note="কোম্পানির মোট বিনিয়োগ মূলধন" noteColor="text-purple-600"/>
                     <StatCard label="Total Asset Value" value={money(stats.totalAssets)} icon="fa-couch" gradient="bg-gradient-to-br from-cyan-400 to-emerald-500" note="Current valuation of company assets" noteColor="text-cyan-700"/>
                     <StatCard label="Employee Advance" value={money(stats.employeeAdvance)} icon="fa-user-tie" gradient="bg-gradient-to-br from-blue-400 to-cyan-500" note="Total unsettled staff advances" noteColor="text-blue-600"/>
                     <StatCard label="Office Spent (This Month)" value={money(totalSpentThisMonth)} icon="fa-calculator" gradient="bg-gradient-to-br from-fuchsia-500 to-pink-600" note={`Exp: ৳ ${(Number(stats.monthlyExpensesOnly) || 0).toLocaleString()} | Salary: ৳ ${(Number(stats.monthlySalaryPaid) || 0).toLocaleString()}`} noteColor="text-fuchsia-600"/>

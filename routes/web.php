@@ -38,7 +38,7 @@ use App\Models\Invoice;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Models\Project;
+
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -52,28 +52,7 @@ Route::middleware('auth')->group(function () {
 
 
 
-Route::get('/fix-old-projects', function () {
-    // যেসব প্রজেক্টের কোনো item নেই সেগুলো খুঁজে বের করা
-    $projects = Project::doesntHave('items')->get();
-    $count = 0;
 
-    foreach ($projects as $project) {
-        // যদি প্রজেক্টের আগে থেকে কোনো বাজেট থেকে থাকে
-        if ($project->budget > 0) {
-            $project->items()->create([
-                'item_name'   => 'General Project Module',
-                'description' => 'Migrated from old project record',
-                'quantity'    => 1,
-                'unit_type'   => 'Unit',
-                'unit_price'  => $project->budget,
-                'total'       => $project->budget,
-            ]);
-            $count++;
-        }
-    }
-
-    return "Successfully fixed {$count} old projects by adding default items!";
-});
 
     // Profile Routes
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -144,6 +123,7 @@ Route::get('/fix-old-projects', function () {
     Route::get('account/transactions', [ReportController::class, 'transactionsReport'])->name('admin.account.transactions');
     Route::get('reports/client-ledger', [ReportController::class, 'clientLedger'])->name('admin.reports.client-ledger');
     Route::get('/daybook', [ReportController::class, 'daybook'])->name('admin.reports.daybook');
+    Route::get('reports/monthly-balance', [ReportController::class, 'monthlyBalance'])->name('admin.reports.monthly-balance');
 
     Route::get('/invoice-settings', [InvoiceSettingController::class, 'index'])->name('admin.invoice-settings.index');
     Route::post('/invoice-settings', [InvoiceSettingController::class, 'update'])->name('admin.invoice-settings.update');

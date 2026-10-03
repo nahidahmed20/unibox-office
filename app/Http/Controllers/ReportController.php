@@ -764,4 +764,118 @@ class ReportController extends Controller
             ]
         ]);
     }
+
+    /**
+     * Monthly balance report: মাসের শুরুতে কত ছিল, কত জমা/খরচ হলো, মাসের শেষে কত আছে।
+     *
+     * Same method as the Daybook: start from each account's live current_balance and
+     * walk backwards through transactions, so the latest month's closing always equals
+     * the real account balance shown elsewhere in the system.
+     */
+    public function monthlyBalance(Request $request)
+    {
+        $today = Carbon::today();
+        $year = (int) $request->input('year', $today->year);
+        $accountId = $request->filled('account_id') ? (int) $request->input('account_id') : null;
+
+        $yearStart = Carbon::create($year, 1, 1)->toDateString();
+        $yearEnd = Carbon::create($year, 12, 31)->toDateString();
+
+        $scoped = fn () => Transaction::query()
+            ->when($accountId, fn ($q) => $q->where('account_id', $accountId));
+
+        $sumSql = "COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0) as credit,
+                   COALESCE(SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END), 0) as debit";
+
+        // Live balance right now (all accounts, or the selected one)
+        $liveBalance = (float) Account::query()
+            ->when($accountId, fn ($q) => $q->whereKey($accountId))
+            ->sum('current_balance');
+
+        // Everything dated after the selected year, to roll back to the year-end balance
+        $after = $scoped()
+            ->whereDate('transaction_date', '>', $yearEnd)
+            ->selectRaw($sumSql)
+            ->first();
+
+        // Per-day totals inside the year (portable across databases), bucketed into months below
+        $daily = $scoped()
+            ->whereBetween('transaction_date', [$yearStart, $yearEnd])
+            ->selectRaw("transaction_date, COUNT(*) as trx_count, {$sumSql}")
+            ->groupBy('transaction_date')
+            ->get();
+
+        $months = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $months[$m] = ['credit' => 0.0, 'debit' => 0.0, 'count' => 0];
+        }
+        foreach ($daily as $row) {
+            $m = Carbon::parse($row->transaction_date)->month;
+            $months[$m]['credit'] += (float) $row->credit;
+            $months[$m]['debit'] += (float) $row->debit;
+            $months[$m]['count'] += (int) $row->trx_count;
+        }
+
+        // Walk backwards from the year-end closing balance
+        $closing = $liveBalance - (float) $after->credit + (float) $after->debit;
+        $rows = [];
+        for ($m = 12; $m >= 1; $m--) {
+            $opening = $closing - $months[$m]['credit'] + $months[$m]['debit'];
+            $monthStart = Carbon::create($year, $m, 1);
+
+            $rows[$m] = [
+                'month'      => $m,
+                'label'      => $monthStart->format('F Y'),
+                'start_date' => $monthStart->toDateString(),
+                'end_date'   => $monthStart->copy()->endOfMonth()->toDateString(),
+                'opening'    => round($opening, 2),
+                'deposit'    => round($months[$m]['credit'], 2),
+                'withdraw'   => round($months[$m]['debit'], 2),
+                'closing'    => round($closing, 2),
+                'count'      => $months[$m]['count'],
+            ];
+            $closing = $opening;
+        }
+        $yearOpening = round($closing, 2);
+        ksort($rows);
+
+        // Don't show future months of the current year (unless they already have entries)
+        $lastMonth = $year < $today->year ? 12 : ($year === $today->year ? $today->month : 0);
+        foreach ($rows as $m => $r) {
+            if ($r['count'] > 0) {
+                $lastMonth = max($lastMonth, $m);
+            }
+        }
+        $rows = array_filter($rows, fn ($r) => $r['month'] <= $lastMonth);
+
+        // Hide empty months before the first ever entry
+        $isEmpty = fn ($r) => $r['count'] === 0 && abs($r['opening']) < 0.005 && abs($r['closing']) < 0.005;
+        while (!empty($rows) && $isEmpty(reset($rows))) {
+            array_shift($rows);
+        }
+        $rows = array_values($rows);
+
+        $summary = [
+            'opening'  => !empty($rows) ? $rows[0]['opening'] : $yearOpening,
+            'deposit'  => round(array_sum(array_column($rows, 'deposit')), 2),
+            'withdraw' => round(array_sum(array_column($rows, 'withdraw')), 2),
+            'closing'  => !empty($rows) ? end($rows)['closing'] : $yearOpening,
+        ];
+
+        $firstDate = Transaction::min('transaction_date');
+        $lastDate = Transaction::max('transaction_date');
+        $minYear = $firstDate ? Carbon::parse($firstDate)->year : $today->year;
+        $maxYear = max($today->year, $lastDate ? Carbon::parse($lastDate)->year : $today->year);
+
+        return Inertia::render('Admin/Reports/MonthlyBalance', [
+            'rows'     => $rows,
+            'summary'  => $summary,
+            'years'    => range($maxYear, min($minYear, $maxYear)),
+            'accounts' => Account::orderBy('name')->get(['id', 'name', 'type', 'is_active']),
+            'filters'  => [
+                'year'       => $year,
+                'account_id' => $accountId,
+            ],
+        ]);
+    }
 }

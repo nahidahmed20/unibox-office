@@ -1080,6 +1080,16 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                             ৳ {Number(paymentToVoid.pay_amount).toLocaleString('en-IN')}
                                         </span>
                                     </div>
+                                    {Number(paymentToVoid.adjustment_amount) > 0 && (
+                                        <div className="flex justify-between items-center border-b border-gray-200 pb-4">
+                                            <span className="font-bold text-amber-700 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                                                <i className="fa-solid fa-tag text-amber-500"></i> Discount / Adjust
+                                            </span>
+                                            <span className="text-amber-800 text-[16px] font-black bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200 tabular-nums shadow-sm">
+                                                ৳ {Number(paymentToVoid.adjustment_amount).toLocaleString('en-IN')}
+                                            </span>
+                                        </div>
+                                    )}
                                     <div className="flex justify-between items-center">
                                         <span className="font-bold text-gray-500 uppercase tracking-wider text-[11px]">Payment Date</span>
                                         <span className="font-bold bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm text-[13px]">{paymentToVoid.date}</span>
