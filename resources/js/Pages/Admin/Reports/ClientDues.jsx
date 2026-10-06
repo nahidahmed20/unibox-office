@@ -45,7 +45,7 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0, gra
     const handleCopy = () => {
         if (!clients.length) return Swal.fire("Empty!", "No data to copy", "warning");
 
-        const header = "SL\tClient Name\tPhone\tTotal Billed\tTotal Received\tAvailable Advance\tNet Due\n";
+        const header = "SL\tClient Name\tPhone\tAvailable Advance\tNet Due\n";
         const text = clients
             .map((c, idx) => {
                 const billed = parseFloat(c.total_invoiced || 0);
@@ -62,7 +62,7 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0, gra
     const handleExportCSV = () => {
         if (!clients.length) return Swal.fire("Empty!", "No data to export", "warning");
 
-        const headers = ["SL,Client Name,Company,Phone,Total Billed,Total Received,Available Advance,Net Due\n"];
+        const headers = ["SL,Client Name,Company,Phone,Available Advance,Net Due\n"];
         const rows = clients.map((c, idx) => {
             const billed = parseFloat(c.total_invoiced || 0);
             const paid = parseFloat(c.total_paid || 0);
@@ -255,8 +255,9 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0, gra
                                 <tr>
                                     <th className="px-6 py-4.5 w-12">SL</th>
                                     <th className="px-6 py-4.5">Client Profile</th>
-                                    <th className="px-6 py-4.5 text-right bg-blue-50/40">Total Billed</th>
-                                    <th className="px-6 py-4.5 text-right bg-emerald-50/40">Total Received</th>
+                                    
+                                    
+
                                     <th className="px-6 py-4.5 text-right bg-rose-50/40 border-r border-gray-100">Net Due Amount</th>
                                     <th className="px-6 py-4.5 text-right">Avail. Advance</th>
                                     <th className="px-6 py-4.5 text-center no-print w-36">Audit Trail</th>
@@ -319,6 +320,7 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0, gra
                                                         {paid > 0 ? <><i className="fa-solid fa-bangladeshi-taka-sign text-[11.5px] mr-1 opacity-60"></i>{paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</> : <span className="text-gray-300">-</span>}
                                                     </span>
                                                 </td>
+
                                                 <td className="px-6 py-4 text-right bg-rose-50/20 group-hover:bg-rose-50/40 transition-colors border-r border-gray-100">
                                                     {due > 0 ? (
                                                         <span className="font-black text-[15.5px] text-rose-600 tabular-nums">
@@ -393,3 +395,4 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0, gra
         </AdminLayout>
     );
 }
+

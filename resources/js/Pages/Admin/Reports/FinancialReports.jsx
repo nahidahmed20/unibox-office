@@ -10,21 +10,26 @@ const darkInput = "rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[
 const th = "px-5 py-3.5 text-[12.5px] font-semibold text-slate-500";
 const Bn = ({ children }) => <span className="block text-[11.5px] font-medium text-slate-400">{children}</span>;
 
-/* Defined outside the page so typing in search never remounts them */
+// 🟢 Custom Taka Component
+const Taka = ({ className = "text-[14px]" }) => (
+    <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
+);
+
+/* ---------- Reusable Components ---------- */
 const Toolbar = ({ placeholder, value, onChange, onCsv, onPrint }) => (
-    <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-4 md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-4 md:flex-row md:items-center md:justify-between no-print">
         <div className="relative w-full md:w-[320px]">
             <i className="fa-solid fa-magnifying-glass pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[13px] text-slate-400"></i>
             <input
                 type="text" placeholder={placeholder} value={value} onChange={onChange}
-                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-[13.5px] font-medium text-slate-800 placeholder:text-slate-400 outline-none transition hover:border-slate-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-[13.5px] font-medium text-slate-800 placeholder:text-slate-400 outline-none transition hover:border-slate-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm"
             />
         </div>
         <div className="flex items-center gap-2">
-            <button onClick={onCsv} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
+            <button onClick={onCsv} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 shadow-sm">
                 <i className="fa-solid fa-file-csv text-emerald-500"></i> Export CSV
             </button>
-            <button onClick={onPrint} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
+            <button onClick={onPrint} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 shadow-sm">
                 <i className="fa-solid fa-print text-slate-400"></i> Print / PDF
             </button>
         </div>
@@ -41,11 +46,11 @@ const EmptyRow = ({ cols, icon, text }) => (
 );
 
 const Tile = ({ label, bn, value, tone, op }) => (
-    <div className="relative flex flex-col justify-center rounded-xl border border-slate-200 bg-white p-4">
+    <div className="relative flex flex-col justify-center rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <span className="text-[12.5px] font-semibold text-slate-600">{label}</span>
         <span className="text-[11.5px] text-slate-400">{bn}</span>
-        <span className={`mt-2 text-[20px] font-extrabold leading-none tabular-nums ${tone}`}>৳ {fmt(value)}</span>
-        {op && <span className="absolute -right-3 top-1/2 z-10 hidden h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-[13px] font-bold text-slate-500 md:flex">{op}</span>}
+        <span className={`mt-2 text-[20px] font-extrabold leading-none tabular-nums ${tone}`}><Taka className="text-[15px]" />{fmt(value)}</span>
+        {op && <span className="absolute -right-3 top-1/2 z-10 hidden h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-[13px] font-bold text-slate-500 md:flex shadow-sm">{op}</span>}
     </div>
 );
 
@@ -63,6 +68,7 @@ const MiniCard = ({ icon, label, bn, value, note, tone, className = "" }) => (
     </div>
 );
 
+/* ---------- Main Component ---------- */
 export default function FinancialReports({ clientsReport = [], monthlyReport = [], summary = {}, filters = {} }) {
     /* State management */
     const [activeTab, setActiveTab] = useState('profit_loss');
@@ -215,25 +221,26 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
             `}} />
 
-            <div className="mx-auto mt-2 flex w-full max-w-[1600px] flex-col gap-6 px-2 pb-12">
+            <div className="mx-auto mt-2 flex w-full max-w-[1600px] flex-col gap-6 px-4 sm:px-6 lg:px-8 pb-12">
 
                 {/* Header with filters */}
-                <div className="overflow-hidden rounded-2xl bg-slate-900 text-white">
-                    <div className="px-6 py-6 sm:px-8 sm:py-7">
-                        <h1 className="text-[28px] font-extrabold leading-none tracking-tight sm:text-[34px]">
+                <div className="overflow-hidden rounded-3xl bg-slate-900 text-white shadow-xl">
+                    <div className="px-6 py-6 sm:px-8 sm:py-8 relative overflow-hidden">
+                        <div className="absolute right-0 top-0 h-40 w-40 bg-indigo-500/20 blur-3xl rounded-full pointer-events-none translate-x-10 -translate-y-10"></div>
+                        <h1 className="text-[28px] font-extrabold leading-none tracking-tight sm:text-[34px] relative z-10">
                             Financial reports <span className="text-[20px] font-medium text-slate-400">(আর্থিক প্রতিবেদন)</span>
                         </h1>
-                        <p className="mt-2 max-w-2xl text-[14px] text-slate-400">Track actual cash flow, market dues and monthly profitability. Pick a period below and the numbers update by themselves.</p>
+                        <p className="mt-2.5 max-w-2xl text-[14px] text-slate-400 relative z-10">Track actual cash flow, market dues and monthly profitability. Pick a period below and the numbers update automatically.</p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 border-t border-white/10 bg-white/[0.03] px-6 py-4 sm:px-8">
-                        <span className="flex items-center gap-2 text-[13px] font-medium text-slate-400"><i className="fa-solid fa-calendar-days"></i> Period</span>
+                    <div className="flex flex-wrap items-center gap-3 border-t border-white/10 bg-white/[0.03] px-6 py-4 sm:px-8 relative z-10">
+                        <span className="flex items-center gap-2 text-[13px] font-bold text-slate-400"><i className="fa-solid fa-calendar-days"></i> Period</span>
                         <CustomSelect
                             value={filterYear}
                             onChange={(e) => { setFilterYear(e.target.value); setFilterMonth(''); setStartDate(''); setEndDate(''); }}
                             className={`${darkInput} w-[140px]`}
                         >
-                            <option value="" className="text-slate-900">All years (সব)</option>
-                            {years.map(y => <option key={y} value={y} className="text-slate-900">{y}</option>)}
+                            <option value="" className="text-slate-900 font-bold">All years (সব)</option>
+                            {years.map(y => <option key={y} value={y} className="text-slate-900 font-bold">{y}</option>)}
                         </CustomSelect>
                         <input
                             type="month" value={filterMonth}
@@ -247,39 +254,43 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                             <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setFilterYear(''); setFilterMonth(''); }} className={darkInput} />
                         </div>
                         {hasFilters && (
-                            <button onClick={resetFilters} className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-[13px] font-semibold text-rose-300 transition hover:bg-rose-500/10">
-                                <i className="fa-solid fa-xmark"></i> Clear (মুছুন)
+                            <button onClick={resetFilters} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[13px] font-bold text-rose-300 transition hover:bg-rose-500/20 hover:text-rose-200">
+                                <i className="fa-solid fa-xmark"></i> Clear Filters
                             </button>
                         )}
                     </div>
                 </div>
 
                 {/* Hero: actual net profit */}
-                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className="flex flex-col gap-5 p-6 sm:p-8 lg:flex-row lg:items-start lg:justify-between">
+                <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-md">
+                    <div className="flex flex-col gap-5 p-6 sm:p-8 lg:flex-row lg:items-center lg:justify-between">
                         <div className="max-w-2xl">
                             <div className="flex items-center gap-2.5">
-                                <span className={`flex h-9 w-9 items-center justify-center rounded-lg text-[14px] ${profitable ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}><i className="fa-solid fa-chart-line"></i></span>
-                                <h2 className="text-[18px] font-bold text-slate-900">Actual net profit <span className="font-medium text-slate-400">(আসল লাভ)</span></h2>
+                                <span className={`flex h-10 w-10 items-center justify-center rounded-xl text-[16px] shadow-sm border ${profitable ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'}`}><i className="fa-solid fa-chart-line"></i></span>
+                                <h2 className="text-[20px] font-black text-slate-900">Actual net profit <span className="font-bold text-slate-400 text-[16px]">(আসল লাভ)</span></h2>
                             </div>
-                            <p className="mt-3 text-[13.5px] leading-relaxed text-slate-500">
+                            <p className="mt-3 text-[14px] font-medium leading-relaxed text-slate-500">
                                 এটি আপনার ব্যবসার প্রকৃত লাভ। আপনি মোট কত টাকার কাজ (Invoice) করেছেন, তার থেকে ওই কাজগুলো করতে বা অফিস চালাতে আপনার মোট কত টাকার খরচ (Bills/Salary) হয়েছে— তার নিখুঁত হিসাব।
                             </p>
                         </div>
-                        <p className={`text-[42px] font-extrabold leading-none tracking-tight tabular-nums sm:text-[52px] ${profitable ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {Number(summary.net_actual_profit) > 0 ? '+' : ''}৳ {fmt(summary.net_actual_profit)}
-                        </p>
+                        <div className="lg:text-right bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-inner">
+                            <span className="block text-[12px] font-black uppercase tracking-widest text-slate-400 mb-1">Total Net Income</span>
+                            <p className={`text-[42px] font-black leading-none tracking-tight tabular-nums sm:text-[52px] ${profitable ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                {Number(summary.net_actual_profit) > 0 ? '+' : ''}<Taka className="text-[28px] sm:text-[34px]" />{fmt(summary.net_actual_profit)}
+                            </p>
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 border-t border-slate-100 bg-slate-50 p-5 sm:px-8 md:grid-cols-5">
+                    <div className="grid grid-cols-2 gap-3 border-t border-slate-200 bg-slate-50/50 p-5 sm:px-8 md:grid-cols-5">
                         <Tile label="Total invoiced" bn="(আয়)" value={summary.accrual_revenue} tone="text-blue-700" op="−" />
                         <Tile label="Project bills" bn="(প্রজেক্ট খরচ)" value={summary.accrual_project_cost} tone="text-rose-600" op="−" />
                         <Tile label="Office expenses" bn="(অফিস খরচ)" value={summary.accrual_office_cost} tone="text-rose-600" op="−" />
                         <Tile label="Salaries" bn="(বেতন)" value={summary.accrual_salary_cost} tone="text-rose-600" op="=" />
-                        <div className={`col-span-2 flex flex-col justify-center rounded-xl p-4 text-white md:col-span-1 ${profitable ? 'bg-emerald-600' : 'bg-rose-600'}`}>
-                            <span className="text-[12.5px] font-semibold text-white/80">Net profit</span>
-                            <span className="text-[11.5px] text-white/60">(নীট লাভ)</span>
-                            <span className="mt-2 text-[22px] font-extrabold leading-none tabular-nums">৳ {fmt(summary.net_actual_profit)}</span>
+                        <div className={`col-span-2 flex flex-col justify-center rounded-2xl p-5 text-white md:col-span-1 shadow-md relative overflow-hidden ${profitable ? 'bg-gradient-to-br from-emerald-500 to-emerald-700' : 'bg-gradient-to-br from-rose-500 to-rose-700'}`}>
+                            <div className="absolute right-0 top-0 h-20 w-20 bg-white/10 blur-xl rounded-full translate-x-5 -translate-y-5"></div>
+                            <span className="text-[13px] font-bold text-white/90 uppercase tracking-widest relative z-10">Net profit</span>
+                            <span className="text-[11.5px] font-medium text-white/70 relative z-10">(নীট লাভ)</span>
+                            <span className="mt-2 text-[26px] font-black leading-none tabular-nums relative z-10"><Taka className="text-[18px]" />{fmt(summary.net_actual_profit)}</span>
                         </div>
                     </div>
                 </section>
@@ -291,32 +302,32 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                         icon="fa-solid fa-money-bill-transfer" label="Net cash flow" bn="(হাতে থাকা ক্যাশ)"
                         value={`${Number(summary.net_cash_flow) > 0 ? '+' : ''}৳ ${fmt(summary.net_cash_flow)}`}
                         note="টোটাল যত টাকা ক্যাশ ঢুকেছে তার থেকে টোটাল যত টাকা ক্যাশ বের হয়েছে তার বিয়োগফল।"
-                        tone={cashPositive ? { icon: 'bg-violet-50 text-violet-600', value: 'text-violet-700' } : { icon: 'bg-slate-100 text-slate-600', value: 'text-slate-700' }}
+                        tone={cashPositive ? { icon: 'bg-violet-100 text-violet-700 border border-violet-200', value: 'text-violet-700' } : { icon: 'bg-slate-100 text-slate-600 border border-slate-200', value: 'text-slate-700' }}
                     />
                     <MiniCard
                         icon="fa-solid fa-file-invoice-dollar" label="Market receivables" bn="(পাওনা টাকা)"
                         value={`৳ ${fmt(summary.client_due)}`} note="ক্লায়েন্টদের কাছে মোট পাওনা।"
-                        tone={{ icon: 'bg-amber-50 text-amber-600', value: 'text-amber-700' }}
+                        tone={{ icon: 'bg-amber-100 text-amber-700 border border-amber-200', value: 'text-amber-700' }}
                     />
                     <MiniCard
                         icon="fa-solid fa-file-signature" label="Market payables" bn="(দেনা/বকেয়া)"
                         value={`৳ ${fmt(summary.vendor_due)}`} note="ভেন্ডরদের মোট পরিশোধযোগ্য বকেয়া।"
-                        tone={{ icon: 'bg-rose-50 text-rose-600', value: 'text-rose-700' }}
+                        tone={{ icon: 'bg-rose-100 text-rose-700 border border-rose-200', value: 'text-rose-700' }}
                     />
                 </div>
 
                 {/* Tabs and tables */}
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className="flex gap-1 overflow-x-auto border-b border-slate-200 px-4 pt-2 sm:px-6">
+                <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-md">
+                    <div className="flex gap-1 overflow-x-auto border-b border-slate-200 bg-slate-50 px-4 pt-3 sm:px-6 no-print">
                         {[
                             ['profit_loss', 'fa-solid fa-users', 'Client-wise summary', '(ক্লায়েন্ট রিপোর্ট)'],
                             ['monthly', 'fa-regular fa-calendar-days', 'Project accrual', '(প্রজেক্ট রিপোর্ট)'],
                         ].map(([id, icon, label, bn]) => (
                             <button
                                 key={id} onClick={() => setActiveTab(id)}
-                                className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-3.5 text-[14px] font-semibold transition ${activeTab === id ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                                className={`-mb-px flex shrink-0 items-center gap-2 border-b-[3px] px-5 py-3.5 text-[14.5px] font-bold transition-all ${activeTab === id ? 'border-indigo-600 text-indigo-700 bg-white rounded-t-xl shadow-[0_-2px_10px_rgba(0,0,0,0.02)]' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-t-xl'}`}
                             >
-                                <i className={`${icon} text-[13px]`}></i>{label}<span className="hidden font-medium text-slate-400 sm:inline">{bn}</span>
+                                <i className={`${icon} text-[13px]`}></i>{label}<span className="hidden font-semibold text-slate-400 sm:inline">{bn}</span>
                             </button>
                         ))}
                     </div>
@@ -330,7 +341,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                                 onPrint={() => handlePrint('client-report-table', 'Client-Wise Profitability Report')}
                             />
 
-                            <div className="soft-scroll overflow-x-auto">
+                            <div className="soft-scroll overflow-x-auto pb-4">
                                 <table id="client-report-table" className="w-full min-w-[1200px] whitespace-nowrap border-collapse text-left">
                                     <thead className="border-b border-slate-200 bg-slate-50">
                                         <tr>
@@ -349,37 +360,37 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                                             <tr key={client.client_name} className="transition-colors hover:bg-slate-50/70">
                                                 <td className="px-5 py-4">
                                                     <div className="flex items-center gap-3">
-                                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-[13px] font-bold uppercase text-indigo-700">
+                                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 text-[14px] font-black uppercase text-indigo-700 shadow-sm">
                                                             {(client.client_name || '?').charAt(0)}
                                                         </span>
                                                         <span className="font-bold text-slate-900">{client.client_name}</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-5 py-4 text-center">
-                                                    <span className="inline-flex min-w-[32px] justify-center rounded-md bg-slate-100 px-2 py-1 text-[12px] font-bold tabular-nums text-slate-700">{fmt(client.total_projects)}</span>
+                                                    <span className="inline-flex min-w-[32px] justify-center rounded-lg border border-slate-200 bg-slate-100 px-2.5 py-1 text-[12px] font-bold tabular-nums text-slate-700 shadow-sm">{fmt(client.total_projects)}</span>
                                                 </td>
-                                                <td className="px-5 py-4 text-right font-bold tabular-nums text-blue-600">৳ {fmt(client.total_budget)}</td>
-                                                <td className="px-5 py-4 text-right font-bold tabular-nums text-orange-500">৳ {fmt(client.total_expense)}</td>
+                                                <td className="px-5 py-4 text-right font-bold tabular-nums text-blue-600"><Taka className="opacity-60" /> {fmt(client.total_budget)}</td>
+                                                <td className="px-5 py-4 text-right font-bold tabular-nums text-orange-500"><Taka className="opacity-60" /> {fmt(client.total_expense)}</td>
                                                 <td className="border-l border-slate-100 px-5 py-4 text-center">
-                                                    <span className="inline-flex min-w-[32px] justify-center rounded-md bg-violet-50 px-2 py-1 text-[12px] font-bold tabular-nums text-violet-700">{fmt(client.total_invoices)}</span>
+                                                    <span className="inline-flex min-w-[32px] justify-center rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1 text-[12px] font-bold tabular-nums text-violet-700 shadow-sm">{fmt(client.total_invoices)}</span>
                                                 </td>
-                                                <td className="px-5 py-4 text-right font-bold tabular-nums text-violet-700">৳ {fmt(client.total_billed)}</td>
-                                                <td className="bg-emerald-50/30 px-5 py-4 text-right font-bold tabular-nums text-emerald-600">৳ {fmt(client.total_paid)}</td>
-                                                <td className={`bg-rose-50/30 px-5 py-4 text-right text-[14.5px] font-extrabold tabular-nums ${Number(client.total_due) > 0 ? 'text-rose-600' : 'text-slate-400'}`}>৳ {fmt(client.total_due)}</td>
+                                                <td className="px-5 py-4 text-right font-bold tabular-nums text-violet-700"><Taka className="opacity-60" /> {fmt(client.total_billed)}</td>
+                                                <td className="bg-emerald-50/30 px-5 py-4 text-right font-bold tabular-nums text-emerald-600"><Taka className="opacity-60" /> {fmt(client.total_paid)}</td>
+                                                <td className={`bg-rose-50/30 px-5 py-4 text-right text-[14.5px] font-extrabold tabular-nums ${Number(client.total_due) > 0 ? 'text-rose-600' : 'text-slate-400'}`}><Taka className="opacity-60" /> {fmt(client.total_due)}</td>
                                             </tr>
                                         )) : <EmptyRow cols={8} icon="fa-solid fa-users-slash" text="No clients found for this period." />}
                                     </tbody>
                                     {filteredClients.length > 0 && (
-                                        <tfoot className="border-t-2 border-slate-300 bg-slate-100 text-[13.5px] font-extrabold text-slate-800">
+                                        <tfoot className="border-t-4 border-slate-200 bg-slate-100 text-[13.5px] font-extrabold text-slate-800">
                                             <tr>
-                                                <td className="px-5 py-4">Grand total<Bn>(সর্বমোট)</Bn></td>
-                                                <td className="px-5 py-4 text-center tabular-nums">{fmt(clientTotals.total_projects)}</td>
-                                                <td className="px-5 py-4 text-right tabular-nums">৳ {fmt(clientTotals.total_budget)}</td>
-                                                <td className="px-5 py-4 text-right tabular-nums">৳ {fmt(clientTotals.total_expense)}</td>
-                                                <td className="px-5 py-4 text-center tabular-nums">{fmt(clientTotals.total_invoices)}</td>
-                                                <td className="px-5 py-4 text-right tabular-nums">৳ {fmt(clientTotals.total_billed)}</td>
-                                                <td className="px-5 py-4 text-right tabular-nums text-emerald-700">৳ {fmt(clientTotals.total_paid)}</td>
-                                                <td className="px-5 py-4 text-right tabular-nums text-rose-700">৳ {fmt(clientTotals.total_due)}</td>
+                                                <td className="px-5 py-4 uppercase tracking-wider text-[12px] text-slate-500">Grand total<Bn>(সর্বমোট)</Bn></td>
+                                                <td className="px-5 py-4 text-center tabular-nums text-[15px]">{fmt(clientTotals.total_projects)}</td>
+                                                <td className="px-5 py-4 text-right tabular-nums text-[15px]"><Taka className="text-[12px] opacity-70" /> {fmt(clientTotals.total_budget)}</td>
+                                                <td className="px-5 py-4 text-right tabular-nums text-[15px]"><Taka className="text-[12px] opacity-70" /> {fmt(clientTotals.total_expense)}</td>
+                                                <td className="px-5 py-4 text-center tabular-nums text-[15px]">{fmt(clientTotals.total_invoices)}</td>
+                                                <td className="px-5 py-4 text-right tabular-nums text-[15px]"><Taka className="text-[12px] opacity-70" /> {fmt(clientTotals.total_billed)}</td>
+                                                <td className="px-5 py-4 text-right tabular-nums text-emerald-700 text-[15px]"><Taka className="text-[12px] opacity-70" /> {fmt(clientTotals.total_paid)}</td>
+                                                <td className="px-5 py-4 text-right tabular-nums text-rose-700 text-[15px]"><Taka className="text-[12px] opacity-70" /> {fmt(clientTotals.total_due)}</td>
                                             </tr>
                                         </tfoot>
                                     )}
@@ -397,17 +408,17 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                                 onPrint={() => handlePrint('monthly-report-table', 'Monthly Projects Report')}
                             />
 
-                            <div className="soft-scroll overflow-x-auto">
+                            <div className="soft-scroll overflow-x-auto pb-4">
                                 <table id="monthly-report-table" className="w-full min-w-[950px] whitespace-nowrap border-collapse text-left">
                                     {filteredMonths.length > 0 ? filteredMonths.map((data) => (
                                         <React.Fragment key={data.month}>
                                             <thead>
                                                 <tr className="month-header bg-slate-900 text-white">
-                                                    <th colSpan="5" className="px-5 py-3.5 text-[14px] font-bold">
-                                                        <div className="flex items-center gap-2.5"><i className="fa-regular fa-calendar-days text-indigo-300"></i>{data.month}</div>
+                                                    <th colSpan="5" className="px-6 py-4 text-[15px] font-black uppercase tracking-widest">
+                                                        <div className="flex items-center gap-3"><i className="fa-regular fa-calendar-days text-indigo-400 text-lg"></i>{data.month}</div>
                                                     </th>
                                                 </tr>
-                                                <tr className="border-b border-slate-200 bg-slate-50">
+                                                <tr className="border-b border-slate-200 bg-slate-100">
                                                     <th className={th}>Project name<Bn>(প্রজেক্টের নাম)</Bn></th>
                                                     <th className={th}>Client<Bn>(ক্লায়েন্ট)</Bn></th>
                                                     <th className={`${th} text-right`}>Budget<Bn>(বাজেট)</Bn></th>
@@ -418,33 +429,33 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                                             <tbody className="text-[13.5px] text-slate-800">
                                                 {data.projects.map((proj, pIdx) => (
                                                     <tr key={pIdx} className="border-b border-slate-100 transition-colors hover:bg-slate-50/70">
-                                                        <td className="px-5 py-4">
-                                                            <div className="flex items-center gap-2.5 font-bold text-slate-900">
-                                                                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-500"><i className="fa-solid fa-briefcase text-[11px]"></i></span>
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex items-center gap-3 font-bold text-slate-900">
+                                                                <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm"><i className="fa-solid fa-briefcase text-[12px]"></i></span>
                                                                 {proj.title}
                                                                 {proj.status === 'completed' && (
-                                                                    <span className="ml-1 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[12px] font-semibold text-emerald-700">
-                                                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Completed
+                                                                    <span className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 shadow-sm">
+                                                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Done
                                                                     </span>
                                                                 )}
                                                             </div>
                                                         </td>
-                                                        <td className="px-5 py-4 font-medium text-slate-600">{proj.client}</td>
-                                                        <td className="px-5 py-4 text-right font-bold tabular-nums text-blue-600">৳ {fmt(proj.budget)}</td>
-                                                        <td className="px-5 py-4 text-right font-bold tabular-nums text-orange-500">৳ {fmt(proj.expense)}</td>
-                                                        <td className={`px-5 py-4 text-right font-extrabold tabular-nums ${Number(proj.profit) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                                            {Number(proj.profit) > 0 ? '+' : ''}৳ {fmt(proj.profit)}
+                                                        <td className="px-6 py-4 font-bold text-slate-600">{proj.client}</td>
+                                                        <td className="px-6 py-4 text-right font-bold tabular-nums text-blue-600"><Taka className="opacity-60" /> {fmt(proj.budget)}</td>
+                                                        <td className="px-6 py-4 text-right font-bold tabular-nums text-orange-500"><Taka className="opacity-60" /> {fmt(proj.expense)}</td>
+                                                        <td className={`px-6 py-4 text-right font-extrabold tabular-nums ${Number(proj.profit) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                            {Number(proj.profit) > 0 ? '+' : ''}<Taka className="opacity-60" /> {fmt(proj.profit)}
                                                         </td>
                                                     </tr>
                                                 ))}
-                                                <tr className="summary-row border-b-4 border-slate-200 bg-slate-50">
-                                                    <td colSpan="2" className="px-5 py-4 text-right text-[13px] font-semibold text-slate-500">
-                                                        Summary for {data.month} <span className="text-slate-400">(সারসংক্ষেপ)</span>
+                                                <tr className="summary-row border-b-[6px] border-slate-200 bg-slate-50">
+                                                    <td colSpan="2" className="px-6 py-4 text-right text-[13px] font-bold uppercase tracking-widest text-slate-500">
+                                                        Summary for {data.month} <span className="text-slate-400 normal-case tracking-normal">(সারসংক্ষেপ)</span>
                                                     </td>
-                                                    <td className="px-5 py-4 text-right text-[14.5px] font-extrabold tabular-nums text-blue-700">৳ {fmt(data.month_budget)}</td>
-                                                    <td className="px-5 py-4 text-right text-[14.5px] font-extrabold tabular-nums text-orange-600">৳ {fmt(data.month_expense)}</td>
-                                                    <td className={`px-5 py-4 text-right text-[16px] font-extrabold tabular-nums ${Number(data.month_profit) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                                                        {Number(data.month_profit) > 0 ? '+' : ''}৳ {fmt(data.month_profit)}
+                                                    <td className="px-6 py-4 text-right text-[15px] font-extrabold tabular-nums text-blue-700"><Taka className="text-[12px] opacity-70" /> {fmt(data.month_budget)}</td>
+                                                    <td className="px-6 py-4 text-right text-[15px] font-extrabold tabular-nums text-orange-600"><Taka className="text-[12px] opacity-70" /> {fmt(data.month_expense)}</td>
+                                                    <td className={`px-6 py-4 text-right text-[16px] font-extrabold tabular-nums ${Number(data.month_profit) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                                        {Number(data.month_profit) > 0 ? '+' : ''}<Taka className="text-[12px] opacity-70" /> {fmt(data.month_profit)}
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -456,11 +467,11 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                                     {filteredMonths.length > 0 && (
                                         <tfoot className="bg-slate-900 text-[13.5px] font-extrabold text-white">
                                             <tr>
-                                                <td colSpan="2" className="px-5 py-4 text-right">Overall grand total <span className="font-medium text-slate-400">(সর্বমোট)</span></td>
-                                                <td className="px-5 py-4 text-right tabular-nums text-blue-300">৳ {fmt(monthlyReportTotals.budget)}</td>
-                                                <td className="px-5 py-4 text-right tabular-nums text-orange-300">৳ {fmt(monthlyReportTotals.expense)}</td>
-                                                <td className={`px-5 py-4 text-right tabular-nums ${monthlyReportTotals.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                    {monthlyReportTotals.profit > 0 ? '+' : ''}৳ {fmt(monthlyReportTotals.profit)}
+                                                <td colSpan="2" className="px-6 py-5 text-right uppercase tracking-widest text-[12.5px] text-slate-300">Overall grand total <span className="font-bold text-slate-500 normal-case tracking-normal">(সর্বমোট)</span></td>
+                                                <td className="px-6 py-5 text-right tabular-nums text-[16px] text-blue-300"><Taka className="text-[12px] opacity-70" /> {fmt(monthlyReportTotals.budget)}</td>
+                                                <td className="px-6 py-5 text-right tabular-nums text-[16px] text-orange-300"><Taka className="text-[12px] opacity-70" /> {fmt(monthlyReportTotals.expense)}</td>
+                                                <td className={`px-6 py-5 text-right tabular-nums text-[18px] ${monthlyReportTotals.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                    {monthlyReportTotals.profit > 0 ? '+' : ''}<Taka className="text-[14px] opacity-70" /> {fmt(monthlyReportTotals.profit)}
                                                 </td>
                                             </tr>
                                         </tfoot>

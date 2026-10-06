@@ -145,9 +145,9 @@ class ReportController extends Controller
     {
         $request->validate([
             'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
-            'month' => ['nullable', 'date_format:Y-m'],
+            'end_date'   => ['nullable', 'date', 'after_or_equal:start_date'],
+            'year'       => ['nullable', 'integer', 'min:2000', 'max:2100'],
+            'month'      => ['nullable', 'date_format:Y-m'],
         ]);
 
         $applyPeriod = function ($query, string $column) use ($request) {
@@ -161,9 +161,9 @@ class ReportController extends Controller
             return $query;
         };
 
-        // VALID INVOICES ONLY
         $validInvoiceIds = DB::table('invoices')->whereNull('deleted_at')->pluck('id')->toArray();
 
+        // 🟢 FIX: Reverted leftJoin because project_expenses table doesn't have deleted_at column
         $query = DB::table('projects')
             ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
             ->leftJoin('project_expenses', 'projects.id', '=', 'project_expenses.project_id')
@@ -205,33 +205,37 @@ class ReportController extends Controller
 
         $clientIds = array_filter(array_column($clientsMap, 'client_id'));
         if (!empty($clientIds)) {
-            $invoiceStats = DB::table('invoices')->whereIn('client_id', $clientIds)->whereNull('deleted_at')
-                ->whereIn('id', $validInvoiceIds)
-                ->select('client_id', DB::raw('COUNT(id) as total_invoices'), DB::raw('SUM(grand_total) as total_billed'));
-            $applyPeriod($invoiceStats, 'invoice_date');
-            $invoiceStats = $invoiceStats->groupBy('client_id')->get()->keyBy('client_id');
+            $invoiceBaseQuery = DB::table('invoices')->whereIn('client_id', $clientIds)->whereNull('deleted_at');
+            $applyPeriod($invoiceBaseQuery, 'invoice_date');
 
-            $paymentStats = DB::table('invoice_payments')->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')
-                ->whereIn('invoices.client_id', $clientIds)->whereNull('invoices.deleted_at')
-                ->whereIn('invoices.id', $validInvoiceIds)
-                ->select('invoices.client_id', DB::raw('SUM(invoice_payments.amount) as total_paid'));
+            $filteredInvoiceIds = (clone $invoiceBaseQuery)->pluck('id')->toArray();
 
-            $applyPeriod($paymentStats, 'invoice_payments.payment_date');
-            $paymentStats = $paymentStats->groupBy('invoices.client_id')->get()->keyBy('client_id');
+            if (!empty($filteredInvoiceIds)) {
+                $invoiceStats = DB::table('invoices')->whereIn('id', $filteredInvoiceIds)
+                    ->select('client_id', DB::raw('COUNT(id) as total_invoices'), DB::raw('SUM(grand_total) as total_billed'))
+                    ->groupBy('client_id')->get()->keyBy('client_id');
 
-            foreach ($clientsMap as $cName => &$data) {
-                $cId = $data['client_id'];
-                if ($cId) {
-                    $inv = $invoiceStats->get($cId) ?? null;
-                    $pay = $paymentStats->get($cId) ?? null;
-                    $data['total_invoices'] = $inv ? (int)$inv->total_invoices : 0;
-                    $data['total_billed']   = $inv ? (float)$inv->total_billed : 0;
-                    $data['total_paid']     = $pay ? (float)$pay->total_paid : 0;
-                    $data['total_due']      = $data['total_billed'] - $data['total_paid'];
+                $paymentStats = DB::table('invoice_payments')
+                    ->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')
+                    ->whereIn('invoice_payments.invoice_id', $filteredInvoiceIds)
+                    ->select('invoices.client_id', DB::raw('SUM(invoice_payments.amount) as total_paid'))
+                    ->groupBy('invoices.client_id')->get()->keyBy('client_id');
+
+                foreach ($clientsMap as $cName => &$data) {
+                    $cId = $data['client_id'];
+                    if ($cId) {
+                        $inv = $invoiceStats->get($cId) ?? null;
+                        $pay = $paymentStats->get($cId) ?? null;
+                        $data['total_invoices'] = $inv ? (int)$inv->total_invoices : 0;
+                        $data['total_billed']   = $inv ? (float)$inv->total_billed : 0;
+                        $data['total_paid']     = $pay ? (float)$pay->total_paid : 0;
+                        $data['total_due']      = $data['total_billed'] - $data['total_paid'];
+                    }
                 }
+                unset($data);
             }
-            unset($data);
         }
+
         usort($monthlyData, function($a, $b) { return strcmp($b['sort_key'], $a['sort_key']); });
 
         $revenueQuery = DB::table('invoices')->whereNull('deleted_at')->whereIn('id', $validInvoiceIds);
@@ -241,13 +245,12 @@ class ReportController extends Controller
             ->whereIn('invoices.id', $validInvoiceIds);
 
         $clientAdvQuery = DB::table('client_advances');
-        $expenseQuery = DB::table('transactions')->where('transactionable_type', Expense::class)->where('type', 'debit');
-        $salaryQuery = DB::table('transactions')->where('transactionable_type', Salary::class)->where('type', 'debit');
+        $expenseQuery = DB::table('transactions')->where('transactionable_type', \App\Models\Expense::class)->where('type', 'debit');
+        $salaryQuery = DB::table('transactions')->where('transactionable_type', \App\Models\Salary::class)->where('type', 'debit');
         $bankChargeQuery = DB::table('transactions');
-        $projectCostQuery = DB::table('transactions')->whereIn('transactionable_type', [ProjectExpense::class, VendorPayment::class]);
+        $projectCostQuery = DB::table('transactions')->whereIn('transactionable_type', [\App\Models\ProjectExpense::class, \App\Models\VendorPayment::class]);
         $financeCostQuery = DB::table('investment_payments');
 
-        // Apply Date Filters
         $applyPeriod($revenueQuery, 'invoice_date');
         $applyPeriod($receivedQuery, 'invoice_payments.payment_date');
         $applyPeriod($clientAdvQuery, 'date');
@@ -257,29 +260,30 @@ class ReportController extends Controller
         $applyPeriod($projectCostQuery, 'transaction_date');
         $applyPeriod($financeCostQuery, 'payment_date');
 
-        $overallTotalBilled = (float) $revenueQuery->sum('grand_total');
         $receivedQuery->whereNotNull('invoice_payments.account_id')->where('invoice_payments.method', '!=', 'Client Advance');
         $totalInvoiceReceived = (float) $receivedQuery->sum('invoice_payments.amount');
 
         $totalClientAdvanceReceived = (float) $clientAdvQuery->sum('amount');
         $totalCashIn = $totalInvoiceReceived + $totalClientAdvanceReceived;
 
-        $totalProjectExpensePaid = (float) (clone $projectCostQuery)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN amount - bank_charge ELSE -amount + bank_charge END), 0) total")->value('total');
-        $totalOfficeExpense = (float) (clone $expenseQuery)->selectRaw('COALESCE(SUM(amount - bank_charge), 0) total')->value('total');
-        $totalSalaryPaid = (float) (clone $salaryQuery)->selectRaw('COALESCE(SUM(amount - bank_charge), 0) total')->value('total');
-        $totalBankCharges = (float) (clone $bankChargeQuery)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN bank_charge ELSE -bank_charge END), 0) total")->value('total');
+        // 🟢 FIX: Handled NULL bank_charge properly in mathematical additions
+        $totalProjectExpensePaid = (float) (clone $projectCostQuery)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN amount - COALESCE(bank_charge, 0) ELSE -amount + COALESCE(bank_charge, 0) END), 0) as total")->value('total');
+        $totalOfficeExpense = (float) (clone $expenseQuery)->selectRaw('COALESCE(SUM(amount - COALESCE(bank_charge, 0)), 0) as total')->value('total');
+        $totalSalaryPaid = (float) (clone $salaryQuery)->selectRaw('COALESCE(SUM(amount - COALESCE(bank_charge, 0)), 0) as total')->value('total');
+        $totalBankCharges = (float) (clone $bankChargeQuery)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN COALESCE(bank_charge, 0) ELSE -COALESCE(bank_charge, 0) END), 0) as total")->value('total');
         $totalFinanceCost = (float) $financeCostQuery->sum('profit_amount');
-        $totalCashOut = $totalProjectExpensePaid + $totalOfficeExpense + $totalSalaryPaid + $totalFinanceCost + $totalBankCharges;
 
+        $totalCashOut = $totalProjectExpensePaid + $totalOfficeExpense + $totalSalaryPaid + $totalFinanceCost + $totalBankCharges;
         $netCashFlow = $totalCashIn - $totalCashOut;
 
         $accrualRevenueQuery = DB::table('invoices')->whereNull('deleted_at')->whereIn('id', $validInvoiceIds);
         $applyPeriod($accrualRevenueQuery, 'invoice_date');
         $accrualRevenue = (float) $accrualRevenueQuery->sum('grand_total');
 
+        // 🟢 FIX: Removed whereNull('deleted_at') from tables that don't support soft deletes
         $accrualProjectExpQuery = DB::table('project_expenses');
         $applyPeriod($accrualProjectExpQuery, 'date');
-        $accrualProjectCost = (float) $accrualProjectExpQuery->sum('total_bill'); // Only Actual Bill, not what is paid
+        $accrualProjectCost = (float) $accrualProjectExpQuery->sum('total_bill');
 
         $accrualOfficeExpQuery = DB::table('expenses');
         $applyPeriod($accrualOfficeExpQuery, 'date');
@@ -584,6 +588,71 @@ class ReportController extends Controller
             'filters' => $request->only('search', 'per_page'),
             'grandTotalDue' => $grandTotalDue,
             'grandTotalAdvance' => $grandTotalAdvance,
+        ]);
+    }
+
+        public function vendorPaymentsReport(Request $request)
+    {
+        $perPage = $request->input('per_page', 20);
+        $search = $request->input('search');
+
+        $vouchers = DB::table('vendor_payments')
+            ->join('vendors', 'vendors.id', '=', 'vendor_payments.vendor_id')
+            ->select(
+                'vendor_payments.id',
+                'vendors.name as vendor_name',
+                'vendor_payments.date',
+                'vendor_payments.pay_amount as amount',
+                'vendor_payments.adjustment_amount as discount',
+                DB::raw("'Voucher' as type")
+            )
+            ->where('vendor_payments.status', 'completed');
+
+        if ($search) {
+            $vouchers->where('vendors.name', 'like', "%{$search}%");
+        }
+
+        $direct = DB::table('project_expenses')
+            ->join('vendors', 'vendors.id', '=', 'project_expenses.vendor_id')
+            ->leftJoin('vendor_payment_details', 'vendor_payment_details.project_expense_id', '=', 'project_expenses.id')
+            ->leftJoin('vendor_payments', function($join) {
+                $join->on('vendor_payments.id', '=', 'vendor_payment_details.vendor_payment_id')
+                     ->where('vendor_payments.status', '=', 'completed');
+            })
+            ->select(
+                'project_expenses.id',
+                'vendors.name as vendor_name',
+                'project_expenses.date',
+                DB::raw('(project_expenses.paid_amount - COALESCE(SUM(vendor_payment_details.amount), 0)) as amount'),
+                DB::raw('0 as discount'),
+                DB::raw("'Direct Bill' as type")
+            )
+            ->whereNotNull('project_expenses.vendor_id')
+            ->where('project_expenses.paid_amount', '>', 0)
+            ->groupBy('project_expenses.id', 'vendors.name', 'project_expenses.date', 'project_expenses.paid_amount')
+            ->havingRaw('(project_expenses.paid_amount - COALESCE(SUM(vendor_payment_details.amount), 0)) > 0');
+
+        if ($search) {
+            $direct->where('vendors.name', 'like', "%{$search}%");
+        }
+
+        $query = $vouchers->union($direct)->orderBy('date', 'desc');
+
+        // Execute query and paginate manually since union pagination can sometimes be tricky
+        $page = \Illuminate\Pagination\Paginator::resolveCurrentPage() ?: 1;
+        $items = $query->get();
+
+        $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
+            $items->forPage($page, $perPage)->values(),
+            $items->count(),
+            $perPage,
+            $page,
+            ['path' => \Illuminate\Pagination\Paginator::resolveCurrentPath()]
+        );
+
+        return Inertia::render('Admin/Reports/VendorPayments', [
+            'payments' => $paginator,
+            'filters'  => $request->only(['search', 'per_page'])
         ]);
     }
 

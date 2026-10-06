@@ -386,6 +386,7 @@ export default function AdminLayout({ children }) {
                                         <li><Link href={route('admin.reports.client-ledger')} className={subItemClass(route().current('admin.reports.client-ledger'))}><i className="fa-solid fa-book-journal-whills w-4 text-center text-[11px] opacity-70"></i> Client Ledger</Link></li>
                                         <li><Link href={route('admin.client-dues')} className={subItemClass(route().current('admin.client-dues'))}><i className="fa-solid fa-file-invoice-dollar w-4 text-center text-[11px] opacity-70"></i> Client Dues (পাওনা)</Link></li>
                                         <li><Link href={route('admin.vendor-dues')} className={subItemClass(route().current('admin.vendor-dues'))}><i className="fa-solid fa-clock-rotate-left w-4 text-center text-[11px] opacity-70"></i> Vendor Dues (দেনা)</Link></li>
+                                        <li><Link href={route('admin.vendor-payments')} className={subItemClass(route().current('admin.vendor-payments'))}><i className="fa-solid fa-money-bill-transfer w-4 text-center text-[11px] opacity-70"></i> Vendor Payments</Link></li>
                                     </SubMenu>
                                 )}
                             </li>
@@ -648,3 +649,4 @@ export default function AdminLayout({ children }) {
         </div>
     );
 }
+

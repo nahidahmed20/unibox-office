@@ -30,6 +30,9 @@ export default function TransactionsReport({ transactions = { data: [], links: [
     const [toDate, setToDate] = useState(filters.to || '');
     const [perPage, setPerPage] = useState(filters.per_page || 25);
 
+    const selectedAccount = accounts.find(a => String(a.id) === String(accountId));
+    const totalAccountsBalance = accounts.reduce((sum, a) => sum + parseFloat(a.current_balance || 0), 0);
+
     const isFirstRender = useRef(true);
 
     // --- View Modal States ---
@@ -193,16 +196,22 @@ export default function TransactionsReport({ transactions = { data: [], links: [
                         </div>
 
                         {/* Account Select */}
-                        <div className="relative xl:col-span-1 z-30">
+                        <div className="relative xl:col-span-1">
                             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Account</label>
-                            <Select
-                                options={accounts.map(acc => ({ value: acc.id, label: acc.name }))}
-                                value={accountId ? { value: accountId, label: accounts.find(a => a.id == accountId)?.name } : null}
-                                onChange={(opt) => setAccountId(opt ? opt.value : '')}
-                                placeholder="All Accounts"
-                                isClearable
-                                styles={selectStyles}
-                            />
+                            <div className="relative">
+                                <CustomSelect
+                                    value={accountId}
+                                    onChange={(e) => setAccountId(e.target.value)}
+                                    className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-sm"
+                                >
+                                    <option value="">All Accounts (৳ {totalAccountsBalance.toLocaleString('en-IN')})</option>
+                                    {accounts.map(acc => (
+                                        <option key={acc.id} value={acc.id}>
+                                            {acc.name} — ৳ {parseFloat(acc.current_balance || 0).toLocaleString('en-IN')}
+                                        </option>
+                                    ))}
+                                </CustomSelect>
+                            </div>
                         </div>
 
                         {/* Source Type Select */}
@@ -238,6 +247,31 @@ export default function TransactionsReport({ transactions = { data: [], links: [
                             )}
                         </div>
                     </div>
+
+                    {/* 🟢 Account Balance Banner (When Specific Account is Filtered) */}
+                    {selectedAccount && (
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-3.5 bg-gradient-to-r from-blue-50/90 via-indigo-50/50 to-white border-b border-indigo-100 no-print">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm shrink-0">
+                                    <i className="fa-solid fa-wallet text-[15px]"></i>
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-[15px] font-black text-slate-900">{selectedAccount.name}</h3>
+                                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">Filtered Account</span>
+                                    </div>
+                                    <p className="text-[12px] text-slate-500 font-semibold">Viewing transactions strictly for this account</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-indigo-200 shadow-sm self-start sm:self-auto">
+                                <span className="text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Current Balance (বর্তমান স্থিতি):</span>
+                                <span className="text-[18px] font-black text-indigo-700 flex items-center">
+                                    <Taka className="text-[15px]" />
+                                    {parseFloat(selectedAccount.current_balance || 0).toLocaleString('en-IN')}
+                                </span>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Data Table */}
                     <div className="overflow-x-auto custom-table-scroll">

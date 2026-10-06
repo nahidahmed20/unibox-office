@@ -226,7 +226,7 @@ class VendorController extends Controller
         $vendor->append('total_due');
 
         // ভেন্ডরের সব পেমেন্ট হিস্টরি
-        $payments = VendorPayment::with(['account', 'details.expense'])
+        $payments = VendorPayment::with(['account', 'details.expense.project'])
             ->where('vendor_id', $vendor->id)
             ->latest('date')
             ->latest('id')
@@ -234,17 +234,135 @@ class VendorController extends Controller
 
         // ভেন্ডরের ওয়ালেটের লেনদেন (Advance/Refund)
         $ledgers = \App\Models\VendorLedger::where('vendor_id', $vendor->id)
-            ->latest()
+            ->latest('date')
+            ->latest('id')
             ->get();
 
         // ভেন্ডরের সব প্রজেক্ট বিল
-        $bills = ProjectExpense::where('vendor_id', $vendor->id)
+        $bills = ProjectExpense::with(['project.client', 'category'])
+            ->where('vendor_id', $vendor->id)
             ->latest('date')
+            ->latest('id')
             ->get();
 
+        // Chronological Statement (হিসাবের খতিয়ান)
+        $events = [];
+        $directPayments = [];
+
+        foreach ($bills as $bill) {
+            $voucherSettled = \App\Models\VendorPaymentDetail::where('project_expense_id', $bill->id)
+                ->whereHas('payment', fn($q) => $q->where('status', 'completed'))
+                ->sum('amount');
+
+            $directPaid = max(0, (float)$bill->paid_amount - (float)$voucherSettled);
+
+            $events[] = [
+                'date' => $bill->date ?: ($bill->created_at ? $bill->created_at->toDateString() : date('Y-m-d')),
+                'sort_time' => $bill->created_at ? $bill->created_at->toDateTimeString() : ($bill->date . ' 00:00:00'),
+                'type' => 'bill',
+                'ref' => 'BILL-' . $bill->id,
+                'title' => $bill->title,
+                'project' => $bill->project?->title,
+                'client' => $bill->project?->client?->name,
+                'category' => $bill->category?->name,
+                'billed' => (float)$bill->total_bill,
+                'paid' => 0,
+                'discount' => 0,
+                'status' => $bill->payment_status,
+                'id' => $bill->id,
+            ];
+
+            if ($directPaid > 0) {
+                // Identify the real source of the money paid at bill entry
+                if ($bill->advance_user_id) {
+                    $sourceType = 'advance';
+                    $sourceName = 'Employee Advance (' . (\App\Models\User::find($bill->advance_user_id)?->name ?? 'Staff') . ')';
+                } else {
+                    $sourceType = 'account';
+                    $sourceName = $bill->account_id ? (Account::find($bill->account_id)?->name ?? 'Bank/Cash') : 'Bank/Cash';
+                }
+                $billDate = $bill->date ?: ($bill->created_at ? $bill->created_at->toDateString() : date('Y-m-d'));
+
+                $directPayments[] = [
+                    'id' => 'B' . $bill->id,
+                    'bill_id' => $bill->id,
+                    'date' => $billDate,
+                    'source_type' => $sourceType,
+                    'source_name' => $sourceName,
+                    'bill_title' => $bill->title,
+                    'project' => $bill->project?->title,
+                    'bill_total' => (float) $bill->total_bill,
+                    'bill_due' => (float) $bill->due_amount,
+                    'amount' => $directPaid,
+                ];
+
+                $events[] = [
+                    'date' => $billDate,
+                    'sort_time' => $bill->created_at ? $bill->created_at->addSecond()->toDateTimeString() : ($bill->date . ' 00:00:01'),
+                    'type' => 'direct_payment',
+                    'ref' => 'BILL-' . $bill->id . ' (Paid)',
+                    'title' => 'বিল এন্ট্রির সময় পরিশোধ (' . $sourceName . '): ' . $bill->title,
+                    'project' => $bill->project?->title,
+                    'client' => $bill->project?->client?->name,
+                    'category' => $bill->category?->name,
+                    'billed' => 0,
+                    'paid' => $directPaid,
+                    'discount' => 0,
+                    'status' => 'completed',
+                    'id' => $bill->id,
+                ];
+            }
+        }
+
+        foreach ($payments as $payment) {
+            if ($payment->status === 'voided') continue;
+
+            $sourceLabel = $payment->payment_source === 'account'
+                ? ($payment->account?->name ?? 'Bank/Cash')
+                : ($payment->payment_source === 'wallet' ? 'Vendor Advance' : 'Employee Advance');
+
+            $events[] = [
+                'date' => $payment->getRawOriginal('date') ?: ($payment->created_at ? $payment->created_at->toDateString() : date('Y-m-d')),
+                'sort_time' => $payment->created_at ? $payment->created_at->toDateTimeString() : ($payment->date . ' 00:00:00'),
+                'type' => 'payment',
+                'ref' => 'VP-' . str_pad($payment->id, 5, '0', STR_PAD_LEFT),
+                'title' => 'পেমেন্ট ভাউচার (' . $sourceLabel . ')' . ($payment->note ? ' - ' . $payment->note : ''),
+                'project' => null,
+                'client' => null,
+                'category' => null,
+                'billed' => 0,
+                'paid' => (float)$payment->pay_amount,
+                'discount' => (float)$payment->adjustment_amount,
+                'status' => $payment->status,
+                'id' => $payment->id,
+            ];
+        }
+
+        usort($events, function($a, $b) {
+            $cmp = strcmp($a['date'], $b['date']);
+            if ($cmp !== 0) return $cmp;
+            return strcmp($a['sort_time'], $b['sort_time']);
+        });
+
+        $running = 0;
+        foreach ($events as &$ev) {
+            $running += $ev['billed'] - $ev['paid'] - $ev['discount'];
+            $ev['balance'] = round($running, 2);
+        }
+
+        $completedPayments = $payments->where('status', 'completed');
+        $voucherSettledTotal = \App\Models\VendorPaymentDetail::whereIn('vendor_payment_id', $completedPayments->pluck('id'))->sum('amount');
+        $directPaidTotal = max(0, $bills->sum('paid_amount') - $voucherSettledTotal);
+        $totalCashPaid = $directPaidTotal + $completedPayments->sum('pay_amount');
+        $totalDiscount = $completedPayments->sum('adjustment_amount');
+
         $stats = [
-            'totalBilled' => $bills->sum('total_bill'),
-            'totalPaid' => $bills->sum('paid_amount'),
+            'totalBilled' => (float) $bills->sum('total_bill'),
+            'totalPaid' => (float) $bills->sum('paid_amount'),
+            'actualCashPaid' => (float) $totalCashPaid,
+            'totalDiscount' => (float) $totalDiscount,
+            'currentDue' => (float) $bills->sum('due_amount'),
+            'walletBalance' => (float) $vendor->wallet_balance,
         ];
 
         return Inertia::render('Admin/Vendors/Show', [
@@ -252,10 +370,21 @@ class VendorController extends Controller
             'payments' => $payments,
             'ledgers' => $ledgers,
             'bills' => $bills,
-            'stats' => $stats
+            'statement' => $events,
+            'directPayments' => $directPayments,
+            'stats' => $stats,
+            'accounts' => Account::where('is_active', true)->select('id', 'name', 'current_balance')->get(),
+            'advances' => AdvanceBalance::with('user:id,name')
+                ->get()
+                ->map(function($balance) {
+                    $balance->available_balance = $balance->total_given - ($balance->total_used + $balance->total_returned);
+                    return $balance;
+                })
+                ->filter(fn($balance) => $balance->available_balance > 0)
+                ->values(),
         ]);
     }
-  
+
     public function addAdvance(Request $request, $id)
     {
         // 🟢 Check if this is an UNDO request (Mistake Correction)
@@ -424,10 +553,11 @@ class VendorController extends Controller
     public function updateBankCharge(Request $request, VendorPayment $payment)
     {
         $data = $request->validate([
-            'bank_charge' => 'required|numeric|decimal:0,2|min:0|max:9999999999999.99',
-            'pay_amount'  => 'sometimes|required|numeric|decimal:0,2|min:0.01|max:9999999999999.99',
+            'bank_charge'       => 'required|numeric|decimal:0,2|min:0|max:9999999999999.99',
+            'pay_amount'        => 'sometimes|required|numeric|decimal:0,2|min:0.01|max:9999999999999.99',
+            'adjustment_amount' => 'nullable|numeric|decimal:0,2|min:0|max:9999999999999.99',
         ]);
-        
+
         DB::transaction(function () use ($payment, $data) {
             $payment = VendorPayment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
             $fail = fn ($message) => throw \Illuminate\Validation\ValidationException::withMessages(['bank_charge' => $message]);
@@ -438,24 +568,25 @@ class VendorController extends Controller
             $account = Account::whereKey($payment->account_id)->lockForUpdate()->firstOrFail();
             $transactions = Transaction::where('transactionable_type', $payment->getMorphClass())
                 ->where('transactionable_id', $payment->id)->where('type', 'debit')->lockForUpdate()->get();
-            
+
             if ($transactions->count() !== 1 || $transactions->first()->account_id != $account->id) {
                 $fail('The original account transaction could not be identified safely.');
             }
-            
+
             $transaction = $transactions->first();
-            
+
             if (abs((float) $transaction->amount - ((float) $payment->pay_amount + (float) $payment->bank_charge)) > 0.001) {
                 $fail('The original transaction amount does not match this payment.');
             }
-            
+
             $charge = round((float) $data['bank_charge'], 2);
             $amount = round((float) ($data['pay_amount'] ?? $payment->pay_amount), 2);
-            
-            if ($amount != (float) $payment->pay_amount) {
+            $adjustment = isset($data['adjustment_amount']) ? round((float) $data['adjustment_amount'], 2) : round((float) $payment->adjustment_amount, 2);
+
+            if ($amount != (float) $payment->pay_amount || $adjustment != (float) $payment->adjustment_amount) {
                 $details = $payment->details()->lockForUpdate()->get();
                 $bills = ProjectExpense::whereIn('id', $details->pluck('project_expense_id'))->orderBy('created_at')->orderBy('id')->lockForUpdate()->get();
-                
+
                 if ($bills->count() !== $details->count() || $bills->isEmpty()) {
                     $fail('The original bills could not be identified safely.');
                 }
@@ -466,14 +597,14 @@ class VendorController extends Controller
                     $bill->due_amount += $previous;
                 }
                 $available = round($bills->sum('due_amount'), 2);
-                $remaining = round($amount + $payment->adjustment_amount, 2);
-                if ($payment->adjustment_amount > 0 && $remaining > $available) $fail('Payment plus adjustment exceeds the linked bills.');
-                
+                $remaining = round($amount + $adjustment, 2);
+                if ($adjustment > 0 && $remaining > $available) $fail('Payment plus adjustment exceeds the linked bills.');
+
                 $walletCredit = round(max(0, $amount - $available), 2);
                 $walletDifference = round($walletCredit - $payment->wallet_credit_amount, 2);
-                
+
                 if ($walletDifference < 0 && $vendor->wallet_balance < -$walletDifference) $fail('The excess advance has already been used. Reverse its usage first.');
-                
+
                 foreach ($bills as $bill) {
                     $allocated = min($remaining, $bill->due_amount);
                     $bill->paid_amount += $allocated;
@@ -483,44 +614,46 @@ class VendorController extends Controller
                     $details->firstWhere('project_expense_id', $bill->id)->update(['amount' => $allocated]);
                     $remaining -= $allocated;
                 }
-                
+
                 if ($walletDifference != 0) {
                     $vendor->increment('wallet_balance', $walletDifference);
                     VendorLedger::create([
-                        'vendor_id' => $vendor->id, 
+                        'vendor_id' => $vendor->id,
                         'type' => $walletDifference > 0 ? 'credit' : 'debit',
-                        'amount' => abs($walletDifference), 
+                        'amount' => abs($walletDifference),
                         'date' => $payment->getRawOriginal('date'), // 🟢 Force Old Date
                         'description' => 'Payment amount correction (VP-'.$payment->id.')'
                     ]);
                 }
                 $payment->wallet_credit_amount = $walletCredit;
+                $payment->adjustment_amount = $adjustment;
             }
-            
+
             $difference = round($amount + $charge - $payment->pay_amount - $payment->bank_charge, 2);
-            
+
             if ($difference > 0 && $account->current_balance < $difference) {
                 $fail('Insufficient account balance for the corrected payment.');
             }
-            
+
             if ($difference != 0) {
                 $account->decrement('current_balance', $difference);
             }
-            
+
             $transaction->update([
-                'amount' => round($amount + $charge, 2), 
+                'amount' => round($amount + $charge, 2),
                 'bank_charge' => $charge,
-                'transaction_date' => $transaction->getRawOriginal('transaction_date') 
+                'transaction_date' => $transaction->getRawOriginal('transaction_date')
             ]);
-            
+
             $payment->update([
-                'pay_amount' => $amount, 
+                'pay_amount' => $amount,
                 'bank_charge' => $charge,
+                'adjustment_amount' => $adjustment,
                 'date' => $payment->getRawOriginal('date')
             ]);
-            
+
         });
-        
+
         return back()->with('success', 'Payment updated successfully.');
     }
 

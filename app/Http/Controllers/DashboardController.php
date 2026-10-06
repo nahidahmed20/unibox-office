@@ -32,7 +32,7 @@ class DashboardController extends Controller
 
         $actualInvestmentBalance = Investment::withSum('payments as returned_principal', 'principal_amount')
             ->get()
-            ->sum(fn ($investment) => max((float) $investment->amount - (float) ($investment->returned_principal ?? 0), 0));
+            ->sum(fn($investment) => max((float) $investment->amount - (float) ($investment->returned_principal ?? 0), 0));
 
         $unpaidSalaries = Salary::whereIn('status', ['unpaid', 'partially_paid'])->sum('due_amount');
 
@@ -60,7 +60,7 @@ class DashboardController extends Controller
         $monthlyProjectCostPaid = (float) Transaction::whereIn('transactionable_type', [ProjectExpense::class, VendorPayment::class])->whereMonth('transaction_date', $currentMonth)->whereYear('transaction_date', $currentYear)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN amount - bank_charge ELSE -amount + bank_charge END), 0) total")->value('total');
 
         $monthlyCashIn = InvoicePayment::whereNotNull('account_id')->where('method', '!=', 'Client Advance')->whereIn('invoice_id', $validInvoiceIds)->whereMonth('payment_date', $currentMonth)->whereYear('payment_date', $currentYear)->sum('amount')
-                       + ClientAdvance::whereMonth('date', $currentMonth)->whereYear('date', $currentYear)->sum('amount');
+            + ClientAdvance::whereMonth('date', $currentMonth)->whereYear('date', $currentYear)->sum('amount');
 
         $monthlyBankCharges = (float) Transaction::whereMonth('transaction_date', $currentMonth)->whereYear('transaction_date', $currentYear)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN bank_charge ELSE -bank_charge END), 0) total")->value('total');
         $officeCashPaid = (float) Transaction::where('transactionable_type', Expense::class)->where('type', 'debit')->whereMonth('transaction_date', $currentMonth)->whereYear('transaction_date', $currentYear)->selectRaw('COALESCE(SUM(amount - bank_charge), 0) total')->value('total');
@@ -131,7 +131,7 @@ class DashboardController extends Controller
                 $paid = $invoice->payments_sum_amount ?? 0;
                 $invoice->due_amount = max($invoice->grand_total - $paid, 0);
 
-                $projectNames = collect($invoice->items)->map(function($item) {
+                $projectNames = collect($invoice->items)->map(function ($item) {
                     return $item->project ? $item->project->title : $item->item_name;
                 })->filter()->implode(', ');
 

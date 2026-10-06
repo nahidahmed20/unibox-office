@@ -83,6 +83,7 @@ Route::middleware('auth')->group(function () {
     // 2. Finance & Accounts
     Route::get('client-dues', [ReportController::class, 'clientDuesReport'])->name('admin.client-dues');
     Route::get('vendor-dues', [ReportController::class, 'vendorDuesReport'])->name('admin.vendor-dues');
+    Route::get('vendor-payments', [ReportController::class, 'vendorPaymentsReport'])->name('admin.vendor-payments');
 
     Route::resource('invoices', InvoiceController::class)->names('admin.invoices');
     Route::resource('invoice-payments', InvoicePaymentController::class)->names('invoice-payments');

@@ -31,9 +31,9 @@ class InvoiceController extends Controller
         if ($request->filled('project_name')) {
             $query->whereHas('items', function ($q) use ($request) {
                 $q->where('item_name', 'like', "%{$request->project_name}%")
-                  ->orWhereHas('project', function ($pq) use ($request) {
-                      $pq->where('title', 'like', "%{$request->project_name}%");
-                  });
+                    ->orWhereHas('project', function ($pq) use ($request) {
+                        $pq->where('title', 'like', "%{$request->project_name}%");
+                    });
             });
         }
         if ($request->filled('year')) {
@@ -52,7 +52,7 @@ class InvoiceController extends Controller
         $totals = [
             'grand_total' => $invoicesList->sum('grand_total'),
             'paid_amount' => $invoicesList->sum('payments_sum_amount'),
-            'due_amount'  => $invoicesList->sum(function($inv) {
+            'due_amount'  => $invoicesList->sum(function ($inv) {
                 return max((float)$inv->grand_total - (float)$inv->payments_sum_amount, 0);
             })
         ];
@@ -78,7 +78,14 @@ class InvoiceController extends Controller
             'totals'   => $totals,
             'uninvoicedProjects' => $uninvoicedProjects,
             'filters'  => $request->only([
-                'invoice_number', 'client_id', 'status', 'project_name', 'year', 'date_from', 'date_to', 'per_page'
+                'invoice_number',
+                'client_id',
+                'status',
+                'project_name',
+                'year',
+                'date_from',
+                'date_to',
+                'per_page'
             ]),
         ]);
     }
@@ -125,7 +132,7 @@ class InvoiceController extends Controller
             'items'              => 'required|array|min:1',
             'items.*.project_id' => 'nullable|exists:projects,id',
             'items.*.item_name'  => 'required|string',
-            'items.*.description'=> 'nullable|string',
+            'items.*.description' => 'nullable|string',
             'items.*.quantity'   => 'required|numeric|min:1',
             'items.*.unit_type'  => 'nullable|string',
             'items.*.unit_price' => 'required|numeric|min:0',
@@ -138,7 +145,7 @@ class InvoiceController extends Controller
 
             $invoice = Invoice::create($invoiceData);
 
-            $invoiceItemsData = collect($validated['items'])->map(function($item) {
+            $invoiceItemsData = collect($validated['items'])->map(function ($item) {
                 return collect($item)->only(['project_id', 'item_name', 'description', 'quantity', 'unit_price', 'total'])->toArray();
             })->toArray();
             $invoice->items()->createMany($invoiceItemsData);
@@ -206,7 +213,7 @@ class InvoiceController extends Controller
             'items'              => 'required|array|min:1',
             'items.*.project_id' => 'nullable|exists:projects,id',
             'items.*.item_name'  => 'required|string',
-            'items.*.description'=> 'nullable|string',
+            'items.*.description' => 'nullable|string',
             'items.*.quantity'   => 'required|numeric|min:1',
             'items.*.unit_type'  => 'nullable|string',
             'items.*.unit_price' => 'required|numeric|min:0',
@@ -221,7 +228,7 @@ class InvoiceController extends Controller
             $invoice->update($invoiceData);
 
             $invoice->items()->delete();
-            $invoiceItemsData = collect($validated['items'])->map(function($item) {
+            $invoiceItemsData = collect($validated['items'])->map(function ($item) {
                 return collect($item)->only(['project_id', 'item_name', 'description', 'quantity', 'unit_price', 'total'])->toArray();
             })->toArray();
             $invoice->items()->createMany($invoiceItemsData);
@@ -330,7 +337,7 @@ class InvoiceController extends Controller
         $advances = ClientAdvance::where('client_id', $clientId)->whereColumn('used_amount', '<', 'amount')
             ->orderBy('date')->orderBy('id')->lockForUpdate()->get();
 
-        $available = $advances->sum(fn ($advance) => (float) $advance->amount - (float) $advance->used_amount);
+        $available = $advances->sum(fn($advance) => (float) $advance->amount - (float) $advance->used_amount);
         if ($amount > $available) {
             throw \Illuminate\Validation\ValidationException::withMessages(['use_advance_amount' => "Only {$available} TK client advance is available."]);
         }
@@ -385,15 +392,12 @@ class InvoiceController extends Controller
     {
         $invoice = Invoice::with(['client', 'items.project', 'payments'])->findOrFail($id);
 
-        $advanceUsed = round((float) $invoice->payments->where('method', 'Client Advance')->sum('amount') + (float) ($invoice->getRawOriginal('advance_used') ?? 0), 2);
-        $cashPaid = round((float) $invoice->payments->where('method', '!=', 'Client Advance')->sum('amount'), 2);
-        $totalPaid = round($advanceUsed + $cashPaid, 2);
-        $payableDue = max(0, round((float) $invoice->grand_total - $totalPaid, 2));
-
-        $invoice->setAttribute('advance_amount', $advanceUsed);
-        $invoice->setAttribute('cash_paid', $cashPaid);
-        $invoice->setAttribute('total_paid', $totalPaid);
-        $invoice->setAttribute('payable_due', $payableDue);
+        // Money already received for this invoice (bank/cash etc.). Client-advance payments are
+        // excluded here because they're already included in advance_used ("Advance Adjusted").
+        $invoice->setAttribute(
+            'cash_paid',
+            round((float) $invoice->payments->where('method', '!=', 'Client Advance')->sum('amount'), 2)
+        );
 
         $settings = InvoiceSetting::first();
 
