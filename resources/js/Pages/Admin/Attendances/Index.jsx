@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
-import Select from 'react-select';
 
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -13,12 +12,62 @@ import CustomSelect from '@/Components/CustomSelect';
 const COMPANY = {
     name: 'UNIBOX',
     tagline: "Let's Create Together",
-    logo: `${window.location.origin}/images/logo.png`,
+    logo: typeof window !== 'undefined' ? `${window.location.origin}/images/logo.png` : '',
     phone: '+8801627188836',
     email: 'uniboxbd4u@gmail.com',
     website: 'www.uniboxbd4u.com',
     address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
 };
+
+// 🟢 Custom Premium Dropdown (Replacing react-select)
+function SearchableSelect({ options, value, onChange, placeholder, getLabel, getValue, error, disabled }) {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState("");
+    const wrapperRef = useRef(null);
+    const inputRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(e) { if (wrapperRef.current && !wrapperRef.current.contains(e.target)) { setOpen(false); setSearch(""); } }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    useEffect(() => { if (open && inputRef.current) inputRef.current.focus(); }, [open]);
+
+    const selected = options.find((opt) => String(getValue(opt)) === String(value));
+    const filtered = options.filter((opt) => getLabel(opt).toLowerCase().includes(search.toLowerCase()));
+
+    return (
+        <div ref={wrapperRef} className="relative w-full z-[60]">
+            <div onClick={() => !disabled && setOpen((o) => !o)} className={`flex w-full cursor-pointer items-center justify-between rounded-xl border px-4 py-3.5 text-[14px] font-bold outline-none transition-all ${disabled ? 'bg-gray-100 cursor-not-allowed opacity-70 border-gray-200 text-gray-400' : 'bg-white hover:border-indigo-400'} ${error ? 'border-red-400 focus:ring-red-500/50' : 'border-gray-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 shadow-sm'} ${selected && !disabled ? 'text-gray-900' : 'text-gray-500'}`}>
+                <span className="truncate flex-1">{selected ? getLabel(selected) : placeholder}</span>
+                <i className={`fa-solid fa-chevron-down text-[11px] text-gray-400 shrink-0 ml-2 transition-transform duration-200 ${open ? 'rotate-180 text-indigo-600' : ''}`}></i>
+            </div>
+            {open && !disabled && (
+                <div className="absolute top-[calc(100%+6px)] left-0 flex max-h-[260px] w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl z-[99999] animate-[fadeIn_0.15s_ease-out]">
+                    <div className="border-b border-gray-100 bg-gray-50 p-3 shrink-0 relative">
+                        <i className="fa-solid fa-magnifying-glass absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                        <input ref={inputRef} type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search employee..." className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-[13px] font-bold outline-none focus:ring-2 focus:ring-indigo-600 shadow-sm" />
+                    </div>
+                    <div className="overflow-y-auto py-1.5 custom-table-scroll">
+                        {filtered.length === 0 ? (
+                            <div className="p-4 text-center text-[13px] text-gray-400 font-bold">No results found</div>
+                        ) : (
+                            filtered.map((opt) => {
+                                const isActive = String(getValue(opt)) === String(value);
+                                return (
+                                    <div key={getValue(opt)} onClick={() => { onChange(String(getValue(opt))); setOpen(false); setSearch(""); }} className={`cursor-pointer px-5 py-3 text-[13.5px] font-bold transition-colors border-b border-gray-50 last:border-0 ${isActive ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-indigo-50'}`}>
+                                        {getLabel(opt)}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function Index({ attendances = { data: [], links: [] }, users = [] }) {
     const { auth } = usePage().props;
@@ -77,7 +126,7 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
         const text = recordList
             .map((a) => `${a.date}\t${a.user?.name || "N/A"}\t${a.check_in || '--:--'}\t${a.check_out || '--:--'}\t${a.status?.toUpperCase()}`)
             .join("\n");
-        navigator.clipboard.writeText(text);
+        navigator.clipboard.writeText("Date\tEmployee Name\tCheck In\tCheck Out\tStatus\n" + text);
         Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
     };
 
@@ -122,7 +171,7 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
                 a.user?.name || '',
                 a.check_in || '--:--',
                 a.check_out || '--:--',
-                a.status?.toUpperCase()
+                a.status?.toUpperCase().replace('_', ' ')
             ])
         });
         doc.save(`Attendance_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
@@ -220,32 +269,6 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
         return styles[status] || 'bg-gray-100 text-gray-700 border-gray-200';
     };
 
-    // React-Select Custom Styles
-    const selectStyles = {
-        control: (provided, state) => ({
-            ...provided,
-            minHeight: "48px",
-            borderRadius: "0.75rem",
-            border: state.isFocused ? "1px solid var(--accent, #6366f1)" : "1px solid #d1d5db",
-            boxShadow: state.isFocused ? "0 0 0 3px rgba(99, 102, 241, 0.1)" : "none",
-            "&:hover": { borderColor: state.isFocused ? "var(--accent, #6366f1)" : "#9ca3af" },
-            fontSize: "14px",
-            background: editMode && state.isDisabled ? "#f3f4f6" : "#fff",
-            cursor: editMode && state.isDisabled ? "not-allowed" : "pointer"
-        }),
-        valueContainer: (provided) => ({ ...provided, padding: "2px 12px" }),
-        placeholder: (provided) => ({ ...provided, color: "#9ca3af", fontSize: "14px" }),
-        singleValue: (provided) => ({ ...provided, color: "#1f2937", fontSize: "14px", fontWeight: "600" }),
-        option: (provided, state) => ({
-            ...provided, fontSize: "14px",
-            backgroundColor: state.isSelected ? "var(--accent, #4f46e5)" : state.isFocused ? "#f8fafc" : "#fff",
-            color: state.isSelected ? "#fff" : "#1f2937", cursor: "pointer",
-            padding: "10px 12px"
-        }),
-        menuPortal: base => ({ ...base, zIndex: 9999 }),
-        menu: (base) => ({ ...base, borderRadius: "0.75rem", overflow: "hidden", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" })
-    };
-
     return (
         <AdminLayout>
             <Head title="Employee Attendance Ledger" />
@@ -264,7 +287,7 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
             `}} />
 
             <div className="flex flex-col gap-8 max-w-[1600px] mx-auto pb-12 mt-2">
-                
+
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div>
@@ -295,17 +318,16 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
 
                     {/* Toolbar */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100 no-print">
-                        
+
                         <div className="flex flex-wrap items-center gap-3">
-                            
+
                             {/* Premium Show Rows Dropdown */}
                             <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
                                 <span className="bg-gray-50/80 px-4 py-2.5 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select value={perPage} onChange={(e) =>
- setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                    <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
                                         className="bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
                                     >
                                         <option value={10}>10 Rows</option>
@@ -459,7 +481,7 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
             {showViewModal && selectedRecord && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
                     <div className="w-full max-w-lg bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-                        
+
                         {/* Header */}
                         <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 px-8 py-6 shrink-0 overflow-hidden">
                             <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-white opacity-10 translate-x-10 -translate-y-10"></div>
@@ -518,7 +540,7 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
                     <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-                        
+
                         {/* Header */}
                         <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white shrink-0">
                             <div>
@@ -539,17 +561,17 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
                             <div className="p-8 overflow-y-auto custom-table-scroll space-y-6">
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="relative z-[60]">
+                                    <div className="relative">
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Select Employee <span className="text-red-500">*</span></label>
-                                        <Select
-                                            options={users.map((u) => ({ value: u.id, label: u.name }))}
-                                            value={users.map((u) => ({ value: u.id, label: u.name })).find((opt) => Number(opt.value) === Number(data.user_id)) || null}
-                                            onChange={(selected) => setData("user_id", selected ? selected.value : "")}
-                                            placeholder="-- Choose Employee --"
-                                            isSearchable isClearable
-                                            styles={selectStyles}
-                                            isDisabled={editMode}
-                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+                                        <SearchableSelect
+                                            options={users}
+                                            value={data.user_id}
+                                            onChange={(val) => setData("user_id", val)}
+                                            placeholder="-- Click to Select --"
+                                            getValue={(user) => user.id}
+                                            getLabel={(user) => user.name}
+                                            error={errors.user_id}
+                                            disabled={editMode}
                                         />
                                         {errors.user_id && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.user_id}</p>}
                                     </div>
@@ -560,7 +582,7 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
                                             type="date"
                                             value={data.date}
                                             onChange={e => setData('date', e.target.value)}
-                                            className={`w-full rounded-xl border border-gray-300 px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm ${editMode ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white'}`}
+                                            className={`w-full rounded-xl border border-gray-300 px-4 py-3.5 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm ${editMode ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white cursor-pointer'}`}
                                             required
                                             disabled={editMode}
                                         />
@@ -571,23 +593,29 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-gray-50 border border-gray-100 rounded-2xl">
                                     <div>
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Check In Time</label>
-                                        <input
-                                            type="time"
-                                            value={data.check_in}
-                                            onChange={e => setData('check_in', e.target.value)}
-                                            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer"
-                                        />
+                                        <div className="relative">
+                                            <i className="fa-regular fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                            <input
+                                                type="time"
+                                                value={data.check_in}
+                                                onChange={e => setData('check_in', e.target.value)}
+                                                className="w-full rounded-xl border border-gray-300 bg-white pl-10 pr-4 py-3.5 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer"
+                                            />
+                                        </div>
                                         {errors.check_in && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.check_in}</p>}
                                     </div>
 
                                     <div>
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Check Out Time</label>
-                                        <input
-                                            type="time"
-                                            value={data.check_out}
-                                            onChange={e => setData('check_out', e.target.value)}
-                                            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer"
-                                        />
+                                        <div className="relative">
+                                            <i className="fa-regular fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                            <input
+                                                type="time"
+                                                value={data.check_out}
+                                                onChange={e => setData('check_out', e.target.value)}
+                                                className="w-full rounded-xl border border-gray-300 bg-white pl-10 pr-4 py-3.5 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer"
+                                            />
+                                        </div>
                                         {errors.check_out && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.check_out}</p>}
                                     </div>
                                 </div>
@@ -598,7 +626,7 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
                                         <CustomSelect
                                             value={data.status}
                                             onChange={e => setData('status', e.target.value)}
-                                            className="w-full appearance-none bg-none [background-image:none] rounded-xl border border-gray-300 bg-white px-4 py-3 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm"
+                                            className="w-full appearance-none bg-none rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm"
                                             required
                                         >
                                             <option value="present">Present</option>
@@ -619,7 +647,7 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
                                 <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={processing} className="rounded-xl bg-indigo-600 px-8 py-2.5 text-[14px] font-bold text-white transition-all hover:bg-indigo-700 shadow-md disabled:opacity-70 flex items-center gap-2">
+                                <button type="submit" disabled={processing} className="rounded-xl bg-indigo-600 px-8 py-2.5 text-[14px] font-bold text-white transition-all hover:bg-indigo-700 shadow-md disabled:opacity-70 flex items-center gap-2 border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1">
                                     {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Saving...</> : <><i className="fa-solid fa-check"></i> {editMode ? "Update Record" : "Save Attendance"}</>}
                                 </button>
                             </div>

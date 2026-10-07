@@ -119,6 +119,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/salaries/{id}/pay', [SalaryController::class, 'addPayment'])->name('salaries.pay');
     Route::resource('salaries', SalaryController::class)->names('admin.salaries');
     Route::resource('leaves', LeaveController::class)->names('admin.leaves');
+    Route::get('/master-summary', [ReportController::class, 'masterSummary'])->name('admin.reports.master');
     Route::get('/financial-reports', [ReportController::class, 'financialSummary'])->name('admin.reports.financial');
     Route::get('/financial-position', [ReportController::class, 'financialPosition'])->name('admin.reports.position');
     Route::get('account/transactions', [ReportController::class, 'transactionsReport'])->name('admin.account.transactions');

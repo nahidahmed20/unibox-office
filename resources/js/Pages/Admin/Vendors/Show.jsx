@@ -1,47 +1,107 @@
 import React, { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
-
-function BankChargeEditor({ payment }) {
-    const [editing, setEditing] = useState(false);
-    const form = useForm({ pay_amount: payment.pay_amount, bank_charge: payment.bank_charge || 0 });
-    return <div className="mt-2 text-xs font-medium text-gray-600">
-        <div>Bank charge: ৳{Number(payment.bank_charge || 0).toFixed(2)}</div>
-        {payment.payment_source === 'account' && payment.status === 'completed' && Number(payment.pay_amount) > 0 && (
-            editing ? <form className="mt-2 space-y-2" onSubmit={event => {
-                event.preventDefault();
-                form.patch(route('admin.vendors.payments.bank-charge', payment.id), {
-                    preserveScroll: true, onSuccess: () => setEditing(false),
-                });
-            }}>
-                <label className="block">Payment amount
-                    <input aria-label="Payment amount" type="number" min="0.01" step="0.01" required value={form.data.pay_amount}
-                        onChange={event => form.setData('pay_amount', event.target.value)} className="block w-36 rounded border-gray-300 mt-1" />
-                </label>
-                {form.errors.pay_amount && <p role="alert" className="text-red-600">{form.errors.pay_amount}</p>}
-                <label className="block">Total bank charge
-                    <input aria-label="Total bank charge" type="number" min="0" step="0.01" required value={form.data.bank_charge}
-                        onChange={event => form.setData('bank_charge', event.target.value)} className="block w-36 rounded border-gray-300 mt-1" />
-                </label>
-                <p className="max-w-52 whitespace-normal">Account debit: ৳{(Number(form.data.pay_amount || 0) + Number(form.data.bank_charge || 0)).toFixed(2)}</p>
-                {form.errors.bank_charge && <p role="alert" className="text-red-600 max-w-52 whitespace-normal">{form.errors.bank_charge}</p>}
-                <button disabled={form.processing} className="text-indigo-700 font-bold mr-3">Save</button>
-                <button type="button" disabled={form.processing} onClick={() => setEditing(false)}>Cancel</button>
-            </form> : <button className="text-indigo-600 font-bold mt-1" onClick={() => {
-                form.setData({ pay_amount: payment.pay_amount, bank_charge: payment.bank_charge || 0 });
-                form.clearErrors();
-                setEditing(true);
-            }}>Edit payment</button>
-        )}
-    </div>;
-}
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import Swal from 'sweetalert2';
 
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
 );
 
+function BankChargeEditor({ payment, onSuccess }) {
+    const [editing, setEditing] = useState(false);
+    const form = useForm({ pay_amount: payment.pay_amount, bank_charge: payment.bank_charge || 0 });
+
+    if (payment.payment_source !== 'account' || payment.status !== 'completed' || Number(payment.pay_amount) <= 0) {
+        return (
+            <div className="mt-2 text-[12px] font-bold text-gray-500 bg-gray-50 px-2 py-1 rounded w-fit border border-gray-100">
+                Bank charge: <Taka className="text-[10px]" />{Number(payment.bank_charge || 0).toLocaleString('en-IN')}
+            </div>
+        );
+    }
+
+    return (
+        <div className="mt-2">
+            {!editing ? (
+                <div className="flex items-center gap-3">
+                    <div className="text-[12px] font-bold text-gray-600 bg-white px-2.5 py-1 rounded-md border border-gray-200 shadow-sm">
+                        Bank charge: <Taka className="text-[11px]" />{Number(payment.bank_charge || 0).toLocaleString('en-IN')}
+                    </div>
+                    <button onClick={() => { form.setData({ pay_amount: payment.pay_amount, bank_charge: payment.bank_charge || 0 }); form.clearErrors(); setEditing(true); }} className="text-[11.5px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md">
+                        <i className="fa-solid fa-pen-to-square"></i> Edit
+                    </button>
+                </div>
+            ) : (
+                <form className="mt-2.5 p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl shadow-sm animate-[fadeIn_0.2s_ease-out] w-full max-w-sm" onSubmit={event => {
+                    event.preventDefault();
+                    form.patch(route('admin.vendors.payments.bank-charge', payment.id), {
+                        preserveScroll: true,
+                        onSuccess: () => { setEditing(false); if(onSuccess) onSuccess(); Swal.fire({ icon: 'success', title: 'Updated!', timer: 1500, showConfirmButton: false, toast: true, position: 'top-end' }); }
+                    });
+                }}>
+                    <div className="flex justify-between items-center mb-3 pb-2 border-b border-indigo-100">
+                        <span className="text-[12px] font-black text-indigo-800 uppercase tracking-wider"><i className="fa-solid fa-pen-clip mr-1"></i> Edit Bank Payment</span>
+                        <button type="button" onClick={() => setEditing(false)} className="text-gray-400 hover:text-red-500"><i className="fa-solid fa-xmark"></i></button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Pay Amount <span className="text-red-500">*</span></label>
+                            <input type="number" min="0.01" step="0.01" required value={form.data.pay_amount} onChange={e => form.setData('pay_amount', e.target.value)} className="w-full rounded-lg border-gray-300 px-3 py-2 text-[13px] font-bold text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" />
+                            {form.errors.pay_amount && <p className="text-[10px] text-red-600 font-bold mt-1">{form.errors.pay_amount}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Bank Charge <span className="text-red-500">*</span></label>
+                            <input type="number" min="0" step="0.01" required value={form.data.bank_charge} onChange={e => form.setData('bank_charge', e.target.value)} className="w-full rounded-lg border-gray-300 px-3 py-2 text-[13px] font-bold text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" />
+                            {form.errors.bank_charge && <p className="text-[10px] text-red-600 font-bold mt-1">{form.errors.bank_charge}</p>}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-4">
+                        <div className="text-[11.5px] font-bold text-indigo-900 bg-white px-2.5 py-1 rounded border border-indigo-100">
+                            Bank Debit: <Taka className="text-[10px]" />{(Number(form.data.pay_amount || 0) + Number(form.data.bank_charge || 0)).toLocaleString('en-IN', {minimumFractionDigits: 2})}
+                        </div>
+                        <button disabled={form.processing} className="bg-indigo-600 hover:bg-indigo-700 text-white text-[12px] font-bold px-4 py-1.5 rounded-lg shadow-sm transition-colors disabled:opacity-50">
+                            {form.processing ? 'Saving...' : 'Save'}
+                        </button>
+                    </div>
+                </form>
+            )}
+        </div>
+    );
+}
+
 export default function Show({ vendor, payments, ledgers, bills, stats }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
+
     const [activeTab, setActiveTab] = useState('payments');
+
+    // Void Modal State
+    const [showVoidModal, setShowVoidModal] = useState(false);
+    const [paymentToVoid, setPaymentToVoid] = useState(null);
+    const voidForm = useForm({ void_reason: '' });
+
+    const openVoidModal = (payment) => {
+        setPaymentToVoid(payment);
+        voidForm.reset();
+        voidForm.clearErrors();
+        setShowVoidModal(true);
+    };
+
+    const handleVoidSubmit = (e) => {
+        e.preventDefault();
+        voidForm.post(route('admin.vendors.payments.void', paymentToVoid.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setShowVoidModal(false);
+                setPaymentToVoid(null);
+                Swal.fire({ icon: "success", title: "পেমেন্ট ভয়েড হয়েছে!", timer: 1500, showConfirmButton: false });
+            },
+            onError: (err) => {
+                if (err.error) Swal.fire("Error", err.error, "error");
+            }
+        });
+    };
 
     return (
         <AdminLayout>
@@ -132,7 +192,7 @@ export default function Show({ vendor, payments, ledgers, bills, stats }) {
 
                     <div className="p-0 overflow-x-auto custom-table-scroll">
 
-                        {/* 🟢 PAYMENTS TAB (Upgraded with Detailed Purpose & Project) */}
+                        {/* 🟢 PAYMENTS TAB */}
                         {activeTab === 'payments' && (
                             <table className="w-full text-left whitespace-nowrap">
                                 <thead className="bg-white border-b border-gray-200 text-[11.5px] font-extrabold uppercase text-gray-400 tracking-wider">
@@ -140,8 +200,8 @@ export default function Show({ vendor, payments, ledgers, bills, stats }) {
                                         <th className="px-6 py-4.5">Date & Details</th>
                                         <th className="px-6 py-4.5">Source / Account</th>
                                         <th className="px-6 py-4.5">Purpose / Settled Bills</th>
-                                        <th className="px-6 py-4.5 text-center">Status</th>
                                         <th className="px-6 py-4.5 text-right">Amount Paid</th>
+                                        <th className="px-6 py-4.5 text-center border-l border-gray-100">Status / Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="text-[13.5px] text-gray-800 divide-y divide-gray-100">
@@ -154,7 +214,7 @@ export default function Show({ vendor, payments, ledgers, bills, stats }) {
                                                 <div className="text-[11.5px] font-bold text-gray-400 mt-1 uppercase tracking-wider">
                                                     Ref: #{String(pay.id).padStart(5, '0')}
                                                 </div>
-                                                <BankChargeEditor payment={pay} />
+                                                {pay.status !== 'voided' && <BankChargeEditor payment={pay} />}
                                             </td>
                                             <td className="px-6 py-4 align-top">
                                                 <div className="font-bold text-indigo-700 flex items-center gap-2 bg-indigo-50 px-3 py-1.5 w-fit rounded-lg border border-indigo-100">
@@ -164,7 +224,6 @@ export default function Show({ vendor, payments, ledgers, bills, stats }) {
                                             </td>
                                             <td className="px-6 py-4 whitespace-normal min-w-[300px] max-w-lg align-top">
                                                 <div className="flex flex-col gap-2.5">
-                                                    {/* Payment Note/Description */}
                                                     {pay.note && (
                                                         <div className="text-[12.5px] text-gray-600 bg-amber-50/50 border border-amber-100 p-2.5 rounded-lg font-medium">
                                                             <span className="font-bold text-amber-700 block mb-0.5"><i className="fa-solid fa-note-sticky mr-1"></i> Note:</span>
@@ -172,7 +231,6 @@ export default function Show({ vendor, payments, ledgers, bills, stats }) {
                                                         </div>
                                                     )}
 
-                                                    {/* Linked Bills/Expenses Details */}
                                                     {pay.details?.length > 0 ? pay.details.map(d => (
                                                         <div key={d.id} className="bg-gray-50 border border-gray-200 p-3 rounded-xl shadow-sm">
                                                             <div className="font-bold text-gray-800 leading-snug">
@@ -187,8 +245,6 @@ export default function Show({ vendor, payments, ledgers, bills, stats }) {
                                                                 <span>
                                                                     Bill Settled: <strong className="text-gray-800 tabular-nums">৳{Number(d.amount).toLocaleString('en-IN')}</strong>
                                                                 </span>
-
-                                                                {/* 🟢 এখানে Current Due বা বকেয়া টাকার পরিমাণ যুক্ত করা হলো */}
                                                                 {d.expense && (
                                                                     <span className="border-l border-gray-300 pl-4">
                                                                         Current Due: <strong className={`${Number(d.expense.due_amount) > 0 ? 'text-rose-600' : 'text-emerald-600'} tabular-nums`}>
@@ -203,16 +259,6 @@ export default function Show({ vendor, payments, ledgers, bills, stats }) {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-center align-top">
-                                                {pay.status === 'voided' ? (
-                                                    <div className="flex flex-col items-center gap-1">
-                                                        <span className="bg-red-100 text-red-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border border-red-200">VOIDED</span>
-                                                        {pay.void_reason && <span className="text-[10px] text-red-500 font-bold max-w-[120px] truncate" title={pay.void_reason}>{pay.void_reason}</span>}
-                                                    </div>
-                                                ) : (
-                                                    <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border border-emerald-200">COMPLETED</span>
-                                                )}
-                                            </td>
                                             <td className="px-6 py-4 text-right align-top">
                                                 <div className={`font-black text-[18px] ${pay.status === 'voided' ? 'text-gray-400 line-through' : 'text-emerald-600'}`}>
                                                     <Taka/>{Number(pay.pay_amount).toLocaleString('en-IN')}
@@ -220,6 +266,24 @@ export default function Show({ vendor, payments, ledgers, bills, stats }) {
                                                 {Number(pay.wallet_credit_amount) > 0 && (
                                                     <div className="text-[11.5px] font-bold text-purple-600 mt-1 flex justify-end items-center gap-1 bg-purple-50 w-fit ml-auto px-2 py-0.5 rounded border border-purple-100">
                                                         <i className="fa-solid fa-arrow-turn-down"></i> Sent to Wallet: ৳{Number(pay.wallet_credit_amount).toLocaleString('en-IN')}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 text-center align-top border-l border-gray-100">
+                                                {pay.status === 'voided' ? (
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <span className="bg-red-100 text-red-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border border-red-200">VOIDED</span>
+                                                        {pay.void_reason && <span className="text-[10px] text-red-500 font-bold max-w-[120px] truncate" title={pay.void_reason}>{pay.void_reason}</span>}
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border border-emerald-200">COMPLETED</span>
+                                                        {/* 🟢 Void Button Added Here */}
+                                                        {isSuperAdmin && (
+                                                            <button onClick={() => openVoidModal(pay)} className="text-[10.5px] font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded border border-red-100 transition-colors flex items-center gap-1">
+                                                                <i className="fa-solid fa-ban"></i> Void
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 )}
                                             </td>
@@ -231,7 +295,7 @@ export default function Show({ vendor, payments, ledgers, bills, stats }) {
                             </table>
                         )}
 
-                        {/* 🟢 PROJECT BILLS TAB (Upgraded to show full details) */}
+                        {/* 🟢 PROJECT BILLS TAB */}
                         {activeTab === 'bills' && (
                             <table className="w-full text-left whitespace-nowrap">
                                 <thead className="bg-white border-b border-gray-200 text-[11.5px] font-extrabold uppercase text-gray-400 tracking-wider">
@@ -286,7 +350,7 @@ export default function Show({ vendor, payments, ledgers, bills, stats }) {
                             </table>
                         )}
 
-                        {/* 🟢 WALLET LEDGER TAB (Upgraded Description Display) */}
+                        {/* 🟢 WALLET LEDGER TAB */}
                         {activeTab === 'ledger' && (
                             <table className="w-full text-left whitespace-nowrap">
                                 <thead className="bg-white border-b border-gray-200 text-[11.5px] font-extrabold uppercase text-gray-400 tracking-wider">
@@ -326,6 +390,88 @@ export default function Show({ vendor, payments, ledgers, bills, stats }) {
                 </div>
 
             </div>
+
+            {/* --- 🚨 PREMIUM VOID PAYMENT CONFIRMATION MODAL --- */}
+            {showVoidModal && paymentToVoid && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/80 backdrop-blur-md p-4 sm:p-6 overflow-y-auto">
+                    <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl flex flex-col my-auto overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-red-100 bg-gradient-to-r from-red-50 to-white shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600 border border-red-200 shadow-inner">
+                                    <i className="fa-solid fa-triangle-exclamation text-lg"></i>
+                                </div>
+                                <h3 className="text-[18px] sm:text-[20px] font-black text-red-700 tracking-tight">
+                                    Void Payment
+                                </h3>
+                            </div>
+                            <button onClick={() => setShowVoidModal(false)} className="text-gray-400 hover:text-white transition-colors h-8 w-8 rounded-full bg-white hover:bg-red-500 border border-gray-200 flex items-center justify-center shadow-sm">
+                                <i className="fa-solid fa-xmark text-sm"></i>
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleVoidSubmit} className="flex flex-col overflow-hidden">
+                            <div className="p-6 overflow-y-auto custom-table-scroll space-y-6 bg-white">
+
+                                <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-[13px] sm:text-[13.5px] text-red-900 leading-relaxed shadow-sm font-semibold flex gap-3 items-start">
+                                    <i className="fa-solid fa-circle-exclamation mt-0.5 text-red-500 text-lg shrink-0"></i>
+                                    <div>
+                                        এই পেমেন্টটি ভয়েড করলে সংশ্লিষ্ট বিলের বকেয়া, অ্যাকাউন্ট ব্যালেন্স এবং ওয়ালেট সবকিছু আগের অবস্থায় ফিরে যাবে। এই কাজটি সরাসরি <span className="font-black text-red-600 bg-red-100 px-1.5 py-0.5 rounded uppercase">Undo</span> করা যাবে না।
+                                    </div>
+                                </div>
+
+                                <div className="rounded-2xl bg-gray-50 border border-gray-200 p-5 text-[14px] text-gray-700 flex flex-col gap-4 shadow-inner">
+                                    <div className="flex justify-between items-center border-b border-gray-200 pb-4">
+                                        <span className="font-bold text-gray-500 uppercase tracking-wider text-[11px]">Payment Amount</span>
+                                        <span className="text-red-600 text-[18px] sm:text-[22px] font-black bg-white px-3 py-1.5 rounded-xl border border-red-100 tabular-nums shadow-sm">
+                                            ৳ {Number(paymentToVoid.pay_amount).toLocaleString('en-IN')}
+                                        </span>
+                                    </div>
+                                    {Number(paymentToVoid.adjustment_amount) > 0 && (
+                                        <div className="flex justify-between items-center border-b border-gray-200 pb-4">
+                                            <span className="font-bold text-amber-700 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                                                <i className="fa-solid fa-tag text-amber-500"></i> Discount / Adjust
+                                            </span>
+                                            <span className="text-amber-800 text-[16px] font-black bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200 tabular-nums shadow-sm">
+                                                ৳ {Number(paymentToVoid.adjustment_amount).toLocaleString('en-IN')}
+                                            </span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-bold text-gray-500 uppercase tracking-wider text-[11px]">Payment Date</span>
+                                        <span className="font-bold bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm text-[13px]">{paymentToVoid.date}</span>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">
+                                        Reason for Voiding <span className="text-red-500">*</span>
+                                    </label>
+                                    <textarea
+                                        value={voidForm.data.void_reason}
+                                        onChange={(e) => voidForm.setData("void_reason", e.target.value)}
+                                        placeholder="e.g. Wrong account selected, amount incorrect..."
+                                        rows="3"
+                                        className="w-full rounded-xl border border-gray-300 p-4 text-[14px] font-medium text-gray-900 outline-none transition-shadow focus:border-red-500 focus:ring-4 focus:ring-red-500/10 resize-none shadow-sm"
+                                        required
+                                    ></textarea>
+                                    {voidForm.errors.void_reason && <p className="mt-1.5 block text-[12px] font-bold text-red-500">{voidForm.errors.void_reason}</p>}
+                                </div>
+                            </div>
+
+                            <div className="px-6 py-5 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3 shrink-0 rounded-b-3xl">
+                                <button type="button" onClick={() => setShowVoidModal(false)} className="rounded-xl border border-gray-300 bg-white px-5 sm:px-6 py-2.5 text-[13.5px] sm:text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={voidForm.processing} className="rounded-xl bg-red-600 px-5 sm:px-6 py-2.5 text-[13.5px] sm:text-[14px] font-bold text-white transition-colors hover:bg-red-700 shadow-md disabled:opacity-70 flex items-center gap-2">
+                                    {voidForm.processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-rotate-left"></i> Confirm Void</>}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
         </AdminLayout>
     );
 }

@@ -110,6 +110,15 @@ class InvoicePaymentController extends Controller
                     $invoice->decrement('grand_total', min($discount, $invoice->grand_total));
                 }
 
+                if ($discount > 0 && $payAmount == 0) {
+                     InvoicePayment::create([
+                        'invoice_id' => $invoice->id, 'account_id' => null, 'method' => 'Discount Only',
+                        'amount' => 0, 'payment_date' => $request->payment_date,
+                        'note' => clone $request->note ? 'Discount: ' . $request->note : 'Special Discount Applied',
+                        'discount_amount' => $discount,
+                    ]);
+                }
+
                 while ($payAmount > 0.001) {
                     if ($advanceRemaining > 0.001) {
                         $take = min($payAmount, $advanceRemaining);
@@ -151,15 +160,6 @@ class InvoicePaymentController extends Controller
                             'transaction_date' => $request->payment_date, 'description' => 'Invoice Payment Received. Ref: '.$invoice->invoice_number
                         ]);
                     }
-                }
-
-                // If only discount was applied and no payment
-                if ($discount > 0 && round((float) $invData['pay_amount'], 2) == 0) {
-                     InvoicePayment::create([
-                        'invoice_id' => $invoice->id, 'account_id' => null, 'method' => 'Discount Only',
-                        'amount' => 0, 'payment_date' => $request->payment_date, 'note' => 'Discount applied: ' . $request->note,
-                        'discount_amount' => $discount,
-                    ]);
                 }
 
                 $this->updateInvoiceStatus($invoice->id);

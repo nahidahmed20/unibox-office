@@ -2,32 +2,75 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
-import Select from 'react-select';
+
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 // Custom Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
 );
 
-// Modern Deep Contrast Select Styles
-const selectStyles = {
-    control: (base, state) => ({
-        ...base, minHeight: '52px', borderRadius: '0.875rem',
-        borderColor: state.isFocused ? '#4F46E5' : '#CBD5E1',
-        boxShadow: state.isFocused ? '0 0 0 4px rgba(79, 70, 229, 0.1)' : '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-        backgroundColor: '#FFFFFF', padding: '0 4px',
-        transition: 'all 0.2s ease',
-        '&:hover': { borderColor: state.isFocused ? '#4F46E5' : '#94A3B8' }
-    }),
-    option: (base, state) => ({
-        ...base, backgroundColor: state.isSelected ? '#4F46E5' : state.isFocused ? '#EEF2FF' : 'white',
-        color: state.isSelected ? '#FFFFFF' : '#0F172A', fontWeight: 700, fontSize: '14.5px', cursor: 'pointer', padding: '10px 16px',
-    }),
-    placeholder: (base) => ({ ...base, color: '#94A3B8', fontWeight: 700, fontSize: '14px' }),
-    singleValue: (base) => ({ ...base, color: '#0F172A', fontWeight: 800, fontSize: '14.5px' }),
-    menuPortal: (base) => ({ ...base, zIndex: 99999 }),
-    menu: (base) => ({ ...base, borderRadius: '0.875rem', overflow: 'hidden', border: '1px solid #CBD5E1', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)' }),
-};
+// 🟢 Custom Premium Dropdown (Fixes z-index issues perfectly matching your design)
+function SearchableSelect({ options, value, onChange, placeholder, getLabel, getValue, error, disabled, isClearable = false }) {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState("");
+    const wrapperRef = useRef(null);
+    const inputRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(e) { if (wrapperRef.current && !wrapperRef.current.contains(e.target)) { setOpen(false); setSearch(""); } }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    useEffect(() => { if (open && inputRef.current) inputRef.current.focus(); }, [open]);
+
+    const selected = options.find((opt) => String(getValue(opt)) === String(value));
+    const filtered = options.filter((opt) => getLabel(opt).toLowerCase().includes(search.toLowerCase()));
+
+    const handleClear = (e) => {
+        e.stopPropagation();
+        onChange("");
+        setSearch("");
+    };
+
+    return (
+        <div ref={wrapperRef} className="relative w-full z-[60]">
+            <div onClick={() => !disabled && setOpen((o) => !o)} className={`flex w-full cursor-pointer items-center justify-between rounded-[0.875rem] min-h-[52px] border bg-white px-4 py-3 outline-none transition-all duration-200 ${disabled ? 'bg-slate-100 cursor-not-allowed opacity-70 border-slate-200 text-slate-400' : 'hover:border-indigo-600'} ${error ? 'border-red-400 focus:ring-red-500/50' : 'border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 shadow-sm'} ${selected && !disabled ? 'text-slate-900 font-[800] text-[14.5px]' : 'text-[#94A3B8] font-[700] text-[14px]'}`}>
+                <span className="truncate flex-1">{selected ? getLabel(selected) : placeholder}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                    {isClearable && selected && !disabled && (
+                        <i onClick={handleClear} className="fa-solid fa-xmark text-[13px] text-slate-400 hover:text-rose-500 transition-colors h-6 w-6 flex items-center justify-center rounded-full hover:bg-rose-50"></i>
+                    )}
+                    <i className={`fa-solid fa-chevron-down text-[11px] text-slate-400 transition-transform duration-300 ${open ? 'rotate-180 text-indigo-600' : ''}`}></i>
+                </div>
+            </div>
+            {open && !disabled && (
+                <div className="absolute top-[calc(100%+6px)] left-0 flex max-h-[300px] w-full flex-col overflow-hidden rounded-[0.875rem] border border-slate-300 bg-white shadow-2xl z-[99999] animate-[fadeIn_0.15s_ease-out]">
+                    <div className="border-b border-slate-200 bg-slate-50 p-3 shrink-0 relative">
+                        <i className="fa-solid fa-magnifying-glass absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 text-[13px]"></i>
+                        <input ref={inputRef} type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search here..." className="w-full rounded-[0.5rem] border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-[14px] font-bold outline-none focus:ring-2 focus:ring-indigo-600 shadow-sm" />
+                    </div>
+                    <div className="overflow-y-auto py-1.5 custom-table-scroll">
+                        {filtered.length === 0 ? (
+                            <div className="p-4 text-center text-[13px] text-slate-400 font-bold">No results found</div>
+                        ) : (
+                            filtered.map((opt) => {
+                                const isActive = String(getValue(opt)) === String(value);
+                                return (
+                                    <div key={getValue(opt)} onClick={() => { onChange(String(getValue(opt))); setOpen(false); setSearch(""); }} className={`cursor-pointer px-4 py-2.5 text-[14.5px] font-[700] transition-colors border-b border-slate-50 last:border-0 ${isActive ? 'bg-[#4F46E5] text-white' : 'text-[#0F172A] hover:bg-[#EEF2FF]'}`}>
+                                        {getLabel(opt)}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 const inputClass = "w-full rounded-[0.875rem] border border-slate-300 bg-white px-5 py-3.5 text-[14.5px] font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 shadow-sm";
 
@@ -74,10 +117,6 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
         }, 400);
         return () => clearTimeout(delayDebounceFn);
     }, [searchTerm, userFilter, accountFilter, perPage]);
-
-    const clearAllFilters = () => {
-        setSearchTerm(""); setUserFilter(""); setAccountFilter(""); setPerPage("50");
-    };
 
     const groupedAdvances = useMemo(() => {
         const map = new Map();
@@ -129,13 +168,13 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
     const openCreateModal = () => {
         clearErrors();
-        setData({ id: '', account_id: '', user_id: '', amount: '', bank_charge: '', settled_amount: 0, returned_amount: 0, date: new Date().toISOString().slice(0, 10), purpose: 'Office Purpose', status: 'unsettled', notes: '' });
+        setData({ id: '', account_id: '', user_id: '', amount: '', bank_charge: '', settled_amount: 0, returned_amount: 0, date: new Date().toISOString().slice(0, 10), purpose: 'Office Work', status: 'unsettled', notes: '' });
         setEditMode(false); setShowModal(true);
     };
 
     const openEditModal = (adv) => {
         clearErrors();
-        setData({ id: adv.id, account_id: adv.account_id || '', user_id: adv.user_id || '', amount: adv.amount, bank_charge: adv.bank_charge || '', date: adv.date, purpose: adv.purpose || 'Office Purpose', status: adv.status || 'unsettled', notes: adv.notes || '' });
+        setData({ id: adv.id, account_id: adv.account_id || '', user_id: adv.user_id || '', amount: adv.amount, bank_charge: adv.bank_charge || '', date: adv.date, purpose: adv.purpose || 'Office Work', status: adv.status || 'unsettled', notes: adv.notes || '' });
         setEditMode(true); setShowModal(true);
     };
 
@@ -173,7 +212,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
     const handleDelete = (id) => {
         Swal.fire({
-            title: 'Delete this transaction?', text: `Remaining money + bank charge will be refunded to the account!`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Yes, Delete'
+            title: 'Delete Transaction?', text: `Remaining money + bank charge will be refunded to the account!`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Yes, Delete'
         }).then((result) => {
             if (result.isConfirmed) {
                 destroy(route('admin.advances.destroy', id), {
@@ -194,6 +233,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
             <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-12 px-4 sm:px-6 lg:px-8 mt-4">
 
+                {/* 🌟 Outstanding Advances Showcase */}
                 {employeeBalances && employeeBalances.length > 0 && (
                     <div className="w-full bg-slate-900 rounded-3xl border border-slate-700 shadow-xl p-5 sm:p-6 relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none"><i className="fa-solid fa-hand-holding-dollar text-9xl text-white"></i></div>
@@ -215,6 +255,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                     </div>
                 )}
 
+                {/* 🌟 Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mt-2">
                     <div>
                         <div className="inline-flex items-center gap-2 mb-2.5 px-3 py-1 bg-indigo-100 border border-indigo-200 rounded-full text-[11px] font-black uppercase tracking-widest text-indigo-800 shadow-sm"><i className="fa-solid fa-money-bill-transfer"></i> Financial Management</div>
@@ -222,6 +263,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                     </div>
                 </div>
 
+                {/* 🌟 Summary Metrics */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
                     <div className="rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-700 px-6 py-6 shadow-md border border-indigo-500 text-white min-w-[220px]">
                         <p className="text-[11.5px] font-bold uppercase tracking-widest text-indigo-200">Total Given</p>
@@ -241,59 +283,90 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                     </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-300 bg-white shadow-md overflow-hidden flex flex-col">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 px-6 py-5 gap-4 bg-slate-50">
+                {/* 🌟 Main Card */}
+                <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col">
+
+                    {/* Header Toolbar */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 px-6 py-5 gap-4 bg-slate-50/50">
                         <div className="text-[16px] font-black text-slate-900 flex items-center gap-2.5">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 border border-indigo-200 text-indigo-700 shadow-sm"><i className="fa-solid fa-list-check text-[15px]"></i></div>
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 shadow-sm"><i className="fa-solid fa-list-check text-[15px]"></i></div>
                             Advance History
                         </div>
+
                         <div className="flex items-center gap-3">
-                            <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-all hover:bg-emerald-100 shadow-sm"><i className="fas fa-file-csv"></i> CSV</button>
+                            <div className="flex items-center gap-2">
+                                <button onClick={handleExportCSV} className="flex h-[40px] w-[40px] items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 transition-all hover:bg-emerald-500 hover:text-white hover:shadow-md hover:-translate-y-0.5" title="Export CSV"><i className="fas fa-file-csv text-[15px]"></i></button>
+                                <button onClick={handlePrint} className="flex h-[40px] w-[40px] items-center justify-center rounded-xl bg-slate-100 text-slate-600 border border-slate-200 transition-all hover:bg-slate-600 hover:text-white hover:shadow-md hover:-translate-y-0.5" title="Print"><i className="fas fa-print text-[14px]"></i></button>
+                            </div>
+
                             {hasPermission('create_advance') && (
-                                <button onClick={openCreateModal} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-[13.5px] font-bold text-white transition-all hover:bg-indigo-700 shadow-md ml-2"><i className="fa-solid fa-plus text-[12px]"></i> Log Advance</button>
+                                <button onClick={openCreateModal} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-6 py-[10.5px] text-[13.5px] font-black text-white transition-all shadow-md active:scale-[0.98] ml-2">
+                                    <i className="fa-solid fa-plus text-[12px]"></i> Log Advance
+                                </button>
                             )}
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 px-6 py-5 bg-white border-b border-slate-200">
-                        <div className="relative w-full">
-                            <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Search</label>
-                            <i className="fa-solid fa-magnifying-glass absolute left-4 top-[38px] text-slate-400 text-[13.5px]"></i>
-                            <input type="text" placeholder="Search here..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-10 text-[13.5px] font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm bg-white" />
+                    {/* Premium Filters Area */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-6 py-5 bg-white border-b border-slate-100">
+                        <div className="relative w-full z-[40]">
+                            <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2">Search Records</label>
+                            <i className="fa-solid fa-magnifying-glass absolute left-4 top-[36px] text-slate-400 text-[13px]"></i>
+                            <input type="text" placeholder="Search here..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full rounded-[0.875rem] border border-slate-300 py-[11px] pl-10 pr-4 text-[14px] font-bold text-slate-800 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white" />
                         </div>
-                        <div className="w-full relative z-30">
-                            <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Employee</label>
-                            <Select options={employees.map((e) => ({ value: e.id, label: e.name }))} value={employees.map((e) => ({ value: e.id, label: e.name })).find(opt => opt.value === userFilter) || null} onChange={(selected) => setUserFilter(selected ? selected.value : '')} placeholder="All Employees" isClearable styles={selectStyles} />
+                        <div className="w-full relative z-[50]">
+                            <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2">Filter Employee</label>
+                            <SearchableSelect
+                                options={employees}
+                                value={userFilter}
+                                onChange={(val) => setUserFilter(val)}
+                                getLabel={(e) => e.name}
+                                getValue={(e) => e.id}
+                                placeholder="All Employees"
+                                isClearable
+                            />
                         </div>
-                        <div className="w-full relative z-20">
-                            <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Account</label>
-                            <Select options={accounts.map((a) => ({ value: a.id, label: a.name }))} value={accounts.map((a) => ({ value: a.id, label: a.name })).find(opt => opt.value === accountFilter) || null} onChange={(selected) => setAccountFilter(selected ? selected.value : '')} placeholder="All Accounts" isClearable styles={selectStyles} />
+                        <div className="w-full relative z-[45]">
+                            <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2">Filter Account</label>
+                            <SearchableSelect
+                                options={accounts}
+                                value={accountFilter}
+                                onChange={(val) => setAccountFilter(val)}
+                                getLabel={(a) => a.name}
+                                getValue={(a) => a.id}
+                                placeholder="All Accounts"
+                                isClearable
+                            />
                         </div>
                         <div className="w-full">
-                            <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Show Rows</label>
-                            <select value={perPage} onChange={(e) => setPerPage(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-4 pr-10 text-[13.5px] font-bold text-slate-900 outline-none cursor-pointer shadow-sm focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20">
-                                <option value="10">10 Rows</option><option value="25">25 Rows</option><option value="50">50 Rows</option><option value="100">100 Rows</option><option value="all">All Data</option>
-                            </select>
+                            <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2">Show Rows</label>
+                            <div className="relative">
+                                <select value={perPage} onChange={(e) => setPerPage(e.target.value)} className="w-full appearance-none rounded-[0.875rem] border border-slate-300 bg-white py-[11.5px] pl-4 pr-10 text-[14px] font-bold text-slate-800 outline-none cursor-pointer shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all">
+                                    <option value="10">10 Rows</option><option value="25">25 Rows</option><option value="50">50 Rows</option><option value="100">100 Rows</option><option value="all">All Data</option>
+                                </select>
+                                <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 pointer-events-none"></i>
+                            </div>
                         </div>
                     </div>
 
+                    {/* Table Area */}
                     <div className="overflow-x-auto custom-table-scroll pb-3">
                         <table id="printable-advance-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1100px]">
-                            <thead className="bg-slate-100 text-[11.5px] font-black uppercase tracking-widest text-slate-500 border-b-2 border-slate-300 sticky top-0">
+                            <thead className="bg-slate-50/80 text-[11px] font-black uppercase tracking-widest text-slate-500 border-b-2 border-slate-200 sticky top-0">
                                 <tr>
                                     <th className="px-6 py-4 w-12 expand-btn-col"></th>
                                     <th className="px-6 py-4">Date</th>
-                                    <th className="px-6 py-4">Account</th>
+                                    <th className="px-6 py-4">Account Source</th>
                                     <th className="px-6 py-4">Employee Profile</th>
-                                    <th className="px-6 py-4 text-right bg-indigo-50/50">Given</th>
+                                    <th className="px-6 py-4 text-right bg-indigo-50/50">Given (Out)</th>
                                     <th className="px-6 py-4 text-right bg-emerald-50/50">Expensed</th>
                                     <th className="px-6 py-4 text-right bg-blue-50/50">Returned</th>
-                                    <th className="px-6 py-4 text-right bg-rose-50/50">Due</th>
+                                    <th className="px-6 py-4 text-right bg-rose-50/50">Due Balance</th>
                                     <th className="px-6 py-4 text-center">Status</th>
-                                    <th className="px-6 py-4 text-center actions-col w-32">Actions</th>
+                                    <th className="px-6 py-4 text-center actions-col w-36">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="text-[13.5px] text-slate-800 divide-y divide-slate-200">
+                            <tbody className="text-[13.5px] text-slate-800 divide-y divide-slate-100">
                                 {groupedAdvances.length > 0 ? groupedAdvances.map((group) => {
                                     const isExpanded = !!expandedRows[group.user_id];
                                     const hasMultiple = group.records.length > 1;
@@ -301,74 +374,89 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
                                     return (
                                         <React.Fragment key={group.user_id}>
-                                            <tr className={`transition-colors group ${isExpanded ? 'bg-indigo-50/40' : 'hover:bg-slate-50/80'}`}>
+                                            <tr className={`transition-colors group/row ${isExpanded ? 'bg-indigo-50/30' : 'hover:bg-slate-50/70'}`}>
                                                 <td className="px-6 py-4 text-center expand-btn-col">
-                                                    {hasMultiple && <button onClick={() => toggleExpand(group.user_id)} className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-500 hover:bg-indigo-600 hover:text-white shadow-sm"><i className={`fa-solid fa-chevron-${isExpanded ? 'down' : 'right'} text-[11px]`}></i></button>}
+                                                    {hasMultiple && (
+                                                        <button onClick={() => toggleExpand(group.user_id)} className={`flex h-8 w-8 items-center justify-center rounded-full border transition-all shadow-sm ${isExpanded ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 bg-white text-slate-500 hover:border-indigo-400 hover:text-indigo-600'}`}>
+                                                            <i className={`fa-solid fa-chevron-${isExpanded ? 'down' : 'right'} text-[11px]`}></i>
+                                                        </button>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4 font-bold text-slate-600">
-                                                    {hasMultiple ? <span className="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase shadow-sm">{group.records.length} entries</span> : <div>{single.date}</div>}
+                                                    {hasMultiple ? <span className="bg-indigo-100 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-md text-[10.5px] font-black uppercase shadow-sm">{group.records.length} Entries</span> : <div>{single.date}</div>}
                                                 </td>
-                                                <td className="px-6 py-4 font-black text-slate-700">
-                                                    {hasMultiple ? <span className="text-slate-400 italic font-medium text-[12.5px]">Multiple Accounts</span> : <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm"><i className="fa-solid fa-building-columns text-indigo-500"></i> {single.account?.name || 'N/A'}</span>}
+                                                <td className="px-6 py-4 font-black text-slate-800">
+                                                    {hasMultiple ? <span className="text-slate-400 italic font-semibold text-[12px]"><i className="fa-solid fa-layer-group mr-1.5"></i>Multiple Accounts</span> : <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 shadow-sm text-[12.5px]"><i className="fa-solid fa-building-columns text-indigo-500"></i> {single.account?.name || 'N/A'}</span>}
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-black shadow-sm">{(group.user?.name || '?').charAt(0)}</div>
+                                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 font-black text-[14px] shadow-sm">{(group.user?.name || '?').charAt(0)}</div>
                                                         <div>
-                                                            <Link href={route('admin.advances.employeeLedger', group.user_id)} className="font-black text-slate-900 hover:text-indigo-600 text-[14.5px]">{group.user?.name}</Link>
-                                                            {!hasMultiple && single.purpose && <div className="text-[12px] font-bold text-slate-500 truncate max-w-[200px]"><i className="fa-solid fa-bullseye text-[10px] mr-1"></i>{single.purpose}</div>}
+                                                            <Link href={route('admin.advances.employeeLedger', group.user_id)} className="font-extrabold text-slate-900 hover:text-indigo-600 text-[14.5px] transition-colors">{group.user?.name}</Link>
+                                                            {!hasMultiple && single.purpose && <div className="text-[11.5px] font-bold text-slate-500 truncate max-w-[180px] mt-0.5"><i className="fa-solid fa-bullseye text-[10px] mr-1 text-indigo-300"></i>{single.purpose}</div>}
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 text-right font-black text-indigo-700 tabular-nums bg-indigo-50/20 text-[15px]"><Taka className="text-[13px] mr-1 opacity-70"/>{group.total_given.toLocaleString('en-IN')}</td>
-                                                <td className="px-6 py-4 text-right font-black text-emerald-600 tabular-nums bg-emerald-50/20 text-[14.5px]">{group.total_expensed > 0 ? <><Taka className="text-[12px] mr-1 opacity-70"/>{group.total_expensed.toLocaleString('en-IN')}</> : '-'}</td>
-                                                <td className="px-6 py-4 text-right font-black text-blue-600 tabular-nums bg-blue-50/20 text-[14.5px]">{group.total_returned > 0 ? <><Taka className="text-[12px] mr-1 opacity-70"/>{group.total_returned.toLocaleString('en-IN')}</> : '-'}</td>
-                                                <td className="px-6 py-4 text-right font-black text-rose-600 text-[15px] tabular-nums bg-rose-50/20">{group.total_due > 0 ? <><Taka className="text-[13px] mr-1 opacity-80"/>{group.total_due.toLocaleString('en-IN')}</> : '-'}</td>
+                                                <td className="px-6 py-4 text-right font-black text-indigo-700 tabular-nums bg-indigo-50/30 text-[15px]"><Taka className="text-[13px] mr-1 opacity-70"/>{group.total_given.toLocaleString('en-IN')}</td>
+                                                <td className="px-6 py-4 text-right font-black text-emerald-600 tabular-nums bg-emerald-50/30 text-[14px]">{group.total_expensed > 0 ? <><Taka className="text-[12px] mr-1 opacity-70"/>{group.total_expensed.toLocaleString('en-IN')}</> : '-'}</td>
+                                                <td className="px-6 py-4 text-right font-black text-blue-600 tabular-nums bg-blue-50/30 text-[14px]">{group.total_returned > 0 ? <><Taka className="text-[12px] mr-1 opacity-70"/>{group.total_returned.toLocaleString('en-IN')}</> : '-'}</td>
+                                                <td className="px-6 py-4 text-right font-black text-rose-600 text-[15.5px] tabular-nums bg-rose-50/40">{group.total_due > 0 ? <><Taka className="text-[13px] mr-1 opacity-80"/>{group.total_due.toLocaleString('en-IN')}</> : '-'}</td>
                                                 <td className="px-6 py-4 text-center">
-                                                    <span className={`inline-flex px-3.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border shadow-sm ${group.total_due > 0 ? 'bg-rose-50 text-rose-700 border-rose-300' : 'bg-emerald-50 text-emerald-700 border-emerald-300'}`}>{group.total_due > 0 ? 'unsettled' : 'settled'}</span>
+                                                    <span className={`inline-flex px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border shadow-sm ${group.total_due > 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                                        {group.total_due > 0 ? 'Unsettled' : 'Settled'}
+                                                    </span>
                                                 </td>
                                                 <td className="px-6 py-4 text-center actions-col">
                                                     {hasMultiple ? (
-                                                        <button onClick={() => toggleExpand(group.user_id)} className="rounded-xl bg-white border border-slate-300 px-4 py-2 text-[12px] font-black uppercase shadow-sm">{isExpanded ? 'Hide' : 'View'}</button>
+                                                        <button onClick={() => toggleExpand(group.user_id)} className="rounded-lg bg-white border border-slate-300 px-3 py-1.5 text-[11px] font-black uppercase text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-colors shadow-sm w-full">
+                                                            {isExpanded ? 'Hide Details' : 'View Details'}
+                                                        </button>
                                                     ) : (
-                                                        <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            {hasPermission('view_client_advance') && <button onClick={() => openViewModal(single)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-300 hover:bg-blue-50 hover:text-blue-600 shadow-sm"><i className="fa-regular fa-eye"></i></button>}
-                                                            {hasPermission('return_advance') && single.status !== 'settled' && group.total_due > 0 && <button onClick={() => openReturnModal(single)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-300 hover:bg-emerald-50 hover:text-emerald-600 shadow-sm"><i className="fa-solid fa-money-bill-transfer"></i></button>}
-                                                            {hasPermission('edit_advance') && <button onClick={() => openEditModal(single)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-300 hover:bg-amber-50 hover:text-amber-600 shadow-sm"><i className="fa-regular fa-pen-to-square"></i></button>}
-                                                            {hasPermission('delete_advance') && <button onClick={() => handleDelete(single.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-300 hover:bg-rose-50 hover:text-rose-600 shadow-sm"><i className="fa-regular fa-trash-can"></i></button>}
+                                                        <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                                            {hasPermission('view_client_advance') && <button onClick={() => openViewModal(single)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 border border-blue-100 text-blue-600 hover:bg-blue-500 hover:text-white hover:border-blue-500 hover:-translate-y-0.5 transition-all shadow-sm" title="View"><i className="fa-regular fa-eye text-[12.5px]"></i></button>}
+                                                            {hasPermission('return_advance') && single.status !== 'settled' && group.total_due > 0 && <button onClick={() => openReturnModal(single)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-600 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 hover:-translate-y-0.5 transition-all shadow-sm" title="Refund/Return"><i className="fa-solid fa-money-bill-transfer text-[12.5px]"></i></button>}
+                                                            {hasPermission('edit_advance') && <button onClick={() => openEditModal(single)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 border border-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white hover:border-amber-500 hover:-translate-y-0.5 transition-all shadow-sm" title="Edit"><i className="fa-regular fa-pen-to-square text-[12.5px]"></i></button>}
+                                                            {hasPermission('delete_advance') && <button onClick={() => handleDelete(single.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-500 hover:text-white hover:border-rose-500 hover:-translate-y-0.5 transition-all shadow-sm" title="Delete"><i className="fa-regular fa-trash-can text-[12.5px]"></i></button>}
                                                         </div>
                                                     )}
                                                 </td>
                                             </tr>
+
+                                            {/* Sub Table for Multiple Records */}
                                             {isExpanded && hasMultiple && (
                                                 <tr>
-                                                    <td colSpan="10" className="px-6 py-6 bg-slate-100 border-b border-slate-300 shadow-inner">
-                                                        <div className="rounded-2xl border border-slate-300 bg-white overflow-hidden shadow-md">
+                                                    <td colSpan="10" className="px-8 py-6 bg-slate-100/80 border-b border-slate-200 shadow-inner">
+                                                        <div className="rounded-2xl border border-slate-300 bg-white overflow-hidden shadow-lg animate-[fadeIn_0.2s_ease-out]">
                                                             <table className="w-full border-collapse">
-                                                                <thead className="bg-slate-50 text-[10.5px] font-black uppercase text-slate-500 border-b-2 border-slate-200">
+                                                                <thead className="bg-slate-50 text-[10.5px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200">
                                                                     <tr>
-                                                                        <th className="px-5 py-4">Date</th>
-                                                                        <th className="px-5 py-4">Account</th>
-                                                                        <th className="px-5 py-4 text-right">Given</th>
-                                                                        <th className="px-5 py-4 text-right">Bank Charge</th>
-                                                                        <th className="px-5 py-4 text-right">Due</th>
-                                                                        <th className="px-5 py-4 text-center actions-col">Actions</th>
+                                                                        <th className="px-5 py-3.5">Date & Ref</th>
+                                                                        <th className="px-5 py-3.5">Account Source</th>
+                                                                        <th className="px-5 py-3.5 text-right bg-indigo-50/30">Given</th>
+                                                                        <th className="px-5 py-3.5 text-right bg-rose-50/30">Bank Charge</th>
+                                                                        <th className="px-5 py-3.5 text-right bg-emerald-50/30">Settled</th>
+                                                                        <th className="px-5 py-3.5 text-right">Remaining Due</th>
+                                                                        <th className="px-5 py-3.5 text-center actions-col w-36">Actions</th>
                                                                     </tr>
                                                                 </thead>
-                                                                <tbody className="text-[13px] text-slate-800 divide-y divide-slate-100">
+                                                                <tbody className="text-[13px] text-slate-700 divide-y divide-slate-100">
                                                                     {group.records.map((adv) => (
                                                                         <tr key={adv.id} className="hover:bg-slate-50 group/sub transition-colors">
-                                                                            <td className="px-5 py-4 font-bold">{adv.date}</td>
-                                                                            <td className="px-5 py-4 font-black"><i className="fa-solid fa-building-columns text-indigo-500 mr-1.5"></i> {adv.account?.name || 'N/A'}</td>
+                                                                            <td className="px-5 py-4">
+                                                                                <div className="font-bold text-slate-800">{adv.date}</div>
+                                                                                <div className="text-[10px] font-black text-slate-400 mt-0.5 uppercase tracking-widest">#{String(adv.id).padStart(5, '0')}</div>
+                                                                            </td>
+                                                                            <td className="px-5 py-4 font-bold text-slate-700"><i className="fa-solid fa-building-columns text-indigo-400 mr-1.5"></i> {adv.account?.name || 'N/A'}</td>
                                                                             <td className="px-5 py-4 text-right font-black text-indigo-700 bg-indigo-50/20">{parseFloat(adv.amount).toLocaleString('en-IN')}</td>
-                                                                            <td className="px-5 py-4 text-right font-bold text-slate-500 bg-slate-50/20">{parseFloat(adv.bank_charge || 0).toLocaleString('en-IN')}</td>
-                                                                            <td className="px-5 py-4 text-right font-black text-rose-600 bg-rose-50/20">{parseFloat(adv.amount - adv.settled_amount - adv.returned_amount).toLocaleString('en-IN')}</td>
-                                                                            <td className="px-5 py-4 text-right actions-col">
+                                                                            <td className="px-5 py-4 text-right font-bold text-rose-500 bg-rose-50/20">{parseFloat(adv.bank_charge || 0).toLocaleString('en-IN')}</td>
+                                                                            <td className="px-5 py-4 text-right font-black text-emerald-600 bg-emerald-50/20">{parseFloat((adv.settled_amount || 0) + (adv.returned_amount || 0)).toLocaleString('en-IN')}</td>
+                                                                            <td className="px-5 py-4 text-right font-black text-rose-600">{parseFloat(adv.amount - adv.settled_amount - adv.returned_amount).toLocaleString('en-IN')}</td>
+                                                                            <td className="px-5 py-4 text-center actions-col">
                                                                                 <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover/sub:opacity-100 transition-opacity">
-                                                                                    {/* 🟢 FIX: Added View Details button inside expanded sub-table rows */}
-                                                                                    {hasPermission('view_client_advance') && <button onClick={() => openViewModal(adv)} className="flex h-7 w-7 rounded-lg border border-slate-300 hover:bg-blue-50 items-center justify-center text-slate-500 hover:text-blue-600 shadow-sm" title="View Details"><i className="fa-regular fa-eye text-[12px]"></i></button>}
-                                                                                    {hasPermission('edit_advance') && <button onClick={() => openEditModal(adv)} className="flex h-7 w-7 rounded-lg border border-slate-300 hover:bg-amber-50 items-center justify-center text-slate-500 hover:text-amber-600 shadow-sm" title="Edit"><i className="fa-regular fa-pen-to-square text-[12px]"></i></button>}
-                                                                                    {hasPermission('delete_advance') && <button onClick={() => handleDelete(adv.id)} className="flex h-7 w-7 rounded-lg border border-slate-300 hover:bg-rose-50 items-center justify-center text-slate-500 hover:text-rose-600 shadow-sm" title="Delete"><i className="fa-regular fa-trash-can text-[12px]"></i></button>}
+                                                                                    {hasPermission('view_client_advance') && <button onClick={() => openViewModal(adv)} className="flex h-7 w-7 rounded-lg border border-blue-200 bg-blue-50 items-center justify-center text-blue-600 hover:text-white hover:bg-blue-500 hover:border-blue-500 transition-all shadow-sm"><i className="fa-regular fa-eye text-[11px]"></i></button>}
+                                                                                    {hasPermission('return_advance') && adv.status !== 'settled' && parseFloat(adv.amount - adv.settled_amount - adv.returned_amount) > 0 && <button onClick={() => openReturnModal(adv)} className="flex h-7 w-7 rounded-lg border border-emerald-200 bg-emerald-50 items-center justify-center text-emerald-600 hover:text-white hover:bg-emerald-500 hover:border-emerald-500 transition-all shadow-sm" title="Refund"><i className="fa-solid fa-money-bill-transfer text-[11px]"></i></button>}
+                                                                                    {hasPermission('edit_advance') && <button onClick={() => openEditModal(adv)} className="flex h-7 w-7 rounded-lg border border-amber-200 bg-amber-50 items-center justify-center text-amber-600 hover:text-white hover:bg-amber-500 hover:border-amber-500 transition-all shadow-sm"><i className="fa-regular fa-pen-to-square text-[11px]"></i></button>}
+                                                                                    {hasPermission('delete_advance') && <button onClick={() => handleDelete(adv.id)} className="flex h-7 w-7 rounded-lg border border-rose-200 bg-rose-50 items-center justify-center text-rose-600 hover:text-white hover:bg-rose-500 hover:border-rose-500 transition-all shadow-sm"><i className="fa-regular fa-trash-can text-[11px]"></i></button>}
                                                                                 </div>
                                                                             </td>
                                                                         </tr>
@@ -385,8 +473,9 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                     <tr>
                                         <td colSpan="10" className="px-6 py-24 text-center text-slate-500">
                                             <div className="flex flex-col items-center justify-center">
-                                                <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 border border-slate-200 shadow-sm"><i className="fa-solid fa-hand-holding-dollar text-2xl"></i></div>
+                                                <div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 border border-slate-200 shadow-sm"><i className="fa-solid fa-hand-holding-dollar text-2xl text-slate-400"></i></div>
                                                 <p className="text-[16px] font-black text-slate-800">No advance records found.</p>
+                                                <p className="text-[13px] font-medium mt-1 text-slate-400">Try adjusting your search filters.</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -394,13 +483,14 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                             </tbody>
                         </table>
                     </div>
+
                     {advances.links && advances.links.length > 3 && (
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200 bg-slate-50 px-6 py-4 no-print">
-                            <div className="text-[13.5px] font-bold text-slate-600">Showing <strong className="text-slate-900 font-black">{advances.from || 0}</strong> to <strong className="text-slate-900 font-black">{advances.to || 0}</strong> of <strong className="text-slate-900 font-black">{advances.total || 0}</strong></div>
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 bg-slate-50/50 px-6 py-4 no-print">
+                            <div className="text-[13px] font-bold text-slate-500">Showing <strong className="text-slate-900 font-black">{advances.from || 0}</strong> to <strong className="text-slate-900 font-black">{advances.to || 0}</strong> of <strong className="text-slate-900 font-black">{advances.total || 0}</strong> entries</div>
                             <div className="flex flex-wrap justify-center items-center gap-1.5">
                                 {advances.links.map((link, i) => (
                                     link.url === null ? <span key={i} className="flex min-w-[36px] items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-400 cursor-not-allowed" dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }} />
-                                    : <Link key={i} href={link.url} preserveState className={`flex min-w-[36px] items-center justify-center rounded-lg border px-3 py-2 text-[13px] font-black transition-all shadow-sm ${link.active ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`} dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }} />
+                                    : <Link key={i} href={link.url} preserveState className={`flex min-w-[36px] items-center justify-center rounded-lg border px-3 py-2 text-[13px] font-bold transition-all shadow-sm ${link.active ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300'}`} dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "").replace("&raquo;", "") }} />
                                 ))}
                             </div>
                         </div>
@@ -408,20 +498,19 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                 </div>
             </div>
 
-            {/* --- 🟢 1. VIEW MODAL (Fixed & Detailed) --- */}
+            {/* --- 🟢 1. VIEW MODAL --- */}
             {showViewModal && selectedAdvance && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
                     <div className="w-full max-w-3xl bg-white rounded-[1.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col max-h-[90vh] overflow-hidden border border-white/20 animate-[scaleIn_0.2s_ease-out]">
                         <div className="relative bg-gradient-to-r from-slate-900 to-indigo-950 px-8 py-6 flex justify-between items-center border-b border-indigo-900/50 shadow-sm">
                             <div>
                                 <h3 className="text-[20px] font-black text-white flex items-center gap-2"><i className="fa-solid fa-receipt text-indigo-400"></i> Advance Details</h3>
-                                <p className="text-indigo-200/70 text-[12px] font-bold mt-1 tracking-widest uppercase">Ref: #{String(selectedAdvance.id).padStart(5, '0')}</p>
+                                <p className="text-indigo-200/70 text-[11px] font-bold mt-1 tracking-widest uppercase">Ref: #{String(selectedAdvance.id).padStart(5, '0')}</p>
                             </div>
-                            <button onClick={() => setShowViewModal(false)} className="h-9 w-9 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-red-500 hover:text-white transition-all backdrop-blur-md border border-white/10 shadow-sm"><i className="fa-solid fa-xmark"></i></button>
+                            <button onClick={() => setShowViewModal(false)} className="h-9 w-9 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all backdrop-blur-md border border-white/10 shadow-sm active:scale-[0.95]"><i className="fa-solid fa-xmark"></i></button>
                         </div>
                         <div className="p-8 bg-slate-50/50 overflow-y-auto custom-table-scroll space-y-6">
 
-                            {/* Header Info */}
                             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-5">
                                 <div className="flex items-center gap-4">
                                     <div className="h-16 w-16 bg-gradient-to-br from-indigo-100 to-indigo-50 text-indigo-700 rounded-2xl flex items-center justify-center text-2xl font-black shadow-inner border border-indigo-100/50">{selectedAdvance.user?.name?.charAt(0)}</div>
@@ -438,7 +527,6 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                 </div>
                             </div>
 
-                            {/* Purpose & Notes */}
                             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                                 <span className="block text-[12px] font-black uppercase text-slate-800 tracking-widest mb-4 pb-3 border-b border-slate-100"><i className="fa-solid fa-bullseye text-indigo-500 mr-1.5"></i> Purpose & Details</span>
                                 <div className="mb-4 flex items-center gap-3">
@@ -453,7 +541,6 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                 </div>
                             </div>
 
-                            {/* Financial Stats */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><span className="block text-[10.5px] font-black uppercase text-slate-400 tracking-widest mb-1.5"><i className="fa-solid fa-building-columns mr-1"></i> Account</span><strong className="text-[14px] text-slate-800">{selectedAdvance.account?.name}</strong></div>
                                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><span className="block text-[10.5px] font-black uppercase text-slate-400 tracking-widest mb-1.5">Base Given</span><strong className="text-[16px] text-indigo-600"><Taka className="text-[13px] opacity-70" />{Number(selectedAdvance.amount).toLocaleString('en-IN')}</strong></div>
@@ -467,39 +554,66 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
             {/* --- 🟢 2. NEW/EDIT PREMIUM MODAL --- */}
             {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/70 backdrop-blur-md p-4 sm:p-6 overflow-y-auto">
-                    <div className="w-full max-w-5xl bg-white rounded-[1.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col max-h-[95vh] overflow-hidden animate-[fadeIn_0.2s_ease-out] border border-white/20">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
+                    <div className="w-full max-w-5xl bg-white rounded-[1.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col max-h-[95vh] overflow-hidden border border-white/20 animate-[scaleIn_0.2s_ease-out]">
                         <div className="flex items-center justify-between px-8 py-6 border-b border-slate-800 bg-slate-900 shrink-0 relative overflow-hidden">
                             <div className="absolute right-0 top-0 h-48 w-48 bg-indigo-500/10 blur-3xl rounded-full pointer-events-none translate-x-10 -translate-y-10"></div>
                             <div>
                                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest mb-2 border border-indigo-500/30 shadow-sm"><i className="fa-solid fa-hand-holding-dollar"></i> {editMode ? 'Update Record' : 'New Advance Entry'}</div>
                                 <h3 className="text-[24px] font-black text-white relative z-10">{editMode ? "Modify Advance Info" : "Log Advance Payment"}</h3>
                             </div>
-                            <button onClick={() => setShowModal(false)} className="h-10 w-10 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-red-500 transition-colors z-10 backdrop-blur-md border border-white/10"><i className="fa-solid fa-xmark text-lg"></i></button>
+                            <button onClick={() => setShowModal(false)} className="h-10 w-10 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-rose-500 transition-colors z-10 backdrop-blur-md border border-white/10 active:scale-[0.95]"><i className="fa-solid fa-xmark text-lg"></i></button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+                        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden h-full">
                             <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto bg-slate-50 custom-table-scroll">
                                 <div className="flex-1 p-6 sm:p-8 space-y-6">
                                     {errors.error && <div className="flex items-center gap-3 bg-red-50 text-red-700 p-4 rounded-2xl border border-red-200 font-bold shadow-sm"><i className="fa-solid fa-triangle-exclamation"></i> {errors.error}</div>}
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-7 rounded-[1.25rem] border border-slate-200 shadow-sm relative z-[60]">
-                                        <div className="md:col-span-2">
+                                        <div className="relative z-[60]">
                                             <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2.5"><i className="fa-solid fa-user-tie text-indigo-500 mr-1.5"></i> Select Employee <span className="text-red-500">*</span></label>
-                                            <Select options={employees.map((e) => ({ value: e.id, label: e.name }))} value={employees.map((e) => ({ value: e.id, label: e.name })).find((opt) => Number(opt.value) === Number(data.user_id)) || null} onChange={(selected) => setData("user_id", selected ? selected.value : "")} placeholder="Search Employee Profile..." isSearchable isClearable styles={selectStyles} menuPortalTarget={typeof window !== 'undefined' ? document.body : null} menuPosition="fixed" />
+                                            <SearchableSelect
+                                                options={employees}
+                                                value={data.user_id}
+                                                onChange={(val) => setData("user_id", val)}
+                                                placeholder="-- Click to search employee --"
+                                                getLabel={(e) => e.name}
+                                                getValue={(e) => e.id}
+                                                error={errors.user_id}
+                                                isClearable
+                                            />
                                             {errors.user_id && <p className="text-red-500 text-[12px] mt-1.5 font-bold">{errors.user_id}</p>}
                                         </div>
-                                        <div className="md:col-span-2">
+                                        <div className="relative z-[50]">
                                             <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2.5"><i className="fa-solid fa-building-columns text-emerald-500 mr-1.5"></i> Pay From Account <span className="text-red-500">*</span></label>
-                                            <Select options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` }))} value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null} onChange={(selected) => setData("account_id", selected ? selected.value : "")} placeholder="Search Bank/Cash Box..." isSearchable isClearable styles={selectStyles} menuPortalTarget={typeof window !== 'undefined' ? document.body : null} menuPosition="fixed" />
+                                            <SearchableSelect
+                                                options={accounts}
+                                                value={data.account_id}
+                                                onChange={(val) => setData("account_id", val)}
+                                                placeholder="-- Click to search account --"
+                                                getLabel={(a) => `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})`}
+                                                getValue={(a) => a.id}
+                                                error={errors.account_id}
+                                                isClearable
+                                            />
                                             {errors.account_id && <p className="text-red-500 text-[12px] mt-1.5 font-bold">{errors.account_id}</p>}
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-7 rounded-[1.25rem] border border-slate-200 shadow-sm relative z-[40]">
-                                        <div className="md:col-span-2">
+                                        <div className="md:col-span-2 relative z-[40]">
                                             <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2.5">Purpose Category</label>
-                                            <Select options={[{ value: 'Office Work', label: 'Office Work' }, { value: 'Vehicle Maintenance', label: 'Vehicle Maintenance' }, { value: 'Staff Advance', label: 'Staff Advance' }, { value: 'Travel Expense', label: 'Travel Expense' }, { value: 'Utility Bill', label: 'Utility Bill' }, { value: 'Other', label: 'Other' }]} value={data.purpose ? { value: data.purpose, label: data.purpose } : null} onChange={(selected) => setData('purpose', selected ? selected.value : '')} placeholder="Select Purpose..." isClearable styles={selectStyles} menuPortalTarget={typeof window !== 'undefined' ? document.body : null} menuPosition="fixed" />
+                                            <SearchableSelect
+                                                options={[{ id: 'Office Work', name: 'Office Work' }, { id: 'Vehicle Maintenance', name: 'Vehicle Maintenance' }, { id: 'Staff Advance', name: 'Staff Advance' }, { id: 'Travel Expense', name: 'Travel Expense' }, { id: 'Utility Bill', name: 'Utility Bill' }, { id: 'Other', name: 'Other' }]}
+                                                value={data.purpose}
+                                                onChange={(val) => setData('purpose', val)}
+                                                placeholder="-- Select Purpose --"
+                                                getLabel={(o) => o.name}
+                                                getValue={(o) => o.id}
+                                                error={errors.purpose}
+                                                isClearable
+                                            />
                                         </div>
                                         <div><label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2.5">Issue Date <span className="text-red-500">*</span></label><input type="date" value={data.date} onChange={e => setData('date', e.target.value)} className={inputClass} required /></div>
                                         <div className="md:col-span-2"><label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2.5">Extra Notes <span className="text-slate-400 font-bold normal-case">(Optional)</span></label><textarea value={data.notes} onChange={e => setData('notes', e.target.value)} rows="2" className="w-full rounded-[0.875rem] border border-slate-300 p-4 text-[14.5px] font-bold text-slate-900 outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 shadow-sm transition-all resize-none" placeholder="Additional details..."></textarea></div>
@@ -514,7 +628,8 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                     <div className="space-y-6 flex-1">
                                         <div>
                                             <label className="block text-[12.5px] font-bold text-slate-300 mb-2.5">Advance Amount <span className="text-rose-500">*</span></label>
-                                            <div className="relative"><Taka className="absolute left-5 top-1/2 -translate-y-1/2 text-emerald-400 text-[18px]" /><input type="number" step="any" value={data.amount} onChange={e => setData('amount', e.target.value)} className="w-full rounded-2xl border border-emerald-500/30 bg-emerald-950/20 pl-11 pr-5 py-4 text-[18px] font-black tabular-nums text-emerald-400 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/20 transition-all shadow-inner" placeholder="0.00" required /></div>
+                                            <div className="relative"><Taka className="absolute left-5 top-1/2 -translate-y-1/2 text-emerald-400 text-[18px]" /><input type="number" step="any" value={data.amount} onChange={e => setData('amount', e.target.value)} className="w-full rounded-2xl border border-emerald-500/30 bg-emerald-950/20 pl-11 pr-5 py-4 text-[18px] font-black tabular-nums text-emerald-400 outline-none focus:bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/20 transition-all shadow-inner" placeholder="0.00" required /></div>
+                                            {errors.amount && <p className="text-red-500 text-[11.5px] mt-1.5 font-bold">{errors.amount}</p>}
                                         </div>
                                         <div>
                                             <label className="block text-[12.5px] font-bold text-slate-300 mb-2.5">Bank Charge <span className="text-[10.5px] font-medium text-slate-500">(extra)</span></label>
@@ -526,10 +641,10 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                         <div className="flex justify-between items-end"><span className="text-[13.5px] text-indigo-300 font-black uppercase tracking-widest">Total Office Cut</span><span className="text-[34px] font-black text-indigo-400 tabular-nums leading-none tracking-tight">৳ {Number((parseFloat(data.amount||0) + parseFloat(data.bank_charge||0))).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span></div>
                                     </div>
                                     <div className="mt-8 flex flex-col gap-3">
-                                        <button type="submit" disabled={processing} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4.5 rounded-2xl text-[15px] font-black transition-all shadow-[0_4px_14px_0_rgba(79,70,229,0.39)] hover:shadow-[0_6px_20px_rgba(79,70,229,0.23)] hover:-translate-y-0.5 disabled:opacity-60 flex items-center justify-center gap-2.5 border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1">
+                                        <button type="submit" disabled={processing} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-2xl text-[14.5px] font-black transition-all shadow-[0_4px_14px_0_rgba(79,70,229,0.39)] disabled:opacity-60 flex items-center justify-center gap-2.5 active:scale-[0.98]">
                                             {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-check text-lg"></i> {editMode ? "Confirm Update" : "Save Advance"}</>}
                                         </button>
-                                        <button type="button" onClick={() => setShowModal(false)} className="w-full text-slate-400 py-3.5 rounded-2xl text-[14px] font-bold border border-slate-700 hover:bg-slate-800 hover:text-white transition-colors">Cancel</button>
+                                        <button type="button" onClick={() => setShowModal(false)} className="w-full text-slate-400 py-3.5 rounded-2xl text-[14.5px] font-bold border border-slate-700 hover:bg-slate-800 hover:text-white transition-colors active:scale-[0.98]">Cancel</button>
                                     </div>
                                 </div>
                             </div>
@@ -540,7 +655,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
             {/* --- 🟢 3. CASH RETURN PREMIUM MODAL --- */}
             {showReturnModal && selectedAdvance && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/70 backdrop-blur-md p-4 overflow-y-auto">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/70 backdrop-blur-md p-4 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
                     <div className="w-full max-w-xl bg-white rounded-[1.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col max-h-[95vh] overflow-hidden animate-[scaleIn_0.2s_ease-out] border border-white/20">
                         <div className="flex items-center justify-between px-8 py-6 border-b border-slate-800 bg-slate-900 shrink-0 relative overflow-hidden">
                             <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-emerald-500/20 blur-3xl pointer-events-none translate-x-5 -translate-y-5"></div>
@@ -548,19 +663,31 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase tracking-widest mb-2 shadow-sm"><i className="fa-solid fa-money-bill-transfer"></i> Receive Money</div>
                                 <h3 className="text-[24px] font-black text-white relative z-10">Refund Advance Cash</h3>
                             </div>
-                            <button onClick={() => setShowReturnModal(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-red-500 transition-colors shadow-sm relative z-10 backdrop-blur-md border border-white/10"><i className="fa-solid fa-xmark text-lg"></i></button>
+                            <button onClick={() => setShowReturnModal(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-red-500 transition-colors shadow-sm relative z-10 backdrop-blur-md border border-white/10 active:scale-[0.95]"><i className="fa-solid fa-xmark text-lg"></i></button>
                         </div>
                         <form onSubmit={handleReturnSubmit} className="flex flex-col overflow-hidden h-full">
                             <div className="p-8 overflow-y-auto custom-table-scroll space-y-6 bg-slate-50">
                                 {returnErrors.error && <div className="mb-2 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-[13.5px] font-bold text-red-700 shadow-sm"><i className="fa-solid fa-triangle-exclamation"></i> {returnErrors.error}</div>}
+
                                 <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                                     <div><span className="block text-[10.5px] font-black uppercase text-slate-400 tracking-widest mb-1.5">Employee</span><strong className="text-slate-900 text-[19px] font-black leading-none">{selectedAdvance.user?.name}</strong></div>
                                     <div className="text-right"><span className="block text-[10.5px] font-black uppercase text-rose-500 tracking-widest mb-1.5">Base Due</span><strong className="text-rose-600 text-[24px] font-black tabular-nums leading-none"><Taka className="text-[16px] mr-0.5 opacity-80" />{parseFloat(selectedAdvance.amount - selectedAdvance.settled_amount - selectedAdvance.returned_amount).toLocaleString('en-IN')}</strong></div>
                                 </div>
+
                                 <div className="bg-white p-7 rounded-[1.25rem] border border-slate-200 shadow-sm space-y-6 relative z-[60]">
-                                    <div>
+                                    <div className="relative z-[60]">
                                         <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2.5">Deposit To Account <span className="text-red-500">*</span></label>
-                                        <Select options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${Number(a.current_balance).toLocaleString('en-IN')})` }))} value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(returnData.return_account_id)) || null} onChange={(selected) => setReturnData("return_account_id", selected ? selected.value : "")} placeholder="-- Select Cash/Bank Box --" isSearchable isClearable styles={selectStyles} menuPortalTarget={typeof window !== 'undefined' ? document.body : null} menuPosition="fixed" />
+                                        <SearchableSelect
+                                            options={accounts}
+                                            value={returnData.return_account_id}
+                                            onChange={(val) => setReturnData("return_account_id", val)}
+                                            placeholder="-- Click to search account --"
+                                            getLabel={(a) => `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})`}
+                                            getValue={(a) => a.id}
+                                            error={returnErrors.return_account_id}
+                                            isClearable
+                                        />
+                                        {returnErrors.return_account_id && <p className="text-red-500 text-[11.5px] mt-1.5 font-bold">{returnErrors.return_account_id}</p>}
                                     </div>
                                     <div>
                                         <label className="block text-[11.5px] font-black text-emerald-600 uppercase tracking-widest mb-2.5">Refund Amount (৳) <span className="text-red-500">*</span></label>
@@ -568,9 +695,9 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                     </div>
                                 </div>
                             </div>
-                            <div className="px-8 py-6 border-t border-slate-200 bg-white flex justify-end gap-4 shrink-0">
-                                <button type="button" onClick={() => setShowReturnModal(false)} className="rounded-2xl border border-slate-300 bg-white px-8 py-4 text-[14.5px] font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
-                                <button type="submit" disabled={returnProcessing} className="rounded-2xl bg-emerald-600 px-10 py-4 text-[14.5px] font-black text-white hover:bg-emerald-700 shadow-md disabled:opacity-70 transition-all flex items-center gap-2 border-b-4 border-emerald-800 active:border-b-0 active:translate-y-1">
+                            <div className="px-8 py-5 border-t border-slate-200 bg-white flex justify-end gap-3 shrink-0 rounded-b-3xl">
+                                <button type="button" onClick={() => setShowReturnModal(false)} className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-[14px] font-bold text-slate-700 hover:bg-slate-100 transition-colors shadow-sm active:scale-[0.98]">Cancel</button>
+                                <button type="submit" disabled={returnProcessing} className="rounded-xl bg-emerald-600 px-8 py-2.5 text-[14px] font-black text-white hover:bg-emerald-700 shadow-md shadow-emerald-200 disabled:opacity-70 transition-all flex items-center gap-2 active:scale-[0.98]">
                                     {returnProcessing ? <><i className="fa-solid fa-spinner fa-spin text-lg"></i> Processing...</> : <><i className="fa-solid fa-check text-lg"></i> Confirm Refund</>}
                                 </button>
                             </div>

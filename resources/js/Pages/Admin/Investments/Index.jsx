@@ -371,7 +371,7 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
                                             </td>
 
                                             <td className="px-6 py-4 text-center no-print">
-                                                <div className="flex justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                <div className="flex justify-center gap-1.5  transition-opacity duration-200">
                                                     {inv.status !== 'fully_paid' && (
                                                         <button onClick={() => openReturnModal(inv)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-300 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition-colors shadow-sm" title="Return Money & Profit">
                                                             <i className="fa-solid fa-hand-holding-dollar text-[13px]"></i>

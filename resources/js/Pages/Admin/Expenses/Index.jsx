@@ -195,30 +195,90 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
         });
     };
 
-    // 🟢 Deeper Contrast Select Styles
+    // 🟢 STUNNING & PREMIUM REACT-SELECT STYLES
     const selectStyles = {
         control: (base, state) => ({
-            ...base, minHeight: '48px', borderRadius: '0.75rem',
-            borderColor: state.isFocused ? '#4F46E5' : '#94A3B8',
-            boxShadow: state.isFocused ? '0 0 0 3px rgba(79, 70, 229, 0.15)' : '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-            backgroundColor: '#FFFFFF', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer',
-            '&:hover': { borderColor: state.isFocused ? '#4F46E5' : '#64748B' }
+            ...base,
+            minHeight: '46px',
+            borderRadius: '0.75rem', // Tailwind rounded-xl
+            borderColor: state.isFocused ? '#4f46e5' : '#cbd5e1', // indigo-600 vs slate-300
+            boxShadow: state.isFocused ? '0 0 0 3px rgba(79, 70, 229, 0.15)' : '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+            backgroundColor: '#ffffff',
+            fontSize: '13.5px',
+            fontWeight: '800',
+            cursor: 'pointer',
+            paddingLeft: '6px',
+            transition: 'all 0.2s ease',
+            '&:hover': {
+                borderColor: state.isFocused ? '#4f46e5' : '#94a3b8' // slate-400 on hover
+            }
         }),
         option: (base, state) => ({
-            ...base, backgroundColor: state.isSelected ? '#4F46E5' : state.isFocused ? '#EEF2FF' : 'white',
-            color: state.isSelected ? '#FFFFFF' : '#0F172A', fontWeight: 700, fontSize: '14px', cursor: 'pointer',
+            ...base,
+            backgroundColor: state.isSelected ? '#4f46e5' : state.isFocused ? '#eef2ff' : 'white',
+            color: state.isSelected ? '#ffffff' : '#0f172a',
+            fontWeight: state.isSelected ? 800 : 700,
+            fontSize: '13.5px',
+            cursor: 'pointer',
+            padding: '10px 16px',
+            transition: 'background-color 0.1s ease',
+            '&:active': {
+                backgroundColor: '#c7d2fe'
+            }
         }),
-        placeholder: (base) => ({ ...base, color: '#64748B', fontWeight: 700, fontSize: '14px' }),
-        singleValue: (base) => ({ ...base, color: '#0F172A', fontWeight: 800, fontSize: '14px' }),
+        placeholder: (base) => ({
+            ...base,
+            color: '#64748b',
+            fontWeight: 700,
+            fontSize: '13.5px'
+        }),
+        singleValue: (base) => ({
+            ...base,
+            color: '#0f172a',
+            fontWeight: 800,
+            fontSize: '14px'
+        }),
+        input: (base) => ({
+            ...base,
+            color: '#0f172a',
+            fontWeight: 800,
+            margin: '0px'
+        }),
+        indicatorSeparator: () => ({
+            display: 'none' // 🟢 Removed the ugly line between text and arrow
+        }),
+        dropdownIndicator: (base, state) => ({
+            ...base,
+            color: state.isFocused ? '#4f46e5' : '#94a3b8',
+            padding: '8px',
+            '&:hover': { color: '#4f46e5' }
+        }),
+        clearIndicator: (base) => ({
+            ...base,
+            color: '#ef4444',
+            padding: '8px',
+            '&:hover': { color: '#dc2626' }
+        }),
         menuPortal: (base) => ({ ...base, zIndex: 99999 }),
-        menu: (base) => ({ ...base, borderRadius: '0.75rem', overflow: 'hidden', border: '1px solid #94A3B8', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }),
+        menu: (base) => ({
+            ...base,
+            borderRadius: '0.75rem',
+            overflow: 'hidden',
+            border: '1px solid #cbd5e1',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+            marginTop: '6px'
+        }),
+        menuList: (base) => ({
+            ...base,
+            padding: '6px' // Clean padding around dropdown items
+        })
     };
 
     const advanceOptions = advances.map((a) => {
         return { value: a.user_id, label: `${a.user?.name || 'Unknown'} (Rem: ৳${Number(a.balance).toLocaleString('en-IN')})` };
     });
 
-    const inputClass = "w-full rounded-xl border border-slate-400 bg-white px-3 sm:px-4 py-2.5 sm:py-3 text-[14px] font-extrabold text-slate-900 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm transition-all";
+    const inputClass = "w-full rounded-xl border border-slate-300 bg-white px-3 sm:px-4 py-2.5 sm:py-3 text-[14px] font-extrabold text-slate-900 outline-none focus:border-indigo-600 focus:ring-[3px] focus:ring-indigo-600/15 shadow-sm transition-all hover:border-slate-400";
 
     return (
         <AdminLayout>
@@ -282,10 +342,9 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 sm:p-5 bg-slate-50 border-b border-slate-200">
 
                         <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full lg:w-auto">
-                            <div className="flex items-center bg-white border border-slate-300 rounded-xl px-3 py-2.5 shadow-sm focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all w-full sm:w-auto">
+                            <div className="flex items-center bg-white border border-slate-300 rounded-xl px-3 py-2.5 shadow-sm focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all hover:border-slate-400 w-full sm:w-auto">
                                 <span className="text-[12px] font-black text-slate-500 mr-2 uppercase tracking-wide">Show</span>
-                                <select value={perPage} onChange={(e) =>
- setPerPage(e.target.value)} className="w-full sm:w-auto border-none bg-transparent text-[13px] font-bold text-slate-900 outline-none cursor-pointer p-0 focus:ring-0">
+                                <select value={perPage} onChange={(e) => setPerPage(e.target.value)} className="w-full sm:w-auto border-none bg-transparent text-[13px] font-bold text-slate-900 outline-none cursor-pointer p-0 focus:ring-0">
                                     <option value="10">10</option>
                                     <option value="25">25</option>
                                     <option value="50">50</option>
@@ -298,12 +357,12 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                 <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[13px]"></i>
                                 <input
                                     type="text" placeholder="Search anything..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full sm:w-[240px] rounded-xl border border-slate-300 py-2.5 pl-9 pr-4 text-[13.5px] outline-none transition-all focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 bg-white font-bold shadow-sm"
+                                    className="w-full sm:w-[240px] rounded-xl border border-slate-300 hover:border-slate-400 py-2.5 pl-9 pr-4 text-[13.5px] outline-none transition-all focus:border-indigo-600 focus:ring-[3px] focus:ring-indigo-600/15 bg-white font-bold shadow-sm"
                                 />
                             </div>
 
                             <div className="relative w-full sm:w-auto">
-                                <CustomSelect value={dateFilter} onChange={(e) => { setDateFilter(e.target.value); if(e.target.value !== 'custom') { setStartDate(''); setEndDate(''); } }} className="appearance-none w-full sm:w-[150px] rounded-xl border border-slate-300 bg-white pl-4 pr-9 py-2.5 text-[13.5px] font-bold text-slate-800 outline-none transition-all focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm cursor-pointer">
+                                <CustomSelect value={dateFilter} onChange={(e) => { setDateFilter(e.target.value); if(e.target.value !== 'custom') { setStartDate(''); setEndDate(''); } }} className="appearance-none w-full sm:w-[150px] rounded-xl border border-slate-300 hover:border-slate-400 bg-white pl-4 pr-9 py-2.5 text-[13.5px] font-bold text-slate-800 outline-none transition-all focus:border-indigo-600 focus:ring-[3px] focus:ring-indigo-600/15 shadow-sm cursor-pointer">
                                     <option value="all">All Time</option>
                                     <option value="today">Today</option>
                                     <option value="this_week">This Week</option>
@@ -314,10 +373,10 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                             </div>
 
                             {dateFilter === "custom" && (
-                                <div className="flex items-center gap-2 animate-[fadeIn_0.2s_ease-out] bg-white border border-slate-300 rounded-xl px-2 shadow-sm w-full sm:w-auto overflow-hidden">
-                                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="flex-1 w-full border-none bg-transparent px-2 py-2.5 text-[12.5px] font-bold outline-none focus:ring-0 cursor-pointer" />
+                                <div className="flex items-center gap-2 animate-[fadeIn_0.2s_ease-out] bg-white border border-slate-300 hover:border-slate-400 rounded-xl px-2 shadow-sm focus-within:border-indigo-600 focus-within:ring-[3px] focus-within:ring-indigo-600/15 transition-all w-full sm:w-auto overflow-hidden">
+                                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="flex-1 w-full border-none bg-transparent px-2 py-2.5 text-[12.5px] font-bold outline-none focus:ring-0 cursor-pointer text-slate-700" />
                                     <span className="text-slate-400 text-[12px] font-bold">-</span>
-                                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="flex-1 w-full border-none bg-transparent px-2 py-2.5 text-[12.5px] font-bold outline-none focus:ring-0 cursor-pointer" />
+                                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="flex-1 w-full border-none bg-transparent px-2 py-2.5 text-[12.5px] font-bold outline-none focus:ring-0 cursor-pointer text-slate-700" />
                                 </div>
                             )}
 
@@ -401,7 +460,6 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                             </td>
                                             <td className="px-4 sm:px-6 py-4 text-center no-print">
                                                 <div className="flex items-center justify-center gap-1.5 sm:gap-2">
-                                                    {/* 🟢 FIX 4: Added both 'expense' and 'expence' to avoid spelling errors from database side */}
                                                     {(hasPermission('view_expense') || hasPermission('view_expence')) && (
                                                         <button onClick={() => openViewModal(exp)} className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-white border border-slate-300 text-slate-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 flex items-center justify-center transition-all shadow-sm" title="View Details">
                                                             <i className="fa-regular fa-eye text-[12px] sm:text-[13px]"></i>
@@ -527,7 +585,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                                 <label className="block text-[11.5px] sm:text-[12.5px] font-black text-slate-800 uppercase tracking-widest mb-2 sm:mb-2.5">Description / Notes <span className="text-slate-400 font-bold normal-case tracking-normal">(Optional)</span></label>
                                                 <textarea
                                                     value={data.description} onChange={e => setData('description', e.target.value)} rows="2"
-                                                    className="w-full rounded-xl border border-slate-400 bg-white p-3 sm:p-4 text-[13px] sm:text-[14px] font-bold text-slate-900 outline-none transition-shadow focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 resize-none min-h-[80px] shadow-sm"
+                                                    className="w-full rounded-xl border border-slate-300 hover:border-slate-400 bg-white p-3 sm:p-4 text-[13px] sm:text-[14px] font-bold text-slate-900 outline-none transition-shadow focus:border-indigo-600 focus:ring-[3px] focus:ring-indigo-600/15 resize-none min-h-[80px] shadow-sm"
                                                     placeholder="Add any extra context or breakdown..."
                                                 ></textarea>
                                             </div>
@@ -537,7 +595,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                     <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-sm border border-slate-300 relative z-50">
                                         <h4 className="text-[12px] sm:text-[13px] font-black text-slate-800 uppercase tracking-widest mb-4 border-b border-slate-200 pb-2"><i className="fa-solid fa-wallet mr-1.5 text-emerald-500"></i> Payment Source</h4>
                                         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-5">
-                                            <label className={`flex-1 cursor-pointer rounded-xl sm:rounded-2xl border-2 p-3 sm:p-4 text-center transition-all flex items-center justify-center gap-3 shadow-sm ${data.pay_type === 'account' ? 'border-indigo-500 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-500/20' : 'border-slate-300 bg-white hover:border-indigo-400 text-slate-600'}`}>
+                                            <label className={`flex-1 cursor-pointer rounded-xl sm:rounded-2xl border-[2.5px] p-3 sm:p-4 text-center transition-all flex items-center justify-center gap-3 shadow-sm ${data.pay_type === 'account' ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 ring-[3px] ring-indigo-600/15' : 'border-slate-300 bg-white hover:border-indigo-400 text-slate-600'}`}>
                                                 <input type="radio" className="sr-only" checked={data.pay_type === 'account'} onChange={() => { setData('pay_type', 'account'); setData('advance_user_id', ''); }} />
                                                 <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0 ${data.pay_type === 'account' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}><i className="fa-solid fa-building-columns text-sm sm:text-base"></i></div>
                                                 <div className="text-left">
@@ -546,7 +604,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                                 </div>
                                             </label>
 
-                                            <label className={`flex-1 cursor-pointer rounded-xl sm:rounded-2xl border-2 p-3 sm:p-4 text-center transition-all flex items-center justify-center gap-3 shadow-sm ${data.pay_type === 'advance' ? 'border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20' : 'border-slate-300 bg-white hover:border-emerald-400 text-slate-600'}`}>
+                                            <label className={`flex-1 cursor-pointer rounded-xl sm:rounded-2xl border-[2.5px] p-3 sm:p-4 text-center transition-all flex items-center justify-center gap-3 shadow-sm ${data.pay_type === 'advance' ? 'border-emerald-500 bg-emerald-50/50 text-emerald-900 ring-[3px] ring-emerald-500/15' : 'border-slate-300 bg-white hover:border-emerald-400 text-slate-600'}`}>
                                                 <input type="radio" className="sr-only" checked={data.pay_type === 'advance'} onChange={() => { setData(prev => ({...prev, pay_type: 'advance', bank_charge: 0})); setData('account_id', ''); }} />
                                                 <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0 ${data.pay_type === 'advance' ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}><i className="fa-solid fa-hand-holding-dollar text-sm sm:text-base"></i></div>
                                                 <div className="text-left">
@@ -594,7 +652,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                                     <label className="block text-[12px] sm:text-[13px] font-bold text-slate-300 mb-2 sm:mb-2.5">Expense Amount <span className="text-rose-500">*</span></label>
                                                     <div className="relative">
                                                         <Taka className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-rose-500 text-[16px] sm:text-[18px]" />
-                                                        <input type="number" step="0.01" min="1" value={data.amount} onChange={e => setData('amount', e.target.value)} className="w-full rounded-xl border border-rose-400/50 bg-rose-950/30 pl-9 sm:pl-10 pr-4 py-3 sm:py-3.5 text-[16px] sm:text-[18px] font-black tabular-nums text-rose-400 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/50 transition-all shadow-inner" placeholder="0.00" required />
+                                                        <input type="number" step="0.01" min="1" value={data.amount} onChange={e => setData('amount', e.target.value)} className="w-full rounded-xl border border-rose-400/50 bg-rose-950/30 pl-9 sm:pl-10 pr-4 py-3 sm:py-3.5 text-[16px] sm:text-[18px] font-black tabular-nums text-rose-400 outline-none focus:border-rose-500 focus:ring-[3px] focus:ring-rose-500/50 transition-all shadow-inner" placeholder="0.00" required />
                                                     </div>
                                                     {errors.amount && <p className="text-rose-400 text-xs mt-1.5 font-bold">{errors.amount}</p>}
                                                 </div>
@@ -604,7 +662,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                                         <label className="block text-[12px] sm:text-[13px] font-bold text-slate-300 mb-2 sm:mb-2.5">Bank charge <span className="text-slate-500 font-medium">(extra)</span></label>
                                                         <div className="relative">
                                                             <Taka className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-slate-500 text-[13px] sm:text-[15px]" />
-                                                            <input type="number" step="0.01" min="0" value={data.bank_charge} onChange={e => setData('bank_charge', e.target.value)} className="w-full rounded-xl border border-slate-600 bg-slate-800 pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 text-[14px] sm:text-[15px] font-black tabular-nums text-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/50 transition-all shadow-inner" placeholder="0.00" />
+                                                            <input type="number" step="0.01" min="0" value={data.bank_charge} onChange={e => setData('bank_charge', e.target.value)} className="w-full rounded-xl border border-slate-600 bg-slate-800 pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 text-[14px] sm:text-[15px] font-black tabular-nums text-white outline-none focus:border-indigo-500 focus:ring-[3px] focus:ring-indigo-500/50 transition-all shadow-inner" placeholder="0.00" />
                                                         </div>
                                                     </div>
                                                 )}

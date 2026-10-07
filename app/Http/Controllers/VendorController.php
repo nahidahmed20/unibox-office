@@ -23,7 +23,9 @@ class VendorController extends Controller
             'projectExpenses' => function($q) {
                 $q->where('due_amount', '>', 0)->select('id', 'vendor_id', 'title', 'total_bill', 'paid_amount', 'due_amount');
             },
-        ]);
+        ])->withSum(['projectExpenses as total_due' => function($q) {
+            $q->where('due_amount', '>', 0);
+        }], 'due_amount');
 
         if ($request->has('search')) {
             $query->where('name', 'like', "%{$request->search}%")
@@ -39,10 +41,6 @@ class VendorController extends Controller
         }
 
         $vendors = $query->latest()->paginate($perPage)->withQueryString();
-        $vendors->getCollection()->transform(function ($vendor) {
-            $vendor->append('total_due');
-            return $vendor;
-        });
 
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->get();
 
@@ -93,7 +91,7 @@ class VendorController extends Controller
             $vendor = Vendor::whereKey($vendor->id)->lockForUpdate()->firstOrFail();
             $payAmount = round((float) $request->pay_amount, 2);
             $charge = round((float) ($request->bank_charge ?? 0), 2);
-            if ($charge > 0 && ($request->payment_source !== 'account' || $payAmount <= 0)) throw new \Exception('Bank charge requires an account payment.');
+            if ($charge > 0 && ($request->payment_source !== 'account' || $payAmount <= 0)) throw new \Exception('ব্যাংক চার্জের জন্য অ্যাকাউন্ট থেকে পেমেন্ট করা আবশ্যক।');
             $adjustmentAmount = $request->adjustment_amount ?: 0;
 
             $totalClearing = $payAmount + $adjustmentAmount;
@@ -116,8 +114,8 @@ class VendorController extends Controller
             $totalDueSelected = $bills->sum('due_amount');
 
             if ($request->payment_source === 'wallet') {
-                if ($payAmount > $vendor->wallet_balance) throw new \Exception('Insufficient vendor advance balance.');
-                if ($totalClearing > $totalDueSelected) throw new \Exception('Wallet settlement cannot exceed the selected bills.');
+                if ($payAmount > $vendor->wallet_balance) throw new \Exception('ভেন্ডরের ওয়ালেট ব্যালেন্স পর্যাপ্ত নয়।');
+                if ($totalClearing > $totalDueSelected) throw new \Exception('ওয়ালেট সেটেলমেন্ট সিলেক্ট করা বিলের চেয়ে বেশি হতে পারবে না।');
             }
 
             if ($totalClearing > $totalDueSelected && $adjustmentAmount > 0) {
@@ -463,7 +461,7 @@ class VendorController extends Controller
             }
 
             // Find matching transaction to safely delete it without inflating reports
-            if ($vendor->wallet_balance < $lastLedger->amount) throw new \Exception('This advance has already been used. Reverse its payments first.');
+            if ($vendor->wallet_balance < $lastLedger->amount) throw new \Exception('অতিরিক্ত অ্যাডভান্স ইতোমধ্যে ব্যবহৃত হয়েছে। আগে সেটি বাতিল করুন।');
             $transaction = Transaction::whereKey($lastLedger->transaction_id)->lockForUpdate()->firstOrFail();
 
             if ($transaction) {
@@ -562,7 +560,7 @@ class VendorController extends Controller
             $payment = VendorPayment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
             $fail = fn ($message) => throw \Illuminate\Validation\ValidationException::withMessages(['bank_charge' => $message]);
             if ($payment->status !== 'completed' || $payment->payment_source !== 'account' || $payment->pay_amount <= 0) {
-                $fail('Only completed account payments can be edited here.');
+                $fail('শুধুমাত্র সম্পন্ন হওয়া অ্যাকাউন্ট পেমেন্ট এডিট করা যাবে।');
             }
             $vendor = Vendor::whereKey($payment->vendor_id)->lockForUpdate()->firstOrFail();
             $account = Account::whereKey($payment->account_id)->lockForUpdate()->firstOrFail();
@@ -570,13 +568,13 @@ class VendorController extends Controller
                 ->where('transactionable_id', $payment->id)->where('type', 'debit')->lockForUpdate()->get();
 
             if ($transactions->count() !== 1 || $transactions->first()->account_id != $account->id) {
-                $fail('The original account transaction could not be identified safely.');
+                $fail('আসল অ্যাকাউন্ট ট্রানজেকশন শনাক্ত করা যায়নি।');
             }
 
             $transaction = $transactions->first();
 
             if (abs((float) $transaction->amount - ((float) $payment->pay_amount + (float) $payment->bank_charge)) > 0.001) {
-                $fail('The original transaction amount does not match this payment.');
+                $fail('আসল ট্রানজেকশনের পরিমাণের সাথে এই পেমেন্ট মিলছে না।');
             }
 
             $charge = round((float) $data['bank_charge'], 2);
@@ -588,22 +586,22 @@ class VendorController extends Controller
                 $bills = ProjectExpense::whereIn('id', $details->pluck('project_expense_id'))->orderBy('created_at')->orderBy('id')->lockForUpdate()->get();
 
                 if ($bills->count() !== $details->count() || $bills->isEmpty()) {
-                    $fail('The original bills could not be identified safely.');
+                    $fail('আসল বিলগুলো শনাক্ত করা যায়নি।');
                 }
                 foreach ($bills as $bill) {
                     $previous = $details->firstWhere('project_expense_id', $bill->id)->amount;
-                    if ($bill->vendor_id != $vendor->id || $bill->paid_amount < $previous) $fail('The original bill settlement does not match.');
+                    if ($bill->vendor_id != $vendor->id || $bill->paid_amount < $previous) $fail('আসল বিল সেটেলমেন্ট মিলছে না।');
                     $bill->paid_amount -= $previous;
                     $bill->due_amount += $previous;
                 }
                 $available = round($bills->sum('due_amount'), 2);
                 $remaining = round($amount + $adjustment, 2);
-                if ($adjustment > 0 && $remaining > $available) $fail('Payment plus adjustment exceeds the linked bills.');
+                if ($adjustment > 0 && $remaining > $available) $fail('পেমেন্ট এবং এডজাস্টমেন্ট সিলেক্ট করা বিলগুলোর চেয়ে বেশি।');
 
                 $walletCredit = round(max(0, $amount - $available), 2);
                 $walletDifference = round($walletCredit - $payment->wallet_credit_amount, 2);
 
-                if ($walletDifference < 0 && $vendor->wallet_balance < -$walletDifference) $fail('The excess advance has already been used. Reverse its usage first.');
+                if ($walletDifference < 0 && $vendor->wallet_balance < -$walletDifference) $fail('অতিরিক্ত অ্যাডভান্স ইতোমধ্যে ব্যবহৃত হয়েছে। আগে সেটি বাতিল করুন।');
 
                 foreach ($bills as $bill) {
                     $allocated = min($remaining, $bill->due_amount);
@@ -621,7 +619,7 @@ class VendorController extends Controller
                         'vendor_id' => $vendor->id,
                         'type' => $walletDifference > 0 ? 'credit' : 'debit',
                         'amount' => abs($walletDifference),
-                        'date' => $payment->getRawOriginal('date'), // 🟢 Force Old Date
+                        'date' => $payment->getRawOriginal('date'),
                         'description' => 'Payment amount correction (VP-'.$payment->id.')'
                     ]);
                 }
@@ -632,7 +630,7 @@ class VendorController extends Controller
             $difference = round($amount + $charge - $payment->pay_amount - $payment->bank_charge, 2);
 
             if ($difference > 0 && $account->current_balance < $difference) {
-                $fail('Insufficient account balance for the corrected payment.');
+                $fail('সংশোধিত পেমেন্টের জন্য অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই।');
             }
 
             if ($difference != 0) {
@@ -668,9 +666,9 @@ class VendorController extends Controller
         try {
             DB::beginTransaction();
             $payment = VendorPayment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
-            if ($payment->status === 'voided') throw new \Exception('Payment is already voided.');
+            if ($payment->status === 'voided') throw new \Exception('এই পেমেন্টটি আগেই ভয়েড করা হয়েছে।');
             $vendor = Vendor::whereKey($payment->vendor_id)->lockForUpdate()->firstOrFail();
-            if ($vendor->wallet_balance < $payment->wallet_credit_amount) throw new \Exception('The excess advance has been used. Reverse its usage first.');
+            if ($vendor->wallet_balance < $payment->wallet_credit_amount) throw new \Exception('অতিরিক্ত অ্যাডভান্স ইতোমধ্যে ব্যবহৃত হয়েছে। আগে সেটি বাতিল করুন।');
 
             foreach ($payment->details as $detail) {
                 $bill = ProjectExpense::lockForUpdate()->find($detail->project_expense_id);
@@ -726,7 +724,7 @@ class VendorController extends Controller
                     $adv->save();
                     $settledBack -= $undo;
                 }
-                if ($settledBack > 0.009) throw new \Exception('Advance history cannot be safely reversed.');
+                if ($settledBack > 0.009) throw new \Exception('অ্যাডভান্স হিস্টোরি নিরাপদে রিভার্স করা সম্ভব নয়।');
             }
 
             if ($payment->wallet_credit_amount > 0) {
