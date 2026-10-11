@@ -9,6 +9,8 @@ use App\Models\AdvanceBalance;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\User;
+use App\Models\Vendor;
+use App\Models\VendorLedger;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +21,7 @@ class ExpenseController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Expense::with(['category', 'account', 'logger', 'advance_user']);
+        $query = Expense::with(['category', 'account', 'logger', 'advance_user', 'vendor']);
 
         if ($request->filled('search')) {
             $searchTerm = $request->search;
@@ -36,6 +38,10 @@ class ExpenseController extends Controller
                 })
                 ->orWhereHas('advance_user', function ($uq) use ($searchTerm) {
                     $uq->where('name', 'like', "%{$searchTerm}%");
+                })
+                ->orWhereHas('vendor', function ($vq) use ($searchTerm) {
+                    $vq->where('name', 'like', "%{$searchTerm}%")
+                      ->orWhere('company_name', 'like', "%{$searchTerm}%");
                 });
             });
         }
@@ -44,18 +50,46 @@ class ExpenseController extends Controller
         if ($request->filled('date_filter')) {
             $filter = $request->date_filter;
             if ($filter === 'today') {
-                $query->whereDate('date', Carbon::today());
+                $query->whereDate('date', Carbon::today()->toDateString());
+            } elseif ($filter === 'yesterday') {
+                $query->whereDate('date', Carbon::yesterday()->toDateString());
             } elseif ($filter === 'this_week') {
-                $query->whereBetween('date', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
+                $query->whereBetween('date', [
+                    Carbon::now()->startOfWeek()->toDateString(),
+                    Carbon::now()->endOfWeek()->toDateString()
+                ]);
+            } elseif ($filter === 'last_7_days') {
+                $query->whereBetween('date', [
+                    Carbon::today()->subDays(6)->toDateString(),
+                    Carbon::today()->toDateString()
+                ]);
             } elseif ($filter === 'this_month') {
                 $query->whereMonth('date', Carbon::now()->month)->whereYear('date', Carbon::now()->year);
+            } elseif ($filter === 'last_month') {
+                $lastMonth = Carbon::now()->subMonth();
+                $query->whereMonth('date', $lastMonth->month)->whereYear('date', $lastMonth->year);
             } elseif ($filter === 'this_year') {
                 $query->whereYear('date', Carbon::now()->year);
-            } elseif ($filter === 'custom' && $request->filled('start_date') && $request->filled('end_date')) {
-                $query->whereBetween('date', [
-                    $request->start_date . ' 00:00:00',
-                    $request->end_date . ' 23:59:59'
-                ]);
+            } elseif ($filter === 'custom') {
+                if ($request->filled('start_date') && $request->filled('end_date')) {
+                    $startDate = min($request->start_date, $request->end_date);
+                    $endDate = max($request->start_date, $request->end_date);
+                    $query->whereDate('date', '>=', $startDate)->whereDate('date', '<=', $endDate);
+                } elseif ($request->filled('start_date')) {
+                    $query->whereDate('date', '>=', $request->start_date);
+                } elseif ($request->filled('end_date')) {
+                    $query->whereDate('date', '<=', $request->end_date);
+                }
+            }
+        } elseif ($request->filled('start_date') || $request->filled('end_date')) {
+            if ($request->filled('start_date') && $request->filled('end_date')) {
+                $startDate = min($request->start_date, $request->end_date);
+                $endDate = max($request->start_date, $request->end_date);
+                $query->whereDate('date', '>=', $startDate)->whereDate('date', '<=', $endDate);
+            } elseif ($request->filled('start_date')) {
+                $query->whereDate('date', '>=', $request->start_date);
+            } elseif ($request->filled('end_date')) {
+                $query->whereDate('date', '<=', $request->end_date);
             }
         }
 
@@ -98,7 +132,19 @@ class ExpenseController extends Controller
             ->sortBy(fn ($a) => $a['user']['name'])
             ->values();
 
-        return Inertia::render('Admin/Expenses/Index', compact('expenses', 'totalAmount', 'thisMonthTotal', 'categories', 'accounts', 'advances') + [
+        $vendors = Vendor::select('id', 'name', 'company_name', 'wallet_balance')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($v) {
+                return [
+                    'id'             => $v->id,
+                    'name'           => $v->name,
+                    'company_name'   => $v->company_name,
+                    'wallet_balance' => (float) $v->wallet_balance,
+                ];
+            });
+
+        return Inertia::render('Admin/Expenses/Index', compact('expenses', 'totalAmount', 'thisMonthTotal', 'categories', 'accounts', 'advances', 'vendors') + [
             'filters' => $request->only('search', 'per_page', 'date_filter', 'start_date', 'end_date'),
         ]);
     }
@@ -121,8 +167,19 @@ class ExpenseController extends Controller
 
                 $insertData['bank_charge'] = $validated['bank_charge'] ?? 0;
 
-                if ($validated['pay_type'] === 'account') $insertData['advance_user_id'] = null;
-                if ($validated['pay_type'] === 'advance') $insertData['account_id'] = null;
+                if ($validated['pay_type'] === 'account') {
+                    $insertData['advance_user_id'] = null;
+                    $insertData['vendor_id'] = null;
+                }
+                if ($validated['pay_type'] === 'advance') {
+                    $insertData['account_id'] = null;
+                    $insertData['vendor_id'] = null;
+                }
+                if ($validated['pay_type'] === 'vendor') {
+                    $insertData['account_id'] = null;
+                    $insertData['advance_user_id'] = null;
+                    $insertData['bank_charge'] = 0;
+                }
                 $insertData['logged_by'] = auth()->id() ?? 1;
 
                 $expense = Expense::create($insertData);
@@ -158,8 +215,19 @@ class ExpenseController extends Controller
 
                 $updateData['bank_charge'] = $validated['bank_charge'] ?? 0;
 
-                if ($validated['pay_type'] === 'account') $updateData['advance_user_id'] = null;
-                if ($validated['pay_type'] === 'advance') $updateData['account_id'] = null;
+                if ($validated['pay_type'] === 'account') {
+                    $updateData['advance_user_id'] = null;
+                    $updateData['vendor_id'] = null;
+                }
+                if ($validated['pay_type'] === 'advance') {
+                    $updateData['account_id'] = null;
+                    $updateData['vendor_id'] = null;
+                }
+                if ($validated['pay_type'] === 'vendor') {
+                    $updateData['account_id'] = null;
+                    $updateData['advance_user_id'] = null;
+                    $updateData['bank_charge'] = 0;
+                }
 
                 $expense->update($updateData);
                 $this->deductFromSource($validated, (float) $validated['amount'], $expense);
@@ -202,12 +270,13 @@ class ExpenseController extends Controller
             'expense_category_id' => 'required|exists:expense_categories,id',
             'account_id'          => 'nullable|exists:accounts,id',
             'advance_user_id'     => 'nullable|exists:users,id',
+            'vendor_id'           => 'nullable|exists:vendors,id',
             'amount'              => 'required|numeric|decimal:0,2|min:0.01',
             'bank_charge'         => 'nullable|numeric|decimal:0,2|min:0',
             'date'                => 'required|date',
             'description'         => 'nullable|string',
             'attachment'          => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
-            'pay_type'            => 'required|in:account,advance',
+            'pay_type'            => 'required|in:account,advance,vendor',
         ]);
     }
 
@@ -215,7 +284,17 @@ class ExpenseController extends Controller
     {
         if ($validated['pay_type'] === 'account' && empty($validated['account_id'])) return 'Please select a Bank/Cash Account.';
         if ($validated['pay_type'] === 'advance' && empty($validated['advance_user_id'])) return 'Please select an Advance User.';
+        if ($validated['pay_type'] === 'vendor' && empty($validated['vendor_id'])) return 'Please select a Vendor.';
         if ($validated['pay_type'] !== 'account' && ($validated['bank_charge'] ?? 0) > 0) return 'Bank charge requires an account payment.';
+
+        if ($validated['pay_type'] === 'vendor') {
+            $vendor = Vendor::find($validated['vendor_id']);
+            if (!$vendor || (float) $vendor->wallet_balance < (float) $validated['amount']) {
+                $bal = $vendor ? number_format($vendor->wallet_balance, 2) : '0.00';
+                return "The selected vendor does not have sufficient advance balance (Available: ৳{$bal}).";
+            }
+        }
+
         return null;
     }
 
@@ -238,6 +317,19 @@ class ExpenseController extends Controller
             ]);
         } elseif ($validated['pay_type'] === 'advance') {
             app(\App\Services\AdvanceSettlementService::class)->consume($expense, $validated['advance_user_id'], $amount);
+        } elseif ($validated['pay_type'] === 'vendor') {
+            $vendor = Vendor::whereKey($validated['vendor_id'])->lockForUpdate()->firstOrFail();
+            if ($vendor->wallet_balance < $amount) {
+                throw new \Exception('Insufficient Vendor Advance Balance.');
+            }
+            $vendor->decrement('wallet_balance', $amount);
+            VendorLedger::create([
+                'vendor_id'   => $vendor->id,
+                'type'        => 'debit',
+                'amount'      => $amount,
+                'date'        => $validated['date'],
+                'description' => "Office Expense #{$expense->id}: {$validated['title']}",
+            ]);
         }
     }
 
@@ -250,6 +342,14 @@ class ExpenseController extends Controller
             if ($expense->transaction) $expense->transaction()->delete();
         } elseif ($expense->advance_user_id) {
             if (!app(\App\Services\AdvanceSettlementService::class)->refund($expense)) $this->refundAdvance($expense->advance_user_id, $amount);
+        } elseif ($expense->vendor_id) {
+            $vendor = Vendor::whereKey($expense->vendor_id)->lockForUpdate()->first();
+            if ($vendor) {
+                $vendor->increment('wallet_balance', $amount);
+                VendorLedger::where('vendor_id', $vendor->id)
+                    ->where('description', 'like', "Office Expense #{$expense->id}:%")
+                    ->delete();
+            }
         }
     }
 

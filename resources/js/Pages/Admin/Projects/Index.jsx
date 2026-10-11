@@ -304,7 +304,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                 <div className="relative">
                                     <select value={perPage} onChange={(e) =>
  setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
-                                        className="bg-transparent pl-4 pr-10 py-2.5 text-[14px] font-bold text-slate-900 outline-none cursor-pointer border-none focus:ring-0 w-[120px]"
+                                        className="appearance-none bg-transparent pl-4 pr-10 py-2.5 text-[14px] font-bold text-slate-900 outline-none cursor-pointer border-none focus:ring-0 w-[120px]"
 
                                     >
                                         <option value={10}>10 Rows</option>
@@ -338,8 +338,10 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                         </div>
                                         <div className="overflow-y-auto py-1 custom-table-scroll">
                                             <div onClick={() => { setFilterClient(""); setShowClientFilterDropdown(false); }} className="cursor-pointer px-4 py-2.5 text-[13.5px] text-slate-800 hover:bg-slate-100 font-bold border-b border-slate-100">All Clients</div>
-                                            {clients.filter(c => c.name.toLowerCase().includes(clientFilterSearch.toLowerCase())).map(c => (
-                                                <div key={c.id} onClick={() => { setFilterClient(c.id); setShowClientFilterDropdown(false); setClientFilterSearch(""); }} className={`cursor-pointer px-4 py-2.5 text-[13.5px] hover:bg-slate-50 border-b border-slate-50 last:border-0 ${filterClient == c.id ? 'bg-indigo-50 text-indigo-700 font-extrabold' : 'text-slate-700 font-bold'}`}>{c.name}</div>
+                                            {clients.filter(c => (c.name || '').toLowerCase().includes(clientFilterSearch.toLowerCase()) || (c.company_name || '').toLowerCase().includes(clientFilterSearch.toLowerCase())).map(c => (
+                                                <div key={c.id} onClick={() => { setFilterClient(c.id); setShowClientFilterDropdown(false); setClientFilterSearch(""); }} className={`cursor-pointer px-4 py-2.5 text-[13.5px] hover:bg-slate-50 border-b border-slate-50 last:border-0 ${filterClient == c.id ? 'bg-indigo-50 text-indigo-700 font-extrabold' : 'text-slate-700 font-bold'}`}>
+                                                    {c.name} {c.company_name ? <span className="text-[12px] opacity-70 ml-1">({c.company_name})</span> : ''}
+                                                </div>
                                             ))}
                                         </div>
                                     </div>
@@ -454,6 +456,11 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                                         <div>
                                                             <div className="font-black text-slate-900 text-[14px]">
                                                                 {project.client?.name || <span className="text-slate-400 italic font-bold">No Client</span>}
+                                                                {project.client?.company_name && (
+                                                                    <span className="block text-[12px] text-slate-500 font-bold mt-0.5">
+                                                                        <i className="fa-regular fa-building mr-1"></i>{project.client.company_name}
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                             <div className="text-[12px] text-slate-500 mt-1 flex items-center gap-1.5 font-bold">
                                                                 <i className="fa-solid fa-user-tie text-[11px] text-indigo-600"></i> {project.project_manager?.name || 'Unassigned'}

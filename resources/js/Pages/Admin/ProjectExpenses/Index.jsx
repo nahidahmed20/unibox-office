@@ -11,6 +11,20 @@ const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
 );
 
+const formatDateDisplay = (dateStr) => {
+    if (!dateStr) return "-";
+    try {
+        const parts = String(dateStr).split('-');
+        if (parts.length === 3) {
+            const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+            return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+        return dateStr;
+    } catch {
+        return dateStr;
+    }
+};
+
 // 🟢 Custom Premium Dropdown (Fully Replaces react-select & fixes z-index/toLowerCase issues)
 function SearchableSelect({ options, value, onChange, placeholder, getLabel, getValue, error, disabled, isClearable = false }) {
     const [open, setOpen] = useState(false);
@@ -333,7 +347,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                 options={filteredProjectsList}
                                 value={projectFilter}
                                 onChange={(val) => setProjectFilter(val)}
-                                getLabel={(p) => p.title}
+                                getLabel={(p) => `${p.title} ${p.client?.name ? `(${p.client.name}${p.client.company_name ? ` / ${p.client.company_name}` : ''})` : ''}`}
                                 getValue={(p) => p.id}
                                 placeholder="All Projects..."
                                 disabled={!clientFilter && filteredProjectsList.length === 0}
@@ -396,20 +410,38 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
                         <span className="hidden lg:block text-slate-300 mx-1">|</span>
 
-                        <div className="flex items-center gap-2 bg-white border border-slate-300 rounded-xl px-2 shadow-sm focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all w-full sm:w-auto h-[44px]">
-                            <input
-                                type="date"
-                                value={dateFrom}
-                                onChange={(e) => { setDateFrom(e.target.value); setYearFilter(''); }}
-                                className="border-none bg-transparent px-2 py-2.5 text-[12.5px] font-bold text-slate-700 outline-none focus:ring-0 cursor-pointer w-full"
-                            />
-                            <span className="text-slate-400 font-bold">-</span>
-                            <input
-                                type="date"
-                                value={dateTo}
-                                onChange={(e) => { setDateTo(e.target.value); setYearFilter(''); }}
-                                className="border-none bg-transparent px-2 py-2.5 text-[12.5px] font-bold text-slate-700 outline-none focus:ring-0 cursor-pointer w-full"
-                            />
+                        <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 p-1 bg-white border border-slate-300 hover:border-slate-400 rounded-xl shadow-xs focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600">From</span>
+                                <input
+                                    type="date"
+                                    value={dateFrom}
+                                    onChange={(e) => { setDateFrom(e.target.value); setYearFilter(''); }}
+                                    className="border-none bg-transparent p-0 text-[12.5px] font-black text-slate-800 outline-none focus:ring-0 cursor-pointer min-w-[125px]"
+                                    title="Start Date"
+                                />
+                            </div>
+                            <span className="text-slate-400 font-bold text-[12px] px-0.5">to</span>
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600">To</span>
+                                <input
+                                    type="date"
+                                    value={dateTo}
+                                    onChange={(e) => { setDateTo(e.target.value); setYearFilter(''); }}
+                                    className="border-none bg-transparent p-0 text-[12.5px] font-black text-slate-800 outline-none focus:ring-0 cursor-pointer min-w-[125px]"
+                                    title="End Date"
+                                />
+                            </div>
+                            {(dateFrom || dateTo) && (
+                                <button
+                                    type="button"
+                                    onClick={() => { setDateFrom(''); setDateTo(''); }}
+                                    className="h-7 w-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors"
+                                    title="Clear Dates"
+                                >
+                                    <i className="fa-solid fa-xmark text-xs"></i>
+                                </button>
+                            )}
                         </div>
 
                         {(dateFrom || dateTo || yearFilter || clientFilter || projectFilter || vendorFilter || searchTerm || perPage !== 25) && (
@@ -443,8 +475,8 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                 {project_expenses.from ? project_expenses.from + index : index + 1}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-600 text-[11.5px] font-black shadow-sm tracking-wider">
-                                                    <i className="fa-regular fa-calendar-days text-[10px]"></i> {exp.date}
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-[11.5px] font-black shadow-xs tracking-wider" title={exp.date}>
+                                                    <i className="fa-regular fa-calendar-days text-[11px] text-indigo-500"></i> {formatDateDisplay(exp.date)}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">

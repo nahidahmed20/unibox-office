@@ -41,4 +41,8 @@ class Expense extends Model {
         return $this->belongsTo(User::class, 'advance_user_id');
     }
 
+    public function vendor()
+    {
+        return $this->belongsTo(Vendor::class, 'vendor_id');
+    }
 }

@@ -311,7 +311,7 @@ export default function Index({ transactions = { data: [], links: [] }, accounts
                                 <div className="relative">
                                     <select value={perPage} onChange={(e) =>
  handleFilterChange('per_page', e.target.value === "all" ? "all" : Number(e.target.value))}
-                                        className="bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-slate-900 outline-none cursor-pointer border-none focus:ring-0 w-[120px]"
+                                        className="appearance-none bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-slate-900 outline-none cursor-pointer border-none focus:ring-0 w-[120px]"
                                     >
                                         <option value={10}>10 Rows</option>
                                         <option value={25}>25 Rows</option>

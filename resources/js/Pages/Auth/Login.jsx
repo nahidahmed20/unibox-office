@@ -1,300 +1,198 @@
+import { useState } from 'react';
 import InputError from '@/Components/InputError';
 import { Head, Link, useForm } from '@inertiajs/react';
 
+function Logo({ className = '' }) {
+    return (
+        <div className={`flex items-center justify-center bg-slate-900 border border-slate-800 rounded-2xl shadow-xl p-3 ${className}`}>
+            <img
+                src="/images/logo.png"
+                alt="Unibox Logo"
+                className="h-full w-full object-contain"
+                onError={(e) => {
+                    e.target.style.display = 'none';
+                    if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                }}
+            />
+            <i className="fa-solid fa-shield-halved text-indigo-500 text-2xl hidden"></i>
+        </div>
+    );
+}
+
 export default function Login({ status, canResetPassword }) {
+    const [showPassword, setShowPassword] = useState(false);
+
     const { data, setData, post, processing, errors, reset } = useForm({
         email: '',
         password: '',
+        admin_key: '',
         remember: false,
     });
 
     const submit = (e) => {
         e.preventDefault();
         post(route('login'), {
-            onFinish: () => reset('password'),
+            onFinish: () => reset('password', 'admin_key'),
         });
     };
 
+    const inputClass =
+        'block w-full pl-11 pr-4 py-3.5 bg-slate-900/90 border border-slate-800 focus:border-indigo-500 rounded-xl text-slate-100 text-sm placeholder:text-slate-500 shadow-sm outline-none transition-all duration-200 focus:ring-4 focus:ring-indigo-500/10';
+
     return (
-        <div
-            className="relative min-h-screen flex items-center justify-center px-4 selection:bg-[#C9A961]/30 selection:text-[#F6EFDD]"
-            style={{
-                background: 'radial-gradient(circle at 50% -8%, #1B4332 0%, #0F2A1E 45%, #071510 100%)',
-                fontFamily: "'Inter', sans-serif",
-            }}
-        >
-            <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap');
+        <div className="relative min-h-screen flex flex-col justify-between items-center p-4 sm:p-6 lg:p-8 font-sans bg-[#0B0F17] text-slate-100 overflow-hidden selection:bg-indigo-600 selection:text-white">
+            <Head title="Super Admin Portal - Unibox" />
 
-                input:-webkit-autofill,
-                input:-webkit-autofill:hover,
-                input:-webkit-autofill:focus,
-                input:-webkit-autofill:active {
-                    -webkit-text-fill-color: #F4EFE1 !important;
-                    -webkit-box-shadow: 0 0 0px 1000px #12301F inset !important;
-                    transition: background-color 5000s ease-in-out 0s;
-                }
+            {/* Background Ambient Glows & Grid Pattern */}
+            <div className="absolute top-1/4 -left-32 h-96 w-96 rounded-full bg-indigo-600/15 blur-[140px] pointer-events-none"></div>
+            <div className="absolute bottom-1/4 -right-32 h-96 w-96 rounded-full bg-violet-600/15 blur-[140px] pointer-events-none"></div>
 
-                @keyframes fadeInUp {
-                    from { opacity: 0; transform: translateY(18px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                @keyframes emblemIn {
-                    from { opacity: 0; transform: translate(-50%, -12px) scale(0.85); }
-                    to { opacity: 1; transform: translate(-50%, 0) scale(1); }
-                }
-
-                @media (prefers-reduced-motion: reduce) {
-                    *, *::before, *::after {
-                        animation-duration: 0.01ms !important;
-                        animation-iteration-count: 1 !important;
-                        transition-duration: 0.01ms !important;
-                    }
-                }
-            `}</style>
-
-            {/* Ambient botanical line-art texture */}
             <div
-                className="absolute inset-0 pointer-events-none opacity-[0.07]"
+                className="absolute inset-0 opacity-[0.03] pointer-events-none"
                 style={{
                     backgroundImage:
-                        "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cg fill='none' stroke='%23C9A961' stroke-width='1' stroke-linecap='round'%3E%3Cpath d='M0 130 Q55 90 110 130 T220 130'/%3E%3Cellipse cx='30' cy='118' rx='9' ry='4' transform='rotate(-35 30 118)'/%3E%3Cellipse cx='70' cy='105' rx='9' ry='4' transform='rotate(-35 70 105)'/%3E%3Cellipse cx='150' cy='105' rx='9' ry='4' transform='rotate(35 150 105)'/%3E%3Cellipse cx='190' cy='118' rx='9' ry='4' transform='rotate(35 190 118)'/%3E%3C/g%3E%3C/svg%3E\")",
-                    backgroundRepeat: 'repeat',
-                    backgroundSize: '220px 220px',
-                    mixBlendMode: 'soft-light',
+                        'linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)',
+                    backgroundSize: '36px 36px',
                 }}
             ></div>
 
-            {/* Fine grain */}
-            <div
-                className="absolute inset-0 pointer-events-none opacity-[0.05]"
-                style={{
-                    backgroundImage:
-                        "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
-                    mixBlendMode: 'overlay',
-                }}
-            ></div>
+            <div className="w-full"></div>
 
-            {/* Vignette */}
-            <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_220px_90px_rgba(0,0,0,0.55)]"></div>
+            {/* Centered Restricted Card */}
+            <main className="relative z-10 w-full max-w-md my-auto">
+                <div className="bg-slate-950/80 backdrop-blur-2xl border border-slate-800/80 rounded-3xl shadow-2xl shadow-indigo-950/40 p-8 sm:p-10">
 
-            <Head title="Log in" />
+                    {/* Header with Security Badge */}
+                    <div className="flex flex-col items-center text-center">
+                        <Logo className="h-14 w-14 mb-4 shadow-indigo-500/10" />
 
-            {/* Card */}
-            <div
-                className="relative z-10 w-full max-w-[360px] rounded-[28px] border border-[#C9A961]/25 bg-[#12301F]/85 backdrop-blur-xl pt-16 pb-9 px-8 shadow-[0_30px_90px_-25px_rgba(0,0,0,0.85)]"
-                style={{ animation: 'fadeInUp 0.7s ease-out' }}
-            >
-                {/* Ambient glow behind emblem */}
-                <div
-                    className="absolute -top-6 left-1/2 -translate-x-1/2 w-[140px] h-[140px] rounded-full bg-[#C9A961]/25 blur-3xl pointer-events-none"
-                ></div>
-
-                {/* Emblem */}
-                <div
-                    className="absolute -top-[46px] left-1/2 w-[92px] h-[92px] rounded-full bg-gradient-to-b from-[#1B4332] to-[#0B1F17] border border-[#C9A961]/50 flex items-center justify-center shadow-[0_10px_30px_-8px_rgba(0,0,0,0.7)]"
-                    style={{ animation: 'emblemIn 0.8s ease-out', transform: 'translateX(-50%)' }}
-                >
-                    <svg viewBox="0 0 100 100" className="w-12 h-12">
-                        <defs>
-                            <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#F3DFA0" />
-                                <stop offset="100%" stopColor="#C9A961" />
-                            </linearGradient>
-                        </defs>
-                        <g fill="url(#goldGrad)" stroke="url(#goldGrad)" strokeWidth="1.2" strokeLinecap="round">
-                            <path d="M38 78 C 30 74, 24 66, 22 56" fill="none" />
-                            <ellipse cx="35" cy="74" rx="4" ry="2.1" transform="rotate(-40 35 74)" stroke="none" />
-                            <ellipse cx="30" cy="67" rx="4" ry="2.1" transform="rotate(-55 30 67)" stroke="none" />
-                            <ellipse cx="25.5" cy="59" rx="3.6" ry="1.9" transform="rotate(-70 25.5 59)" stroke="none" />
-
-                            <path d="M62 78 C 70 74, 76 66, 78 56" fill="none" />
-                            <ellipse cx="65" cy="74" rx="4" ry="2.1" transform="rotate(40 65 74)" stroke="none" />
-                            <ellipse cx="70" cy="67" rx="4" ry="2.1" transform="rotate(55 70 67)" stroke="none" />
-                            <ellipse cx="74.5" cy="59" rx="3.6" ry="1.9" transform="rotate(70 74.5 59)" stroke="none" />
-                        </g>
-                        <text
-                            x="50"
-                            y="53"
-                            textAnchor="middle"
-                            fontFamily="Fraunces, serif"
-                            fontSize="30"
-                            fontWeight="600"
-                            fill="url(#goldGrad)"
-                        >
-                            U
-                        </text>
-                    </svg>
-                </div>
-
-                {/* Wordmark */}
-                <div className="text-center">
-                    <h1
-                        className="text-[27px] tracking-[0.08em] font-medium bg-gradient-to-b from-[#F6EFDD] to-[#C9A961] bg-clip-text text-transparent"
-                        style={{ fontFamily: "'Fraunces', serif" }}
-                    >
-                        UNIBOX
-                    </h1>
-                    <p className="mt-1.5 text-[9.5px] tracking-[0.35em] uppercase text-[#8FAF9B] font-medium">
-                        Office Management System
-                    </p>
-                </div>
-
-                {/* Divider ornament */}
-                <div className="flex items-center justify-center gap-2 my-6">
-                    <span className="h-px w-10 bg-gradient-to-r from-transparent to-[#C9A961]/60"></span>
-                    <span className="w-[5px] h-[5px] rotate-45 bg-[#C9A961]/70"></span>
-                    <span className="h-px w-10 bg-gradient-to-l from-transparent to-[#C9A961]/60"></span>
-                </div>
-
-                {status && (
-                    <div className="mb-5 text-[11.5px] text-[#8FD9A0] text-center tracking-wide font-medium">
-                        {status}
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium mb-3">
+                            <i className="fa-solid fa-lock text-[10px]"></i>
+                            Restricted Access
+                        </div>
                     </div>
-                )}
 
-                <form onSubmit={submit} className="flex flex-col gap-6">
-                    {/* Email */}
-                    <div className="relative group">
-                        <label
-                            htmlFor="email"
-                            className="block text-[9.5px] tracking-[0.2em] uppercase text-[#8FAF9B] mb-2 font-medium"
-                        >
-                            Email Address
-                        </label>
-                        <div className="flex items-center gap-3 pb-2">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                strokeWidth="1.8"
-                                stroke="currentColor"
-                                className="w-[15px] h-[15px] text-[#C9A961]/70 group-focus-within:text-[#E8C874] transition-colors shrink-0"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
+                    {/* Status Message */}
+                    {status && (
+                        <div className="mt-6 flex items-start gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3.5 text-left">
+                            <i className="fa-solid fa-circle-check mt-0.5 text-emerald-400"></i>
+                            <p className="text-xs font-medium text-emerald-300">{status}</p>
+                        </div>
+                    )}
+
+                    {/* Admin Credentials Form */}
+                    <form className="mt-8 space-y-4" onSubmit={submit} noValidate={false}>
+                        {/* Email Address */}
+                        <div>
+                            <label htmlFor="email" className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                                Admin Email
+                            </label>
+                            <div className="relative">
+                                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                                    <i className="fa-regular fa-envelope text-slate-500 text-sm"></i>
+                                </span>
+                                <input
+                                    id="email"
+                                    type="email"
+                                    autoComplete="email"
+                                    autoFocus
+                                    required
+                                    value={data.email}
+                                    onChange={(e) => setData('email', e.target.value)}
+                                    className={`${inputClass} ${errors.email ? '!border-red-500/80 !bg-red-950/10' : ''}`}
+                                    placeholder="admin@unibox.com"
                                 />
-                            </svg>
-                            <input
-                                id="email"
-                                type="email"
-                                name="email"
-                                value={data.email}
-                                autoComplete="username"
-                                onChange={(e) => setData('email', e.target.value)}
-                                placeholder="you@school.edu"
-                                className="flex-1 bg-transparent border-none text-[#F4EFE1] text-[13px] tracking-wide placeholder:text-[#F4EFE1]/25 focus:ring-0 outline-none p-0"
-                                required
-                            />
+                            </div>
+                            <InputError message={errors.email} className="mt-1.5 text-xs font-medium text-red-400" />
                         </div>
-                        <div className="relative h-px bg-[#F4EFE1]/15 overflow-hidden">
-                            <span className="absolute inset-0 bg-gradient-to-r from-[#C9A961] to-[#E8C874] scale-x-0 group-focus-within:scale-x-100 origin-left transition-transform duration-500 ease-out"></span>
-                        </div>
-                        <InputError message={errors.email} className="mt-2 text-[11px] text-[#E4756B] tracking-wide" />
-                    </div>
 
-                    {/* Password */}
-                    <div className="relative group">
-                        <label
-                            htmlFor="password"
-                            className="block text-[9.5px] tracking-[0.2em] uppercase text-[#8FAF9B] mb-2 font-medium"
-                        >
-                            Password
-                        </label>
-                        <div className="flex items-center gap-3 pb-2">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                strokeWidth="1.8"
-                                stroke="currentColor"
-                                className="w-[15px] h-[15px] text-[#C9A961]/70 group-focus-within:text-[#E8C874] transition-colors shrink-0"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+                        {/* Password */}
+                        <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <label htmlFor="password" className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                                    Password
+                                </label>
+                                {canResetPassword && (
+                                    <Link
+                                        href={route('password.request')}
+                                        className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors"
+                                    >
+                                        Forgot?
+                                    </Link>
+                                )}
+                            </div>
+                            <div className="relative">
+                                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                                    <i className="fa-solid fa-lock text-slate-500 text-sm"></i>
+                                </span>
+                                <input
+                                    id="password"
+                                    type={showPassword ? 'text' : 'password'}
+                                    autoComplete="current-password"
+                                    required
+                                    value={data.password}
+                                    onChange={(e) => setData('password', e.target.value)}
+                                    className={`${inputClass} pr-12 ${errors.password ? '!border-red-500/80 !bg-red-950/10' : ''}`}
+                                    placeholder="••••••••••••"
                                 />
-                            </svg>
-                            <input
-                                id="password"
-                                type="password"
-                                name="password"
-                                value={data.password}
-                                autoComplete="current-password"
-                                onChange={(e) => setData('password', e.target.value)}
-                                placeholder="••••••••"
-                                className="flex-1 bg-transparent border-none text-[#F4EFE1] text-[14px] tracking-widest placeholder:text-[#F4EFE1]/25 focus:ring-0 outline-none p-0"
-                                required
-                            />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword((v) => !v)}
+                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                    className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 hover:text-slate-300 transition-colors"
+                                >
+                                    <i className={showPassword ? 'fa-regular fa-eye-slash text-sm' : 'fa-regular fa-eye text-sm'}></i>
+                                </button>
+                            </div>
+                            <InputError message={errors.password} className="mt-1.5 text-xs font-medium text-red-400" />
                         </div>
-                        <div className="relative h-px bg-[#F4EFE1]/15 overflow-hidden">
-                            <span className="absolute inset-0 bg-gradient-to-r from-[#C9A961] to-[#E8C874] scale-x-0 group-focus-within:scale-x-100 origin-left transition-transform duration-500 ease-out"></span>
-                        </div>
-                        <InputError message={errors.password} className="mt-2 text-[11px] text-[#E4756B] tracking-wide" />
-                    </div>
 
-                    {/* Options */}
-                    <div className="flex items-center justify-between px-0.5 -mt-1">
-                        <label className="flex items-center gap-2 cursor-pointer group/check">
-                            <span className="relative flex items-center justify-center w-[15px] h-[15px] rounded-[3px] border border-[#C9A961]/50 overflow-hidden transition-colors group-hover/check:border-[#C9A961]">
+                        {/* Remember Session Option */}
+                        <div className="flex items-center justify-between pt-1">
+                            <label className="flex items-center gap-2.5 cursor-pointer select-none">
                                 <input
                                     type="checkbox"
-                                    name="remember"
                                     checked={data.remember}
                                     onChange={(e) => setData('remember', e.target.checked)}
-                                    className="peer absolute inset-0 opacity-0 cursor-pointer z-10"
+                                    className="h-4 w-4 rounded border-slate-800 bg-slate-900 text-indigo-600 focus:ring-indigo-500/20 cursor-pointer"
                                 />
-                                <span className="absolute inset-0 bg-[#C9A961] scale-0 peer-checked:scale-100 transition-transform duration-200"></span>
-                                <svg
-                                    className="relative w-[9px] h-[9px] text-[#0B1F17] opacity-0 peer-checked:opacity-100 transition-opacity duration-200"
-                                    viewBox="0 0 24 24"
-                                    fill="currentColor"
-                                >
-                                    <path d="M9 16.2l-3.5-3.5L4 14.2l5 5 11-11-1.5-1.5z" />
-                                </svg>
-                            </span>
-                            <span className="text-[10.5px] tracking-wide text-[#D9D3C0]/80 group-hover/check:text-[#F4EFE1] transition-colors">
-                                Remember Me
-                            </span>
-                        </label>
+                                <span className="text-xs font-medium text-slate-400">Remember this terminal</span>
+                            </label>
+                        </div>
 
-                        {canResetPassword && (
-                            <Link
-                                href={route('password.request')}
-                                className="text-[10.5px] tracking-wide text-[#8FAF9B] hover:text-[#E8C874] underline-offset-2 hover:underline transition-colors"
-                            >
-                                Forgot Password?
-                            </Link>
-                        )}
-                    </div>
-
-                    {/* Submit */}
-                    <button
-                        type="submit"
-                        disabled={processing}
-                        className={`group relative mt-1 w-full h-[46px] overflow-hidden rounded-[4px] bg-gradient-to-r from-[#C9A961] to-[#E8C874] text-[#0B1F17] text-[11px] font-bold tracking-[0.3em] uppercase flex items-center justify-center transition-all duration-300 hover:shadow-[0_10px_32px_-8px_rgba(201,169,97,0.6)] ${
-                            processing ? 'opacity-70 cursor-wait' : ''
-                        }`}
-                    >
-                        <span className="absolute inset-0 -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-700 ease-out bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-20deg]"></span>
-                        <span className="relative">{processing ? 'Signing in…' : 'Sign In'}</span>
-                    </button>
-
-                    {/* Register */}
-                    <div className="text-center -mt-1">
-                        <span className="text-[10.5px] tracking-wide text-[#8FAF9B]/70">New to Unibox? </span>
-                        <Link
-                            href={route('register')}
-                            className="text-[10.5px] tracking-wide font-semibold text-[#E8C874] hover:text-[#F6EFDD] underline-offset-2 hover:underline transition-colors"
+                        {/* Submit Button */}
+                        <button
+                            type="submit"
+                            disabled={processing}
+                            className={`w-full mt-3 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3.5 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-600/30 transition-all hover:bg-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 active:scale-[0.99] ${
+                                processing ? 'opacity-75 cursor-wait' : ''
+                            }`}
                         >
-                            Create an account
-                        </Link>
-                    </div>
-                </form>
-            </div>
+                            {processing ? (
+                                <>
+                                    <i className="fa-solid fa-circle-notch fa-spin text-sm"></i>
+                                    Authenticating...
+                                </>
+                            ) : (
+                                <>
+                                    <i className="fa-solid fa-shield-halved text-xs"></i>
+                                    Authenticate Admin
+                                </>
+                            )}
+                        </button>
+                    </form>
+
+                    {/* Admin Warning Note */}
+                    <p className="mt-6 text-center text-[11px] text-slate-500 leading-relaxed">
+                        Unauthorized access attempts are logged and monitored with IP tracing.
+                    </p>
+                </div>
+            </main>
+
+            {/* Bottom Footer */}
+            <footer className="relative z-10 my-auto pt-6 text-center text-xs text-slate-600">
+                <p>&copy; {new Date().getFullYear()} Unibox Core Security. All rights reserved.</p>
+            </footer>
         </div>
     );
 }

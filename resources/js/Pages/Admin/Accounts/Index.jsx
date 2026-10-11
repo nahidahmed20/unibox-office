@@ -190,81 +190,88 @@ export default function Index({ accounts = { data: [], links: [] }, summary = {}
                 {/* --- 🟢 5 PREMIUM FINANCIAL SUMMARY CARDS --- */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
                     {/* 1. Bank & Cash Balance */}
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 p-5 shadow-lg shadow-blue-500/20 border border-blue-400 text-white group hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300">
-                        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl group-hover:bg-white/20 transition-colors"></div>
-                        <div className="relative flex flex-col gap-3 z-10">
-                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md border border-white/30 text-white shadow-sm">
-                                <i className="fa-solid fa-building-columns text-[18px]"></i>
+                    <div className="relative overflow-hidden rounded-2xl bg-blue-600 p-5 text-white shadow-md hover:shadow-lg transition-shadow duration-300 group">
+                        <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/10 transition-transform duration-500 group-hover:scale-125"></div>
+                        <div className="absolute right-12 -bottom-8 w-20 h-20 rounded-full bg-white/10 transition-transform duration-500 group-hover:scale-110"></div>
+                        <div className="relative z-10 flex flex-col gap-4">
+                            <div className="flex items-center justify-between">
+                                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm text-white shadow-inner">
+                                    <i className="fa-solid fa-building-columns text-xl"></i>
+                                </div>
                             </div>
                             <div>
-                                <span className="block text-[11px] uppercase font-bold text-blue-100 tracking-wider">Bank & Cash Bal.</span>
-                                <div className="text-[22px] font-black tabular-nums tracking-tight mt-1 text-white">
-                                    ৳ {Number(summary.total_balance || 0).toLocaleString('en-IN')}
-                                </div>
+                                <h3 className="text-2xl font-bold tracking-tight">৳ {Number(summary.total_balance || 0).toLocaleString('en-IN')}</h3>
+                                <p className="text-blue-100 text-[13px] font-medium mt-1">Bank & Cash Bal.</p>
                             </div>
                         </div>
                     </div>
 
                     {/* 2. Employee Advance */}
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 p-5 shadow-lg shadow-teal-500/20 border border-teal-400 text-white group hover:-translate-y-1 hover:shadow-xl hover:shadow-teal-500/30 transition-all duration-300">
-                        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl group-hover:bg-white/20 transition-colors"></div>
-                        <div className="relative flex flex-col gap-3 z-10">
-                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md border border-white/30 text-white shadow-sm">
-                                <i className="fa-solid fa-user-tie text-[18px]"></i>
+                    <div className="relative overflow-hidden rounded-2xl bg-teal-500 p-5 text-white shadow-md hover:shadow-lg transition-shadow duration-300 group">
+                        <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/10 transition-transform duration-500 group-hover:scale-125"></div>
+                        <div className="absolute right-12 -bottom-8 w-20 h-20 rounded-full bg-white/10 transition-transform duration-500 group-hover:scale-110"></div>
+                        <div className="relative z-10 flex flex-col gap-4">
+                            <div className="flex items-center justify-between">
+                                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm text-white shadow-inner">
+                                    <i className="fa-solid fa-user-tie text-xl"></i>
+                                </div>
                             </div>
                             <div>
-                                <span className="block text-[11px] uppercase font-bold text-teal-100 tracking-wider">Emp. Advance <span className="opacity-70">(Given)</span></span>
-                                <div className="text-[22px] font-black tabular-nums tracking-tight mt-1 text-white">
-                                    ৳ {Number(summary.employee_advance || 0).toLocaleString('en-IN')}
-                                </div>
+                                <h3 className="text-2xl font-bold tracking-tight">৳ {Number(summary.employee_advance || 0).toLocaleString('en-IN')}</h3>
+                                <p className="text-teal-100 text-[13px] font-medium mt-1">Emp. Advance <span className="opacity-75 text-[11px]">(Given)</span></p>
                             </div>
                         </div>
                     </div>
 
                     {/* 3. Vendor Advance */}
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 p-5 shadow-lg shadow-violet-500/20 border border-violet-400 text-white group hover:-translate-y-1 hover:shadow-xl hover:shadow-violet-500/30 transition-all duration-300">
-                        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl group-hover:bg-white/20 transition-colors"></div>
-                        <div className="relative flex flex-col gap-3 z-10">
-                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md border border-white/30 text-white shadow-sm">
-                                <i className="fa-solid fa-truck-field text-[18px]"></i>
+                    <div className="relative overflow-hidden rounded-2xl bg-violet-500 p-5 text-white shadow-md hover:shadow-lg transition-shadow duration-300 group">
+                        <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/10 transition-transform duration-500 group-hover:scale-125"></div>
+                        <div className="absolute right-12 -bottom-8 w-20 h-20 rounded-full bg-white/10 transition-transform duration-500 group-hover:scale-110"></div>
+                        <div className="relative z-10 flex flex-col gap-4">
+                            <div className="flex items-center justify-between">
+                                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm text-white shadow-inner">
+                                    <i className="fa-solid fa-truck-field text-xl"></i>
+                                </div>
                             </div>
                             <div>
-                                <span className="block text-[11px] uppercase font-bold text-violet-100 tracking-wider">Vendor Adv. <span className="opacity-70">(Given)</span></span>
-                                <div className={`text-[22px] font-black tabular-nums tracking-tight mt-1 ${summary.vendor_advance < 0 ? 'text-rose-200' : 'text-white'}`}>
+                                <h3 className={`text-2xl font-bold tracking-tight ${summary.vendor_advance < 0 ? 'text-rose-200' : 'text-white'}`}>
                                     {summary.vendor_advance < 0 ? '-' : ''}৳ {Math.abs(summary.vendor_advance || 0).toLocaleString('en-IN')}
-                                </div>
+                                </h3>
+                                <p className="text-violet-100 text-[13px] font-medium mt-1">Vendor Adv. <span className="opacity-75 text-[11px]">(Given)</span></p>
                             </div>
                         </div>
                     </div>
 
                     {/* 4. Client Advance */}
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 p-5 shadow-lg shadow-amber-500/20 border border-amber-300 text-white group hover:-translate-y-1 hover:shadow-xl hover:shadow-amber-500/30 transition-all duration-300">
-                        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl group-hover:bg-white/20 transition-colors"></div>
-                        <div className="relative flex flex-col gap-3 z-10">
-                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md border border-white/30 text-white shadow-sm">
-                                <i className="fa-solid fa-hand-holding-dollar text-[18px]"></i>
+                    <div className="relative overflow-hidden rounded-2xl bg-amber-500 p-5 text-white shadow-md hover:shadow-lg transition-shadow duration-300 group">
+                        <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/10 transition-transform duration-500 group-hover:scale-125"></div>
+                        <div className="absolute right-12 -bottom-8 w-20 h-20 rounded-full bg-white/10 transition-transform duration-500 group-hover:scale-110"></div>
+                        <div className="relative z-10 flex flex-col gap-4">
+                            <div className="flex items-center justify-between">
+                                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm text-white shadow-inner">
+                                    <i className="fa-solid fa-hand-holding-dollar text-xl"></i>
+                                </div>
                             </div>
                             <div>
-                                <span className="block text-[11px] uppercase font-bold text-amber-100 tracking-wider">Client Adv. <span className="opacity-70">(Rcvd)</span></span>
-                                <div className="text-[22px] font-black tabular-nums tracking-tight mt-1 text-white">
-                                    ৳ {Number(summary.client_advance || 0).toLocaleString('en-IN')}
-                                </div>
+                                <h3 className="text-2xl font-bold tracking-tight">৳ {Number(summary.client_advance || 0).toLocaleString('en-IN')}</h3>
+                                <p className="text-amber-100 text-[13px] font-medium mt-1">Client Adv. <span className="opacity-75 text-[11px]">(Rcvd)</span></p>
                             </div>
                         </div>
                     </div>
 
                     {/* 5. Total Assets */}
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 p-5 shadow-lg shadow-slate-900/20 border border-slate-700 text-white group hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-900/40 transition-all duration-300">
-                        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/5 blur-2xl group-hover:bg-white/10 transition-colors"></div>
-                        <div className="relative flex flex-col gap-3 z-10">
-                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-slate-300 shadow-sm">
-                                <i className="fa-solid fa-wallet text-[18px]"></i>
+                    <div className="relative overflow-hidden rounded-2xl bg-slate-800 p-5 text-white shadow-md hover:shadow-lg transition-shadow duration-300 group">
+                        <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/5 transition-transform duration-500 group-hover:scale-125"></div>
+                        <div className="absolute right-12 -bottom-8 w-20 h-20 rounded-full bg-white/5 transition-transform duration-500 group-hover:scale-110"></div>
+                        <div className="relative z-10 flex flex-col gap-4">
+                            <div className="flex items-center justify-between">
+                                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm text-white shadow-inner">
+                                    <i className="fa-solid fa-wallet text-xl"></i>
+                                </div>
                             </div>
                             <div>
-                                <span className="block text-[11px] uppercase font-bold text-slate-400 tracking-wider">Company Assets</span>
-                                <div className="text-[22px] font-black tabular-nums tracking-tight mt-1 text-white">
-                                    ৳ {Number(summary.total_assets || 0).toLocaleString('en-IN')}
-                                </div>
+                                <h3 className="text-2xl font-bold tracking-tight">৳ {Number(summary.total_assets || 0).toLocaleString('en-IN')}</h3>
+                                <p className="text-slate-400 text-[13px] font-medium mt-1">Company Assets</p>
                             </div>
                         </div>
                     </div>
@@ -309,7 +316,7 @@ export default function Index({ accounts = { data: [], links: [] }, summary = {}
                                 </span>
                                 <div className="relative">
                                     <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
-                                        className="bg-transparent pl-4 pr-10 py-2 text-[13.5px] font-semibold text-slate-700 outline-none cursor-pointer border-none focus:ring-0 w-[110px]"
+                                        className="appearance-none bg-transparent pl-4 pr-10 py-2 text-[13.5px] font-semibold text-slate-700 outline-none cursor-pointer border-none focus:ring-0 w-[110px]"
                                     >
                                         <option value={10}>10 Rows</option>
                                         <option value={25}>25 Rows</option>

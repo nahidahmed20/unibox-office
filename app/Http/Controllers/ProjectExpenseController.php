@@ -57,8 +57,15 @@ class ProjectExpenseController extends Controller
 
         // 🟢 3. Date Filters
         if ($request->filled('year')) $query->whereYear('date', $request->year);
-        if ($request->filled('date_from')) $query->whereDate('date', '>=', $request->date_from);
-        if ($request->filled('date_to')) $query->whereDate('date', '<=', $request->date_to);
+        if ($request->filled('date_from') && $request->filled('date_to')) {
+            $from = min($request->date_from, $request->date_to);
+            $to = max($request->date_from, $request->date_to);
+            $query->whereDate('date', '>=', $from)->whereDate('date', '<=', $to);
+        } elseif ($request->filled('date_from')) {
+            $query->whereDate('date', '>=', $request->date_from);
+        } elseif ($request->filled('date_to')) {
+            $query->whereDate('date', '<=', $request->date_to);
+        }
 
         $totals = [
             'total_bill'  => (float) (clone $query)->sum('total_bill'),

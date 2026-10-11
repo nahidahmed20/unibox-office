@@ -13,6 +13,11 @@ class Vendor extends Model
         return $this->hasMany(ProjectExpense::class);
     }
 
+    public function expenses()
+    {
+        return $this->hasMany(Expense::class);
+    }
+
     public function getTotalDueAttribute()
     {
         $openingBalance = $this->opening_balance;

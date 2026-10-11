@@ -337,7 +337,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                         {/* Show Rows Dropdown */}
                         <div className="relative w-full sm:w-[130px]">
                             <select value={perPage} onChange={(e) => handleFilterChange('per_page', e.target.value === "all" ? "all" : Number(e.target.value))}
-                                className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-9 py-2.5 text-[13.5px] font-bold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer"
+                                className="appearance-none w-full bg-white border border-slate-200 rounded-xl pl-4 pr-9 py-2.5 text-[13.5px] font-bold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer"
                             >
                                 <option value={10}>10 Rows</option>
                                 <option value={25}>25 Rows</option>
@@ -682,3 +682,4 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         </AdminLayout>
     );
 }
+

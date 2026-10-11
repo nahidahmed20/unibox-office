@@ -10,7 +10,30 @@ const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
 );
 
-export default function Index({ expenses = { data: [], links: [] }, totalAmount = 0, thisMonthTotal = 0, categories = [], accounts = [], advances = [] }) {
+const formatDateDisplay = (dateStr) => {
+    if (!dateStr) return "-";
+    try {
+        const parts = String(dateStr).split('-');
+        if (parts.length === 3) {
+            const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+            return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+        return dateStr;
+    } catch {
+        return dateStr;
+    }
+};
+
+export default function Index({
+    expenses = { data: [], links: [] },
+    totalAmount = 0,
+    thisMonthTotal = 0,
+    categories = [],
+    accounts = [],
+    advances = [],
+    vendors = [],
+    filters = {}
+}) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
     const permissions = auth?.permissions || [];
@@ -24,18 +47,18 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
     const [selectedExpense, setSelectedExpense] = useState(null);
 
     // Filter States
-    const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get("search") || "");
-    const [perPage, setPerPage] = useState(() => new URLSearchParams(window.location.search).get("per_page") || "25");
+    const [searchTerm, setSearchTerm] = useState(filters.search ?? (new URLSearchParams(window.location.search).get("search") || ""));
+    const [perPage, setPerPage] = useState(() => String(filters.per_page ?? (new URLSearchParams(window.location.search).get("per_page") || "25")));
 
     // Date Filter States
-    const [dateFilter, setDateFilter] = useState(() => new URLSearchParams(window.location.search).get("date_filter") || "all");
-    const [startDate, setStartDate] = useState(() => new URLSearchParams(window.location.search).get("start_date") || "");
-    const [endDate, setEndDate] = useState(() => new URLSearchParams(window.location.search).get("end_date") || "");
+    const [dateFilter, setDateFilter] = useState(filters.date_filter ?? (new URLSearchParams(window.location.search).get("date_filter") || "all"));
+    const [startDate, setStartDate] = useState(filters.start_date ?? (new URLSearchParams(window.location.search).get("start_date") || ""));
+    const [endDate, setEndDate] = useState(filters.end_date ?? (new URLSearchParams(window.location.search).get("end_date") || ""));
 
     const isFirstRender = useRef(true);
 
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
-        id: "", title: "", expense_category_id: "", account_id: "", advance_user_id: "",
+        id: "", title: "", expense_category_id: "", account_id: "", advance_user_id: "", vendor_id: "",
         amount: "", bank_charge: "", date: new Date().toISOString().slice(0, 10),
         description: "", pay_type: "account", attachment: null, _method: "post",
     });
@@ -45,15 +68,18 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
         if (isFirstRender.current) { isFirstRender.current = false; return; }
         const delay = setTimeout(() => {
             const params = {};
-            if (searchTerm.trim()) params.search = searchTerm;
-            if (perPage !== "10") params.per_page = perPage;
+            if (searchTerm.trim()) params.search = searchTerm.trim();
+            if (perPage && perPage !== "25") params.per_page = perPage;
 
-            if (dateFilter !== "all") {
+            if (dateFilter && dateFilter !== "all") {
                 params.date_filter = dateFilter;
                 if (dateFilter === "custom") {
                     if (startDate) params.start_date = startDate;
                     if (endDate) params.end_date = endDate;
                 }
+            } else if (startDate || endDate) {
+                if (startDate) params.start_date = startDate;
+                if (endDate) params.end_date = endDate;
             }
 
             router.get(route("admin.expenses.index"), params, {
@@ -61,7 +87,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                 replace: true,
                 preserveScroll: true
             });
-        }, 400);
+        }, 350);
 
         return () => clearTimeout(delay);
     }, [searchTerm, perPage, dateFilter, startDate, endDate]);
@@ -73,7 +99,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
         setDateFilter("all");
         setStartDate("");
         setEndDate("");
-        router.get(route("admin.expenses.index"), { per_page: 25 }, { replace: true, preserveState: true });
+        router.get(route("admin.expenses.index"), {}, { replace: true, preserveState: true });
     };
 
     const expList = expenses.data || [];
@@ -97,8 +123,11 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
 
         let reportTime = "All Time";
         if (dateFilter === 'today') reportTime = "Today's";
+        else if (dateFilter === 'yesterday') reportTime = "Yesterday's";
         else if (dateFilter === 'this_week') reportTime = "This Week's";
+        else if (dateFilter === 'last_7_days') reportTime = "Last 7 Days'";
         else if (dateFilter === 'this_month') reportTime = "This Month's";
+        else if (dateFilter === 'last_month') reportTime = "Last Month's";
         else if (dateFilter === 'this_year') reportTime = "This Year's";
         else if (dateFilter === 'custom') reportTime = `From ${startDate || '?'} to ${endDate || '?'}`;
 
@@ -132,7 +161,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
     const openCreateModal = () => {
         clearErrors();
         setData({
-            id: '', title: '', description: '', expense_category_id: '', advance_user_id: '', account_id: '',
+            id: '', title: '', description: '', expense_category_id: '', advance_user_id: '', account_id: '', vendor_id: '',
             amount: '', bank_charge: '', date: new Date().toISOString().slice(0, 10), pay_type: 'account', attachment: null, _method: "post"
         });
         setEditMode(false);
@@ -141,11 +170,12 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
 
     const openEditModal = (expense) => {
         clearErrors();
+        const pType = expense.vendor_id ? 'vendor' : (expense.advance_user_id ? 'advance' : 'account');
         setData({
             id: expense.id, title: expense.title || "", expense_category_id: expense.expense_category_id || "",
-            account_id: expense.account_id || "", advance_user_id: expense.advance_user_id || "",
+            account_id: expense.account_id || "", advance_user_id: expense.advance_user_id || "", vendor_id: expense.vendor_id || "",
             amount: expense.amount || "", bank_charge: expense.bank_charge || "", date: expense.date || "",
-            description: expense.description || "", pay_type: expense.advance_user_id ? 'advance' : 'account',
+            description: expense.description || "", pay_type: pType,
             attachment: null, _method: "put",
         });
         setEditMode(true);
@@ -159,6 +189,14 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
 
         if (data.pay_type === 'account' && !data.account_id) return Swal.fire("Required", "Please select a Bank/Cash Account.", "warning");
         if (data.pay_type === 'advance' && !data.advance_user_id) return Swal.fire("Required", "Please select an Advance User.", "warning");
+        if (data.pay_type === 'vendor' && !data.vendor_id) return Swal.fire("Required", "Please select a Vendor.", "warning");
+
+        if (data.pay_type === 'vendor') {
+            const selectedV = vendors.find(v => Number(v.id) === Number(data.vendor_id));
+            if (selectedV && Number(data.amount) > Number(selectedV.wallet_balance)) {
+                return Swal.fire("Insufficient Balance", `Selected vendor only has ৳${Number(selectedV.wallet_balance).toLocaleString('en-IN')} available in advance.`, "warning");
+            }
+        }
 
         post(editMode ? route("admin.expenses.update", data.id) : route("admin.expenses.store"), {
             forceFormData: true,
@@ -278,6 +316,14 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
         return { value: a.user_id, label: `${a.user?.name || 'Unknown'} (Rem: ৳${Number(a.balance).toLocaleString('en-IN')})` };
     });
 
+    const vendorOptions = vendors.map((v) => ({
+        value: v.id,
+        label: `${v.name}${v.company_name ? ` (${v.company_name})` : ''} (Advance Bal: ৳${Number(v.wallet_balance).toLocaleString('en-IN')})`,
+        balance: v.wallet_balance,
+        name: v.name,
+        company_name: v.company_name
+    }));
+
     const inputClass = "w-full rounded-xl border border-slate-300 bg-white px-3 sm:px-4 py-2.5 sm:py-3 text-[14px] font-extrabold text-slate-900 outline-none focus:border-indigo-600 focus:ring-[3px] focus:ring-indigo-600/15 shadow-sm transition-all hover:border-slate-400";
 
     return (
@@ -344,7 +390,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                         <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full lg:w-auto">
                             <div className="flex items-center bg-white border border-slate-300 rounded-xl px-3 py-2.5 shadow-sm focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all hover:border-slate-400 w-full sm:w-auto">
                                 <span className="text-[12px] font-black text-slate-500 mr-2 uppercase tracking-wide">Show</span>
-                                <select value={perPage} onChange={(e) => setPerPage(e.target.value)} className="w-full sm:w-auto border-none bg-transparent text-[13px] font-bold text-slate-900 outline-none cursor-pointer p-0 focus:ring-0">
+                                <select value={perPage} onChange={(e) => setPerPage(e.target.value)} className="appearance-none w-full sm:w-auto border-none bg-transparent text-[13px] font-bold text-slate-900 outline-none cursor-pointer p-0 focus:ring-0">
                                     <option value="10">10</option>
                                     <option value="25">25</option>
                                     <option value="50">50</option>
@@ -362,21 +408,66 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                             </div>
 
                             <div className="relative w-full sm:w-auto">
-                                <CustomSelect value={dateFilter} onChange={(e) => { setDateFilter(e.target.value); if(e.target.value !== 'custom') { setStartDate(''); setEndDate(''); } }} className="appearance-none w-full sm:w-[150px] rounded-xl border border-slate-300 hover:border-slate-400 bg-white pl-4 pr-9 py-2.5 text-[13.5px] font-bold text-slate-800 outline-none transition-all focus:border-indigo-600 focus:ring-[3px] focus:ring-indigo-600/15 shadow-sm cursor-pointer">
-                                    <option value="all">All Time</option>
-                                    <option value="today">Today</option>
-                                    <option value="this_week">This Week</option>
-                                    <option value="this_month">This Month</option>
-                                    <option value="this_year">This Year</option>
-                                    <option value="custom">Custom Range</option>
-                                </CustomSelect>
+                                <div className="relative flex items-center">
+                                    <i className="fa-regular fa-calendar-days absolute left-3.5 top-1/2 -translate-y-1/2 text-indigo-600 text-[13px] pointer-events-none"></i>
+                                    <CustomSelect
+                                        value={dateFilter}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setDateFilter(val);
+                                            if (val !== 'custom') {
+                                                setStartDate('');
+                                                setEndDate('');
+                                            }
+                                        }}
+                                        className="appearance-none w-full sm:w-[175px] rounded-xl border border-slate-300 hover:border-slate-400 bg-white pl-9 pr-8 py-2.5 text-[13px] font-black text-slate-800 outline-none transition-all focus:border-indigo-600 focus:ring-[3px] focus:ring-indigo-600/15 shadow-sm cursor-pointer"
+                                    >
+                                        <option value="all">All Time</option>
+                                        <option value="today">Today</option>
+                                        <option value="yesterday">Yesterday</option>
+                                        <option value="this_week">This Week</option>
+                                        <option value="last_7_days">Last 7 Days</option>
+                                        <option value="this_month">This Month</option>
+                                        <option value="last_month">Last Month</option>
+                                        <option value="this_year">This Year</option>
+                                        <option value="custom">Custom Range</option>
+                                    </CustomSelect>
+                                </div>
                             </div>
 
                             {dateFilter === "custom" && (
-                                <div className="flex items-center gap-2 animate-[fadeIn_0.2s_ease-out] bg-white border border-slate-300 hover:border-slate-400 rounded-xl px-2 shadow-sm focus-within:border-indigo-600 focus-within:ring-[3px] focus-within:ring-indigo-600/15 transition-all w-full sm:w-auto overflow-hidden">
-                                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="flex-1 w-full border-none bg-transparent px-2 py-2.5 text-[12.5px] font-bold outline-none focus:ring-0 cursor-pointer text-slate-700" />
-                                    <span className="text-slate-400 text-[12px] font-bold">-</span>
-                                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="flex-1 w-full border-none bg-transparent px-2 py-2.5 text-[12.5px] font-bold outline-none focus:ring-0 cursor-pointer text-slate-700" />
+                                <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 p-1 bg-white border border-indigo-200 hover:border-indigo-400 rounded-xl shadow-xs focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all animate-[fadeIn_0.2s_ease-out]">
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg">
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600">From</span>
+                                        <input
+                                            type="date"
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                            className="border-none bg-transparent p-0 text-[12.5px] font-black text-slate-800 outline-none focus:ring-0 cursor-pointer min-w-[125px]"
+                                            title="From Date"
+                                        />
+                                    </div>
+                                    <span className="text-slate-400 font-bold text-[12px] px-0.5">to</span>
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg">
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600">To</span>
+                                        <input
+                                            type="date"
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                            className="border-none bg-transparent p-0 text-[12.5px] font-black text-slate-800 outline-none focus:ring-0 cursor-pointer min-w-[125px]"
+                                            title="To Date"
+                                        />
+                                    </div>
+                                    {(startDate || endDate) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => { setStartDate(''); setEndDate(''); }}
+                                            className="h-7 w-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors"
+                                            title="Clear dates"
+                                        >
+                                            <i className="fa-solid fa-xmark text-xs"></i>
+                                        </button>
+                                    )}
                                 </div>
                             )}
 
@@ -401,6 +492,50 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                         </div>
                     </div>
 
+                    {/* ACTIVE FILTER SUMMARY BANNER */}
+                    {(dateFilter !== 'all' || searchTerm || perPage !== '25') && (
+                        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5 bg-gradient-to-r from-indigo-50/90 via-slate-50 to-indigo-50/50 border-b border-indigo-100/80 text-[13px]">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-black text-indigo-950 flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
+                                    <i className="fa-solid fa-filter text-indigo-600"></i> Active Filter:
+                                </span>
+                                {dateFilter !== 'all' && (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white border border-indigo-200 font-extrabold text-indigo-700 shadow-xs text-[12px]">
+                                        <i className="fa-regular fa-calendar-check text-indigo-500 text-[11px]"></i>
+                                        {dateFilter === 'custom' ? (
+                                            startDate && endDate ? `${formatDateDisplay(startDate)}  ➔  ${formatDateDisplay(endDate)}` : (startDate ? `From ${formatDateDisplay(startDate)}` : `Up to ${formatDateDisplay(endDate)}`)
+                                        ) : (
+                                            {
+                                                today: "Today",
+                                                yesterday: "Yesterday",
+                                                this_week: "This Week",
+                                                last_7_days: "Last 7 Days",
+                                                this_month: "This Month",
+                                                last_month: "Last Month",
+                                                this_year: "This Year"
+                                            }[dateFilter] || dateFilter
+                                        )}
+                                    </span>
+                                )}
+                                {searchTerm && (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white border border-indigo-200 font-extrabold text-indigo-700 shadow-xs text-[12px]">
+                                        <i className="fa-solid fa-magnifying-glass text-indigo-400 text-[10px]"></i> "{searchTerm}"
+                                    </span>
+                                )}
+                                <span className="font-bold text-slate-500 text-[12px]">
+                                    • <strong className="text-slate-800 font-black">{expenses.total ?? expList.length}</strong> Records
+                                    • Total: <strong className="text-emerald-700 font-black"><Taka className="text-emerald-600" />{parseFloat(totalAmount || 0).toLocaleString('en-IN')}</strong>
+                                </span>
+                            </div>
+                            <button
+                                onClick={clearFilters}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11.5px] font-black text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-colors"
+                            >
+                                <i className="fa-solid fa-rotate-left text-[11px]"></i> Reset All
+                            </button>
+                        </div>
+                    )}
+
                     {/* --- MODERN DATA TABLE --- */}
                     <div className="overflow-x-auto custom-table-scroll min-h-[400px]">
                         <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[750px]">
@@ -422,8 +557,8 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                                 {expenses.from ? expenses.from + index : index + 1}
                                             </td>
                                             <td className="px-4 sm:px-6 py-4">
-                                                <div className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-white border border-slate-300 text-slate-800 font-black text-[11px] sm:text-[12.5px] shadow-sm">
-                                                    <i className="fa-regular fa-calendar text-[10px] sm:text-[11px] text-slate-400"></i> {exp.date}
+                                                <div className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-white border border-slate-300 text-slate-800 font-black text-[11px] sm:text-[12.5px] shadow-sm" title={exp.date}>
+                                                    <i className="fa-regular fa-calendar text-[10px] sm:text-[11px] text-indigo-500"></i> {formatDateDisplay(exp.date)}
                                                 </div>
                                             </td>
                                             <td className="px-4 sm:px-6 py-4">
@@ -444,6 +579,11 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                                     <div className="inline-flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-[11px] sm:text-[13px] font-black shadow-sm">
                                                         <div className="hidden sm:flex h-6 w-6 rounded-md bg-blue-100 items-center justify-center"><i className="fa-solid fa-building-columns text-[11px] text-blue-600"></i></div>
                                                         {exp.account?.name || 'Bank Account'}
+                                                    </div>
+                                                ) : exp.vendor_id ? (
+                                                    <div className="inline-flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-800 text-[11px] sm:text-[13px] font-black shadow-sm" title={exp.vendor?.company_name || exp.vendor?.name}>
+                                                        <div className="hidden sm:flex h-6 w-6 rounded-md bg-purple-100 items-center justify-center"><i className="fa-solid fa-store text-[11px] text-purple-600"></i></div>
+                                                        Vendor: {exp.vendor?.name?.split(' ')[0] || 'Vendor'}
                                                     </div>
                                                 ) : (
                                                     <div className="inline-flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] sm:text-[13px] font-black shadow-sm">
@@ -594,36 +734,48 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
 
                                     <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-sm border border-slate-300 relative z-50">
                                         <h4 className="text-[12px] sm:text-[13px] font-black text-slate-800 uppercase tracking-widest mb-4 border-b border-slate-200 pb-2"><i className="fa-solid fa-wallet mr-1.5 text-emerald-500"></i> Payment Source</h4>
-                                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-5">
-                                            <label className={`flex-1 cursor-pointer rounded-xl sm:rounded-2xl border-[2.5px] p-3 sm:p-4 text-center transition-all flex items-center justify-center gap-3 shadow-sm ${data.pay_type === 'account' ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 ring-[3px] ring-indigo-600/15' : 'border-slate-300 bg-white hover:border-indigo-400 text-slate-600'}`}>
-                                                <input type="radio" className="sr-only" checked={data.pay_type === 'account'} onChange={() => { setData('pay_type', 'account'); setData('advance_user_id', ''); }} />
-                                                <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0 ${data.pay_type === 'account' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}><i className="fa-solid fa-building-columns text-sm sm:text-base"></i></div>
-                                                <div className="text-left">
-                                                    <span className="block text-[13px] sm:text-[14px] font-black leading-tight">Bank / Cash</span>
-                                                    <span className="block text-[10px] sm:text-[11px] font-bold opacity-70">Pay from office fund</span>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 sm:mb-5">
+                                            <label className={`cursor-pointer rounded-xl sm:rounded-2xl border-[2.5px] p-3 text-center transition-all flex items-center gap-3 shadow-sm ${data.pay_type === 'account' ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 ring-[3px] ring-indigo-600/15' : 'border-slate-300 bg-white hover:border-indigo-400 text-slate-600'}`}>
+                                                <input type="radio" className="sr-only" checked={data.pay_type === 'account'} onChange={() => { setData('pay_type', 'account'); setData('advance_user_id', ''); setData('vendor_id', ''); }} />
+                                                <div className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center shrink-0 ${data.pay_type === 'account' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}><i className="fa-solid fa-building-columns text-xs sm:text-sm"></i></div>
+                                                <div className="text-left min-w-0">
+                                                    <span className="block text-[13px] font-black leading-tight truncate">Bank / Cash</span>
+                                                    <span className="block text-[10px] font-bold opacity-70 truncate">Office fund</span>
                                                 </div>
                                             </label>
 
-                                            <label className={`flex-1 cursor-pointer rounded-xl sm:rounded-2xl border-[2.5px] p-3 sm:p-4 text-center transition-all flex items-center justify-center gap-3 shadow-sm ${data.pay_type === 'advance' ? 'border-emerald-500 bg-emerald-50/50 text-emerald-900 ring-[3px] ring-emerald-500/15' : 'border-slate-300 bg-white hover:border-emerald-400 text-slate-600'}`}>
-                                                <input type="radio" className="sr-only" checked={data.pay_type === 'advance'} onChange={() => { setData(prev => ({...prev, pay_type: 'advance', bank_charge: 0})); setData('account_id', ''); }} />
-                                                <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0 ${data.pay_type === 'advance' ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}><i className="fa-solid fa-hand-holding-dollar text-sm sm:text-base"></i></div>
-                                                <div className="text-left">
-                                                    <span className="block text-[13px] sm:text-[14px] font-black leading-tight">Advance</span>
-                                                    <span className="block text-[10px] sm:text-[11px] font-bold opacity-70">Settle advance</span>
+                                            <label className={`cursor-pointer rounded-xl sm:rounded-2xl border-[2.5px] p-3 text-center transition-all flex items-center gap-3 shadow-sm ${data.pay_type === 'advance' ? 'border-emerald-500 bg-emerald-50/50 text-emerald-900 ring-[3px] ring-emerald-500/15' : 'border-slate-300 bg-white hover:border-emerald-400 text-slate-600'}`}>
+                                                <input type="radio" className="sr-only" checked={data.pay_type === 'advance'} onChange={() => { setData(prev => ({...prev, pay_type: 'advance', bank_charge: 0})); setData('account_id', ''); setData('vendor_id', ''); }} />
+                                                <div className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center shrink-0 ${data.pay_type === 'advance' ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}><i className="fa-solid fa-hand-holding-dollar text-xs sm:text-sm"></i></div>
+                                                <div className="text-left min-w-0">
+                                                    <span className="block text-[13px] font-black leading-tight truncate">Staff Advance</span>
+                                                    <span className="block text-[10px] font-bold opacity-70 truncate">Staff balance</span>
+                                                </div>
+                                            </label>
+
+                                            <label className={`cursor-pointer rounded-xl sm:rounded-2xl border-[2.5px] p-3 text-center transition-all flex items-center gap-3 shadow-sm ${data.pay_type === 'vendor' ? 'border-purple-600 bg-purple-50/50 text-purple-900 ring-[3px] ring-purple-600/15' : 'border-slate-300 bg-white hover:border-purple-400 text-slate-600'}`}>
+                                                <input type="radio" className="sr-only" checked={data.pay_type === 'vendor'} onChange={() => { setData(prev => ({...prev, pay_type: 'vendor', bank_charge: 0})); setData('account_id', ''); setData('advance_user_id', ''); }} />
+                                                <div className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center shrink-0 ${data.pay_type === 'vendor' ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}><i className="fa-solid fa-store text-xs sm:text-sm"></i></div>
+                                                <div className="text-left min-w-0">
+                                                    <span className="block text-[13px] font-black leading-tight truncate">Vendor Advance</span>
+                                                    <span className="block text-[10px] font-bold opacity-70 truncate">Vendor wallet</span>
                                                 </div>
                                             </label>
                                         </div>
 
                                         <div className="relative z-40">
-                                            <label className="block text-[11.5px] sm:text-[12.5px] font-black text-slate-800 uppercase tracking-widest mb-2 sm:mb-2.5">{data.pay_type === 'account' ? 'Select Bank/Cash Account' : 'Select Employee'} <span className="text-red-600">*</span></label>
-                                            {data.pay_type === 'account' ? (
+                                            <label className="block text-[11.5px] sm:text-[12.5px] font-black text-slate-800 uppercase tracking-widest mb-2 sm:mb-2.5">
+                                                {data.pay_type === 'account' ? 'Select Bank/Cash Account' : data.pay_type === 'advance' ? 'Select Employee' : 'Select Vendor'} <span className="text-red-600">*</span>
+                                            </label>
+                                            {data.pay_type === 'account' && (
                                                 <Select
                                                     options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` }))}
                                                     value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
                                                     onChange={(selected) => setData("account_id", selected ? selected.value : "")}
                                                     placeholder="Type to search account..." isSearchable isClearable styles={selectStyles} menuPortalTarget={typeof window !== 'undefined' ? document.body : null} menuPosition="fixed"
                                                 />
-                                            ) : (
+                                            )}
+                                            {data.pay_type === 'advance' && (
                                                 <Select
                                                     options={advanceOptions}
                                                     value={advanceOptions.find((opt) => Number(opt.value) === Number(data.advance_user_id)) || null}
@@ -631,8 +783,36 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                                     placeholder="Type to search employee..." isSearchable isClearable styles={selectStyles} menuPortalTarget={typeof window !== 'undefined' ? document.body : null} menuPosition="fixed"
                                                 />
                                             )}
+                                            {data.pay_type === 'vendor' && (
+                                                <>
+                                                    <Select
+                                                        options={vendorOptions}
+                                                        value={vendorOptions.find((opt) => Number(opt.value) === Number(data.vendor_id)) || null}
+                                                        onChange={(selected) => setData("vendor_id", selected ? selected.value : "")}
+                                                        placeholder="Search vendor with advance balance..." isSearchable isClearable styles={selectStyles} menuPortalTarget={typeof window !== 'undefined' ? document.body : null} menuPosition="fixed"
+                                                    />
+                                                    {data.vendor_id && (() => {
+                                                        const selectedV = vendors.find(v => Number(v.id) === Number(data.vendor_id));
+                                                        const bal = selectedV ? Number(selectedV.wallet_balance) : 0;
+                                                        const isSufficient = bal >= Number(data.amount || 0);
+                                                        return (
+                                                            <div className={`mt-3 p-3 rounded-xl border flex items-center justify-between gap-3 text-xs font-bold ${isSufficient ? 'bg-purple-50 border-purple-200 text-purple-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
+                                                                <div className="flex items-center gap-2">
+                                                                    <i className="fa-solid fa-wallet text-purple-600"></i>
+                                                                    <span>Vendor Advance Balance:</span>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <strong className="text-sm font-black tabular-nums">৳{bal.toLocaleString('en-IN')}</strong>
+                                                                    {!isSufficient && <span className="block text-[10px] text-amber-600 font-bold mt-0.5">⚠️ Advance balance is less than expense amount</span>}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </>
+                                            )}
                                             {errors.account_id && data.pay_type === 'account' && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.account_id}</p>}
                                             {errors.advance_user_id && data.pay_type === 'advance' && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.advance_user_id}</p>}
+                                            {errors.vendor_id && data.pay_type === 'vendor' && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.vendor_id}</p>}
                                         </div>
                                     </div>
 
@@ -729,7 +909,7 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                 </div>
                                 <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-slate-300 shadow-sm flex flex-col justify-center">
                                     <span className="block text-[10.5px] sm:text-[11.5px] font-black uppercase tracking-widest text-slate-400 mb-1.5 sm:mb-2"><i className="fa-regular fa-calendar-days mr-1 text-rose-500"></i> Date</span>
-                                    <div className="font-black text-slate-900 text-[14px] sm:text-[16px]">{selectedExpense.date || "-"}</div>
+                                    <div className="font-black text-slate-900 text-[14px] sm:text-[16px]">{formatDateDisplay(selectedExpense.date)}</div>
                                 </div>
                                 <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-slate-300 shadow-sm flex flex-col justify-center border-l-4 border-l-emerald-500">
                                     <span className="block text-[10.5px] sm:text-[11.5px] font-black uppercase tracking-widest text-slate-400 mb-1.5 sm:mb-2"><i className="fa-solid fa-money-bill-wave mr-1 text-emerald-600"></i> Base Amount</span>
@@ -744,6 +924,8 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
                                         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-4">
                                             {selectedExpense.account_id ? (
                                                 <><div className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-xl sm:rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 border border-blue-200 shadow-sm"><i className="fa-solid fa-building-columns text-[16px] sm:text-[18px]"></i></div><div><p className="text-[14px] sm:text-[15px] font-black text-slate-900">{selectedExpense.account?.name || 'Bank Account'}</p><p className="text-[11px] sm:text-[12px] font-bold text-slate-500 mt-0.5">Paid from Bank / Cash</p></div></>
+                                            ) : selectedExpense.vendor_id ? (
+                                                <><div className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-xl sm:rounded-2xl bg-purple-100 flex items-center justify-center text-purple-600 border border-purple-200 shadow-sm"><i className="fa-solid fa-store text-[16px] sm:text-[18px]"></i></div><div><p className="text-[14px] sm:text-[15px] font-black text-slate-900">Vendor: {selectedExpense.vendor?.name} {selectedExpense.vendor?.company_name ? `(${selectedExpense.vendor.company_name})` : ''}</p><p className="text-[11px] sm:text-[12px] font-bold text-slate-500 mt-0.5">Paid from Vendor Advance / Wallet</p></div></>
                                             ) : selectedExpense.advance_user_id ? (
                                                 <><div className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-xl sm:rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600 border border-emerald-200 shadow-sm"><i className="fa-solid fa-hand-holding-dollar text-[16px] sm:text-[18px]"></i></div><div><p className="text-[14px] sm:text-[15px] font-black text-slate-900">Advance: {selectedExpense.advance_user?.name}</p><p className="text-[11px] sm:text-[12px] font-bold text-slate-500 mt-0.5">Paid from Employee Advance</p></div></>
                                             ) : (
@@ -812,3 +994,4 @@ export default function Index({ expenses = { data: [], links: [] }, totalAmount 
         </AdminLayout>
     );
 }
+

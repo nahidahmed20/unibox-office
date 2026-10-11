@@ -412,7 +412,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                             {isExpanded ? 'Hide Details' : 'View Details'}
                                                         </button>
                                                     ) : (
-                                                        <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                                        <div className="flex items-center justify-end gap-1.5 transition-opacity">
                                                             {hasPermission('view_client_advance') && <button onClick={() => openViewModal(single)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 border border-blue-100 text-blue-600 hover:bg-blue-500 hover:text-white hover:border-blue-500 hover:-translate-y-0.5 transition-all shadow-sm" title="View"><i className="fa-regular fa-eye text-[12.5px]"></i></button>}
                                                             {hasPermission('return_advance') && single.status !== 'settled' && group.total_due > 0 && <button onClick={() => openReturnModal(single)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-600 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 hover:-translate-y-0.5 transition-all shadow-sm" title="Refund/Return"><i className="fa-solid fa-money-bill-transfer text-[12.5px]"></i></button>}
                                                             {hasPermission('edit_advance') && <button onClick={() => openEditModal(single)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 border border-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white hover:border-amber-500 hover:-translate-y-0.5 transition-all shadow-sm" title="Edit"><i className="fa-regular fa-pen-to-square text-[12.5px]"></i></button>}
@@ -452,7 +452,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                                             <td className="px-5 py-4 text-right font-black text-emerald-600 bg-emerald-50/20">{parseFloat((adv.settled_amount || 0) + (adv.returned_amount || 0)).toLocaleString('en-IN')}</td>
                                                                             <td className="px-5 py-4 text-right font-black text-rose-600">{parseFloat(adv.amount - adv.settled_amount - adv.returned_amount).toLocaleString('en-IN')}</td>
                                                                             <td className="px-5 py-4 text-center actions-col">
-                                                                                <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover/sub:opacity-100 transition-opacity">
+                                                                                <div className="flex items-center justify-end gap-1.5 transition-opacity">
                                                                                     {hasPermission('view_client_advance') && <button onClick={() => openViewModal(adv)} className="flex h-7 w-7 rounded-lg border border-blue-200 bg-blue-50 items-center justify-center text-blue-600 hover:text-white hover:bg-blue-500 hover:border-blue-500 transition-all shadow-sm"><i className="fa-regular fa-eye text-[11px]"></i></button>}
                                                                                     {hasPermission('return_advance') && adv.status !== 'settled' && parseFloat(adv.amount - adv.settled_amount - adv.returned_amount) > 0 && <button onClick={() => openReturnModal(adv)} className="flex h-7 w-7 rounded-lg border border-emerald-200 bg-emerald-50 items-center justify-center text-emerald-600 hover:text-white hover:bg-emerald-500 hover:border-emerald-500 transition-all shadow-sm" title="Refund"><i className="fa-solid fa-money-bill-transfer text-[11px]"></i></button>}
                                                                                     {hasPermission('edit_advance') && <button onClick={() => openEditModal(adv)} className="flex h-7 w-7 rounded-lg border border-amber-200 bg-amber-50 items-center justify-center text-amber-600 hover:text-white hover:bg-amber-500 hover:border-amber-500 transition-all shadow-sm"><i className="fa-regular fa-pen-to-square text-[11px]"></i></button>}
@@ -502,24 +502,24 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
             {showViewModal && selectedAdvance && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
                     <div className="w-full max-w-3xl bg-white rounded-[1.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col max-h-[90vh] overflow-hidden border border-white/20 animate-[scaleIn_0.2s_ease-out]">
-                        <div className="relative bg-gradient-to-r from-slate-900 to-indigo-950 px-8 py-6 flex justify-between items-center border-b border-indigo-900/50 shadow-sm">
+                        <div className="relative bg-gradient-to-r from-slate-900 to-indigo-950 px-5 py-5 sm:px-8 sm:py-6 flex justify-between items-center border-b border-indigo-900/50 shadow-sm gap-3">
                             <div>
-                                <h3 className="text-[20px] font-black text-white flex items-center gap-2"><i className="fa-solid fa-receipt text-indigo-400"></i> Advance Details</h3>
-                                <p className="text-indigo-200/70 text-[11px] font-bold mt-1 tracking-widest uppercase">Ref: #{String(selectedAdvance.id).padStart(5, '0')}</p>
+                                <h3 className="text-[17px] sm:text-[20px] font-black text-white flex items-center gap-2"><i className="fa-solid fa-receipt text-indigo-400"></i> Advance Details</h3>
+                                <p className="text-indigo-200/70 text-[10px] sm:text-[11px] font-bold mt-1 tracking-widest uppercase">Ref: #{String(selectedAdvance.id).padStart(5, '0')}</p>
                             </div>
-                            <button onClick={() => setShowViewModal(false)} className="h-9 w-9 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all backdrop-blur-md border border-white/10 shadow-sm active:scale-[0.95]"><i className="fa-solid fa-xmark"></i></button>
+                            <button onClick={() => setShowViewModal(false)} className="h-9 w-9 shrink-0 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all backdrop-blur-md border border-white/10 shadow-sm active:scale-[0.95]"><i className="fa-solid fa-xmark"></i></button>
                         </div>
-                        <div className="p-8 bg-slate-50/50 overflow-y-auto custom-table-scroll space-y-6">
+                        <div className="p-5 sm:p-8 bg-slate-50/50 overflow-y-auto custom-table-scroll space-y-6">
 
-                            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-5">
+                            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-5">
                                 <div className="flex items-center gap-4">
-                                    <div className="h-16 w-16 bg-gradient-to-br from-indigo-100 to-indigo-50 text-indigo-700 rounded-2xl flex items-center justify-center text-2xl font-black shadow-inner border border-indigo-100/50">{selectedAdvance.user?.name?.charAt(0)}</div>
+                                    <div className="h-14 w-14 sm:h-16 sm:w-16 shrink-0 bg-gradient-to-br from-indigo-100 to-indigo-50 text-indigo-700 rounded-2xl flex items-center justify-center text-xl sm:text-2xl font-black shadow-inner border border-indigo-100/50">{selectedAdvance.user?.name?.charAt(0)}</div>
                                     <div>
                                         <span className="block text-[10.5px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Employee Profile</span>
-                                        <h2 className="text-[19px] font-black text-slate-900 leading-none">{selectedAdvance.user?.name}</h2>
+                                        <h2 className="text-[17px] sm:text-[19px] font-black text-slate-900 leading-none">{selectedAdvance.user?.name}</h2>
                                     </div>
                                 </div>
-                                <div className="text-right">
+                                <div className="sm:text-right">
                                     <span className="block text-[10.5px] font-black uppercase text-slate-400 tracking-widest mb-1.5">Issue Date</span>
                                     <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 rounded-lg text-[13px] font-bold text-slate-700 border border-slate-200">
                                         <i className="fa-regular fa-calendar text-slate-400"></i> {selectedAdvance.date}
@@ -527,21 +527,21 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                 </div>
                             </div>
 
-                            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                            <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm">
                                 <span className="block text-[12px] font-black uppercase text-slate-800 tracking-widest mb-4 pb-3 border-b border-slate-100"><i className="fa-solid fa-bullseye text-indigo-500 mr-1.5"></i> Purpose & Details</span>
-                                <div className="mb-4 flex items-center gap-3">
+                                <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                                     <span className="block text-[11px] font-black uppercase text-slate-500">Category:</span>
-                                    <strong className="text-[13.5px] text-indigo-700 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-md">{selectedAdvance.purpose || "Office Work"}</strong>
+                                    <strong className="text-[13.5px] text-indigo-700 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-md self-start">{selectedAdvance.purpose || "Office Work"}</strong>
                                 </div>
                                 <div>
                                     <span className="block text-[11px] font-black uppercase text-slate-500 mb-2">Extra Notes:</span>
-                                    <div className="text-slate-700 text-[14px] font-medium leading-relaxed whitespace-pre-line bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                    <div className="text-slate-700 text-[13px] sm:text-[14px] font-medium leading-relaxed whitespace-pre-line bg-slate-50 p-4 rounded-xl border border-slate-200">
                                         {selectedAdvance.notes || <span className="italic text-slate-400">No additional details provided.</span>}
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><span className="block text-[10.5px] font-black uppercase text-slate-400 tracking-widest mb-1.5"><i className="fa-solid fa-building-columns mr-1"></i> Account</span><strong className="text-[14px] text-slate-800">{selectedAdvance.account?.name}</strong></div>
                                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><span className="block text-[10.5px] font-black uppercase text-slate-400 tracking-widest mb-1.5">Base Given</span><strong className="text-[16px] text-indigo-600"><Taka className="text-[13px] opacity-70" />{Number(selectedAdvance.amount).toLocaleString('en-IN')}</strong></div>
                                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><span className="block text-[10.5px] font-black uppercase text-slate-400 tracking-widest mb-1.5">Bank Charge</span><strong className="text-[16px] text-slate-600"><Taka className="text-[13px] opacity-70" />{Number(selectedAdvance.bank_charge || 0).toLocaleString('en-IN')}</strong></div>
@@ -556,13 +556,13 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
                     <div className="w-full max-w-5xl bg-white rounded-[1.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col max-h-[95vh] overflow-hidden border border-white/20 animate-[scaleIn_0.2s_ease-out]">
-                        <div className="flex items-center justify-between px-8 py-6 border-b border-slate-800 bg-slate-900 shrink-0 relative overflow-hidden">
+                        <div className="flex items-start sm:items-center justify-between px-5 py-5 sm:px-8 sm:py-6 border-b border-slate-800 bg-slate-900 shrink-0 relative overflow-hidden gap-3">
                             <div className="absolute right-0 top-0 h-48 w-48 bg-indigo-500/10 blur-3xl rounded-full pointer-events-none translate-x-10 -translate-y-10"></div>
                             <div>
                                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest mb-2 border border-indigo-500/30 shadow-sm"><i className="fa-solid fa-hand-holding-dollar"></i> {editMode ? 'Update Record' : 'New Advance Entry'}</div>
-                                <h3 className="text-[24px] font-black text-white relative z-10">{editMode ? "Modify Advance Info" : "Log Advance Payment"}</h3>
+                                <h3 className="text-[18px] sm:text-[24px] font-black text-white relative z-10">{editMode ? "Modify Advance Info" : "Log Advance Payment"}</h3>
                             </div>
-                            <button onClick={() => setShowModal(false)} className="h-10 w-10 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-rose-500 transition-colors z-10 backdrop-blur-md border border-white/10 active:scale-[0.95]"><i className="fa-solid fa-xmark text-lg"></i></button>
+                            <button onClick={() => setShowModal(false)} className="h-9 w-9 sm:h-10 sm:w-10 bg-white/10 text-white rounded-full flex shrink-0 items-center justify-center hover:bg-rose-500 transition-colors z-10 backdrop-blur-md border border-white/10 active:scale-[0.95]"><i className="fa-solid fa-xmark text-lg"></i></button>
                         </div>
 
                         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden h-full">
@@ -570,7 +570,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                 <div className="flex-1 p-6 sm:p-8 space-y-6">
                                     {errors.error && <div className="flex items-center gap-3 bg-red-50 text-red-700 p-4 rounded-2xl border border-red-200 font-bold shadow-sm"><i className="fa-solid fa-triangle-exclamation"></i> {errors.error}</div>}
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-7 rounded-[1.25rem] border border-slate-200 shadow-sm relative z-[60]">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-5 sm:p-7 rounded-[1.25rem] border border-slate-200 shadow-sm relative z-[60]">
                                         <div className="relative z-[60]">
                                             <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2.5"><i className="fa-solid fa-user-tie text-indigo-500 mr-1.5"></i> Select Employee <span className="text-red-500">*</span></label>
                                             <SearchableSelect
@@ -601,7 +601,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-7 rounded-[1.25rem] border border-slate-200 shadow-sm relative z-[40]">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-5 sm:p-7 rounded-[1.25rem] border border-slate-200 shadow-sm relative z-[40]">
                                         <div className="md:col-span-2 relative z-[40]">
                                             <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2.5">Purpose Category</label>
                                             <SearchableSelect
@@ -621,7 +621,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                 </div>
 
                                 {/* PREMIUM RIGHT SIDEBAR (SUMMARY) */}
-                                <div className="w-full lg:w-[380px] bg-slate-900 p-8 relative overflow-hidden flex flex-col border-l border-slate-800 text-white shrink-0 shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.3)] z-10">
+                                <div className="w-full lg:w-[380px] bg-slate-900 p-6 sm:p-8 relative overflow-hidden flex flex-col border-t lg:border-t-0 lg:border-l border-slate-800 text-white shrink-0 shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.3)] z-10">
                                     <span className="absolute -right-6 -top-10 text-[180px] font-mono text-white/[0.03] pointer-events-none select-none">৳</span>
                                     <h4 className="text-[11.5px] font-black text-slate-400 uppercase tracking-widest mb-7 border-b border-slate-800 pb-3"><i className="fa-solid fa-calculator mr-1.5"></i> Financial Summary</h4>
 
@@ -657,24 +657,24 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
             {showReturnModal && selectedAdvance && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/70 backdrop-blur-md p-4 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
                     <div className="w-full max-w-xl bg-white rounded-[1.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col max-h-[95vh] overflow-hidden animate-[scaleIn_0.2s_ease-out] border border-white/20">
-                        <div className="flex items-center justify-between px-8 py-6 border-b border-slate-800 bg-slate-900 shrink-0 relative overflow-hidden">
+                        <div className="flex items-start sm:items-center justify-between px-5 py-5 sm:px-8 sm:py-6 border-b border-slate-800 bg-slate-900 shrink-0 relative overflow-hidden gap-3">
                             <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-emerald-500/20 blur-3xl pointer-events-none translate-x-5 -translate-y-5"></div>
                             <div>
                                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase tracking-widest mb-2 shadow-sm"><i className="fa-solid fa-money-bill-transfer"></i> Receive Money</div>
-                                <h3 className="text-[24px] font-black text-white relative z-10">Refund Advance Cash</h3>
+                                <h3 className="text-[18px] sm:text-[24px] font-black text-white relative z-10">Refund Advance Cash</h3>
                             </div>
-                            <button onClick={() => setShowReturnModal(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-red-500 transition-colors shadow-sm relative z-10 backdrop-blur-md border border-white/10 active:scale-[0.95]"><i className="fa-solid fa-xmark text-lg"></i></button>
+                            <button onClick={() => setShowReturnModal(false)} className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white hover:bg-red-500 transition-colors shadow-sm relative z-10 backdrop-blur-md border border-white/10 active:scale-[0.95]"><i className="fa-solid fa-xmark text-lg"></i></button>
                         </div>
                         <form onSubmit={handleReturnSubmit} className="flex flex-col overflow-hidden h-full">
-                            <div className="p-8 overflow-y-auto custom-table-scroll space-y-6 bg-slate-50">
+                            <div className="p-5 sm:p-8 overflow-y-auto custom-table-scroll space-y-6 bg-slate-50">
                                 {returnErrors.error && <div className="mb-2 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-[13.5px] font-bold text-red-700 shadow-sm"><i className="fa-solid fa-triangle-exclamation"></i> {returnErrors.error}</div>}
 
-                                <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm gap-4">
                                     <div><span className="block text-[10.5px] font-black uppercase text-slate-400 tracking-widest mb-1.5">Employee</span><strong className="text-slate-900 text-[19px] font-black leading-none">{selectedAdvance.user?.name}</strong></div>
-                                    <div className="text-right"><span className="block text-[10.5px] font-black uppercase text-rose-500 tracking-widest mb-1.5">Base Due</span><strong className="text-rose-600 text-[24px] font-black tabular-nums leading-none"><Taka className="text-[16px] mr-0.5 opacity-80" />{parseFloat(selectedAdvance.amount - selectedAdvance.settled_amount - selectedAdvance.returned_amount).toLocaleString('en-IN')}</strong></div>
+                                    <div className="sm:text-right"><span className="block text-[10.5px] font-black uppercase text-rose-500 tracking-widest mb-1.5">Base Due</span><strong className="text-rose-600 text-[24px] font-black tabular-nums leading-none"><Taka className="text-[16px] mr-0.5 opacity-80" />{parseFloat(selectedAdvance.amount - selectedAdvance.settled_amount - selectedAdvance.returned_amount).toLocaleString('en-IN')}</strong></div>
                                 </div>
 
-                                <div className="bg-white p-7 rounded-[1.25rem] border border-slate-200 shadow-sm space-y-6 relative z-[60]">
+                                <div className="bg-white p-5 sm:p-7 rounded-[1.25rem] border border-slate-200 shadow-sm space-y-6 relative z-[60]">
                                     <div className="relative z-[60]">
                                         <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2.5">Deposit To Account <span className="text-red-500">*</span></label>
                                         <SearchableSelect
@@ -695,9 +695,9 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                     </div>
                                 </div>
                             </div>
-                            <div className="px-8 py-5 border-t border-slate-200 bg-white flex justify-end gap-3 shrink-0 rounded-b-3xl">
-                                <button type="button" onClick={() => setShowReturnModal(false)} className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-[14px] font-bold text-slate-700 hover:bg-slate-100 transition-colors shadow-sm active:scale-[0.98]">Cancel</button>
-                                <button type="submit" disabled={returnProcessing} className="rounded-xl bg-emerald-600 px-8 py-2.5 text-[14px] font-black text-white hover:bg-emerald-700 shadow-md shadow-emerald-200 disabled:opacity-70 transition-all flex items-center gap-2 active:scale-[0.98]">
+                            <div className="px-5 sm:px-8 py-5 border-t border-slate-200 bg-white flex flex-col-reverse sm:flex-row justify-end gap-3 shrink-0 rounded-b-3xl">
+                                <button type="button" onClick={() => setShowReturnModal(false)} className="w-full sm:w-auto rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-[14px] font-bold text-slate-700 hover:bg-slate-100 transition-colors shadow-sm active:scale-[0.98]">Cancel</button>
+                                <button type="submit" disabled={returnProcessing} className="w-full sm:w-auto justify-center rounded-xl bg-emerald-600 px-8 py-2.5 text-[14px] font-black text-white hover:bg-emerald-700 shadow-md shadow-emerald-200 disabled:opacity-70 transition-all flex items-center gap-2 active:scale-[0.98]">
                                     {returnProcessing ? <><i className="fa-solid fa-spinner fa-spin text-lg"></i> Processing...</> : <><i className="fa-solid fa-check text-lg"></i> Confirm Refund</>}
                                 </button>
                             </div>
