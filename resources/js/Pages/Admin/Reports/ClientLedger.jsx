@@ -89,7 +89,7 @@ export default function ClientLedger({ clients = [], ledger = [], dateWisePaymen
         const tableContent = document.getElementById("printable-ledger");
         const printWindow = window.open('', '_blank');
         const reportTitle = activeTab === 'date_wise_payments'
-            ? 'Date-wise Payment Summary (তারিখ অনুযায়ী জমার হিসাব)'
+            ? 'Date-wise Payment Summary'
             : 'Statement of Account (Ledger)';
 
         printWindow.document.write(`
@@ -247,7 +247,7 @@ export default function ClientLedger({ clients = [], ledger = [], dateWisePaymen
                                         }`}
                                     >
                                         <i className="fa-solid fa-book-open text-[11px]"></i>
-                                        <span>পূর্ণাঙ্গ লেজার (Full Ledger)</span>
+                                        <span>Full Ledger</span>
                                     </button>
                                     <button
                                         type="button"
@@ -259,7 +259,7 @@ export default function ClientLedger({ clients = [], ledger = [], dateWisePaymen
                                         }`}
                                     >
                                         <i className="fa-solid fa-calendar-check text-[11px]"></i>
-                                        <span>তারিখ অনুযায়ী মোট জমা ({dateWisePayments.length} দিন)</span>
+                                        <span>Date-wise Payments ({dateWisePayments.length} {dateWisePayments.length === 1 ? 'Day' : 'Days'})</span>
                                     </button>
                                 </div>
                             )}
@@ -322,7 +322,7 @@ export default function ClientLedger({ clients = [], ledger = [], dateWisePaymen
                                 </div>
                                 {Number(summary.gross_advance || 0) > 0 && (
                                     <div className="text-[11px] font-bold text-purple-600/80 mt-1">
-                                        মোট জমা: ৳{Number(summary.gross_advance).toLocaleString('en-IN')} | সমন্বয়: ৳{Number(summary.advance_used || 0).toLocaleString('en-IN')}
+                                        Total Received: ৳{Number(summary.gross_advance).toLocaleString('en-IN')} | Adjusted: ৳{Number(summary.advance_used || 0).toLocaleString('en-IN')}
                                     </div>
                                 )}
                             </div>
@@ -351,10 +351,10 @@ export default function ClientLedger({ clients = [], ledger = [], dateWisePaymen
                                 <thead className="bg-emerald-50/70 border-b border-emerald-200">
                                     <tr>
                                         <th className="px-6 py-4 text-center text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em] w-16">SL</th>
-                                        <th className="px-6 py-4 text-left text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em] w-44">Payment Date (তারিখ)</th>
-                                        <th className="px-6 py-4 text-left text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em] w-56">Deposit Mode (মাধ্যম)</th>
-                                        <th className="px-6 py-4 text-left text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em]">Invoices & Breakdown (কোন কোন ইনভয়েসে কত টাকা)</th>
-                                        <th className="px-6 py-4 text-right text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em] w-56">Date Total (ঐ তারিখে মোট জমা)</th>
+                                        <th className="px-6 py-4 text-left text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em] w-44">Payment Date</th>
+                                        <th className="px-6 py-4 text-left text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em] w-56">Deposit Mode</th>
+                                        <th className="px-6 py-4 text-left text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em]">Invoices & Breakdown</th>
+                                        <th className="px-6 py-4 text-right text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em] w-56">Date Total</th>
                                     </tr>
                                 </thead>
                                 <tbody className="text-[13.5px] text-[#202223] divide-y divide-gray-100">
@@ -383,7 +383,7 @@ export default function ClientLedger({ clients = [], ledger = [], dateWisePaymen
                                                         <div className="flex items-center gap-2 mb-1.5">
                                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
                                                                 <i className="fa-solid fa-layer-group text-[10px]"></i>
-                                                                মোট {group.items.length}টি এন্ট্রি
+                                                                Total {group.items.length} {group.items.length === 1 ? 'entry' : 'entries'}
                                                             </span>
                                                         </div>
                                                         <div className="flex flex-wrap gap-1.5">
@@ -397,23 +397,23 @@ export default function ClientLedger({ clients = [], ledger = [], dateWisePaymen
                                                         </div>
                                                         {group.notes && group.notes.length > 0 && (
                                                             <div className="text-[11.5px] text-slate-500 italic mt-1.5">
-                                                                নোট: {group.notes.join(' | ')}
+                                                                Note: {group.notes.join(' | ')}
                                                             </div>
                                                         )}
                                                     </td>
                                                     <td className="px-6 py-4 text-right bg-emerald-50/20">
                                                         <div className="font-black text-emerald-700 text-[16.5px] tabular-nums">
-                                                            <Taka />{Number(group.total_amount).toLocaleString('en-IN')}
+                                                             <Taka />{Number(group.total_amount).toLocaleString('en-IN')}
                                                         </div>
                                                         <span className="block text-[10.5px] font-bold text-emerald-600">
-                                                            ঐ তারিখে মোট পরিশোধিত
+                                                            Total paid on date
                                                         </span>
                                                     </td>
                                                 </tr>
                                             ))}
                                             <tr className="bg-slate-900 text-white font-black">
                                                 <td colSpan="4" className="px-6 py-4 text-right text-[14px] uppercase tracking-wider">
-                                                    সর্বমোট পরিশোধিত টাকা (Grand Total Paid across {dateWisePayments.length} Dates):
+                                                    Grand Total Paid across {dateWisePayments.length} Dates:
                                                 </td>
                                                 <td className="px-6 py-4 text-right text-[18px] text-emerald-400 tabular-nums">
                                                     <Taka className="text-[16px]" />{Number(grandTotalDateWise).toLocaleString('en-IN')}
@@ -423,7 +423,7 @@ export default function ClientLedger({ clients = [], ledger = [], dateWisePaymen
                                     ) : (
                                         <tr>
                                             <td colSpan="5" className="px-6 py-24 text-center text-gray-400">
-                                                <p className="text-[14.5px] text-gray-600 font-bold">এই ক্লায়েন্টের কোনো পেমেন্ট রেকর্ড পাওয়া যায়নি।</p>
+                                                <p className="text-[14.5px] text-gray-600 font-bold">No payment records found for this client.</p>
                                             </td>
                                         </tr>
                                     )}
@@ -494,7 +494,7 @@ export default function ClientLedger({ clients = [], ledger = [], dateWisePaymen
                                                                 <Taka />{Number(item.adjusted).toLocaleString('en-IN')}
                                                             </span>
                                                             <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded">
-                                                                অ্যাডভান্স সমন্বয়
+                                                                Advance Adjusted
                                                             </span>
                                                         </span>
                                                     ) : (
@@ -507,10 +507,10 @@ export default function ClientLedger({ clients = [], ledger = [], dateWisePaymen
                                                             type="button"
                                                             onClick={() => setActiveTab('date_wise_payments')}
                                                             className="mt-1 inline-flex items-center gap-1 rounded-md bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-0.5 text-[10px] font-black text-indigo-700 transition-colors no-print"
-                                                            title="এই তারিখে ক্লায়েন্ট মোট কত টাকা দিয়েছে তা দেখুন"
+                                                            title="View total paid by client on this date"
                                                         >
                                                             <i className="fa-solid fa-layer-group text-[9px]"></i>
-                                                            ঐ তারিখে মোট: ৳{Number(item.date_group.total_amount).toLocaleString('en-IN')} ({item.date_group.items.length}টি)
+                                                            Total on date: ৳{Number(item.date_group.total_amount).toLocaleString('en-IN')} ({item.date_group.items.length} {item.date_group.items.length === 1 ? 'bill' : 'bills'})
                                                         </button>
                                                     )}
                                                 </td>

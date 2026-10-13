@@ -312,7 +312,7 @@ class ProjectExpenseController extends Controller
             $payType = $validated['pay_type'];
             if ($payType === 'account') {
                 $account = Account::whereKey($validated['account_id'])->lockForUpdate()->firstOrFail();
-                if ($account->current_balance < $cashDeduction + $charge) throw new \Exception('অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
+                if ($account->current_balance < $cashDeduction + $charge) throw new \Exception('Insufficient balance in selected account!');
 
                 $account->decrement('current_balance', $cashDeduction + $charge);
                 Transaction::create([

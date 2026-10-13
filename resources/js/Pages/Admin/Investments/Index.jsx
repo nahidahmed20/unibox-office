@@ -6,13 +6,13 @@ import Select from 'react-select';
 import CustomSelect from '@/Components/CustomSelect';
 
 const INVESTOR_TYPE_META = {
-    lender: { label: 'Lender', bn: 'ধার', chip: 'border-amber-500 bg-amber-50 text-amber-700', avatar: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
-    partner: { label: 'Partner', bn: 'অংশীদার', chip: 'border-indigo-500 bg-indigo-50 text-indigo-700', avatar: 'bg-indigo-100 text-indigo-700', dot: 'bg-indigo-500' },
-    owner: { label: 'Owner', bn: 'মালিক', chip: 'border-emerald-500 bg-emerald-50 text-emerald-700', avatar: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
+    lender: { label: 'Lender', chip: 'border-amber-500 bg-amber-50 text-amber-700', avatar: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
+    partner: { label: 'Partner', chip: 'border-indigo-500 bg-indigo-50 text-indigo-700', avatar: 'bg-indigo-100 text-indigo-700', dot: 'bg-indigo-500' },
+    owner: { label: 'Owner', chip: 'border-emerald-500 bg-emerald-50 text-emerald-700', avatar: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
 };
 const INVESTMENT_TYPE_META = {
-    loan: { label: 'Loan', bn: 'ধার বা ঋণ হিসেবে গ্রহণ', chip: 'border-slate-500 bg-slate-50 text-slate-700', icon: 'fa-hand-holding-dollar' },
-    equity: { label: 'Equity', bn: 'স্থায়ী মূলধন হিসেবে গ্রহণ', chip: 'border-violet-500 bg-violet-50 text-violet-700', icon: 'fa-chart-pie' },
+    loan: { label: 'Loan', chip: 'border-slate-500 bg-slate-50 text-slate-700', icon: 'fa-hand-holding-dollar' },
+    equity: { label: 'Equity', chip: 'border-violet-500 bg-violet-50 text-violet-700', icon: 'fa-chart-pie' },
 };
 
 const inputCls = "w-full rounded-xl border border-slate-400 bg-white px-4 py-3 text-[14px] font-bold text-slate-900 outline-none focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all shadow-sm";

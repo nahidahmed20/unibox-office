@@ -40,7 +40,7 @@ export default function Edit({ expense, projects = [], categories = [], accounts
     const [newVendor, setNewVendor] = useState({ name: '', company_name: '', phone: '' });
     const [creatingVendor, setCreatingVendor] = useState(false);
 
-    // 🟢 Magic Fix: AdminLayout-এর সমস্যার কারণে Sticky কাজ না করলে, এই কোডটি অটোমেটিক তা ঠিক করে দেবে
+    // Sticky sidebar overflow fix for layout containers
     useEffect(() => {
         let parent = document.querySelector('.sticky-summary-box')?.parentElement;
         while (parent && parent.tagName !== 'BODY') {

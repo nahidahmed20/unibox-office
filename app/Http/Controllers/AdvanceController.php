@@ -133,7 +133,7 @@ class AdvanceController extends Controller
                 $totalDeduction = (float) $validated['amount'] + $charge;
 
                 if ($account->current_balance < $totalDeduction) {
-                    throw new \Exception('অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
+                    throw new \Exception('Insufficient account balance!');
                 }
 
                 $account->current_balance -= $totalDeduction;
@@ -215,7 +215,7 @@ class AdvanceController extends Controller
                     // Deduct new total from new account
                     $newAccount = Account::findOrFail($validated['account_id']);
                     if ($newAccount->current_balance < $newTotalDeduction) {
-                        throw new \Exception('নতুন অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
+                        throw new \Exception('Insufficient balance in new account!');
                     }
                     $newAccount->current_balance -= $newTotalDeduction;
                     $newAccount->save();
@@ -225,7 +225,7 @@ class AdvanceController extends Controller
                     $difference = $newTotalDeduction - $oldTotalDeduction;
 
                     if ($difference > 0 && $account->current_balance < $difference) {
-                        throw new \Exception('অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই!');
+                        throw new \Exception('Insufficient account balance!');
                     }
                     $account->current_balance -= $difference;
                     $account->save();
@@ -342,7 +342,7 @@ class AdvanceController extends Controller
         $advance = Advance::findOrFail($id);
         if ((float) $advance->settled_amount > 0) {
             return redirect()->back()->withErrors([
-                'error' => 'এই Advance থেকে ইতিমধ্যে ' . number_format($advance->settled_amount, 2) . ' টাকা খরচ হয়ে গেছে। ডিলিট করা সম্ভব নয়।'
+                'error' => 'Cannot delete: ' . number_format($advance->settled_amount, 2) . ' TK has already been settled from this advance.'
             ]);
         }
 
@@ -360,7 +360,7 @@ class AdvanceController extends Controller
                                 $account->increment('current_balance', $trx->amount);
                             } else {
                                 if ((float) $account->current_balance < (float) $trx->amount) {
-                                    throw new \Exception("অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই রিটার্ন ট্রানজেকশন রিভার্স করার জন্য।");
+                                    throw new \Exception("Insufficient account balance to reverse return transaction.");
                                 }
                                 $account->decrement('current_balance', $trx->amount);
                             }

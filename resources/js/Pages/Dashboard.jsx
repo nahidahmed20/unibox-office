@@ -133,10 +133,10 @@ export default function Dashboard({
                                 Executive Command Center
                             </div>
                             <h1 className="text-[26px] sm:text-[32px] font-black tracking-tight text-white">
-                                স্বাগতম, {auth?.user?.name || "Admin"}!
+                                Welcome, {auth?.user?.name || "Admin"}!
                             </h1>
                             <p className="text-[13.5px] sm:text-[14.5px] text-slate-300 mt-1 font-medium">
-                                আজকের লাইভ ক্যাশফ্লো, ব্যাংক ব্যালেন্স, বকেয়া এবং প্রজেক্টের সার্বিক চিত্র এক নজরে দেখুন।
+                                Monitor your live cashflow, bank balances, receivables, and overall office performance in real time.
                             </p>
 
                             {/* Quick Action Pills */}
@@ -145,31 +145,31 @@ export default function Dashboard({
                                     href={route("admin.invoices.create")}
                                     className="inline-flex items-center gap-2 rounded-xl bg-[#C89B3C] hover:bg-[#b88b2e] text-slate-950 px-4 py-2 text-[12.5px] font-black transition-all shadow-md"
                                 >
-                                    <i className="fa-solid fa-plus text-[11px]"></i> নতুন ইনভয়েস
+                                    <i className="fa-solid fa-plus text-[11px]"></i> New Invoice
                                 </Link>
                                 <Link
                                     href={route("admin.reports.daybook")}
                                     className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 px-4 py-2 text-[12.5px] font-bold transition-all"
                                 >
-                                    <i className="fa-solid fa-book-open text-[#E7C572]"></i> আজকের ডে-বুক
+                                    <i className="fa-solid fa-book-open text-[#E7C572]"></i> Today's Daybook
                                 </Link>
                                 <Link
                                     href={route("admin.reports.project-profit")}
                                     className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 px-4 py-2 text-[12.5px] font-bold transition-all"
                                 >
-                                    <i className="fa-solid fa-sack-dollar text-emerald-400"></i> প্রজেক্ট লাভ-ক্ষতি
+                                    <i className="fa-solid fa-sack-dollar text-emerald-400"></i> Project Profit & Loss
                                 </Link>
                                 <Link
                                     href={route("admin.reports.client-ledger")}
                                     className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 px-4 py-2 text-[12.5px] font-bold transition-all"
                                 >
-                                    <i className="fa-solid fa-book-journal-whills text-indigo-300"></i> ক্লায়েন্ট লেজার
+                                    <i className="fa-solid fa-book-journal-whills text-indigo-300"></i> Client Ledger
                                 </Link>
                                 <Link
                                     href={route("admin.reports.vendor-ledger")}
                                     className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 px-4 py-2 text-[12.5px] font-bold transition-all"
                                 >
-                                    <i className="fa-solid fa-book-bookmark text-amber-300"></i> ভেন্ডর লেজার
+                                    <i className="fa-solid fa-book-bookmark text-amber-300"></i> Vendor Ledger
                                 </Link>
                             </div>
                         </div>
@@ -178,7 +178,7 @@ export default function Dashboard({
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-white/[0.06] backdrop-blur-md border border-white/10 rounded-2xl p-4 shrink-0">
                             <div className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-400/20">
                                 <div className="text-[10.5px] font-bold uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
-                                    <i className="fa-solid fa-arrow-down-long"></i> আজকের জমা (Today In)
+                                    <i className="fa-solid fa-arrow-down-long"></i> Today In
                                 </div>
                                 <div className="text-[19px] font-black text-emerald-400 tabular-nums mt-1">
                                     ৳{(Number(todayStats.cash_in) || 0).toLocaleString("en-IN")}
@@ -186,7 +186,7 @@ export default function Dashboard({
                             </div>
                             <div className="px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-400/20">
                                 <div className="text-[10.5px] font-bold uppercase tracking-wider text-rose-300 flex items-center gap-1.5">
-                                    <i className="fa-solid fa-arrow-up-long"></i> আজকের খরচ (Today Out)
+                                    <i className="fa-solid fa-arrow-up-long"></i> Today Out
                                 </div>
                                 <div className="text-[19px] font-black text-rose-400 tabular-nums mt-1">
                                     ৳{(Number(todayStats.cash_out) || 0).toLocaleString("en-IN")}
@@ -194,8 +194,8 @@ export default function Dashboard({
                             </div>
                             <div className="col-span-2 sm:col-span-1 px-3 py-2 rounded-xl bg-indigo-500/10 border border-indigo-400/20 flex flex-col justify-between">
                                 <div className="text-[10.5px] font-bold uppercase tracking-wider text-indigo-200 flex items-center justify-between">
-                                    <span>আজকের লেনদেন</span>
-                                    <span className="bg-indigo-500/30 px-2 py-0.5 rounded text-[10px]">{todayStats.trx_count || 0}টি</span>
+                                    <span>Today's Transactions</span>
+                                    <span className="bg-indigo-500/30 px-2 py-0.5 rounded text-[10px]">{todayStats.trx_count || 0}</span>
                                 </div>
                                 <div className="text-[12px] font-bold text-slate-300 mt-1.5 flex items-center gap-1.5">
                                     <i className="fa-regular fa-calendar text-[#E7C572]"></i>
@@ -219,13 +219,13 @@ export default function Dashboard({
                                 <div className="flex items-center justify-between mb-2">
                                     <h3 className="text-[12.5px] font-black uppercase tracking-widest text-gray-500 flex items-center gap-2">
                                         <i className="fa-solid fa-crown text-amber-500"></i>
-                                        Overall Net Worth (নিজস্ব নিট সম্পদ)
+                                        Overall Net Worth
                                     </h3>
                                     <Link
                                         href={route("admin.reports.position")}
                                         className="text-[11.5px] font-bold text-indigo-600 hover:underline"
                                     >
-                                        বিস্তারিত পজিশন &rarr;
+                                        Detailed Position &rarr;
                                     </Link>
                                 </div>
                                 <h1
@@ -238,15 +238,15 @@ export default function Dashboard({
                                 {/* Formula Pills */}
                                 <div className="flex flex-wrap items-center gap-1.5 mt-3.5 text-[11px] font-bold">
                                     <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                                        ক্যাশ ও অ্যাসেট: ৳{(Number(stats.totalBalance) + Number(stats.totalAssets)).toLocaleString("en-IN")}
+                                        Cash & Assets: ৳{(Number(stats.totalBalance) + Number(stats.totalAssets)).toLocaleString("en-IN")}
                                     </span>
                                     <span className="text-gray-400">+</span>
                                     <span className="text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
-                                        পাওনা: ৳{(Number(stats.totalReceivables) || 0).toLocaleString("en-IN")}
+                                        Receivables: ৳{(Number(stats.totalReceivables) || 0).toLocaleString("en-IN")}
                                     </span>
                                     <span className="text-gray-400">-</span>
                                     <span className="text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-lg">
-                                        দেনা: ৳{(Number(stats.totalPayables) || 0).toLocaleString("en-IN")}
+                                        Payables: ৳{(Number(stats.totalPayables) || 0).toLocaleString("en-IN")}
                                     </span>
                                 </div>
                             </div>
@@ -254,8 +254,8 @@ export default function Dashboard({
                             {/* Revenue & Collection Progress */}
                             <div className="mt-6 pt-5 border-t border-gray-100">
                                 <div className="flex items-center justify-between text-[12px] font-bold mb-2">
-                                    <span className="text-slate-600">ইনভয়েস বিল আদায়ের হার (Collection Rate)</span>
-                                    <span className="text-emerald-700 font-black">{collectionRate}% আদায় সম্পন্ন</span>
+                                    <span className="text-slate-600">Invoice Collection Rate</span>
+                                    <span className="text-emerald-700 font-black">{collectionRate}% Completed</span>
                                 </div>
                                 <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden mb-4">
                                     <div
@@ -266,7 +266,7 @@ export default function Dashboard({
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-3.5">
                                         <span className="block text-[10.5px] uppercase font-bold text-emerald-700">
-                                            আদায়কৃত আয় (Collected)
+                                            Collected Revenue
                                         </span>
                                         <span className="block text-[18px] font-black text-emerald-900 mt-0.5 tabular-nums">
                                             ৳{(Number(stats.totalCollectedRevenue) || 0).toLocaleString("en-IN")}
@@ -274,7 +274,7 @@ export default function Dashboard({
                                     </div>
                                     <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-2xl p-3.5">
                                         <span className="block text-[10.5px] uppercase font-bold text-indigo-700">
-                                            মোট ইনভয়েস বিল (Total Billed)
+                                            Total Billed Revenue
                                         </span>
                                         <span className="block text-[18px] font-black text-indigo-900 mt-0.5 tabular-nums">
                                             ৳{(Number(stats.totalBilledRevenue) || 0).toLocaleString("en-IN")}
@@ -292,7 +292,7 @@ export default function Dashboard({
                                 <div>
                                     <div className="flex items-center justify-between">
                                         <h4 className="text-[12px] font-extrabold uppercase tracking-wider text-emerald-700">
-                                            Total Receivables (মার্কেটে পাওনা)
+                                            Total Receivables
                                         </h4>
                                         <span className="h-8 w-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center text-xs shadow-sm">
                                             <i className="fa-solid fa-arrow-trend-up"></i>
@@ -308,21 +308,21 @@ export default function Dashboard({
                                         href={route("admin.client-dues")}
                                         className="flex items-center justify-between bg-white/90 hover:bg-white px-3.5 py-2 rounded-xl border border-emerald-100 text-[12.5px] font-bold text-slate-700 transition-all shadow-2xs"
                                     >
-                                        <span><i className="fa-solid fa-user-tie text-emerald-600 mr-2"></i>ক্লায়েন্ট বকেয়া (Client Dues)</span>
+                                        <span><i className="fa-solid fa-user-tie text-emerald-600 mr-2"></i>Client Dues</span>
                                         <span className="font-black text-emerald-800 tabular-nums">৳{Number(stats.totalClientDue || 0).toLocaleString("en-IN")}</span>
                                     </Link>
                                     <Link
                                         href={route("admin.vendors.index")}
                                         className="flex items-center justify-between bg-white/90 hover:bg-white px-3.5 py-2 rounded-xl border border-emerald-100 text-[12.5px] font-bold text-slate-700 transition-all shadow-2xs"
                                     >
-                                        <span><i className="fa-solid fa-wallet text-teal-600 mr-2"></i>ভেন্ডর অ্যাডভান্স (Vendor Wallet)</span>
+                                        <span><i className="fa-solid fa-wallet text-teal-600 mr-2"></i>Vendor Wallet Advances</span>
                                         <span className="font-black text-teal-800 tabular-nums">৳{Number(stats.vendorAdvance || 0).toLocaleString("en-IN")}</span>
                                     </Link>
                                     <Link
                                         href={route("admin.advances.index")}
                                         className="flex items-center justify-between bg-white/90 hover:bg-white px-3.5 py-2 rounded-xl border border-emerald-100 text-[12.5px] font-bold text-slate-700 transition-all shadow-2xs"
                                     >
-                                        <span><i className="fa-solid fa-id-badge text-blue-600 mr-2"></i>স্টাফ অ্যাডভান্স (Staff Advance)</span>
+                                        <span><i className="fa-solid fa-id-badge text-blue-600 mr-2"></i>Staff Advances</span>
                                         <span className="font-black text-blue-800 tabular-nums">৳{Number(stats.employeeAdvance || 0).toLocaleString("en-IN")}</span>
                                     </Link>
                                 </div>
@@ -334,7 +334,7 @@ export default function Dashboard({
                                 <div>
                                     <div className="flex items-center justify-between">
                                         <h4 className="text-[12px] font-extrabold uppercase tracking-wider text-rose-700">
-                                            Total Payables (মার্কেটে দেনা)
+                                            Total Payables
                                         </h4>
                                         <span className="h-8 w-8 rounded-xl bg-rose-500 text-white flex items-center justify-center text-xs shadow-sm">
                                             <i className="fa-solid fa-triangle-exclamation"></i>
@@ -350,21 +350,21 @@ export default function Dashboard({
                                         href={route("admin.vendor-dues")}
                                         className="flex items-center justify-between bg-white/90 hover:bg-white px-3.5 py-2 rounded-xl border border-rose-100 text-[12.5px] font-bold text-slate-700 transition-all shadow-2xs"
                                     >
-                                        <span><i className="fa-solid fa-truck-field text-rose-600 mr-2"></i>ভেন্ডর বকেয়া (Vendor Dues)</span>
+                                        <span><i className="fa-solid fa-truck-field text-rose-600 mr-2"></i>Vendor Dues</span>
                                         <span className="font-black text-rose-800 tabular-nums">৳{Number(stats.vendorDue || 0).toLocaleString("en-IN")}</span>
                                     </Link>
                                     <Link
                                         href={route("admin.salaries.index")}
                                         className="flex items-center justify-between bg-white/90 hover:bg-white px-3.5 py-2 rounded-xl border border-rose-100 text-[12.5px] font-bold text-slate-700 transition-all shadow-2xs"
                                     >
-                                        <span><i className="fa-solid fa-money-check-dollar text-amber-600 mr-2"></i>বকেয়া বেতন (Unpaid Salary)</span>
+                                        <span><i className="fa-solid fa-money-check-dollar text-amber-600 mr-2"></i>Unpaid Salaries</span>
                                         <span className="font-black text-amber-800 tabular-nums">৳{Number(stats.unpaidSalaries || 0).toLocaleString("en-IN")}</span>
                                     </Link>
                                     <Link
                                         href={route("admin.client-advances.index")}
                                         className="flex items-center justify-between bg-white/90 hover:bg-white px-3.5 py-2 rounded-xl border border-rose-100 text-[12.5px] font-bold text-slate-700 transition-all shadow-2xs"
                                     >
-                                        <span><i className="fa-solid fa-sack-dollar text-purple-600 mr-2"></i>ক্লায়েন্ট অ্যাডভান্স জমা</span>
+                                        <span><i className="fa-solid fa-sack-dollar text-purple-600 mr-2"></i>Client Advance Liabilities</span>
                                         <span className="font-black text-purple-800 tabular-nums">৳{Number(stats.clientAdvance || 0).toLocaleString("en-IN")}</span>
                                     </Link>
                                 </div>
@@ -382,9 +382,9 @@ export default function Dashboard({
                                 <div>
                                     <h3 className="text-[16px] font-extrabold text-gray-900 flex items-center gap-2">
                                         <i className="fa-solid fa-building-columns text-indigo-600"></i>
-                                        ব্যাংক ও ক্যাশ ব্যালেন্স (Live Accounts)
+                                        Live Bank & Cash Accounts
                                     </h3>
-                                    <p className="text-[12px] text-gray-500 mt-0.5">সকল সক্রিয় ব্যাংক, ক্যাশ ও মোবাইল ব্যাংকিং অ্যাকাউন্ট</p>
+                                    <p className="text-[12px] text-gray-500 mt-0.5">Real-time balances across all active financial accounts</p>
                                 </div>
                                 <Link
                                     href={route("admin.accounts.index")}
@@ -433,7 +433,7 @@ export default function Dashboard({
                                                         ৳{Number(acc.current_balance || 0).toLocaleString("en-IN")}
                                                     </div>
                                                     <span className="text-[10px] font-bold text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        স্টেটমেন্ট দেখুন &rarr;
+                                                        View Statement &rarr;
                                                     </span>
                                                 </div>
                                             </Link>
@@ -441,14 +441,14 @@ export default function Dashboard({
                                     })
                                 ) : (
                                     <div className="py-12 text-center text-gray-400 text-sm font-bold">
-                                        কোনো সক্রিয় অ্যাকাউন্ট পাওয়া যায়নি।
+                                        No active accounts found.
                                     </div>
                                 )}
                             </div>
                         </div>
 
                         <div className="mt-4 pt-3.5 border-t border-gray-100 flex items-center justify-between text-[13px] font-black text-slate-800">
-                            <span>সর্বমোট তারল্য (Total Liquid Cash):</span>
+                            <span>Total Liquid Cash:</span>
                             <span className="text-indigo-700 text-[16px] tabular-nums">
                                 ৳{Number(stats.totalBalance || 0).toLocaleString("en-IN")}
                             </span>
@@ -461,16 +461,16 @@ export default function Dashboard({
                             <div>
                                 <h3 className="text-[16px] font-extrabold text-gray-900 flex items-center gap-2">
                                     <i className="fa-solid fa-chart-column text-emerald-600"></i>
-                                    বিগত ৬ মাসের ক্যাশফ্লো চিত্র (6-Month Cashflow Trend)
+                                    6-Month Cashflow Trend
                                 </h3>
-                                <p className="text-[12px] text-gray-500 mt-0.5">প্রতি মাসের মোট নগদ জমা (Cash In) বনাম নগদ খরচ (Cash Out)</p>
+                                <p className="text-[12px] text-gray-500 mt-0.5">Monthly Cash In vs. Cash Out comparison</p>
                             </div>
                             <div className="flex items-center gap-4 text-[12px] font-bold">
                                 <span className="flex items-center gap-1.5 text-emerald-700">
-                                    <span className="h-3 w-3 rounded-sm bg-emerald-500 inline-block"></span> জমা (Cash In)
+                                    <span className="h-3 w-3 rounded-sm bg-emerald-500 inline-block"></span> Cash In
                                 </span>
                                 <span className="flex items-center gap-1.5 text-rose-700">
-                                    <span className="h-3 w-3 rounded-sm bg-rose-500 inline-block"></span> খরচ (Cash Out)
+                                    <span className="h-3 w-3 rounded-sm bg-rose-500 inline-block"></span> Cash Out
                                 </span>
                             </div>
                         </div>
@@ -488,7 +488,7 @@ export default function Dashboard({
                                                 <div
                                                     style={{ height: `${inHeight}px` }}
                                                     className="w-4 sm:w-6 rounded-t-lg bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all duration-500 group-hover:brightness-110 shadow-xs"
-                                                    title={`${m.label} জমা: ৳${Number(m.cash_in).toLocaleString("en-IN")}`}
+                                                    title={`${m.label} Cash In: ৳${Number(m.cash_in).toLocaleString("en-IN")}`}
                                                 />
                                             </div>
                                             {/* Cash Out Bar */}
@@ -496,7 +496,7 @@ export default function Dashboard({
                                                 <div
                                                     style={{ height: `${outHeight}px` }}
                                                     className="w-4 sm:w-6 rounded-t-lg bg-gradient-to-t from-rose-600 to-rose-400 transition-all duration-500 group-hover:brightness-110 shadow-xs"
-                                                    title={`${m.label} খরচ: ৳${Number(m.cash_out).toLocaleString("en-IN")}`}
+                                                    title={`${m.label} Cash Out: ৳${Number(m.cash_out).toLocaleString("en-IN")}`}
                                                 />
                                             </div>
                                         </div>
@@ -511,10 +511,10 @@ export default function Dashboard({
 
                         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[12.5px] font-bold text-slate-600">
                             <span>
-                                চলতি মাসে জমা: <strong className="text-emerald-700">৳{Number(stats.monthlyCashIn || 0).toLocaleString("en-IN")}</strong> | খরচ: <strong className="text-rose-700">৳{Number(stats.monthlyCashOut || 0).toLocaleString("en-IN")}</strong>
+                                This Month Cash In: <strong className="text-emerald-700">৳{Number(stats.monthlyCashIn || 0).toLocaleString("en-IN")}</strong> | Cash Out: <strong className="text-rose-700">৳{Number(stats.monthlyCashOut || 0).toLocaleString("en-IN")}</strong>
                             </span>
                             <Link href={route("admin.reports.monthly-balance")} className="text-indigo-600 hover:underline font-extrabold">
-                                মাসিক ব্যালেন্স রিপোর্ট &rarr;
+                                Monthly Balance Report &rarr;
                             </Link>
                         </div>
                     </div>
@@ -524,7 +524,7 @@ export default function Dashboard({
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
                     <StatCard
                         label="Available Liquid Cash"
-                        subLabel="হাতে ও ব্যাংকে মোট জমা"
+                        subLabel="Total Cash & Bank Balance"
                         value={money(stats.totalBalance)}
                         icon="fa-wallet"
                         gradient="bg-gradient-to-br from-indigo-500 to-blue-600"
@@ -535,58 +535,58 @@ export default function Dashboard({
 
                     <StatCard
                         label="Cash In (This Month)"
-                        subLabel="চলতি মাসে মোট নগদ আদায়"
+                        subLabel="Total Cash Received this month"
                         value={money(stats.monthlyCashIn)}
                         icon="fa-arrow-down-to-bracket"
                         gradient="bg-gradient-to-br from-emerald-400 to-teal-500"
-                        note="ইনভয়েস আদায় + ক্লায়েন্ট অ্যাডভান্স"
+                        note="Invoice Collections + Client Advances"
                         noteColor="text-emerald-600"
                         href={route("invoice-payments.index")}
                     />
                     <StatCard
                         label="Cash Out (This Month)"
-                        subLabel="চলতি মাসে সর্বমোট নগদ খরচ"
+                        subLabel="Total Cash Outflow this month"
                         value={money(stats.monthlyCashOut)}
                         icon="fa-arrow-right-from-bracket"
                         gradient="bg-gradient-to-br from-rose-400 to-red-500"
-                        note="প্রজেক্ট বিল + অফিস খরচ + বেতন"
+                        note="Project Bills + Office Expenses + Salaries"
                         noteColor="text-rose-600"
                         href={route("admin.transactions.index")}
                     />
 
                     <StatCard
                         label="Total Investment"
-                        subLabel="চলমান বিনিয়োগ মূলধন"
+                        subLabel="Active Investment Capital"
                         value={money(stats.totalInvestment)}
                         icon="fa-chart-line"
                         gradient="bg-gradient-to-br from-purple-500 to-indigo-600"
-                        note="কোম্পানির মোট বিনিয়োগ ব্যালেন্স"
+                        note="Total Company Investment Balance"
                         noteColor="text-purple-600"
                         href={route("admin.investments.index")}
                     />
                     <StatCard
                         label="Total Asset Value"
-                        subLabel="অফিসের স্থায়ী সম্পদের মূল্য"
+                        subLabel="Fixed Assets Valuation"
                         value={money(stats.totalAssets)}
                         icon="fa-couch"
                         gradient="bg-gradient-to-br from-cyan-400 to-emerald-500"
-                        note="সকল নিবন্ধিত অফিস অ্যাসেট"
+                        note="All Registered Office Assets"
                         noteColor="text-cyan-700"
                         href={route("admin.assets.index")}
                     />
                     <StatCard
                         label="Employee Advance"
-                        subLabel="স্টাফদের কাছে থাকা অ্যাডভান্স"
+                        subLabel="Advances with Staff"
                         value={money(stats.employeeAdvance)}
                         icon="fa-user-tie"
                         gradient="bg-gradient-to-br from-blue-400 to-cyan-500"
-                        note="সমন্বয়হীন স্টাফ অ্যাডভান্স"
+                        note="Unadjusted Staff Advances"
                         noteColor="text-blue-600"
                         href={route("admin.advances.index")}
                     />
                     <StatCard
                         label="Office Spent (This Month)"
-                        subLabel="অফিস খরচ ও বেতন (চলতি মাস)"
+                        subLabel="Overhead & Salaries (This Month)"
                         value={money(totalSpentThisMonth)}
                         icon="fa-calculator"
                         gradient="bg-gradient-to-br from-fuchsia-500 to-pink-600"
@@ -596,11 +596,11 @@ export default function Dashboard({
                     />
                     <StatCard
                         label="Project Exp. (This Month)"
-                        subLabel="চলতি মাসে প্রজেক্টে নগদ পরিশোধ"
+                        subLabel="Project Cash Outflow (This Month)"
                         value={money(stats.monthlyProjectExpense)}
                         icon="fa-diagram-project"
                         gradient="bg-gradient-to-br from-amber-400 to-orange-500"
-                        note="ভেন্ডর ও প্রজেক্ট বিলে পরিশোধিত"
+                        note="Paid to Vendors & Project Bills"
                         noteColor="text-amber-600"
                         href={route("admin.project-expenses.index")}
                     />
@@ -617,7 +617,7 @@ export default function Dashboard({
                             {stats.activeProjects}
                         </h4>
                         <p className="text-[11px] font-bold uppercase text-gray-500 mt-1">
-                            চলমান প্রজেক্ট
+                            Active Projects
                         </p>
                     </Link>
 
@@ -630,7 +630,7 @@ export default function Dashboard({
                             ৳{(Number(stats.unpaidSalaries) || 0).toLocaleString("en-IN")}
                         </h4>
                         <p className="text-[11px] font-bold uppercase text-rose-500 mt-1">
-                            বকেয়া বেতন
+                            Unpaid Salaries
                         </p>
                     </Link>
 
@@ -643,7 +643,7 @@ export default function Dashboard({
                             ৳{(Number(stats.monthlyRevenue) || 0).toLocaleString("en-IN")}
                         </h4>
                         <p className="text-[11px] font-bold uppercase text-gray-500 mt-1">
-                            এই মাসের বিল
+                            This Month Billed
                         </p>
                     </Link>
 
@@ -661,7 +661,7 @@ export default function Dashboard({
                             {stats.pendingTasks}
                         </h4>
                         <p className="text-[11px] font-bold uppercase text-gray-500 mt-1">
-                            অসম্পূর্ণ টাস্ক
+                            Pending Tasks
                         </p>
                     </Link>
 
@@ -677,7 +677,7 @@ export default function Dashboard({
                             </span>
                         </h4>
                         <p className="text-[11px] font-bold uppercase text-gray-500 mt-1">
-                            আজকের উপস্থিতি
+                            Today's Attendance
                         </p>
                     </Link>
 
@@ -696,7 +696,7 @@ export default function Dashboard({
                             {stats.pendingLeaves + stats.pendingRequisitions}
                         </h4>
                         <p className="text-[11px] font-bold uppercase text-gray-500 mt-1">
-                            পেন্ডিং রিকোয়েস্ট
+                            Pending Requests
                         </p>
                     </Link>
                 </div>
@@ -717,7 +717,7 @@ export default function Dashboard({
                                     }`}
                                 >
                                     <i className="fa-solid fa-file-invoice-dollar text-[11px]"></i>
-                                    <span>ক্লায়েন্ট বকেয়া ({recentPendingInvoices.length})</span>
+                                    <span>Client Dues ({recentPendingInvoices.length})</span>
                                 </button>
                                 <button
                                     type="button"
@@ -729,7 +729,7 @@ export default function Dashboard({
                                     }`}
                                 >
                                     <i className="fa-solid fa-truck-field text-[11px]"></i>
-                                    <span>ভেন্ডর বকেয়া ({topVendorDues.length})</span>
+                                    <span>Vendor Dues ({topVendorDues.length})</span>
                                 </button>
                             </div>
 
@@ -737,7 +737,7 @@ export default function Dashboard({
                                 href={duesTab === "client_dues" ? route("admin.client-dues") : route("admin.vendor-dues")}
                                 className="text-[12.5px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors"
                             >
-                                সব দেখুন &rarr;
+                                View All &rarr;
                             </Link>
                         </div>
 
@@ -786,7 +786,7 @@ export default function Dashboard({
                                         ) : (
                                             <tr>
                                                 <td colSpan="3" className="px-6 py-12 text-center text-gray-400">
-                                                    <p className="font-bold text-[14px] text-gray-500">সকল ইনভয়েস পরিশোধিত!</p>
+                                                    <p className="font-bold text-[14px] text-gray-500">All invoices are settled!</p>
                                                 </td>
                                             </tr>
                                         )}
@@ -812,7 +812,7 @@ export default function Dashboard({
                                                     <td className="px-6 py-3.5">
                                                         {Number(v.wallet_balance) > 0 ? (
                                                             <span className="text-[12px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-lg">
-                                                                অ্যাডভান্স: ৳{Number(v.wallet_balance).toLocaleString("en-IN")}
+                                                                Advance: ৳{Number(v.wallet_balance).toLocaleString("en-IN")}
                                                             </span>
                                                         ) : (
                                                             <span className="text-xs text-gray-400">-</span>
@@ -826,7 +826,7 @@ export default function Dashboard({
                                                             href={route("admin.vendors.show", v.id)}
                                                             className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-0.5 rounded-md transition-colors"
                                                         >
-                                                            খতিয়ান দেখুন &rarr;
+                                                            View Ledger &rarr;
                                                         </Link>
                                                     </td>
                                                 </tr>
@@ -834,7 +834,7 @@ export default function Dashboard({
                                         ) : (
                                             <tr>
                                                 <td colSpan="3" className="px-6 py-12 text-center text-gray-400">
-                                                    <p className="font-bold text-[14px] text-gray-500">কোনো ভেন্ডর বকেয়া নেই!</p>
+                                                    <p className="font-bold text-[14px] text-gray-500">No vendor dues pending!</p>
                                                 </td>
                                             </tr>
                                         )}
@@ -851,13 +851,13 @@ export default function Dashboard({
                                 <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center">
                                     <i className="fa-solid fa-money-bill-transfer"></i>
                                 </div>
-                                সাম্প্রতিক লেনদেন (Recent Transactions)
+                                Recent Transactions
                             </h3>
                             <Link
                                 href={route("admin.transactions.index")}
                                 className="text-[12.5px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors"
                             >
-                                সকল লেনদেন &rarr;
+                                All Transactions &rarr;
                             </Link>
                         </div>
                         <div className="overflow-x-auto custom-scroll">
@@ -911,7 +911,7 @@ export default function Dashboard({
                                     ) : (
                                         <tr>
                                             <td colSpan="3" className="px-6 py-12 text-center text-gray-400">
-                                                <p className="font-bold text-[14px] text-gray-500">কোনো সাম্প্রতিক লেনদেন নেই।</p>
+                                                <p className="font-bold text-[14px] text-gray-500">No recent transactions found.</p>
                                             </td>
                                         </tr>
                                     )}
@@ -930,7 +930,7 @@ export default function Dashboard({
                                 <div className="h-8 w-8 rounded-lg bg-amber-50 text-amber-500 flex items-center justify-center">
                                     <i className="fa-solid fa-list-check"></i>
                                 </div>
-                                চলমান টাস্কসমূহ (Active Tasks)
+                                Active Tasks
                             </h3>
                             <Link
                                 href={route("admin.tasks.index")}
@@ -963,7 +963,7 @@ export default function Dashboard({
                                     </li>
                                 ))
                             ) : (
-                                <li className="p-10 text-center text-gray-500 font-bold">কোনো চলমান টাস্ক নেই।</li>
+                                <li className="p-10 text-center text-gray-500 font-bold">No active tasks found.</li>
                             )}
                         </ul>
                     </div>
@@ -975,7 +975,7 @@ export default function Dashboard({
                                 <div className="h-8 w-8 rounded-lg bg-purple-50 text-purple-500 flex items-center justify-center">
                                     <i className="fa-solid fa-bullhorn"></i>
                                 </div>
-                                নোটিশ বোর্ড (Notice Board)
+                                Notice Board
                             </h3>
                             <Link
                                 href={route("admin.notices.index")}
@@ -998,7 +998,7 @@ export default function Dashboard({
                                     </li>
                                 ))
                             ) : (
-                                <li className="p-10 text-center text-gray-500 font-bold">কোনো সক্রিয় নোটিশ নেই।</li>
+                                <li className="p-10 text-center text-gray-500 font-bold">No active notices found.</li>
                             )}
                         </ul>
                     </div>

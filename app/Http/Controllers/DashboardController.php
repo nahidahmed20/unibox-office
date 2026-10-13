@@ -37,7 +37,7 @@ class DashboardController extends Controller
 
         $unpaidSalaries = Salary::whereIn('status', ['unpaid', 'partially_paid'])->sum('due_amount');
 
-        // 3. Receivables & Market Payables (ভেন্ডর ও বাজারের দেনা)
+        // 3. Receivables & Market Payables (Vendors and Market Liabilities)
         $totalReceivables = $totalClientDue + $employeeAdvance + $vendorAdvance;
         $totalPayables = $vendorDue + $clientAdvance + $unpaidSalaries;
 
@@ -79,8 +79,8 @@ class DashboardController extends Controller
             'netWorthAfterInvestment' => $overallNetWorth - $actualInvestmentBalance,
 
             // 🟢 NEW: Revenue Data passed to frontend
-            'totalBilledRevenue' => $totalInvoiced, // বকেয়া সহ ইনকাম
-            'totalCollectedRevenue' => $totalPaid,  // বকেয়া বাদে ইনকাম
+            'totalBilledRevenue' => $totalInvoiced, // Billed revenue including dues
+            'totalCollectedRevenue' => $totalPaid,  // Collected revenue excluding dues
 
             'totalReceivables' => $totalReceivables,
             'totalPayables' => $totalPayables,

@@ -27,19 +27,19 @@ class TransactionController extends Controller
 {
     public function index(Request $request)
     {
-        // 🟢 শুধুমাত্র টেবিলের নির্দিষ্ট কলাম সিলেক্ট করা হলো
+        // Select specific columns from transactions table
         $query = Transaction::with('account')->select('transactions.*');
 
-        // 🟢 MAGIC: Running Balance Calculation (ঐ লেনদেন পর্যন্ত মোট কত ব্যালেন্স ছিল)
+        // Running balance calculation up to each transaction
         $query->selectSub(function ($q) {
             $q->selectRaw("SUM(CASE WHEN type = 'credit' THEN amount ELSE -amount END)")
               ->from('transactions as t2')
               ->whereColumn('t2.account_id', 'transactions.account_id')
               ->where(function ($q2) {
-                  // আগের তারিখের সব ট্রানজেকশন যোগ করবে
+                  // Add all transactions from previous dates
                   $q2->whereColumn('t2.transaction_date', '<', 'transactions.transaction_date')
                      ->orWhere(function ($q3) {
-                         // একই তারিখ হলে ID অনুযায়ী হিসাব করবে
+                         // On the same date, order by ID
                          $q3->whereColumn('t2.transaction_date', '=', 'transactions.transaction_date')
                             ->whereColumn('t2.id', '<=', 'transactions.id');
                      });

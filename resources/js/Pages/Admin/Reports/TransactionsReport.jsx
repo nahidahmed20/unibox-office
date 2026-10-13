@@ -264,7 +264,7 @@ export default function TransactionsReport({ transactions = { data: [], links: [
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-indigo-200 shadow-sm self-start sm:self-auto">
-                                <span className="text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Current Balance (বর্তমান স্থিতি):</span>
+                                <span className="text-[11.5px] font-bold uppercase tracking-wider text-slate-500">Current Balance:</span>
                                 <span className="text-[18px] font-black text-indigo-700 flex items-center">
                                     <Taka className="text-[15px]" />
                                     {parseFloat(selectedAccount.current_balance || 0).toLocaleString('en-IN')}

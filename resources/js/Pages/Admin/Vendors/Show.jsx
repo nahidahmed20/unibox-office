@@ -105,7 +105,7 @@ export default function Show({ vendor, payments = [], ledgers = [], bills = [], 
             onSuccess: () => {
                 setShowVoidModal(false);
                 setPaymentToVoid(null);
-                Swal.fire({ icon: "success", title: "পেমেন্ট ভয়েড হয়েছে!", timer: 1500, showConfirmButton: false });
+                Swal.fire({ icon: "success", title: "Payment voided successfully!", timer: 1500, showConfirmButton: false });
             },
             onError: (err) => {
                 if (err.error) Swal.fire("Error", err.error, "error");
@@ -147,8 +147,8 @@ export default function Show({ vendor, payments = [], ledgers = [], bills = [], 
         if (!tableEl) return Swal.fire("Info", "Please select Full Statement or Date-wise Payments tab to print.", "info");
 
         const reportTitle = activeTab === 'date_wise'
-            ? 'Vendor Date-wise Payment Summary (তারিখ অনুযায়ী ভেন্ডর পেমেন্ট সামারি)'
-            : 'Vendor Statement of Account (ভেন্ডর পূর্ণাঙ্গ খতিয়ান)';
+            ? 'Vendor Date-wise Payment Summary'
+            : 'Vendor Statement of Account';
 
         const printWindow = window.open('', '_blank');
         printWindow.document.write(`
@@ -303,19 +303,19 @@ export default function Show({ vendor, payments = [], ledgers = [], bills = [], 
                 <div className="bg-white border border-gray-200 rounded-3xl shadow-sm overflow-hidden flex flex-col">
                     <div className="flex border-b border-gray-200 bg-gray-50/80 p-3 gap-2 overflow-x-auto custom-table-scroll">
                         <button onClick={() => setActiveTab('statement')} className={`flex items-center gap-2 px-5 py-2.5 text-[13px] font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'statement' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200 border border-transparent'}`}>
-                            <i className="fa-solid fa-book-open"></i> পূর্ণাঙ্গ খতিয়ান (Full Statement)
+                            <i className="fa-solid fa-book-open"></i> Full Statement
                         </button>
                         <button onClick={() => setActiveTab('date_wise')} className={`flex items-center gap-2 px-5 py-2.5 text-[13px] font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'date_wise' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200 border border-transparent'}`}>
-                            <i className="fa-solid fa-calendar-check"></i> তারিখ অনুযায়ী পেমেন্ট ({dateWisePayments.length} দিন)
+                            <i className="fa-solid fa-calendar-check"></i> Date-wise Payments ({dateWisePayments.length} {dateWisePayments.length === 1 ? 'Day' : 'Days'})
                         </button>
                         <button onClick={() => setActiveTab('payments')} className={`flex items-center gap-2 px-5 py-2.5 text-[13px] font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'payments' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200 border border-transparent'}`}>
-                            <i className="fa-solid fa-money-bill-transfer"></i> পেমেন্ট ভাউচার ({payments.length})
+                            <i className="fa-solid fa-money-bill-transfer"></i> Payment Vouchers ({payments.length})
                         </button>
                         <button onClick={() => setActiveTab('bills')} className={`flex items-center gap-2 px-5 py-2.5 text-[13px] font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'bills' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200 border border-transparent'}`}>
-                            <i className="fa-solid fa-list-check"></i> প্রজেক্ট বিলসমূহ ({bills.length})
+                            <i className="fa-solid fa-list-check"></i> Project Bills ({bills.length})
                         </button>
                         <button onClick={() => setActiveTab('ledger')} className={`flex items-center gap-2 px-5 py-2.5 text-[13px] font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'ledger' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200 border border-transparent'}`}>
-                            <i className="fa-solid fa-wallet"></i> ওয়ালেট খতিয়ান ({ledgers.length})
+                            <i className="fa-solid fa-wallet"></i> Wallet Ledger ({ledgers.length})
                         </button>
                     </div>
 
@@ -391,11 +391,11 @@ export default function Show({ vendor, payments = [], ledgers = [], bills = [], 
                                 <thead className="bg-emerald-50/70 border-b border-emerald-200 text-[11.5px] font-extrabold uppercase text-emerald-900 tracking-wider">
                                     <tr>
                                         <th className="px-6 py-4 text-center w-16">SL</th>
-                                        <th className="px-6 py-4 w-44">Payment Date (তারিখ)</th>
-                                        <th className="px-6 py-4 w-56">Payment Source (মাধ্যম)</th>
-                                        <th className="px-6 py-4">Bills / Vouchers Breakdown (বিস্তারিত বিবরণ)</th>
+                                        <th className="px-6 py-4 w-44">Payment Date</th>
+                                        <th className="px-6 py-4 w-56">Payment Source</th>
+                                        <th className="px-6 py-4">Bills / Vouchers Breakdown</th>
                                         <th className="px-6 py-4 text-right w-40">Discount</th>
-                                        <th className="px-6 py-4 text-right w-52">Date Total (মোট পরিশোধ)</th>
+                                        <th className="px-6 py-4 text-right w-52">Date Total</th>
                                     </tr>
                                 </thead>
                                 <tbody className="text-[13.5px] text-gray-800 divide-y divide-gray-100">
@@ -424,7 +424,7 @@ export default function Show({ vendor, payments = [], ledgers = [], bills = [], 
                                                         <div className="flex items-center gap-2 mb-1.5">
                                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
                                                                 <i className="fa-solid fa-layer-group text-[10px]"></i>
-                                                                মোট {group.items.length}টি পেমেন্ট এন্ট্রি
+                                                                Total {group.items.length} {group.items.length === 1 ? 'entry' : 'entries'}
                                                             </span>
                                                         </div>
                                                         <div className="flex flex-wrap gap-1.5">
@@ -446,14 +446,14 @@ export default function Show({ vendor, payments = [], ledgers = [], bills = [], 
                                                             <Taka />{Number(group.total_amount).toLocaleString('en-IN')}
                                                         </div>
                                                         <span className="block text-[10.5px] font-bold text-emerald-600">
-                                                            ঐ তারিখে মোট পরিশোধিত
+                                                            Total paid on date
                                                         </span>
                                                     </td>
                                                 </tr>
                                             ))}
                                             <tr className="bg-slate-900 text-white font-black">
                                                 <td colSpan="5" className="px-6 py-4 text-right text-[14px] uppercase tracking-wider">
-                                                    সর্বমোট পরিশোধিত টাকা (Grand Total Paid across {dateWisePayments.length} Dates):
+                                                    Grand Total Paid across {dateWisePayments.length} Dates:
                                                 </td>
                                                 <td className="px-6 py-4 text-right text-[18px] text-emerald-400 tabular-nums">
                                                     <Taka className="text-[16px]" />{Number(grandTotalDateWise).toLocaleString('en-IN')}
@@ -461,7 +461,7 @@ export default function Show({ vendor, payments = [], ledgers = [], bills = [], 
                                             </tr>
                                         </>
                                     ) : (
-                                        <tr><td colSpan="6" className="px-6 py-20 text-center text-gray-400 font-bold text-[15px]">এই ভেন্ডরের কোনো পেমেন্ট রেকর্ড পাওয়া যায়নি।</td></tr>
+                                        <tr><td colSpan="6" className="px-6 py-20 text-center text-gray-400 font-bold text-[15px]">No payment records found for this vendor.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -691,7 +691,7 @@ export default function Show({ vendor, payments = [], ledgers = [], bills = [], 
                                 <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-[13px] sm:text-[13.5px] text-red-900 leading-relaxed shadow-sm font-semibold flex gap-3 items-start">
                                     <i className="fa-solid fa-circle-exclamation mt-0.5 text-red-500 text-lg shrink-0"></i>
                                     <div>
-                                        এই পেমেন্টটি ভয়েড করলে সংশ্লিষ্ট বিলের বকেয়া, অ্যাকাউন্ট ব্যালেন্স এবং ওয়ালেট সবকিছু আগের অবস্থায় ফিরে যাবে। এই কাজটি সরাসরি <span className="font-black text-red-600 bg-red-100 px-1.5 py-0.5 rounded uppercase">Undo</span> করা যাবে না।
+                                        Voiding this payment will revert bill dues, account balances, and advance wallets to their previous state. This action cannot be directly <span className="font-black text-red-600 bg-red-100 px-1.5 py-0.5 rounded uppercase">Undone</span>.
                                     </div>
                                 </div>
 

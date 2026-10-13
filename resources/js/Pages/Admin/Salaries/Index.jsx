@@ -244,7 +244,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
         const missingAccount = validPayments.find(p => !p.account_id);
         if (missingAccount) return Swal.fire("Required", "Please select an account for all entered bank amounts.", "warning");
 
-        // 🟢 FIX: Transform এবং post কে আলাদা করা হয়েছে
+        // Separated transform and post for reliable payload binding
         paymentForm.transform((formData) => ({
             ...formData,
             payments: validPayments

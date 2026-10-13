@@ -435,7 +435,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                             <div>
                                 <span>Payment Directory</span>
                                 <span className="block text-[11.5px] font-semibold text-slate-400">
-                                    {viewMode === 'date_wise' ? 'তারিখ অনুযায়ী মোট জমার হিসাব (একই দিনে একাধিক ইনভয়েসের মোট টাকা)' : 'ইনভয়েস অনুযায়ী বিস্তারিত পেমেন্ট তালিকা'}
+                                    {viewMode === 'date_wise' ? 'Daily aggregated payment totals across invoices' : 'Detailed invoice-wise payment ledger'}
                                 </span>
                             </div>
                         </div>
@@ -453,7 +453,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                     }`}
                                 >
                                     <i className="fa-solid fa-file-invoice text-[11px]"></i>
-                                    <span>ইনভয়েস অনুযায়ী (All)</span>
+                                    <span>Invoice-wise (All)</span>
                                 </button>
                                 <button
                                     type="button"
@@ -465,7 +465,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                     }`}
                                 >
                                     <i className="fa-solid fa-calendar-check text-[11px]"></i>
-                                    <span>তারিখ অনুযায়ী মোট জমা (Date-wise)</span>
+                                    <span>Date-wise Total</span>
                                 </button>
                             </div>
 
@@ -490,7 +490,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                         options={clientOptions}
                                         value={clientOptions.find(opt => String(opt.value) === String(clientId)) || null}
                                         onChange={selected => { setClientId(selected ? selected.value : ""); applyFilters({ client_id: selected ? selected.value : "" }); }}
-                                        placeholder="All Clients (ক্লায়েন্ট ফিল্টার)"
+                                        placeholder="All Clients"
                                         isSearchable isClearable {...portal}
                                     />
                                 </div>
@@ -511,15 +511,15 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                         className="text-[12.5px] font-bold text-slate-700 outline-none bg-transparent cursor-pointer"
                                     />
                                     {(dateFrom || dateTo) && (
-                                        <button
-                                            type="button"
-                                            onClick={() => { setDateFrom(""); setDateTo(""); applyFilters({ date_from: "", date_to: "" }); }}
-                                            className="text-rose-500 hover:text-rose-700 text-xs ml-1"
-                                            title="Clear Dates"
-                                        >
-                                            <i className="fa-solid fa-xmark"></i>
-                                        </button>
-                                    )}
+                                         <button
+                                             type="button"
+                                             onClick={() => { setDateFrom(""); setDateTo(""); applyFilters({ date_from: "", date_to: "" }); }}
+                                             className="text-rose-500 hover:text-rose-700 text-xs ml-1"
+                                             title="Clear Dates"
+                                         >
+                                             <i className="fa-solid fa-xmark"></i>
+                                         </button>
+                                     )}
                                 </div>
                             </div>
                             <div className="relative w-full sm:w-[260px]">
@@ -535,10 +535,10 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                 <tr>
                                     <th className="px-6 py-4 w-12 text-center">SL</th>
                                     <th className="px-6 py-4">Client Info</th>
-                                    <th className="px-6 py-4">{viewMode === 'date_wise' ? 'Covered Invoices & Breakdown (ইনভয়েস সমূহ)' : 'Invoice Info'}</th>
+                                    <th className="px-6 py-4">{viewMode === 'date_wise' ? 'Covered Invoices & Breakdown' : 'Invoice Info'}</th>
                                     <th className="px-6 py-4">Deposit Source</th>
                                     <th className="px-6 py-4">Payment Date</th>
-                                    <th className="px-6 py-4 text-right">{viewMode === 'date_wise' ? 'Date Total (মোট জমা)' : 'Amount'}</th>
+                                    <th className="px-6 py-4 text-right">{viewMode === 'date_wise' ? 'Date Total' : 'Amount'}</th>
                                     <th className="px-6 py-4 text-center no-print w-28">Actions</th>
                                 </tr>
                             </thead>
@@ -555,11 +555,11 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                                 <div className="flex items-center gap-2 mb-1.5">
                                                     <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-black border ${group.items.length > 1 ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
                                                         <i className="fa-solid fa-layer-group text-[10px]"></i>
-                                                        {group.items.length}টি ইনভয়েস পেমেন্ট
+                                                        {group.items.length} {group.items.length === 1 ? 'Invoice Payment' : 'Invoice Payments'}
                                                     </span>
                                                     {group.total_discount > 0 && (
                                                         <span className="text-[10.5px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600 border border-amber-100 px-2 py-0.5 rounded-md">
-                                                            ছাড়: ৳{group.total_discount.toLocaleString('en-IN')}
+                                                            Discount: ৳{group.total_discount.toLocaleString('en-IN')}
                                                         </span>
                                                     )}
                                                 </div>
@@ -599,7 +599,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                                     <Taka className="text-[14px] mr-1 opacity-80"/>{group.total_amount.toLocaleString('en-IN')}
                                                 </span>
                                                 <span className="block text-[10.5px] font-extrabold text-emerald-700 mt-0.5">
-                                                    ঐ তারিখে মোট জমা ({group.items.length}টি বিল)
+                                                    Total on date ({group.items.length} {group.items.length === 1 ? 'bill' : 'bills'})
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-center no-print">
@@ -609,7 +609,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white text-[12px] font-black shadow-2xs transition-all"
                                                         title="Print Combined Money Receipt for this Date"
                                                     >
-                                                        <i className="fa-solid fa-print text-[12px]"></i> রিসিপ্ট
+                                                        <i className="fa-solid fa-print text-[12px]"></i> Receipt
                                                     </button>
                                                 </div>
                                             </td>
@@ -659,10 +659,10 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                                     type="button"
                                                     onClick={() => handleViewModeSwitch('date_wise')}
                                                     className="mt-1 inline-flex items-center gap-1 rounded-md bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-0.5 text-[10.5px] font-black text-indigo-700 transition-colors"
-                                                    title="এই তারিখে ক্লায়েন্ট মোট কত টাকা দিয়েছে তা একসাথে দেখুন"
+                                                    title="View combined payments received on this date"
                                                 >
                                                     <i className="fa-solid fa-layer-group text-[9px]"></i>
-                                                    ঐ তারিখে মোট: ৳{group.total_amount.toLocaleString('en-IN')} ({group.items.length}টি)
+                                                    Total on date: ৳{group.total_amount.toLocaleString('en-IN')} ({group.items.length} {group.items.length === 1 ? 'bill' : 'bills'})
                                                 </button>
                                             )}
                                         </td>
@@ -793,7 +793,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                                                             <div className="mt-5 pt-4 border-t border-indigo-100 grid grid-cols-2 gap-4 animate-[fadeIn_0.2s_ease-out]">
                                                                                 {/* Discount Input */}
                                                                                 <div>
-                                                                                    <label className="block text-[11.5px] font-bold text-amber-600 uppercase tracking-wider mb-1.5">Discount (ছাড়)</label>
+                                                                                    <label className="block text-[11.5px] font-bold text-amber-600 uppercase tracking-wider mb-1.5">Discount</label>
                                                                                     <div className="relative">
                                                                                         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-amber-500 font-bold">৳</span>
                                                                                         <input
@@ -808,7 +808,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
 
                                                                                 {/* Pay Amount Input */}
                                                                                 <div>
-                                                                                    <label className="block text-[11.5px] font-bold text-indigo-600 uppercase tracking-wider mb-1.5">Pay Amount (জমা)</label>
+                                                                                    <label className="block text-[11.5px] font-bold text-indigo-600 uppercase tracking-wider mb-1.5">Pay Amount</label>
                                                                                     <div className="relative">
                                                                                         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-indigo-500 font-bold">৳</span>
                                                                                         <input

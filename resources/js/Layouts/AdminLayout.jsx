@@ -110,7 +110,7 @@ export default function AdminLayout({ children }) {
         hr: route().current('admin.employees.*') || route().current('admin.attendances.*') || route().current('admin.leaves.*') || route().current('admin.salaries.*') || route().current('admin.departments.*') || route().current('admin.designations.*'),
         sales: route().current('admin.invoices.*') || route().current('invoice-payments.*') || route().current('admin.client-advances.*'),
         accounting: route().current('admin.accounts.*') || route().current('admin.transactions.*') || route().current('admin.investments.*') || route().current('admin.project-expenses.*') || route().current('admin.expenses.*') || route().current('admin.expense-categories.*') || route().current('admin.advances.*'),
-        office: route().current('admin.assets.*') || route().current('admin.requisitions.*') || route().current('admin.notices.*') || route().current('admin.challans.*'),
+        office: route().current('admin.assets.*') || route().current('admin.requisitions.*') || route().current('admin.notices.*') || route().current('admin.challans.*') || route().current('admin.useful-links.*'),
         report: route().current('admin.reports.*') || route().current('admin.account.transactions') || route().current('admin.client-dues') || route().current('admin.vendor-dues') || route().current('admin.vendor-payments'),
         settings: route().current('admin.invoice-settings.*') || route().current('admin.challan-settings.*') || route().current('admin.users.*') || route().current('admin.roles.*') || route().current('admin.permissions.*'),
     };
@@ -351,6 +351,7 @@ export default function AdminLayout({ children }) {
                                         <li><Link href={route('admin.assets.index')} className={subItemClass(route().current('admin.assets.*'))}><i className="fa-solid fa-boxes-stacked w-4 text-center text-[11px] opacity-70"></i> Asset Register</Link></li>
                                         <li><Link href={route('admin.challans.index')} className={subItemClass(route().current('admin.challans.*'))}><i className="fa-solid fa-truck-fast w-4 text-center text-[11px] opacity-70"></i> Delivery Challans</Link></li>
                                         <li><Link href={route('admin.notices.index')} className={subItemClass(route().current('admin.notices.*'))}><i className="fa-solid fa-bullhorn w-4 text-center text-[11px] opacity-70"></i> Notice Board</Link></li>
+                                        <li><Link href={route('admin.useful-links.index')} className={subItemClass(route().current('admin.useful-links.*'))}><i className="fa-solid fa-link w-4 text-center text-[11px] opacity-70 text-amber-400"></i> Useful Links</Link></li>
                                     </SubMenu>
                                 )}
                             </li>

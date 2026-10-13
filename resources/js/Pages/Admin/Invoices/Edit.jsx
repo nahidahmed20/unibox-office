@@ -115,13 +115,7 @@ export default function Edit({ invoice, clients = [], projects = [] }) {
         label: `${p.title} - (Date: ${new Date(p.created_at).toLocaleDateString()})`
     }));
 
-    const getAvailableProjectOptions = (currentIndex) => {
-        const otherSelectedIds = data.items
-            .filter((_, idx) => idx !== currentIndex)
-            .map(item => item.project_id)
-            .filter(id => id !== null && id !== "");
-        return projectOptions.filter(opt => !otherSelectedIds.includes(opt.value));
-    };
+    const getAvailableProjectOptions = () => projectOptions;
 
     const updateItem = (index, field, value) => {
         setData(prev => ({
@@ -429,10 +423,10 @@ export default function Edit({ invoice, clients = [], projects = [] }) {
                                                         <option value="box">Box</option>
                                                         <option value="kg">Kg</option>
                                                         <option value="sqft">SqFt</option>
-                                                        <option value="trip">Trip (ট্রিপ)</option>
-                                                        <option value="delivery">Delivery (ডেলিভারি)</option>
-                                                        <option value="lot">Lot (লট)</option>
-                                                        <option value="service">Service (সার্ভিস)</option>
+                                                        <option value="trip">Trip</option>
+                                                        <option value="delivery">Delivery</option>
+                                                        <option value="lot">Lot</option>
+                                                        <option value="service">Service</option>
                                                         <option value="none">— (None)</option>
                                                     </CustomSelect>
                                                 </div>

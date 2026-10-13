@@ -54,16 +54,16 @@ const formatBankText = (text) => {
 const formatFooterText = (text) => {
     if (!text) return '';
 
-    // যদি টেক্সটে আগে থেকেই HTML (Text Editor থেকে) থাকে
+    // If text already contains HTML from rich text editor
     if (text.includes('<p>') || text.includes('<br>')) {
-        let cleanHTML = text.replace(/<p><br><\/p>/g, '').replace(/<p>&nbsp;<\/p>/g, ''); // অতিরিক্ত স্পেস রিমুভ
+        let cleanHTML = text.replace(/<p><br><\/p>/g, '').replace(/<p>&nbsp;<\/p>/g, ''); // Remove extra spacing
         return cleanHTML.replace(/(Thank you for your business!?)/gi, '<span style="color: #147a5b; font-size: 18px; font-weight: bold; display: block; margin-bottom: 8px;">$1</span>');
     }
 
-    // প্লেইন টেক্সট হলে লাইন বাই লাইন ভাগ করে ফাঁকা লাইন মুছে ফেলবে এবং ডিজাইন করবে
+    // For plain text, split line by line, filter empty lines, and style
     return text.split('\n')
         .map(line => line.trim())
-        .filter(line => line.length > 0) // ফাঁকা লাইনগুলো বাদ দিয়ে দেবে
+        .filter(line => line.length > 0) // Remove empty lines
         .map(line => {
             if (line.toLowerCase().includes('thank you for your business')) {
                 return `<p style="color: #147a5b; font-size: 18px; font-weight: bold; margin-bottom: 8px;">${line}</p>`;

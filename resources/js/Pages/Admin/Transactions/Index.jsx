@@ -192,21 +192,21 @@ export default function Index({
                     icon: 'fa-solid fa-user-tie',
                     bg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
                     badgeBg: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-                    partyLabel: 'Client / ক্লায়েন্ট'
+                    partyLabel: 'Client'
                 };
             case 'Vendor':
                 return {
                     icon: 'fa-solid fa-truck-ramp-box',
                     bg: 'bg-amber-50 text-amber-700 border-amber-200',
                     badgeBg: 'bg-amber-100 text-amber-800 border-amber-300',
-                    partyLabel: 'Vendor / ভেন্ডর'
+                    partyLabel: 'Vendor'
                 };
             case 'Employee':
                 return {
                     icon: 'fa-solid fa-user-gear',
                     bg: 'bg-indigo-50 text-indigo-700 border-indigo-200',
                     badgeBg: 'bg-indigo-100 text-indigo-800 border-indigo-300',
-                    partyLabel: 'Staff / কর্মচারী'
+                    partyLabel: 'Staff'
                 };
             case 'Expense':
             case 'Expense Category':
@@ -215,28 +215,28 @@ export default function Index({
                     icon: 'fa-solid fa-receipt',
                     bg: 'bg-rose-50 text-rose-700 border-rose-200',
                     badgeBg: 'bg-rose-100 text-rose-800 border-rose-300',
-                    partyLabel: 'Expense / খরচ'
+                    partyLabel: 'Expense'
                 };
             case 'Transfer':
                 return {
                     icon: 'fa-solid fa-right-left',
                     bg: 'bg-sky-50 text-sky-700 border-sky-200',
                     badgeBg: 'bg-sky-100 text-sky-800 border-sky-300',
-                    partyLabel: 'Transfer / ট্রান্সফার'
+                    partyLabel: 'Transfer'
                 };
             case 'Investor':
                 return {
                     icon: 'fa-solid fa-hand-holding-dollar',
                     bg: 'bg-teal-50 text-teal-700 border-teal-200',
                     badgeBg: 'bg-teal-100 text-teal-800 border-teal-300',
-                    partyLabel: 'Investor / বিনিয়োগকারী'
+                    partyLabel: 'Investor'
                 };
             default:
                 return {
                     icon: 'fa-solid fa-pen-nib',
                     bg: 'bg-slate-50 text-slate-700 border-slate-200',
                     badgeBg: 'bg-slate-100 text-slate-800 border-slate-300',
-                    partyLabel: 'Direct / ম্যানুয়াল'
+                    partyLabel: 'Direct'
                 };
         }
     };
@@ -493,7 +493,7 @@ export default function Index({
                             </div>
                             <div>
                                 <h2 className="text-[16px] font-black text-slate-900 leading-tight">
-                                    {viewMode === 'date_wise' ? 'তারিখ অনুযায়ী মোট লেনদেন (Date-wise Summary)' : 'All Transactions'}
+                                    {viewMode === 'date_wise' ? 'Date-wise Transaction Summary' : 'All Transactions'}
                                 </h2>
                                 <p className="text-[12px] text-slate-500 font-bold mt-0.5">
                                     {viewMode === 'date_wise'
@@ -515,7 +515,7 @@ export default function Index({
                                     }`}
                                 >
                                     <i className="fa-solid fa-list-ul text-[11px]"></i>
-                                    <span>বিস্তারিত (All Entries)</span>
+                                    <span>Detailed (All Entries)</span>
                                 </button>
                                 <button
                                     type="button"
@@ -527,7 +527,7 @@ export default function Index({
                                     }`}
                                 >
                                     <i className="fa-solid fa-calendar-check text-[11px]"></i>
-                                    <span>তারিখ অনুযায়ী মোট (Date-wise)</span>
+                                    <span>Date-wise Summary</span>
                                 </button>
                             </div>
 
@@ -547,16 +547,16 @@ export default function Index({
                     {/* 🟢 Party Category Filter Tabs */}
                     <div className="flex items-center gap-2 px-6 pt-4 pb-3 border-b border-slate-200 bg-slate-50/70 overflow-x-auto no-scrollbar">
                         <span className="text-[11.5px] font-black uppercase tracking-wider text-slate-500 mr-1 shrink-0 flex items-center gap-1.5">
-                            <i className="fa-solid fa-filter text-indigo-500"></i> পক্ষ / ফিল্টার:
+                            <i className="fa-solid fa-filter text-indigo-500"></i> Category / Filter:
                         </span>
                         {[
-                            { id: '', label: 'All Transactions', bn: 'সকল লেনদেন', icon: 'fa-list-check' },
-                            { id: 'client', label: 'Clients', bn: 'ক্লায়েন্ট (টাকা প্রাপ্তি)', icon: 'fa-user-tie' },
-                            { id: 'vendor', label: 'Vendors', bn: 'ভেন্ডর (টাকা প্রদান)', icon: 'fa-truck-ramp-box' },
-                            { id: 'employee', label: 'Staff & Salary', bn: 'স্টাফ ও বেতন', icon: 'fa-users-gear' },
-                            { id: 'expense', label: 'Office & Projects', bn: 'অফিস ও প্রজেক্ট খরচ', icon: 'fa-receipt' },
-                            { id: 'transfer', label: 'Transfers', bn: 'ফান্ড ট্রান্সফার', icon: 'fa-right-left' },
-                            { id: 'investor', label: 'Investors', bn: 'বিনিয়োগ', icon: 'fa-hand-holding-dollar' },
+                            { id: '', label: 'All Transactions', icon: 'fa-list-check' },
+                            { id: 'client', label: 'Clients (Collections)', icon: 'fa-user-tie' },
+                            { id: 'vendor', label: 'Vendors (Payments)', icon: 'fa-truck-ramp-box' },
+                            { id: 'employee', label: 'Staff & Payroll', icon: 'fa-users-gear' },
+                            { id: 'expense', label: 'Office & Projects', icon: 'fa-receipt' },
+                            { id: 'transfer', label: 'Fund Transfers', icon: 'fa-right-left' },
+                            { id: 'investor', label: 'Investors', icon: 'fa-hand-holding-dollar' },
                         ].map((cat) => {
                             const isActive = (partyType === cat.id);
                             return (
@@ -571,7 +571,7 @@ export default function Index({
                                     }`}
                                 >
                                     <i className={`fa-solid ${cat.icon} text-[12px] ${isActive ? 'text-white' : 'text-slate-400'}`}></i>
-                                    <span>{cat.bn}</span>
+                                    <span>{cat.label}</span>
                                 </button>
                             );
                         })}
@@ -616,7 +616,7 @@ export default function Index({
                                 }`}
                             >
                                 <i className="fa-solid fa-sliders text-[12px]"></i>
-                                <span>ফিল্টার অপশন</span>
+                                <span>Filter Options</span>
                                 {(clientId || vendorId || userId || projectId || dateFrom || dateTo) ? (
                                     <span className="flex h-2 w-2 rounded-full bg-indigo-600 animate-pulse"></span>
                                 ) : (
@@ -652,9 +652,9 @@ export default function Index({
 
                             <div className="relative w-full lg:w-[150px]">
                                 <CustomSelect value={typeFilter} onChange={(e) => handleFilterChange('type', e.target.value)}>
-                                    <option value="">All Types (সব)</option>
-                                    <option value="credit">Deposit (In / জমা)</option>
-                                    <option value="debit">Withdrawal (Out / খরচ)</option>
+                                    <option value="">All Types</option>
+                                    <option value="credit">Deposit (Credit / In)</option>
+                                    <option value="debit">Withdrawal (Debit / Out)</option>
                                 </CustomSelect>
                             </div>
 
@@ -671,7 +671,7 @@ export default function Index({
                         <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
                             <div className="text-[12px] font-black uppercase tracking-wider text-slate-700 mb-3 flex items-center justify-between">
                                 <span className="flex items-center gap-2">
-                                    <i className="fa-solid fa-filter-circle-dollar text-indigo-600"></i> নির্দিষ্ট ব্যক্তি / প্রতিষ্ঠান / প্রজেক্ট অনুযায়ী ফিল্টার করুন
+                                    <i className="fa-solid fa-filter-circle-dollar text-indigo-600"></i> Filter by Party, Staff, Project or Date
                                 </span>
                                 <span className="text-[11px] font-bold text-slate-400 lowercase">select specific party, staff, project or custom date</span>
                             </div>
@@ -680,7 +680,7 @@ export default function Index({
                                 {/* Client Filter */}
                                 <div>
                                     <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1">
-                                        <i className="fa-solid fa-user-tie text-emerald-600 mr-1"></i> নির্দিষ্ট ক্লায়েন্ট
+                                        <i className="fa-solid fa-user-tie text-emerald-600 mr-1"></i> Specific Client
                                     </label>
                                     <CustomSelect value={clientId} onChange={(e) => handleFilterChange('client_id', e.target.value)} placeholder="All Clients">
                                         <option value="">All Clients</option>
@@ -693,7 +693,7 @@ export default function Index({
                                 {/* Vendor Filter */}
                                 <div>
                                     <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1">
-                                        <i className="fa-solid fa-truck-ramp-box text-amber-600 mr-1"></i> নির্দিষ্ট ভেন্ডর
+                                        <i className="fa-solid fa-truck-ramp-box text-amber-600 mr-1"></i> Specific Vendor
                                     </label>
                                     <CustomSelect value={vendorId} onChange={(e) => handleFilterChange('vendor_id', e.target.value)} placeholder="All Vendors">
                                         <option value="">All Vendors</option>
@@ -706,7 +706,7 @@ export default function Index({
                                 {/* Staff / User Filter */}
                                 <div>
                                     <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1">
-                                        <i className="fa-solid fa-user-gear text-indigo-600 mr-1"></i> স্টাফ / কর্মচারী
+                                        <i className="fa-solid fa-user-gear text-indigo-600 mr-1"></i> Staff / Employee
                                     </label>
                                     <CustomSelect value={userId} onChange={(e) => handleFilterChange('user_id', e.target.value)} placeholder="All Staff">
                                         <option value="">All Staff</option>
@@ -719,7 +719,7 @@ export default function Index({
                                 {/* Project Filter */}
                                 <div>
                                     <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1">
-                                        <i className="fa-regular fa-folder-open text-blue-600 mr-1"></i> প্রজেক্ট
+                                        <i className="fa-regular fa-folder-open text-blue-600 mr-1"></i> Project
                                     </label>
                                     <CustomSelect value={projectId} onChange={(e) => handleFilterChange('project_id', e.target.value)} placeholder="All Projects">
                                         <option value="">All Projects</option>
@@ -732,7 +732,7 @@ export default function Index({
                                 {/* Date From */}
                                 <div>
                                     <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1">
-                                        <i className="fa-regular fa-calendar text-slate-500 mr-1"></i> শুরু তারিখ
+                                        <i className="fa-regular fa-calendar text-slate-500 mr-1"></i> Start Date
                                     </label>
                                     <input 
                                         type="date" 
@@ -745,7 +745,7 @@ export default function Index({
                                 {/* Date To */}
                                 <div>
                                     <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1">
-                                        <i className="fa-regular fa-calendar-check text-slate-500 mr-1"></i> শেষ তারিখ
+                                        <i className="fa-regular fa-calendar-check text-slate-500 mr-1"></i> End Date
                                     </label>
                                     <input 
                                         type="date" 
@@ -760,15 +760,15 @@ export default function Index({
                             <div className="mt-3 pt-3 border-t border-slate-200/80 flex items-center justify-between flex-wrap gap-2">
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                     <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 mr-1 flex items-center gap-1">
-                                        <i className="fa-regular fa-calendar-days text-slate-400"></i> দ্রুত তারিখ নির্বাচন:
+                                        <i className="fa-regular fa-calendar-days text-slate-400"></i> Quick Presets:
                                     </span>
                                     {[
-                                        { id: 'today', label: 'আজ' },
-                                        { id: 'yesterday', label: 'গতকাল' },
-                                        { id: 'this_month', label: 'চলতি মাস' },
-                                        { id: 'last_month', label: 'গত মাস' },
-                                        { id: 'this_year', label: 'এই বছর' },
-                                        { id: 'all', label: 'সব সময়' },
+                                        { id: 'today', label: 'Today' },
+                                        { id: 'yesterday', label: 'Yesterday' },
+                                        { id: 'this_month', label: 'This Month' },
+                                        { id: 'last_month', label: 'Last Month' },
+                                        { id: 'this_year', label: 'This Year' },
+                                        { id: 'all', label: 'All Time' },
                                     ].map((p) => (
                                         <button
                                             key={p.id}
@@ -790,7 +790,7 @@ export default function Index({
                                         }}
                                         className="text-[11.5px] font-black text-rose-600 hover:text-rose-800 flex items-center gap-1"
                                     >
-                                        <i className="fa-solid fa-xmark"></i> এই ফিল্টার মুছুন
+                                        <i className="fa-solid fa-xmark"></i> Clear Filters
                                     </button>
                                 )}
                             </div>
@@ -867,7 +867,7 @@ export default function Index({
                             <span className="flex items-center gap-2">
                                 <i className="fa-solid fa-circle-info text-emerald-600 text-[14px]"></i>
                                 <span>
-                                    <strong>তারিখ অনুযায়ী মোট হিসাব (Date-wise Summary):</strong> একই তারিখে কোনো ক্লায়েন্ট বা ভেন্ডরের একাধিক ইনভয়েস/বিলের লেনদেন (যেমন: ৩০০০ + ৪০০০ + ৫০০০ = ১২,০০০ টাকা) এখানে একত্রে যোগ করে দেখানো হচ্ছে।
+                                    <strong>Date-wise Summary:</strong> Multiple invoices or bill transactions for the same client or vendor on the same date (e.g. 3,000 + 4,000 + 5,000 = 12,000) are grouped together here.
                                 </span>
                             </span>
                             <button
@@ -875,7 +875,7 @@ export default function Index({
                                 onClick={() => setViewMode('detailed')}
                                 className="text-[11.5px] font-black text-emerald-700 bg-white border border-emerald-300 px-3 py-1 rounded-lg hover:bg-emerald-100 transition-colors shadow-2xs"
                             >
-                                আলাদা আলাদা এন্ট্রি দেখুন →
+                                View Detailed Entries →
                             </button>
                         </div>
                     )}
@@ -886,15 +886,15 @@ export default function Index({
                             <thead className="bg-slate-100 border-b-2 border-slate-300 sticky top-0 z-10 text-[11.5px] font-black uppercase tracking-widest text-slate-500">
                                 <tr>
                                     <th className="px-6 py-4 w-12 text-center">SL</th>
-                                    <th className="px-6 py-4 w-32">Date (তারিখ)</th>
+                                    <th className="px-6 py-4 w-32">Date</th>
                                     <th className="px-6 py-4">Account</th>
-                                    <th className="px-6 py-4 w-[24%]">Context / Party (কার মাধ্যমে / কার জন্য)</th>
+                                    <th className="px-6 py-4 w-[24%]">Context / Party</th>
                                     <th className="px-6 py-4 w-[25%]">
-                                        {viewMode === 'date_wise' ? 'Invoices / Breakdown (কোন কোন বিলে কত টাকা)' : 'Description & Ref'}
+                                        {viewMode === 'date_wise' ? 'Invoices / Breakdown' : 'Description & Ref'}
                                     </th>
                                     <th className="px-6 py-4 text-center">Type</th>
                                     <th className="px-6 py-4 text-right">
-                                        {viewMode === 'date_wise' ? 'ঐ তারিখে মোট (Total on Date)' : 'Amount (In/Out)'}
+                                        {viewMode === 'date_wise' ? 'Total on Date' : 'Amount (In/Out)'}
                                     </th>
                                     <th className="px-6 py-4 text-center no-print w-28">Actions</th>
                                 </tr>
@@ -968,7 +968,7 @@ export default function Index({
                                                             <div className="space-y-1.5">
                                                                 <div className="text-[11.5px] font-black text-indigo-800 flex items-center gap-1.5">
                                                                     <i className="fa-solid fa-layer-group text-indigo-600 text-[11px]"></i>
-                                                                    <span>একসাথে {group.items.length}টি ইনভয়েস / খাতে পেমেন্ট:</span>
+                                                                    <span>Combined payment across {group.items.length} entries:</span>
                                                                 </div>
                                                                 <div className="flex flex-wrap gap-1.5">
                                                                     {group.items.map((item) => (
@@ -1010,7 +1010,7 @@ export default function Index({
                                                         {group.items.length > 1 && (
                                                             <div className="mt-1">
                                                                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${group.type === 'credit' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-rose-100 text-rose-800 border-rose-300'}`}>
-                                                                    <i className="fa-solid fa-check-double text-[9px]"></i> {group.items.length}টি বিল একত্রে
+                                                                    <i className="fa-solid fa-check-double text-[9px]"></i> {group.items.length} bills combined
                                                                 </span>
                                                             </div>
                                                         )}
@@ -1025,9 +1025,9 @@ export default function Index({
                                                                 group_summary: group
                                                             })}
                                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 font-bold text-[12px] transition-colors shadow-sm"
-                                                            title="বিস্তারিত রিসিপ্ট দেখুন"
+                                                            title="View Receipt Details"
                                                         >
-                                                            <i className="fa-regular fa-eye text-[12px]"></i> বিস্তারিত
+                                                            <i className="fa-regular fa-eye text-[12px]"></i> Details
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -1143,10 +1143,10 @@ export default function Index({
                                                                 ? 'bg-emerald-100/90 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
                                                                 : 'bg-rose-100/90 text-rose-800 border-rose-300 hover:bg-rose-200'
                                                         }`}
-                                                        title="ঐ তারিখে এই ক্লায়েন্ট/পক্ষের মোট লেনদেনের বিস্তারিত দেখুন"
+                                                        title="View total transaction details for this party on this date"
                                                     >
                                                         <i className="fa-solid fa-layer-group text-[9px]"></i>
-                                                        ঐ তারিখে মোট: ৳{parseFloat(group.total_amount).toLocaleString('en-IN')} ({group.items.length}টি)
+                                                        Total on Date: ৳{parseFloat(group.total_amount).toLocaleString('en-IN')} ({group.items.length})
                                                     </button>
                                                 )}
                                             </td>
@@ -1497,7 +1497,7 @@ export default function Index({
                                 <div className={`absolute top-0 left-0 w-full h-2 ${selectedTrx.type === 'credit' ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
 
                                 <span className={`inline-block mb-2.5 px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest border shadow-sm ${selectedTrx.type === 'credit' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-rose-50 text-rose-700 border-rose-300'}`}>
-                                    {selectedTrx.type === 'credit' ? 'Deposit / Cash In (জমা)' : 'Withdrawal / Cash Out (খরচ)'}
+                                    {selectedTrx.type === 'credit' ? 'Deposit / Cash In' : 'Withdrawal / Cash Out'}
                                 </span>
 
                                 <div className={`text-[38px] font-black tabular-nums tracking-tight leading-none ${selectedTrx.type === 'credit' ? 'text-emerald-600' : 'text-rose-600'}`}>
@@ -1516,7 +1516,7 @@ export default function Index({
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <span className="block text-[11px] font-black uppercase tracking-widest text-slate-400 mb-0.5">
-                                                    Party Information (কার সাথে লেনদেন)
+                                                    Party Information
                                                 </span>
                                                 <h4 className="text-[17px] font-black text-slate-900 truncate">
                                                     {selectedTrx.party_name || "Direct Entry"}
@@ -1556,10 +1556,10 @@ export default function Index({
                                     <div className="flex items-center justify-between mb-3 pb-2 border-b border-emerald-200">
                                         <span className="text-[11.5px] font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
                                             <i className="fa-solid fa-layer-group text-emerald-600"></i>
-                                            ঐ তারিখে মোট লেনদেনের হিসাব ({selectedTrx.group_summary.items.length}টি এন্ট্রি)
+                                            Total Transactions on Date ({selectedTrx.group_summary.items.length} Entries)
                                         </span>
                                         <span className="text-[14px] font-black text-emerald-700 bg-white px-2.5 py-0.5 rounded-lg border border-emerald-300 shadow-2xs">
-                                            মোট: ৳{selectedTrx.group_summary.total_amount.toLocaleString('en-IN')}
+                                            Total: ৳{selectedTrx.group_summary.total_amount.toLocaleString('en-IN')}
                                         </span>
                                     </div>
                                     <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 custom-table-scroll">

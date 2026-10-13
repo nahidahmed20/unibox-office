@@ -173,11 +173,11 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
 
     const handleUndoAdvance = (vendorId) => {
         Swal.fire({
-            title: 'Undo Last Advance?', text: 'আপনি কি নিশ্চিত যে সর্বশেষ দেওয়া অ্যাডভান্সটি বাতিল করবেন?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Yes, Undo It', confirmButtonColor: '#ef4444'
+            title: 'Undo Last Advance?', text: 'Are you sure you want to undo the last advance payment?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Yes, Undo It', confirmButtonColor: '#ef4444'
         }).then((result) => {
             if (result.isConfirmed) {
                 router.post(route('admin.vendors.add-advance', vendorId), { undo_last: true }, {
-                    preserveScroll: true, onSuccess: () => Swal.fire({ icon: "success", title: "Undone!", text: "সর্বশেষ অ্যাডভান্স বাতিল হয়েছে।", timer: 1500, showConfirmButton: false })
+                    preserveScroll: true, onSuccess: () => Swal.fire({ icon: "success", title: "Undone!", text: "Last advance payment has been undone.", timer: 1500, showConfirmButton: false })
                 });
             }
         });
@@ -185,7 +185,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
 
     const handleDeleteClick = (vendor) => {
         if (Number(vendor.total_due) > 0 || Number(vendor.wallet_balance) > 0) {
-            Swal.fire({ icon: 'error', title: 'Action Denied!', text: 'এই ভেন্ডরের নামে বকেয়া বা ব্যালেন্স থাকায় ডিলিট করা যাবে না।' });
+            Swal.fire({ icon: 'error', title: 'Action Denied!', text: 'Cannot delete vendor with outstanding dues or wallet balance.' });
             return;
         }
         Swal.fire({ title: 'Are you sure?', text: 'This vendor will be deleted permanently!', icon: 'warning', showCancelButton: true, confirmButtonText: 'Yes, Delete It', confirmButtonColor: '#ef4444' }).then((result) => {
@@ -222,11 +222,11 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
 
     const handlePaySubmit = (e) => {
         e.preventDefault();
-        if (selectedBillIds.length === 0) return Swal.fire("সিলেক্ট করুন", "অন্তত একটা বিল সিলেক্ট করতে হবে।", "warning");
+        if (selectedBillIds.length === 0) return Swal.fire("Required", "Please select at least one bill.", "warning");
 
         payForm.transform((formData) => ({ ...formData, project_expense_ids: selectedBillIds }));
         payForm.post(route('admin.vendors.pay', selectedVendor.id), {
-            onSuccess: () => { setShowPayModal(false); setSelectedBillIds([]); Swal.fire({ icon: "success", title: "পেমেন্ট সফল হয়েছে!", timer: 1500, showConfirmButton: false }); },
+            onSuccess: () => { setShowPayModal(false); setSelectedBillIds([]); Swal.fire({ icon: "success", title: "Payment Recorded Successfully!", timer: 1500, showConfirmButton: false }); },
             onError: (err) => { if (err.error) Swal.fire("Error", err.error, "error"); }
         });
     };
@@ -390,7 +390,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                                     {hasPermission('add_advance_vendor') && (
                                                         <>
                                                             <button onClick={() => openWalletModal(vendor, 'deposit')} className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-500 hover:text-white border border-indigo-200 transition-all shadow-sm" title="Add to Wallet"><i className="fa-solid fa-plus text-[12.5px]"></i></button>
-                                                            <button onClick={() => handleUndoAdvance(vendor.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-rose-500 hover:text-white border border-gray-200 transition-all shadow-sm" title="Undo Last Advance (ভুল সংশোধন)"><i className="fa-solid fa-rotate-left text-[12.5px]"></i></button>
+                                                            <button onClick={() => handleUndoAdvance(vendor.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-rose-500 hover:text-white border border-gray-200 transition-all shadow-sm" title="Undo Last Advance"><i className="fa-solid fa-rotate-left text-[12.5px]"></i></button>
                                                         </>
                                                     )}
                                                     {hasPermission('return_advance_vendor') && <button onClick={() => openWalletModal(vendor, 'withdraw')} className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white border border-emerald-200 transition-all shadow-sm" title="Refund from Wallet"><i className="fa-solid fa-minus text-[12.5px]"></i></button>}
@@ -583,7 +583,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                 <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-300 shadow-sm">
                                     <div className="mb-6 border-b border-slate-200 pb-5">
                                         <label className="block text-[11.5px] sm:text-[12px] font-black text-slate-600 uppercase tracking-widest mb-3">
-                                            Payment Source (পেমেন্ট মাধ্যম) <span className="text-red-600">*</span>
+                                            Payment Source <span className="text-red-600">*</span>
                                         </label>
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                             <label className={`flex flex-col items-center justify-center gap-2 cursor-pointer transition-all p-4 border-2 rounded-2xl select-none ${payForm.data.payment_source === 'account' ? 'border-indigo-600 bg-indigo-50 text-indigo-900 shadow-md ring-2 ring-indigo-500/20' : 'border-slate-300 bg-white text-slate-700 hover:border-indigo-400'}`}>
@@ -666,7 +666,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                     {/* AMOUNTS & CHARGES GRID */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                         <div>
-                                            <label className="block text-[11.5px] font-black text-emerald-700 uppercase tracking-widest mb-2">Pay Amount (পরিশোধ) <span className="text-red-600">*</span></label>
+                                            <label className="block text-[11.5px] font-black text-emerald-700 uppercase tracking-widest mb-2">Pay Amount <span className="text-red-600">*</span></label>
                                             <div className="relative">
                                                 <Taka className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 font-bold text-[15px]" />
                                                 <input type="number" step="0.01" min="0" value={payForm.data.pay_amount} onChange={e => payForm.setData("pay_amount", e.target.value)} placeholder="0.00" className="w-full rounded-xl border border-emerald-400 bg-emerald-50/40 pl-9 pr-3 py-3 text-[16px] font-black text-emerald-950 outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10 shadow-xs transition-all" required={!payForm.data.adjustment_amount} />
@@ -675,7 +675,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                         </div>
 
                                         <div>
-                                            <label className="block text-[11.5px] font-black text-amber-700 uppercase tracking-widest mb-2">Discount / Adjust (ছাড়)</label>
+                                            <label className="block text-[11.5px] font-black text-amber-700 uppercase tracking-widest mb-2">Discount / Adjust</label>
                                             <div className="relative">
                                                 <Taka className="absolute left-3.5 top-1/2 -translate-y-1/2 text-amber-600 font-bold text-[15px]" />
                                                 <input type="number" step="0.01" min="0" value={payForm.data.adjustment_amount} onChange={e => payForm.setData("adjustment_amount", e.target.value)} placeholder="0.00" className="w-full rounded-xl border border-amber-300 bg-amber-50/40 pl-9 pr-3 py-3 text-[16px] font-black text-amber-950 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 shadow-xs transition-all" />
@@ -685,7 +685,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
 
                                         {payForm.data.payment_source === 'account' ? (
                                             <div>
-                                                <label className="block text-[11.5px] font-black text-rose-600 uppercase tracking-widest mb-2">Bank Charge (ফি)</label>
+                                                <label className="block text-[11.5px] font-black text-rose-600 uppercase tracking-widest mb-2">Bank Charge</label>
                                                 <div className="relative">
                                                     <Taka className="absolute left-3.5 top-1/2 -translate-y-1/2 text-rose-400 font-bold text-[15px]" />
                                                     <input type="number" step="0.01" min="0" value={payForm.data.bank_charge || ''} onChange={e => payForm.setData("bank_charge", e.target.value)} placeholder="0.00" className="w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 py-3 text-[16px] font-black text-slate-800 outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 shadow-xs transition-all" />
@@ -809,7 +809,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                     className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-[12.5px] font-black uppercase tracking-wider transition-all ${walletAction === 'deposit' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
                                 >
                                     <i className="fa-solid fa-plus-circle"></i>
-                                    <span>Give Advance (টাকা প্রদান)</span>
+                                    <span>Give Advance</span>
                                 </button>
                                 <button
                                     type="button"
@@ -817,7 +817,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                     className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-[12.5px] font-black uppercase tracking-wider transition-all ${walletAction === 'withdraw' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
                                 >
                                     <i className="fa-solid fa-arrow-rotate-left"></i>
-                                    <span>Receive Refund (টাকা ফেরত)</span>
+                                    <span>Receive Refund</span>
                                 </button>
                             </div>
                         </div>

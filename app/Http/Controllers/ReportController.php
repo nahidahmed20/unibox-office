@@ -1090,7 +1090,7 @@ class ReportController extends Controller
     }
 
     /**
-     * Monthly balance report: মাসের শুরুতে কত ছিল, কত জমা/খরচ হলো, মাসের শেষে কত আছে।
+     * Monthly balance report: Opening balance at month start, total in/out during the month, and closing balance at month end.
      *
      * Same method as the Daybook: start from each account's live current_balance and
      * walk backwards through transactions, so the latest month's closing always equals
@@ -1250,7 +1250,7 @@ class ReportController extends Controller
                         'type' => 'Opening Balance',
                         'ref' => 'OPENING',
                         'method' => 'Opening',
-                        'description' => 'প্রারম্ভিক বকেয়া (Opening Balance)',
+                        'description' => 'Opening Balance',
                         'debit' => $summary['opening_balance'],
                         'credit' => 0,
                         'discount' => 0,
@@ -1299,7 +1299,7 @@ class ReportController extends Controller
                             'type' => 'Direct Pay',
                             'ref' => 'BILL-' . $bill->id,
                             'method' => $sourceName,
-                            'description' => "বিল এন্ট্রির সময় পরিশোধ: " . $bill->title . $projectTitle,
+                            'description' => "Direct payment at bill entry: " . $bill->title . $projectTitle,
                             'debit' => 0,
                             'credit' => $directPaid,
                             'discount' => 0,
@@ -1352,7 +1352,7 @@ class ReportController extends Controller
                         'type' => 'Voucher Pay',
                         'ref' => 'VP-' . $p->id,
                         'method' => $sourceLabel,
-                        'description' => "ভাউচার পেমেন্ট" . ($billTitles ? " ({$billTitles})" : ""),
+                        'description' => "Voucher Payment" . ($billTitles ? " ({$billTitles})" : ""),
                         'debit' => 0,
                         'credit' => $payAmt,
                         'discount' => $discAmt,
@@ -1372,7 +1372,7 @@ class ReportController extends Controller
                     $paymentByDate[$payDate]['items'][] = [
                         'type' => 'Voucher',
                         'ref' => 'VP-' . $p->id,
-                        'title' => $billTitles ?: 'বকেয়া বিল পরিশোধ',
+                        'title' => $billTitles ?: 'Due Bill Payment',
                         'amount' => $payAmt,
                         'discount' => $discAmt,
                         'method' => $sourceLabel,
@@ -1620,7 +1620,7 @@ class ReportController extends Controller
 
         $officeByCategory = $officeQuery
             ->select(
-                DB::raw("COALESCE(expense_categories.name, 'Uncategorized / সাধারণ খরচ') as category_name"),
+                DB::raw("COALESCE(expense_categories.name, 'Uncategorized / General Expense') as category_name"),
                 DB::raw('COALESCE(SUM(expenses.amount), 0) as office_total'),
                 DB::raw('COUNT(expenses.id) as office_count')
             )
@@ -1630,7 +1630,7 @@ class ReportController extends Controller
 
         $projectByCategory = $projectQuery
             ->select(
-                DB::raw("COALESCE(expense_categories.name, 'Uncategorized / প্রজেক্ট খরচ') as category_name"),
+                DB::raw("COALESCE(expense_categories.name, 'Uncategorized / Project Expense') as category_name"),
                 DB::raw('COALESCE(SUM(project_expenses.total_bill), 0) as project_total'),
                 DB::raw('COUNT(project_expenses.id) as project_count')
             )

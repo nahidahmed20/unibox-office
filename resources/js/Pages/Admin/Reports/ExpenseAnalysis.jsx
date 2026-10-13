@@ -79,10 +79,10 @@ export default function ExpenseAnalysis({
         if (!tableContent) return Swal.fire("Empty!", "Nothing to print.", "warning");
         const printWindow = window.open('', '_blank');
         const title = activeTab === 'expense_category'
-            ? 'Category-wise Expense Analysis Report (খাতওয়ারী খরচের হিসাব)'
+            ? 'Category-wise Expense Analysis Report'
             : activeTab === 'receivable_aging'
-                ? 'Client Receivable Aging Report (ক্লায়েন্ট বকেয়ার বয়স বিশ্লেষণ)'
-                : 'Vendor Payable Aging Report (ভেন্ডর বকেয়ার বয়স বিশ্লেষণ)';
+                ? 'Client Receivable Aging Report'
+                : 'Vendor Payable Aging Report';
 
         printWindow.document.write(`
             <html>
@@ -142,7 +142,7 @@ export default function ExpenseAnalysis({
                         </div>
                         <h1 className="text-[28px] font-extrabold text-[#202223] tracking-tight">Expense Breakdown & Aging Analysis</h1>
                         <p className="text-[14.5px] text-gray-500 mt-1">
-                            খাতওয়ারী অফিস ও প্রজেক্ট খরচের বিশ্লেষণ এবং ৩০/৬০/৯০+ দিনের পুরনো ক্লায়েন্ট ও ভেন্ডর বকেয়ার পূর্ণাঙ্গ রিপোর্ট।
+                            Analysis of office and project expenses by category, plus 30/60/90+ days aging reports for client and vendor dues.
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -168,7 +168,7 @@ export default function ExpenseAnalysis({
                             }`}
                         >
                             <i className="fa-solid fa-tags text-[12px]"></i>
-                            <span>খাতওয়ারী খরচের হিসাব ({categoryRows.length}টি খাত)</span>
+                            <span>Category-wise Expenses ({categoryRows.length} {categoryRows.length === 1 ? 'Category' : 'Categories'})</span>
                         </button>
                         <button
                             type="button"
@@ -180,7 +180,7 @@ export default function ExpenseAnalysis({
                             }`}
                         >
                             <i className="fa-solid fa-hourglass-half text-[12px]"></i>
-                            <span>ক্লায়েন্ট বকেয়ার বয়স ({receivableAging.length}টি ইনভয়েস)</span>
+                            <span>Client Receivable Aging ({receivableAging.length} {receivableAging.length === 1 ? 'Invoice' : 'Invoices'})</span>
                         </button>
                         <button
                             type="button"
@@ -192,20 +192,20 @@ export default function ExpenseAnalysis({
                             }`}
                         >
                             <i className="fa-solid fa-clock-rotate-left text-[12px]"></i>
-                            <span>ভেন্ডর বকেয়ার বয়স ({payableAging.length}টি বিল)</span>
+                            <span>Vendor Payable Aging ({payableAging.length} {payableAging.length === 1 ? 'Bill' : 'Bills'})</span>
                         </button>
                     </div>
 
                     {activeTab === 'expense_category' && (
                         <div className="flex items-center gap-2">
-                            <span className="text-[12px] font-bold text-slate-500">তারিখ:</span>
+                            <span className="text-[12px] font-bold text-slate-500">Date:</span>
                             <input
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => { setStartDate(e.target.value); applyDateFilter({ start_date: e.target.value }); }}
                                 className="rounded-xl border border-gray-200 px-3 py-2 text-[13px]"
                             />
-                            <span className="text-gray-400">থেকে</span>
+                            <span className="text-gray-400">to</span>
                             <input
                                 type="date"
                                 value={endDate}
@@ -230,19 +230,19 @@ export default function ExpenseAnalysis({
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-white to-blue-50/50 p-5 shadow-sm">
-                                <div className="text-[11px] font-bold uppercase tracking-wider text-blue-700 mb-1">Office Expenses (অফিস খরচ)</div>
+                                <div className="text-[11px] font-bold uppercase tracking-wider text-blue-700 mb-1">Office Expenses</div>
                                 <div className="text-[24px] font-black text-blue-900 tabular-nums">
                                     <Taka className="text-[18px]" />{Number(expenseSummary.office_total || 0).toLocaleString('en-IN')}
                                 </div>
                             </div>
                             <div className="rounded-2xl border border-amber-100 bg-gradient-to-br from-white to-amber-50/50 p-5 shadow-sm">
-                                <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700 mb-1">Project Expenses (প্রজেক্ট খরচ)</div>
+                                <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700 mb-1">Project Expenses</div>
                                 <div className="text-[24px] font-black text-amber-900 tabular-nums">
                                     <Taka className="text-[18px]" />{Number(expenseSummary.project_total || 0).toLocaleString('en-IN')}
                                 </div>
                             </div>
                             <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-white to-indigo-50/70 p-5 shadow-sm">
-                                <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 mb-1">Combined Total Expense (সর্বমোট খরচ)</div>
+                                <div className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 mb-1">Combined Total Expense</div>
                                 <div className="text-[24px] font-black text-indigo-900 tabular-nums">
                                     <Taka className="text-[18px]" />{Number(expenseSummary.grand_total || 0).toLocaleString('en-IN')}
                                 </div>
@@ -255,7 +255,7 @@ export default function ExpenseAnalysis({
                                     <thead className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
                                         <tr>
                                             <th className="px-6 py-4 text-center text-[11px] font-extrabold text-[#64748B] uppercase w-16">SL</th>
-                                            <th className="px-6 py-4 text-left text-[11px] font-extrabold text-[#64748B] uppercase">Expense Category (খরচের খাত)</th>
+                                            <th className="px-6 py-4 text-left text-[11px] font-extrabold text-[#64748B] uppercase">Expense Category</th>
                                             <th className="px-6 py-4 text-center text-[11px] font-extrabold text-[#64748B] uppercase">Entries</th>
                                             <th className="px-6 py-4 text-right text-[11px] font-extrabold text-[#64748B] uppercase">Office Expense</th>
                                             <th className="px-6 py-4 text-right text-[11px] font-extrabold text-[#64748B] uppercase">Project Expense</th>
@@ -275,7 +275,7 @@ export default function ExpenseAnalysis({
                                                         </td>
                                                         <td className="px-6 py-4 text-center">
                                                             <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-bold text-[12px]">
-                                                                {row.entries_count}টি
+                                                                {row.entries_count} {row.entries_count === 1 ? 'entry' : 'entries'}
                                                             </span>
                                                         </td>
                                                         <td className="px-6 py-4 text-right font-semibold text-blue-700 tabular-nums">
@@ -303,7 +303,7 @@ export default function ExpenseAnalysis({
                                                     </tr>
                                                 ))}
                                                 <tr className="bg-slate-900 text-white font-black">
-                                                    <td colSpan="3" className="px-6 py-4 text-right uppercase">মোট খরচ (Grand Total):</td>
+                                                    <td colSpan="3" className="px-6 py-4 text-right uppercase">Grand Total:</td>
                                                     <td className="px-6 py-4 text-right text-blue-300 tabular-nums"><Taka />{Number(expenseSummary.office_total || 0).toLocaleString('en-IN')}</td>
                                                     <td className="px-6 py-4 text-right text-amber-300 tabular-nums"><Taka />{Number(expenseSummary.project_total || 0).toLocaleString('en-IN')}</td>
                                                     <td className="px-6 py-4 text-right text-emerald-400 text-[16px] tabular-nums"><Taka />{Number(expenseSummary.grand_total || 0).toLocaleString('en-IN')}</td>
@@ -312,7 +312,7 @@ export default function ExpenseAnalysis({
                                             </>
                                         ) : (
                                             <tr>
-                                                <td colSpan="7" className="px-6 py-20 text-center text-gray-500 font-bold">কোনো খরচের রেকর্ড পাওয়া যায়নি।</td>
+                                                <td colSpan="7" className="px-6 py-20 text-center text-gray-500 font-bold">No expense records found.</td>
                                             </tr>
                                         )}
                                     </tbody>
@@ -332,23 +332,23 @@ export default function ExpenseAnalysis({
                                 <>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                                         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 shadow-sm">
-                                            <div className="text-[11px] font-bold uppercase text-emerald-700">০ - ৩০ দিন (Recent)</div>
+                                            <div className="text-[11px] font-bold uppercase text-emerald-700">0 - 30 Days (Recent)</div>
                                             <div className="text-[20px] font-black text-emerald-900 mt-1 tabular-nums"><Taka />{Number(buckets['0_30'] || 0).toLocaleString('en-IN')}</div>
                                         </div>
                                         <div className="rounded-2xl border border-blue-200 bg-blue-50/40 p-4 shadow-sm">
-                                            <div className="text-[11px] font-bold uppercase text-blue-700">৩১ - ৬০ দিন (Moderate)</div>
+                                            <div className="text-[11px] font-bold uppercase text-blue-700">31 - 60 Days (Moderate)</div>
                                             <div className="text-[20px] font-black text-blue-900 mt-1 tabular-nums"><Taka />{Number(buckets['31_60'] || 0).toLocaleString('en-IN')}</div>
                                         </div>
                                         <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 shadow-sm">
-                                            <div className="text-[11px] font-bold uppercase text-amber-700">৬১ - ৯০ দিন (Old)</div>
+                                            <div className="text-[11px] font-bold uppercase text-amber-700">61 - 90 Days (Old)</div>
                                             <div className="text-[20px] font-black text-amber-900 mt-1 tabular-nums"><Taka />{Number(buckets['61_90'] || 0).toLocaleString('en-IN')}</div>
                                         </div>
                                         <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-4 shadow-sm">
-                                            <div className="text-[11px] font-bold uppercase text-rose-700">৯০+ দিন (Critical Overdue)</div>
+                                            <div className="text-[11px] font-bold uppercase text-rose-700">90+ Days (Critical Overdue)</div>
                                             <div className="text-[20px] font-black text-rose-900 mt-1 tabular-nums"><Taka />{Number(buckets['90_plus'] || 0).toLocaleString('en-IN')}</div>
                                         </div>
                                         <div className="rounded-2xl border border-slate-800 bg-slate-900 text-white p-4 shadow-sm">
-                                            <div className="text-[11px] font-bold uppercase text-slate-300">সর্বমোট বকেয়া (Total Due)</div>
+                                            <div className="text-[11px] font-bold uppercase text-slate-300">Total Due</div>
                                             <div className="text-[20px] font-black text-emerald-400 mt-1 tabular-nums"><Taka />{Number(buckets['total'] || 0).toLocaleString('en-IN')}</div>
                                         </div>
                                     </div>
@@ -363,7 +363,7 @@ export default function ExpenseAnalysis({
                                                             {activeTab === 'receivable_aging' ? 'Client Name & Phone' : 'Vendor & Project'}
                                                         </th>
                                                         <th className="px-5 py-4 text-[11px] font-extrabold text-[#64748B] uppercase">Bill Date</th>
-                                                        <th className="px-5 py-4 text-center text-[11px] font-extrabold text-[#64748B] uppercase">Age (বয়স)</th>
+                                                        <th className="px-5 py-4 text-center text-[11px] font-extrabold text-[#64748B] uppercase">Age</th>
                                                         <th className="px-5 py-4 text-right text-[11px] font-extrabold text-[#64748B] uppercase">Total Bill</th>
                                                         <th className="px-5 py-4 text-right text-[11px] font-extrabold text-[#64748B] uppercase">Paid</th>
                                                         <th className="px-5 py-4 text-right text-[11px] font-extrabold text-[#64748B] uppercase">Outstanding Due</th>
@@ -388,7 +388,7 @@ export default function ExpenseAnalysis({
                                                                 <td className="px-5 py-4 text-center">
                                                                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-black border ${bucketColor(r.bucket)}`}>
                                                                         <i className="fa-regular fa-clock text-[10px]"></i>
-                                                                        {r.days_old} দিন ({r.bucket})
+                                                                        {r.days_old} {r.days_old === 1 ? 'day' : 'days'} ({r.bucket})
                                                                     </span>
                                                                 </td>
                                                                 <td className="px-5 py-4 text-right font-semibold text-slate-700 tabular-nums">
@@ -404,7 +404,7 @@ export default function ExpenseAnalysis({
                                                         ))
                                                     ) : (
                                                         <tr>
-                                                            <td colSpan="7" className="px-6 py-20 text-center text-gray-500 font-bold">কোনো বকেয়া পাওয়া যায়নি।</td>
+                                                            <td colSpan="7" className="px-6 py-20 text-center text-gray-500 font-bold">No overdue records found.</td>
                                                         </tr>
                                                     )}
                                                 </tbody>

@@ -25,12 +25,12 @@ class SyncOldAdvances extends Command
     {
         $this->info('Starting to sync old advances...');
 
-        // যেসব অ্যাডভান্স অ্যাকাউন্ট থেকে দেওয়া হয়েছে, সেগুলো খুঁজে বের করা
+        // Find advances that were paid from an account
         $advances = Advance::whereNotNull('account_id')->get();
         $count = 0;
 
         foreach ($advances as $advance) {
-            // চেক করুন এই অ্যাডভান্সের ট্রানজেকশন আগে থেকেই আছে কি না (যাতে ডুপ্লিকেট না হয়)
+            // Check if transaction already exists to avoid duplicates
             $exists = Transaction::where('transactionable_type', Advance::class)
                 ->where('transactionable_id', $advance->id)
                 ->exists();
@@ -38,7 +38,7 @@ class SyncOldAdvances extends Command
             if (!$exists) {
                 Transaction::create([
                     'account_id'           => $advance->account_id,
-                    'type'                 => 'debit', // অ্যাডভান্স দিলে টাকা কমে, তাই debit
+                    'type'                 => 'debit', // Advance disbursement reduces balance
                     'amount'               => $advance->amount,
                     'transaction_date'     => $advance->date,
                     'description'          => 'Employee Advance: ' . ($advance->purpose ?? 'Office Purpose'),

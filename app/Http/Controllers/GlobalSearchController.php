@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\Task;
 use App\Models\User;
+use App\Models\UsefulLink;
 
 class GlobalSearchController extends Controller
 {
@@ -90,6 +91,23 @@ class GlobalSearchController extends Controller
                 'subtitle' => $item->email,
                 'url'      => route('admin.employees.index', ['search' => $item->name]),
                 'icon'     => 'fa-solid fa-id-badge text-purple-500',
+            ];
+        }
+
+        $links = UsefulLink::where('title', 'like', "%{$query}%")
+            ->orWhere('category', 'like', "%{$query}%")
+            ->orWhere('notes', 'like', "%{$query}%")
+            ->orWhere('url', 'like', "%{$query}%")
+            ->select('id', 'title', 'url', 'category')
+            ->take(4)
+            ->get();
+        foreach ($links as $item) {
+            $results[] = [
+                'category' => 'Useful Links',
+                'title'    => $item->title,
+                'subtitle' => $item->category . ' • ' . parse_url($item->url, PHP_URL_HOST),
+                'url'      => route('admin.useful-links.index', ['search' => $item->title]),
+                'icon'     => 'fa-solid fa-link text-teal-500',
             ];
         }
 

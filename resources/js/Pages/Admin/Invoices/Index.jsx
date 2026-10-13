@@ -601,7 +601,22 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                                             <div className="html-content-view text-[13px] font-medium leading-relaxed text-slate-500 mt-1" dangerouslySetInnerHTML={{ __html: item.description }}></div>
                                                         )}
                                                     </td>
-                                                    <td className="px-6 py-4 text-center font-bold text-slate-600 tabular-nums bg-slate-50/30">{item.quantity}</td>
+                                                    <td className="px-6 py-4 text-center font-bold text-slate-600 tabular-nums bg-slate-50/30">
+                                                        <span>{item.quantity}</span>
+                                                        {item.unit_type && item.unit_type !== 'none' && (
+                                                            <span className="block text-[11px] font-medium text-slate-400">
+                                                                {item.unit_type === 'piece' ? 'Pcs' :
+                                                                 item.unit_type === 'set' ? 'Set' :
+                                                                 item.unit_type === 'box' ? 'Box' :
+                                                                 item.unit_type === 'trip' ? 'Trip' :
+                                                                 item.unit_type === 'delivery' ? 'Delivery' :
+                                                                 item.unit_type === 'lot' ? 'Lot' :
+                                                                 item.unit_type === 'service' ? 'Service' :
+                                                                 item.unit_type === 'sqft' ? 'SqFt' :
+                                                                 item.unit_type === 'kg' ? 'Kg' : item.unit_type}
+                                                            </span>
+                                                        )}
+                                                    </td>
                                                     <td className="px-6 py-4 text-right font-medium text-slate-600 tabular-nums"><Taka className="text-[12px] text-slate-400 mr-0.5"/>{fmt(item.unit_price)}</td>
                                                     <td className="px-6 py-4 text-right font-bold text-slate-800 tabular-nums"><Taka className="text-[12px] text-slate-400 mr-0.5"/>{fmt(item.total)}</td>
                                                 </tr>

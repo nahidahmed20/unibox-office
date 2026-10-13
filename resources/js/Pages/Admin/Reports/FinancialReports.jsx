@@ -8,7 +8,6 @@ import CustomSelect from '@/Components/CustomSelect';
 const fmt = (num) => Number(num || 0).toLocaleString('en-IN');
 const darkInput = "rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[13px] font-medium text-white outline-none transition [color-scheme:dark] hover:bg-white/10 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/30 cursor-pointer";
 const th = "px-5 py-3.5 text-[12.5px] font-semibold text-slate-500";
-const Bn = ({ children }) => <span className="block text-[11.5px] font-medium text-slate-400">{children}</span>;
 
 // 🟢 Custom Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
@@ -45,22 +44,22 @@ const EmptyRow = ({ cols, icon, text }) => (
     </tr>
 );
 
-const Tile = ({ label, bn, value, tone, op }) => (
+const Tile = ({ label, sub, value, tone, op }) => (
     <div className="relative flex flex-col justify-center rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <span className="text-[12.5px] font-semibold text-slate-600">{label}</span>
-        <span className="text-[11.5px] text-slate-400">{bn}</span>
+        {sub && <span className="text-[11.5px] text-slate-400">{sub}</span>}
         <span className={`mt-2 text-[20px] font-extrabold leading-none tabular-nums ${tone}`}><Taka className="text-[15px]" />{fmt(value)}</span>
         {op && <span className="absolute -right-3 top-1/2 z-10 hidden h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-[13px] font-bold text-slate-500 md:flex shadow-sm">{op}</span>}
     </div>
 );
 
-const MiniCard = ({ icon, label, bn, value, note, tone, className = "" }) => (
+const MiniCard = ({ icon, label, sub, value, note, tone, className = "" }) => (
     <div className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm ${className}`}>
         <div className="flex items-center gap-3">
             <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[15px] ${tone.icon}`}><i className={icon}></i></span>
             <div>
                 <p className="text-[14px] font-semibold text-slate-800">{label}</p>
-                <p className="text-[12px] text-slate-400">{bn}</p>
+                {sub && <p className="text-[12px] text-slate-400">{sub}</p>}
             </div>
         </div>
         <p className={`mt-5 text-[30px] font-extrabold leading-none tracking-tight tabular-nums ${tone.value}`}>{value}</p>
@@ -212,7 +211,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
 
     return (
         <AdminLayout>
-            <Head title="Financial Reports (আর্থিক প্রতিবেদন)"/>
+            <Head title="Financial Reports"/>
 
             <style dangerouslySetInnerHTML={{__html: `
                 .soft-scroll::-webkit-scrollbar { height: 8px; }
@@ -228,7 +227,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                     <div className="px-6 py-6 sm:px-8 sm:py-8 relative overflow-hidden">
                         <div className="absolute right-0 top-0 h-40 w-40 bg-indigo-500/20 blur-3xl rounded-full pointer-events-none translate-x-10 -translate-y-10"></div>
                         <h1 className="text-[28px] font-extrabold leading-none tracking-tight sm:text-[34px] relative z-10">
-                            Financial reports <span className="text-[20px] font-medium text-slate-400">(আর্থিক প্রতিবেদন)</span>
+                            Financial Reports
                         </h1>
                         <p className="mt-2.5 max-w-2xl text-[14px] text-slate-400 relative z-10">Track actual cash flow, market dues and monthly profitability. Pick a period below and the numbers update automatically.</p>
                     </div>
@@ -239,7 +238,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                             onChange={(e) => { setFilterYear(e.target.value); setFilterMonth(''); setStartDate(''); setEndDate(''); }}
                             className={`${darkInput} w-[140px]`}
                         >
-                            <option value="" className="text-slate-900 font-bold">All years (সব)</option>
+                            <option value="" className="text-slate-900 font-bold">All Years</option>
                             {years.map(y => <option key={y} value={y} className="text-slate-900 font-bold">{y}</option>)}
                         </CustomSelect>
                         <input
@@ -267,10 +266,10 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                         <div className="max-w-2xl">
                             <div className="flex items-center gap-2.5">
                                 <span className={`flex h-10 w-10 items-center justify-center rounded-xl text-[16px] shadow-sm border ${profitable ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'}`}><i className="fa-solid fa-chart-line"></i></span>
-                                <h2 className="text-[20px] font-black text-slate-900">Actual net profit <span className="font-bold text-slate-400 text-[16px]">(আসল লাভ)</span></h2>
+                                <h2 className="text-[20px] font-black text-slate-900">Actual Net Profit</h2>
                             </div>
                             <p className="mt-3 text-[14px] font-medium leading-relaxed text-slate-500">
-                                এটি আপনার ব্যবসার প্রকৃত লাভ। আপনি মোট কত টাকার কাজ (Invoice) করেছেন, তার থেকে ওই কাজগুলো করতে বা অফিস চালাতে আপনার মোট কত টাকার খরচ (Bills/Salary) হয়েছে— তার নিখুঁত হিসাব।
+                                Accrual-based business net profit calculated by deducting all project costs, office overheads, and salaries from total invoiced revenue.
                             </p>
                         </div>
                         <div className="lg:text-right bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-inner">
@@ -282,14 +281,14 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 border-t border-slate-200 bg-slate-50/50 p-5 sm:px-8 md:grid-cols-5">
-                        <Tile label="Total invoiced" bn="(আয়)" value={summary.accrual_revenue} tone="text-blue-700" op="−" />
-                        <Tile label="Project bills" bn="(প্রজেক্ট খরচ)" value={summary.accrual_project_cost} tone="text-rose-600" op="−" />
-                        <Tile label="Office expenses" bn="(অফিস খরচ)" value={summary.accrual_office_cost} tone="text-rose-600" op="−" />
-                        <Tile label="Salaries" bn="(বেতন)" value={summary.accrual_salary_cost} tone="text-rose-600" op="=" />
+                        <Tile label="Total Invoiced" sub="(Revenue)" value={summary.accrual_revenue} tone="text-blue-700" op="−" />
+                        <Tile label="Project Bills" sub="(Direct Costs)" value={summary.accrual_project_cost} tone="text-rose-600" op="−" />
+                        <Tile label="Office Expenses" sub="(Overheads)" value={summary.accrual_office_cost} tone="text-rose-600" op="−" />
+                        <Tile label="Salaries" sub="(Payroll)" value={summary.accrual_salary_cost} tone="text-rose-600" op="=" />
                         <div className={`col-span-2 flex flex-col justify-center rounded-2xl p-5 text-white md:col-span-1 shadow-md relative overflow-hidden ${profitable ? 'bg-gradient-to-br from-emerald-500 to-emerald-700' : 'bg-gradient-to-br from-rose-500 to-rose-700'}`}>
                             <div className="absolute right-0 top-0 h-20 w-20 bg-white/10 blur-xl rounded-full translate-x-5 -translate-y-5"></div>
-                            <span className="text-[13px] font-bold text-white/90 uppercase tracking-widest relative z-10">Net profit</span>
-                            <span className="text-[11.5px] font-medium text-white/70 relative z-10">(নীট লাভ)</span>
+                            <span className="text-[13px] font-bold text-white/90 uppercase tracking-widest relative z-10">Net Profit</span>
+                            <span className="text-[11.5px] font-medium text-white/70 relative z-10">(Net Income)</span>
                             <span className="mt-2 text-[26px] font-black leading-none tabular-nums relative z-10"><Taka className="text-[18px]" />{fmt(summary.net_actual_profit)}</span>
                         </div>
                     </div>
@@ -299,19 +298,19 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
                     <MiniCard
                         className="lg:col-span-2"
-                        icon="fa-solid fa-money-bill-transfer" label="Net cash flow" bn="(হাতে থাকা ক্যাশ)"
+                        icon="fa-solid fa-money-bill-transfer" label="Net cash flow" sub="(Cash in hand)"
                         value={`${Number(summary.net_cash_flow) > 0 ? '+' : ''}৳ ${fmt(summary.net_cash_flow)}`}
-                        note="টোটাল যত টাকা ক্যাশ ঢুকেছে তার থেকে টোটাল যত টাকা ক্যাশ বের হয়েছে তার বিয়োগফল।"
+                        note="Net cash flow: Total cash received minus total cash disbursed."
                         tone={cashPositive ? { icon: 'bg-violet-100 text-violet-700 border border-violet-200', value: 'text-violet-700' } : { icon: 'bg-slate-100 text-slate-600 border border-slate-200', value: 'text-slate-700' }}
                     />
                     <MiniCard
-                        icon="fa-solid fa-file-invoice-dollar" label="Market receivables" bn="(পাওনা টাকা)"
-                        value={`৳ ${fmt(summary.client_due)}`} note="ক্লায়েন্টদের কাছে মোট পাওনা।"
+                        icon="fa-solid fa-file-invoice-dollar" label="Market receivables" sub="(Client Dues)"
+                        value={`৳ ${fmt(summary.client_due)}`} note="Total outstanding balance receivable from clients."
                         tone={{ icon: 'bg-amber-100 text-amber-700 border border-amber-200', value: 'text-amber-700' }}
                     />
                     <MiniCard
-                        icon="fa-solid fa-file-signature" label="Market payables" bn="(দেনা/বকেয়া)"
-                        value={`৳ ${fmt(summary.vendor_due)}`} note="ভেন্ডরদের মোট পরিশোধযোগ্য বকেয়া।"
+                        icon="fa-solid fa-file-signature" label="Market payables" sub="(Vendor Dues)"
+                        value={`৳ ${fmt(summary.vendor_due)}`} note="Total outstanding payables due to suppliers and vendors."
                         tone={{ icon: 'bg-rose-100 text-rose-700 border border-rose-200', value: 'text-rose-700' }}
                     />
                 </div>
@@ -320,14 +319,14 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                 <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-md">
                     <div className="flex gap-1 overflow-x-auto border-b border-slate-200 bg-slate-50 px-4 pt-3 sm:px-6 no-print">
                         {[
-                            ['profit_loss', 'fa-solid fa-users', 'Client-wise summary', '(ক্লায়েন্ট রিপোর্ট)'],
-                            ['monthly', 'fa-regular fa-calendar-days', 'Project accrual', '(প্রজেক্ট রিপোর্ট)'],
-                        ].map(([id, icon, label, bn]) => (
+                            ['profit_loss', 'fa-solid fa-users', 'Client-wise summary', '(Client Report)'],
+                            ['monthly', 'fa-regular fa-calendar-days', 'Project accrual', '(Project Report)'],
+                        ].map(([id, icon, label, sub]) => (
                             <button
                                 key={id} onClick={() => setActiveTab(id)}
                                 className={`-mb-px flex shrink-0 items-center gap-2 border-b-[3px] px-5 py-3.5 text-[14.5px] font-bold transition-all ${activeTab === id ? 'border-indigo-600 text-indigo-700 bg-white rounded-t-xl shadow-[0_-2px_10px_rgba(0,0,0,0.02)]' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-t-xl'}`}
                             >
-                                <i className={`${icon} text-[13px]`}></i>{label}<span className="hidden font-semibold text-slate-400 sm:inline">{bn}</span>
+                                <i className={`${icon} text-[13px]`}></i>{label}<span className="hidden font-semibold text-slate-400 sm:inline">{sub}</span>
                             </button>
                         ))}
                     </div>
@@ -336,7 +335,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                     {activeTab === 'profit_loss' && (
                         <div style={{ animation: 'fadeIn .2s ease-out' }}>
                             <Toolbar
-                                placeholder="Search client (ক্লায়েন্ট খুঁজুন)…" value={searchClient}
+                                placeholder="Search client…" value={searchClient}
                                 onChange={(e) => setSearchClient(e.target.value)} onCsv={exportClientCSV}
                                 onPrint={() => handlePrint('client-report-table', 'Client-Wise Profitability Report')}
                             />
@@ -345,14 +344,14 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                                 <table id="client-report-table" className="w-full min-w-[1200px] whitespace-nowrap border-collapse text-left">
                                     <thead className="border-b border-slate-200 bg-slate-50">
                                         <tr>
-                                            <th className={th}>Client name<Bn>(ক্লায়েন্টের নাম)</Bn></th>
-                                            <th className={`${th} text-center`}>Projects<Bn>(প্রজেক্টস)</Bn></th>
-                                            <th className={`${th} text-right`}>Project budget<Bn>(বাজেট)</Bn></th>
-                                            <th className={`${th} text-right`}>Project cost<Bn>(খরচ)</Bn></th>
-                                            <th className={`${th} border-l border-slate-200 text-center`}>Invoices<Bn>(ইনভয়েস)</Bn></th>
-                                            <th className={`${th} text-right`}>Total billed<Bn>(মোট বিল)</Bn></th>
-                                            <th className={`${th} bg-emerald-50/60 text-right`}>Received<Bn>(প্রাপ্তি)</Bn></th>
-                                            <th className={`${th} bg-rose-50/60 text-right`}>Net due<Bn>(বকেয়া)</Bn></th>
+                                            <th className={th}>Client name</th>
+                                            <th className={`${th} text-center`}>Projects</th>
+                                            <th className={`${th} text-right`}>Project budget</th>
+                                            <th className={`${th} text-right`}>Project cost</th>
+                                            <th className={`${th} border-l border-slate-200 text-center`}>Invoices</th>
+                                            <th className={`${th} text-right`}>Total billed</th>
+                                            <th className={`${th} bg-emerald-50/60 text-right`}>Received</th>
+                                            <th className={`${th} bg-rose-50/60 text-right`}>Net due</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 text-[13.5px] text-slate-800">
@@ -383,7 +382,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                                     {filteredClients.length > 0 && (
                                         <tfoot className="border-t-4 border-slate-200 bg-slate-100 text-[13.5px] font-extrabold text-slate-800">
                                             <tr>
-                                                <td className="px-5 py-4 uppercase tracking-wider text-[12px] text-slate-500">Grand total<Bn>(সর্বমোট)</Bn></td>
+                                                <td className="px-5 py-4 uppercase tracking-wider text-[12px] text-slate-500">Grand Total</td>
                                                 <td className="px-5 py-4 text-center tabular-nums text-[15px]">{fmt(clientTotals.total_projects)}</td>
                                                 <td className="px-5 py-4 text-right tabular-nums text-[15px]"><Taka className="text-[12px] opacity-70" /> {fmt(clientTotals.total_budget)}</td>
                                                 <td className="px-5 py-4 text-right tabular-nums text-[15px]"><Taka className="text-[12px] opacity-70" /> {fmt(clientTotals.total_expense)}</td>
@@ -403,7 +402,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                     {activeTab === 'monthly' && (
                         <div style={{ animation: 'fadeIn .2s ease-out' }}>
                             <Toolbar
-                                placeholder="Search month (মাস খুঁজুন)…" value={searchMonth}
+                                placeholder="Search month…" value={searchMonth}
                                 onChange={(e) => setSearchMonth(e.target.value)} onCsv={exportMonthlyCSV}
                                 onPrint={() => handlePrint('monthly-report-table', 'Monthly Projects Report')}
                             />
@@ -419,11 +418,11 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                                                     </th>
                                                 </tr>
                                                 <tr className="border-b border-slate-200 bg-slate-100">
-                                                    <th className={th}>Project name<Bn>(প্রজেক্টের নাম)</Bn></th>
-                                                    <th className={th}>Client<Bn>(ক্লায়েন্ট)</Bn></th>
-                                                    <th className={`${th} text-right`}>Budget<Bn>(বাজেট)</Bn></th>
-                                                    <th className={`${th} text-right`}>Cost<Bn>(খরচ)</Bn></th>
-                                                    <th className={`${th} text-right`}>Est. profit<Bn>(সম্ভাব্য লাভ)</Bn></th>
+                                                    <th className={th}>Project Name</th>
+                                                    <th className={th}>Client</th>
+                                                    <th className={`${th} text-right`}>Budget</th>
+                                                    <th className={`${th} text-right`}>Cost</th>
+                                                    <th className={`${th} text-right`}>Est. Profit</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="text-[13.5px] text-slate-800">
@@ -450,7 +449,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                                                 ))}
                                                 <tr className="summary-row border-b-[6px] border-slate-200 bg-slate-50">
                                                     <td colSpan="2" className="px-6 py-4 text-right text-[13px] font-bold uppercase tracking-widest text-slate-500">
-                                                        Summary for {data.month} <span className="text-slate-400 normal-case tracking-normal">(সারসংক্ষেপ)</span>
+                                                        Summary for {data.month}
                                                     </td>
                                                     <td className="px-6 py-4 text-right text-[15px] font-extrabold tabular-nums text-blue-700"><Taka className="text-[12px] opacity-70" /> {fmt(data.month_budget)}</td>
                                                     <td className="px-6 py-4 text-right text-[15px] font-extrabold tabular-nums text-orange-600"><Taka className="text-[12px] opacity-70" /> {fmt(data.month_expense)}</td>
@@ -467,7 +466,7 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                                     {filteredMonths.length > 0 && (
                                         <tfoot className="bg-slate-900 text-[13.5px] font-extrabold text-white">
                                             <tr>
-                                                <td colSpan="2" className="px-6 py-5 text-right uppercase tracking-widest text-[12.5px] text-slate-300">Overall grand total <span className="font-bold text-slate-500 normal-case tracking-normal">(সর্বমোট)</span></td>
+                                                <td colSpan="2" className="px-6 py-5 text-right uppercase tracking-widest text-[12.5px] text-slate-300">Overall Grand Total</td>
                                                 <td className="px-6 py-5 text-right tabular-nums text-[16px] text-blue-300"><Taka className="text-[12px] opacity-70" /> {fmt(monthlyReportTotals.budget)}</td>
                                                 <td className="px-6 py-5 text-right tabular-nums text-[16px] text-orange-300"><Taka className="text-[12px] opacity-70" /> {fmt(monthlyReportTotals.expense)}</td>
                                                 <td className={`px-6 py-5 text-right tabular-nums text-[18px] ${monthlyReportTotals.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>

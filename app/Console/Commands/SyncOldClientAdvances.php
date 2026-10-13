@@ -29,7 +29,7 @@ class SyncOldClientAdvances extends Command
         $count = 0;
 
         foreach ($advances as $advance) {
-            // চেক করুন এই অ্যাডভান্সের ট্রানজেকশন আগে থেকেই আছে কি না (যাতে ডুপ্লিকেট না হয়)
+            // Check if transaction already exists to avoid duplicates
             $exists = Transaction::where('transactionable_type', ClientAdvance::class)
                 ->where('transactionable_id', $advance->id)
                 ->exists();
@@ -37,7 +37,7 @@ class SyncOldClientAdvances extends Command
             if (!$exists) {
                 Transaction::create([
                     'account_id'           => $advance->account_id,
-                    'type'                 => 'credit', // ক্লায়েন্ট অ্যাডভান্স দিলে টাকা অ্যাকাউন্টে ঢোকে, তাই credit
+                    'type'                 => 'credit', // Receiving client advance increases account balance
                     'amount'               => $advance->amount,
                     'transaction_date'     => $advance->date,
                     'description'          => 'Client Advance Received. ' . ($advance->note ? ' Note: ' . $advance->note : ''),

@@ -33,6 +33,7 @@ use App\Http\Controllers\InvoiceSettingController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\ChallanController;
 use App\Http\Controllers\ChallanSettingController;
+use App\Http\Controllers\UsefulLinkController;
 
 use App\Models\Invoice;
 use Illuminate\Foundation\Application;
@@ -110,6 +111,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('assets', AssetController::class)->names('admin.assets');
     Route::resource('requisitions', RequisitionController::class)->names('admin.requisitions');
     Route::resource('notices', NoticeController::class)->names('admin.notices');
+    Route::post('useful-links/{usefulLink}/toggle-pin', [UsefulLinkController::class, 'togglePin'])->name('admin.useful-links.toggle-pin');
+    Route::resource('useful-links', UsefulLinkController::class)->names('admin.useful-links');
 
     Route::resource('departments', DepartmentController::class)->names('admin.departments');
     Route::resource('designations', DesignationController::class)->names('admin.designations');

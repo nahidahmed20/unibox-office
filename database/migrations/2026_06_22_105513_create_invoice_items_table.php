@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('item_name', 255)->nullable();
             $table->longText('description')->nullable();
             $table->integer('quantity')->nullable();
+            $table->string('unit_type', 50)->nullable()->default('piece');
             $table->decimal('unit_price', 12, 2);
             $table->decimal('total', 12, 2);
             $table->timestamps();

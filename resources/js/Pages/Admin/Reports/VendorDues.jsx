@@ -147,8 +147,8 @@ export default function VendorDues({ vendorDues = { data: [], links: [] }, grand
                     <h2>Accounts Payable & Vendor Advances</h2>
                     <p>Generated Report Date: ${new Date().toLocaleString()}</p>
                     <div class="summary">
-                        <span style="color: #e11d48;">Total Payable (দেনা): TK. ${Number(grandTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                        <span style="color: #059669;">Total Advance (জমা): TK. ${Number(grandTotalAdvance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        <span style="color: #e11d48;">Total Payable: TK. ${Number(grandTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        <span style="color: #059669;">Total Advance: TK. ${Number(grandTotalAdvance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                     ${tableContent.outerHTML}
                 </body>
@@ -207,7 +207,7 @@ export default function VendorDues({ vendorDues = { data: [], links: [] }, grand
                             <i className="fa-solid fa-file-invoice-dollar text-[22px]"></i>
                         </div>
                         <div>
-                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-rose-600/90">Total Payable Amount (দেনা)</p>
+                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-rose-600/90">Total Payable Amount</p>
                             <h3 className="text-[24px] font-black text-rose-700 tabular-nums tracking-tight m-0">
                                 <Taka className="text-[20px]" />{Number(grandTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </h3>
@@ -219,7 +219,7 @@ export default function VendorDues({ vendorDues = { data: [], links: [] }, grand
                             <i className="fa-solid fa-wallet text-[22px]"></i>
                         </div>
                         <div>
-                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-emerald-600/90">Total Advance in Wallets (জমা)</p>
+                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-emerald-600/90">Total Advance in Wallets</p>
                             <h3 className="text-[24px] font-black text-emerald-700 tabular-nums tracking-tight m-0">
                                 <Taka className="text-[20px]" />{Number(grandTotalAdvance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </h3>

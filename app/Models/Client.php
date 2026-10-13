@@ -41,7 +41,7 @@ class Client extends Model {
             ->selectRaw('COALESCE(SUM(amount - used_amount), 0) AS balance')->value('balance'));
     }
 
-    // ৪. Current Due (মোট বকেয়া)
+    // 4. Current Due
     public function getTotalDueAttribute()
     {
         if (array_key_exists('total_due', $this->attributes)) {
@@ -49,11 +49,8 @@ class Client extends Model {
         }
         $totalBilled = $this->total_invoiced;
         $totalPaid = $this->total_paid;
-        $advanceUsed = (float) ($this->invoices()->whereNull('deleted_at')->sum('advance_used') ?? 0);
 
-        $due = $totalBilled - ($totalPaid + $advanceUsed);
-        
-        return $due > 0 ? $due : 0;
+        return max(0, $totalBilled - $totalPaid);
     }
 
     public function getFinancialSummaryAttribute()

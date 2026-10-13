@@ -120,7 +120,7 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                         </div>
                         <h1 className="text-[28px] font-extrabold text-[#202223] tracking-tight">Project Profit & Loss Report</h1>
                         <p className="text-[14.5px] text-gray-500 mt-1">
-                            প্রতিটি প্রজেক্টের বাজেট, ইনভয়েস বিল, আদায়কৃত টাকা, ভেন্ডর ও প্রজেক্ট খরচ এবং নিট লাভ-ক্ষতির পূর্ণাঙ্গ হিসাব।
+                            Comprehensive audit of budgets, billed invoices, collections, expenses, and net profit/loss for every project.
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -141,13 +141,13 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
                                 <i className="fa-solid fa-file-invoice-dollar"></i>
                             </div>
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">Total Invoiced (মোট বিল)</span>
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">Total Invoiced</span>
                         </div>
                         <div className="text-[22px] font-black text-indigo-900 tabular-nums">
                             <Taka className="text-[18px]" />{Number(summary.total_invoiced || 0).toLocaleString('en-IN')}
                         </div>
                         <div className="text-[11.5px] font-bold text-slate-500 mt-1">
-                            প্রজেক্ট বাজেট: ৳{Number(summary.total_budget || 0).toLocaleString('en-IN')} ({summary.total_projects || 0}টি প্রজেক্ট)
+                            Project Budget: ৳{Number(summary.total_budget || 0).toLocaleString('en-IN')} ({summary.total_projects || 0} projects)
                         </div>
                     </div>
 
@@ -157,13 +157,13 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
                                 <i className="fa-solid fa-hand-holding-dollar"></i>
                             </div>
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700">Collected (মোট আদায়)</span>
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700">Collected</span>
                         </div>
                         <div className="text-[22px] font-black text-blue-900 tabular-nums">
                             <Taka className="text-[18px]" />{Number(summary.total_collected || 0).toLocaleString('en-IN')}
                         </div>
                         <div className="text-[11.5px] font-bold text-rose-600 mt-1">
-                            ক্লায়েন্ট বকেয়া: ৳{Number(summary.total_receivable || 0).toLocaleString('en-IN')}
+                            Client Due: ৳{Number(summary.total_receivable || 0).toLocaleString('en-IN')}
                         </div>
                     </div>
 
@@ -173,13 +173,13 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-white shadow-sm">
                                 <i className="fa-solid fa-boxes-packing"></i>
                             </div>
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Total Project Cost (মোট খরচ)</span>
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">Total Project Cost</span>
                         </div>
                         <div className="text-[22px] font-black text-amber-900 tabular-nums">
                             <Taka className="text-[18px]" />{Number(summary.total_expense || 0).toLocaleString('en-IN')}
                         </div>
                         <div className="text-[11.5px] font-bold text-amber-700 mt-1">
-                            পরিশোধিত: ৳{Number(summary.total_expense_paid || 0).toLocaleString('en-IN')} | ভেন্ডর বকেয়া: ৳{Number(summary.total_expense_due || 0).toLocaleString('en-IN')}
+                            Paid: ৳{Number(summary.total_expense_paid || 0).toLocaleString('en-IN')} | Vendor Due: ৳{Number(summary.total_expense_due || 0).toLocaleString('en-IN')}
                         </div>
                     </div>
 
@@ -191,7 +191,7 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                                     <i className={`fa-solid ${Number(summary.net_profit) >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'}`}></i>
                                 </div>
                                 <span className={`text-[11px] font-bold uppercase tracking-wider ${Number(summary.net_profit) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                                    {Number(summary.net_profit) >= 0 ? 'Net Profit (নিট লাভ)' : 'Net Loss (নিট ক্ষতি)'}
+                                    {Number(summary.net_profit) >= 0 ? 'Net Profit' : 'Net Loss'}
                                 </span>
                             </div>
                             <span className={`px-2.5 py-1 rounded-full text-[11px] font-black ${Number(summary.net_profit) >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
@@ -202,7 +202,7 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                             <Taka className="text-[18px]" />{Number(Math.abs(summary.net_profit || 0)).toLocaleString('en-IN')}
                         </div>
                         <div className="text-[11.5px] font-bold text-slate-600 mt-1">
-                            নগদ উদ্বৃত্ত (Cash Profit): ৳{Number(summary.cash_profit || 0).toLocaleString('en-IN')}
+                            Cash Profit: ৳{Number(summary.cash_profit || 0).toLocaleString('en-IN')}
                         </div>
                     </div>
                 </div>
@@ -218,7 +218,7 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && applyFilters({ search: e.target.value })}
-                                placeholder="প্রজেক্ট বা ক্লায়েন্টের নাম দিয়ে সার্চ..."
+                                placeholder="Search by project or client name..."
                                 className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-4 py-2.5 text-[13.5px] focus:border-[var(--accent)] focus:outline-none"
                             />
                         </div>
@@ -228,7 +228,7 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                                 onChange={(e) => { setClientId(e.target.value); applyFilters({ client_id: e.target.value }); }}
                                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13.5px] focus:border-[var(--accent)] focus:outline-none"
                             >
-                                <option value="">সব ক্লায়েন্ট (All Clients)</option>
+                                <option value="">All Clients</option>
                                 {clients.map(c => (
                                     <option key={c.id} value={c.id}>{c.name} {c.company_name ? `(${c.company_name})` : ''}</option>
                                 ))}
@@ -240,7 +240,7 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                                 onChange={(e) => { setStatus(e.target.value); applyFilters({ status: e.target.value }); }}
                                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13.5px] focus:border-[var(--accent)] focus:outline-none"
                             >
-                                <option value="">সব স্ট্যাটাস (All Status)</option>
+                                <option value="">All Statuses</option>
                                 <option value="pending">Pending</option>
                                 <option value="in_progress">In Progress</option>
                                 <option value="completed">Completed</option>
@@ -336,7 +336,7 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                                                 <td className="px-4 py-4 text-right tabular-nums">
                                                     <div className="font-bold text-amber-800"><Taka />{Number(p.total_expense).toLocaleString('en-IN')}</div>
                                                     {p.due_expense > 0 && (
-                                                        <div className="text-[10.5px] font-bold text-rose-500">বকেয়া: ৳{Number(p.due_expense).toLocaleString('en-IN')}</div>
+                                                        <div className="text-[10.5px] font-bold text-rose-500">Due: ৳{Number(p.due_expense).toLocaleString('en-IN')}</div>
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-4 text-right bg-slate-50/60 tabular-nums">
@@ -344,7 +344,7 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                                                         {p.net_profit < 0 ? '-' : ''}<Taka />{Number(Math.abs(p.net_profit)).toLocaleString('en-IN')}
                                                     </div>
                                                     {!p.is_billed && (
-                                                        <span className="text-[10px] font-semibold text-slate-400">বাজেট অনুযায়ী প্রাক্কলিত</span>
+                                                        <span className="text-[10px] font-semibold text-slate-400">Estimated from budget</span>
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-4 text-center">
@@ -355,7 +355,7 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                                             </tr>
                                         ))}
                                         <tr className="bg-slate-900 text-white font-black">
-                                            <td colSpan="2" className="px-5 py-4 text-right uppercase text-[13px]">মোট যোগফল (Grand Total):</td>
+                                            <td colSpan="2" className="px-5 py-4 text-right uppercase text-[13px]">Grand Total:</td>
                                             <td className="px-4 py-4 text-right tabular-nums"><Taka />{Number(summary.total_budget || 0).toLocaleString('en-IN')}</td>
                                             <td className="px-4 py-4 text-right tabular-nums text-indigo-300"><Taka />{Number(summary.total_invoiced || 0).toLocaleString('en-IN')}</td>
                                             <td className="px-4 py-4 text-right tabular-nums text-emerald-300"><Taka />{Number(summary.total_collected || 0).toLocaleString('en-IN')}</td>
@@ -370,7 +370,7 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                                 ) : (
                                     <tr>
                                         <td colSpan="9" className="px-6 py-20 text-center text-gray-500 font-bold">
-                                            কোনো প্রজেক্টের তথ্য পাওয়া যায়নি।
+                                            No project records found.
                                         </td>
                                     </tr>
                                 )}

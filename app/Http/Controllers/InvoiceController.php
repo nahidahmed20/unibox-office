@@ -11,6 +11,8 @@ use App\Models\InvoiceSetting;
 use App\Models\Account;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
 use Inertia\Inertia;
 
 class InvoiceController extends Controller
@@ -145,7 +147,7 @@ class InvoiceController extends Controller
 
             $invoice = Invoice::create($invoiceData);
 
-            $hasUnitType = \Illuminate\Support\Facades\Schema::hasColumn('invoice_items', 'unit_type');
+            $hasUnitType = $this->ensureUnitTypeColumnExists();
             $allowedFields = ['project_id', 'item_name', 'description', 'quantity', 'unit_price', 'total'];
             if ($hasUnitType) {
                 $allowedFields[] = 'unit_type';
@@ -233,7 +235,7 @@ class InvoiceController extends Controller
             $invoiceData['advance_used'] = 0;
             $invoice->update($invoiceData);
 
-            $hasUnitType = \Illuminate\Support\Facades\Schema::hasColumn('invoice_items', 'unit_type');
+            $hasUnitType = $this->ensureUnitTypeColumnExists();
             $allowedFields = ['project_id', 'item_name', 'description', 'quantity', 'unit_price', 'total'];
             if ($hasUnitType) {
                 $allowedFields[] = 'unit_type';
@@ -398,6 +400,21 @@ class InvoiceController extends Controller
         $lastNumber = (int) str_replace($prefix, '', $lastInvoice->invoice_number);
         $nextNumber = $lastNumber + 1;
         return $prefix . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+    }
+
+    protected function ensureUnitTypeColumnExists(): bool
+    {
+        if (!Schema::hasColumn('invoice_items', 'unit_type')) {
+            try {
+                Schema::table('invoice_items', function (Blueprint $table) {
+                    $table->string('unit_type', 50)->nullable()->default('piece')->after('quantity');
+                });
+                return true;
+            } catch (\Throwable $e) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public function print($id)

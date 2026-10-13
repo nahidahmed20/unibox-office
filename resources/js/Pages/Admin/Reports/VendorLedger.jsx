@@ -87,8 +87,8 @@ export default function VendorLedger({ vendors = [], ledger = [], dateWisePaymen
         const tableContent = document.getElementById("printable-vendor-ledger");
         const printWindow = window.open('', '_blank');
         const reportTitle = activeTab === 'date_wise_payments'
-            ? 'Vendor Date-wise Payment Summary (তারিখ অনুযায়ী ভেন্ডর পেমেন্টের হিসাব)'
-            : 'Vendor Statement of Account (ভেন্ডর খতিয়ান)';
+            ? 'Vendor Date-wise Payment Summary'
+            : 'Vendor Statement of Account';
 
         printWindow.document.write(`
             <html>
@@ -193,7 +193,7 @@ export default function VendorLedger({ vendors = [], ledger = [], dateWisePaymen
                         </div>
                         <h1 className="text-[28px] font-extrabold text-[#202223] tracking-tight">Vendor Ledger Statement</h1>
                         <p className="text-[14.5px] text-gray-500 mt-1.5 max-w-xl leading-relaxed">
-                            ভেন্ডরের প্রারম্ভিক বকেয়া, প্রজেক্টের বিল, ভাউচার পেমেন্ট, তারিখ অনুযায়ী পরিশোধের হিসাব এবং রানিং ব্যালেন্স।
+                            Vendor opening dues, project expense bills, voucher payments, date-wise settlement summary, and running balance.
                         </p>
                     </div>
                 </div>
@@ -212,7 +212,7 @@ export default function VendorLedger({ vendors = [], ledger = [], dateWisePaymen
                                     }))}
                                     value={vendorId ? { value: vendorId, label: vendors.find(v => v.id == vendorId)?.name } : null}
                                     onChange={(selected) => fetchLedger(selected ? selected.value : "")}
-                                    placeholder="ভেন্ডর সার্চ ও সিলেক্ট করুন..."
+                                    placeholder="Search and select vendor..."
                                     isSearchable
                                     styles={selectStyles}
                                     menuPosition="fixed"
@@ -237,7 +237,7 @@ export default function VendorLedger({ vendors = [], ledger = [], dateWisePaymen
                                         }`}
                                     >
                                         <i className="fa-solid fa-book-open text-[11px]"></i>
-                                        <span>পূর্ণাঙ্গ খতিয়ান (Full Statement)</span>
+                                        <span>Full Statement</span>
                                     </button>
                                     <button
                                         type="button"
@@ -249,7 +249,7 @@ export default function VendorLedger({ vendors = [], ledger = [], dateWisePaymen
                                         }`}
                                     >
                                         <i className="fa-solid fa-calendar-check text-[11px]"></i>
-                                        <span>তারিখ অনুযায়ী পেমেন্ট ({dateWisePayments.length} দিন)</span>
+                                        <span>Date-wise Payments ({dateWisePayments.length} {dateWisePayments.length === 1 ? 'Day' : 'Days'})</span>
                                     </button>
                                 </div>
                             )}
@@ -286,7 +286,7 @@ export default function VendorLedger({ vendors = [], ledger = [], dateWisePaymen
                                 </div>
                                 {Number(summary.opening_balance) > 0 && (
                                     <div className="text-[11px] font-bold text-indigo-600/80 mt-1">
-                                        প্রারম্ভিক বকেয়া: ৳{Number(summary.opening_balance).toLocaleString('en-IN')}
+                                        Opening Due: ৳{Number(summary.opening_balance).toLocaleString('en-IN')}
                                     </div>
                                 )}
                             </div>
@@ -304,7 +304,7 @@ export default function VendorLedger({ vendors = [], ledger = [], dateWisePaymen
                                 </div>
                                 {Number(summary.total_discount) > 0 && (
                                     <div className="text-[11px] font-bold text-amber-600 mt-1">
-                                        ডিসকাউন্ট/ছাড়: ৳{Number(summary.total_discount).toLocaleString('en-IN')}
+                                        Discount: ৳{Number(summary.total_discount).toLocaleString('en-IN')}
                                     </div>
                                 )}
                             </div>
@@ -329,7 +329,7 @@ export default function VendorLedger({ vendors = [], ledger = [], dateWisePaymen
                                         <i className={`fa-solid text-[15px] ${summary.net_due > 0 ? 'fa-triangle-exclamation' : 'fa-check-double'}`}></i>
                                     </div>
                                     <span className={`text-[11px] font-bold uppercase tracking-wider ${summary.net_due > 0 ? 'text-rose-700/90' : 'text-gray-500'}`}>
-                                        {summary.net_due > 0 ? 'Net Payable Due (বকেয়া)' : 'All Bills Settled'}
+                                        {summary.net_due > 0 ? 'Net Payable Due' : 'All Bills Settled'}
                                     </span>
                                 </div>
                                 <div className={`text-[22px] font-black tabular-nums tracking-tight ${summary.net_due > 0 ? 'text-rose-700' : 'text-gray-700'}`}>
@@ -346,11 +346,11 @@ export default function VendorLedger({ vendors = [], ledger = [], dateWisePaymen
                                 <thead className="bg-emerald-50/70 border-b border-emerald-200">
                                     <tr>
                                         <th className="px-6 py-4 text-center text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em] w-16">SL</th>
-                                        <th className="px-6 py-4 text-left text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em] w-44">Payment Date (তারিখ)</th>
-                                        <th className="px-6 py-4 text-left text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em] w-56">Payment Source (মাধ্যম)</th>
-                                        <th className="px-6 py-4 text-left text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em]">Bills & Vouchers Breakdown (কোন বিলে কত পরিশোধ)</th>
-                                        <th className="px-6 py-4 text-right text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em] w-44">Discount (ছাড়)</th>
-                                        <th className="px-6 py-4 text-right text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em] w-56">Date Total Paid (মোট পরিশোধ)</th>
+                                        <th className="px-6 py-4 text-left text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em] w-44">Payment Date</th>
+                                        <th className="px-6 py-4 text-left text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em] w-56">Payment Source</th>
+                                        <th className="px-6 py-4 text-left text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em]">Bills & Vouchers Breakdown</th>
+                                        <th className="px-6 py-4 text-right text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em] w-44">Discount</th>
+                                        <th className="px-6 py-4 text-right text-[11.5px] font-extrabold text-emerald-900 uppercase tracking-[0.06em] w-56">Date Total Paid</th>
                                     </tr>
                                 </thead>
                                 <tbody className="text-[13.5px] text-[#202223] divide-y divide-gray-100">
@@ -399,7 +399,7 @@ export default function VendorLedger({ vendors = [], ledger = [], dateWisePaymen
                                             ))}
                                             <tr className="bg-slate-900 text-white font-black">
                                                 <td colSpan="4" className="px-6 py-4 text-right text-[14px] uppercase tracking-wider">
-                                                    সর্বমোট পরিশোধিত টাকা (Grand Total across {dateWisePayments.length} Dates):
+                                                    Grand Total across {dateWisePayments.length} Dates:
                                                 </td>
                                                 <td className="px-6 py-4 text-right text-[15px] text-amber-300 tabular-nums">
                                                     <Taka />{Number(grandTotalDiscountDateWise).toLocaleString('en-IN')}
@@ -412,7 +412,7 @@ export default function VendorLedger({ vendors = [], ledger = [], dateWisePaymen
                                     ) : (
                                         <tr>
                                             <td colSpan="6" className="px-6 py-24 text-center text-gray-400">
-                                                <p className="text-[14.5px] text-gray-600 font-bold">এই ভেন্ডরের কোনো পেমেন্ট রেকর্ড পাওয়া যায়নি।</p>
+                                                <p className="text-[14.5px] text-gray-600 font-bold">No payment records found for this vendor.</p>
                                             </td>
                                         </tr>
                                     )}
@@ -437,7 +437,7 @@ export default function VendorLedger({ vendors = [], ledger = [], dateWisePaymen
                                             <td colSpan="7" className="px-6 py-24 text-center text-gray-400 no-print">
                                                 <div className="flex flex-col items-center justify-center">
                                                     <i className="fa-solid fa-truck-field text-5xl mb-4 text-gray-200"></i>
-                                                    <p className="text-[15px] text-gray-500 font-semibold">উপরের ড্রপডাউন থেকে যেকোনো ভেন্ডর সিলেক্ট করে তার পূর্ণাঙ্গ খতিয়ান দেখুন।</p>
+                                                    <p className="text-[15px] text-gray-500 font-semibold">Select a vendor from the dropdown above to view their full ledger statement.</p>
                                                 </div>
                                             </td>
                                         </tr>
@@ -490,7 +490,7 @@ export default function VendorLedger({ vendors = [], ledger = [], dateWisePaymen
                                                             className="mt-1 inline-flex items-center gap-1 rounded-md bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-0.5 text-[10px] font-black text-indigo-700 transition-colors no-print"
                                                         >
                                                             <i className="fa-solid fa-layer-group text-[9px]"></i>
-                                                            ঐ তারিখে মোট: ৳{Number(item.date_group.total_amount).toLocaleString('en-IN')} ({item.date_group.items.length}টি)
+                                                            Total on date: ৳{Number(item.date_group.total_amount).toLocaleString('en-IN')} ({item.date_group.items.length} {item.date_group.items.length === 1 ? 'bill' : 'bills'})
                                                         </button>
                                                     )}
                                                 </td>
@@ -509,7 +509,7 @@ export default function VendorLedger({ vendors = [], ledger = [], dateWisePaymen
                                     ) : (
                                         <tr>
                                             <td colSpan="7" className="px-6 py-24 text-center text-gray-400 no-print">
-                                                <p className="text-[14.5px] text-gray-600 font-bold">এই ভেন্ডরের কোনো লেনদেন পাওয়া যায়নি।</p>
+                                                <p className="text-[14.5px] text-gray-600 font-bold">No transactions found for this vendor.</p>
                                             </td>
                                         </tr>
                                     )}

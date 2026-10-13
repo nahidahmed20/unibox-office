@@ -403,7 +403,7 @@ class SalaryController extends Controller
         }
 
         if ($remaining > 0.009) {
-            throw new \Exception('কর্মীর পর্যাপ্ত অ্যাডভান্স ব্যালেন্স নেই!');
+            throw new \Exception('Employee does not have sufficient advance balance!');
         }
 
         AdvanceBalance::where('user_id', $userId)->increment('total_used', $amount);

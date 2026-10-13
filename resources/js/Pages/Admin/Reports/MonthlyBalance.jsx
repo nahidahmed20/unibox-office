@@ -14,10 +14,10 @@ export default function MonthlyBalance({ rows = [], summary, years = [], account
     };
 
     const selectedAccount = accounts.find((a) => Number(a.id) === Number(filters.account_id));
-    const scopeLabel = selectedAccount ? selectedAccount.name : 'All accounts (সব একাউন্ট)';
+    const scopeLabel = selectedAccount ? selectedAccount.name : 'All accounts';
 
     const handleExportCSV = () => {
-        const header = 'Month,Opening (মাসের শুরু),Deposit (+),Withdraw (-),Closing (মাসের শেষ),Transactions';
+        const header = 'Month,Opening,Deposit (+),Withdraw (-),Closing,Transactions';
         const lines = rows.map((r) => `"${r.label}",${r.opening},${r.deposit},${r.withdraw},${r.closing},${r.count}`);
         lines.push(`"Total ${filters.year}",${summary.opening},${summary.deposit},${summary.withdraw},${summary.closing},`);
         const blob = new Blob(['\uFEFF' + [header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -30,10 +30,10 @@ export default function MonthlyBalance({ rows = [], summary, years = [], account
     };
 
     const cards = [
-        { label: 'Year opening', sub: 'বছরের শুরুতে', value: summary.opening, icon: 'fa-flag', tone: 'text-slate-900', bg: 'bg-slate-100 text-slate-600' },
-        { label: 'Total deposit', sub: 'মোট জমা', value: summary.deposit, icon: 'fa-arrow-down', tone: 'text-emerald-600', bg: 'bg-emerald-50 text-emerald-600', prefix: '+' },
-        { label: 'Total withdraw', sub: 'মোট খরচ', value: summary.withdraw, icon: 'fa-arrow-up', tone: 'text-rose-600', bg: 'bg-rose-50 text-rose-600', prefix: '-' },
-        { label: 'Closing balance', sub: 'এখন পর্যন্ত শেষ ব্যালেন্স', value: summary.closing, icon: 'fa-wallet', tone: 'text-indigo-700', bg: 'bg-indigo-50 text-indigo-600' },
+        { label: 'Year Opening', sub: 'Start of the year', value: summary.opening, icon: 'fa-flag', tone: 'text-slate-900', bg: 'bg-slate-100 text-slate-600' },
+        { label: 'Total Deposit', sub: 'Total money in', value: summary.deposit, icon: 'fa-arrow-down', tone: 'text-emerald-600', bg: 'bg-emerald-50 text-emerald-600', prefix: '+' },
+        { label: 'Total Withdraw', sub: 'Total money out', value: summary.withdraw, icon: 'fa-arrow-up', tone: 'text-rose-600', bg: 'bg-rose-50 text-rose-600', prefix: '-' },
+        { label: 'Closing Balance', sub: 'Current closing balance', value: summary.closing, icon: 'fa-wallet', tone: 'text-indigo-700', bg: 'bg-indigo-50 text-indigo-600' },
     ];
 
     return (
@@ -57,10 +57,10 @@ export default function MonthlyBalance({ rows = [], summary, years = [], account
                             <span className="h-1.5 w-1.5 rounded-full bg-indigo-600"></span> Monthly Cashflow
                         </div>
                         <h1 className="text-[28px] font-extrabold tracking-tight text-gray-900">
-                            Monthly Balance <span className="text-[18px] font-semibold text-gray-400">(মাসিক ব্যালেন্স)</span>
+                            Monthly Balance
                         </h1>
                         <p className="mt-1.5 max-w-xl text-[14.5px] leading-relaxed text-gray-500">
-                            প্রতি মাসের শুরুতে কত টাকা ছিল, মাসে কত জমা ও খরচ হয়েছে, আর মাস শেষে কত টাকা আছে।
+                            Track monthly starting balances, deposits, withdrawals, and ending balance progression.
                         </p>
                     </div>
 
@@ -72,7 +72,7 @@ export default function MonthlyBalance({ rows = [], summary, years = [], account
                         </div>
                         <div className="w-[240px]">
                             <CustomSelect value={filters.account_id || ''} onChange={(e) => applyFilters({ account_id: e.target.value })}>
-                                <option value="">All accounts (সব একাউন্ট)</option>
+                                <option value="">All accounts</option>
                                 {accounts.map((a) => (
                                     <option key={a.id} value={a.id}>{a.name}{a.is_active ? '' : ' (inactive)'}</option>
                                 ))}
@@ -119,18 +119,18 @@ export default function MonthlyBalance({ rows = [], summary, years = [], account
                             <div className="text-[15px] font-bold text-gray-900">
                                 {filters.year} · <span className="font-semibold text-gray-500">{scopeLabel}</span>
                             </div>
-                            <div className="no-print text-[12px] text-gray-400">মাসের নামে ক্লিক করলে ঐ মাসের সব লেনদেন দেখাবে</div>
+                            <div className="no-print text-[12px] text-gray-400">Click a month to view its transaction records</div>
                         </div>
 
                         <div className="overflow-x-auto">
                             <table className="w-full min-w-[820px] text-left">
                                 <thead>
                                     <tr className="bg-gray-50 text-[11.5px] font-bold uppercase tracking-wider text-gray-500">
-                                        <th className="px-6 py-3.5">Month (মাস)</th>
-                                        <th className="px-6 py-3.5 text-right">Opening (মাসের শুরু)</th>
-                                        <th className="px-6 py-3.5 text-right">Deposit (জমা +)</th>
-                                        <th className="px-6 py-3.5 text-right">Withdraw (খরচ −)</th>
-                                        <th className="px-6 py-3.5 text-right">Closing (মাসের শেষ)</th>
+                                        <th className="px-6 py-3.5">Month</th>
+                                        <th className="px-6 py-3.5 text-right">Opening</th>
+                                        <th className="px-6 py-3.5 text-right">Deposit (+)</th>
+                                        <th className="px-6 py-3.5 text-right">Withdraw (−)</th>
+                                        <th className="px-6 py-3.5 text-right">Closing</th>
                                         <th className="px-6 py-3.5 text-right">Change</th>
                                     </tr>
                                 </thead>
@@ -138,7 +138,7 @@ export default function MonthlyBalance({ rows = [], summary, years = [], account
                                     {rows.length === 0 && (
                                         <tr>
                                             <td colSpan={6} className="px-6 py-14 text-center text-gray-400">
-                                                এই বছরে কোনো লেনদেন নেই।
+                                                No transactions found for this year.
                                             </td>
                                         </tr>
                                     )}
