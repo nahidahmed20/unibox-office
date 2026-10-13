@@ -213,7 +213,22 @@ export default function Print({ invoice, dbSettings }) {
                                     <td className="align-top">
                                         <div className="html-text-box" style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: item.description || 'No description' }}></div>
                                     </td>
-                                    <td className="text-center align-middle"><strong>{item.quantity}</strong></td>
+                                    <td className="text-center align-middle">
+                                        <strong>{item.quantity}</strong>
+                                        {item.unit_type && item.unit_type !== 'none' && (
+                                            <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '3px' }}>
+                                                {item.unit_type === 'piece' ? 'Pcs' :
+                                                 item.unit_type === 'set' ? 'Set' :
+                                                 item.unit_type === 'box' ? 'Box' :
+                                                 item.unit_type === 'trip' ? 'Trip' :
+                                                 item.unit_type === 'delivery' ? 'Delivery' :
+                                                 item.unit_type === 'lot' ? 'Lot' :
+                                                 item.unit_type === 'service' ? 'Service' :
+                                                 item.unit_type === 'sqft' ? 'SqFt' :
+                                                 item.unit_type === 'kg' ? 'Kg' : item.unit_type}
+                                            </span>
+                                        )}
+                                    </td>
                                     <td className="text-center align-middle">{Number(item.unit_price).toFixed(2)}</td>
                                     <td className="text-center align-middle"><strong>{Number(item.total).toFixed(2)}/-</strong></td>
                                 </tr>

@@ -416,9 +416,18 @@ export default function Create({ clients = [], projects = [], nextInvoiceNumber 
                                                 </div>
                                                 <div className="w-28">
                                                     <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Unit</label>
-                                                    <CustomSelect value={item.unit_type} onChange={e => updateItem(index, "unit_type", e.target.value)}
+                                                    <CustomSelect value={item.unit_type || "piece"} onChange={e => updateItem(index, "unit_type", e.target.value)}
                                                         className="w-full border-0 border-b-2 border-slate-400 focus:border-indigo-600 outline-none py-1.5 bg-transparent text-[14px] font-black text-slate-900 cursor-pointer focus:ring-0 transition-colors">
-                                                        <option value="piece">Pcs</option><option value="kg">Kg</option><option value="set">Set</option><option value="box">Box</option><option value="sqft">SqFt</option>
+                                                        <option value="piece">Pcs</option>
+                                                        <option value="set">Set</option>
+                                                        <option value="box">Box</option>
+                                                        <option value="kg">Kg</option>
+                                                        <option value="sqft">SqFt</option>
+                                                        <option value="trip">Trip (ট্রিপ)</option>
+                                                        <option value="delivery">Delivery (ডেলিভারি)</option>
+                                                        <option value="lot">Lot (লট)</option>
+                                                        <option value="service">Service (সার্ভিস)</option>
+                                                        <option value="none">— (None)</option>
                                                     </CustomSelect>
                                                 </div>
                                                 <span className="font-mono text-[16px] font-black text-slate-400 pb-2">×</span>

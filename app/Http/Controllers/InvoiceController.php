@@ -145,8 +145,14 @@ class InvoiceController extends Controller
 
             $invoice = Invoice::create($invoiceData);
 
-            $invoiceItemsData = collect($validated['items'])->map(function ($item) {
-                return collect($item)->only(['project_id', 'item_name', 'description', 'quantity', 'unit_type', 'unit_price', 'total'])->toArray();
+            $hasUnitType = \Illuminate\Support\Facades\Schema::hasColumn('invoice_items', 'unit_type');
+            $allowedFields = ['project_id', 'item_name', 'description', 'quantity', 'unit_price', 'total'];
+            if ($hasUnitType) {
+                $allowedFields[] = 'unit_type';
+            }
+
+            $invoiceItemsData = collect($validated['items'])->map(function ($item) use ($allowedFields) {
+                return collect($item)->only($allowedFields)->toArray();
             })->toArray();
             $invoice->items()->createMany($invoiceItemsData);
 
@@ -227,9 +233,15 @@ class InvoiceController extends Controller
             $invoiceData['advance_used'] = 0;
             $invoice->update($invoiceData);
 
+            $hasUnitType = \Illuminate\Support\Facades\Schema::hasColumn('invoice_items', 'unit_type');
+            $allowedFields = ['project_id', 'item_name', 'description', 'quantity', 'unit_price', 'total'];
+            if ($hasUnitType) {
+                $allowedFields[] = 'unit_type';
+            }
+
             $invoice->items()->delete();
-            $invoiceItemsData = collect($validated['items'])->map(function ($item) {
-                return collect($item)->only(['project_id', 'item_name', 'description', 'quantity', 'unit_type', 'unit_price', 'total'])->toArray();
+            $invoiceItemsData = collect($validated['items'])->map(function ($item) use ($allowedFields) {
+                return collect($item)->only($allowedFields)->toArray();
             })->toArray();
             $invoice->items()->createMany($invoiceItemsData);
 
