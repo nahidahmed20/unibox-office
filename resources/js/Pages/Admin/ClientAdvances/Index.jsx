@@ -58,25 +58,97 @@ const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
 );
 
-// 🟢 Premium Select Styles
-const selectStyles = {
-    control: (base, state) => ({
-        ...base, minHeight: '48px', borderRadius: '0.75rem',
-        borderColor: state.isFocused ? '#4F46E5' : '#E2E8F0',
-        boxShadow: state.isFocused ? '0 0 0 4px rgba(79, 70, 229, 0.1)' : '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-        backgroundColor: '#FFFFFF',
-        '&:hover': { borderColor: state.isFocused ? '#4F46E5' : '#CBD5E1' },
-    }),
-    option: (base, state) => ({
-        ...base, backgroundColor: state.isSelected ? '#4F46E5' : state.isFocused ? '#EEF2FF' : 'white',
-        color: state.isSelected ? '#FFFFFF' : '#1E293B', fontWeight: 600, fontSize: '13.5px', cursor: 'pointer',
-    }),
-    placeholder: (base) => ({ ...base, color: '#94A3B8', fontWeight: 600, fontSize: '13.5px' }),
-    singleValue: (base) => ({ ...base, color: '#1E293B', fontWeight: 700, fontSize: '14px' }),
-    input: (base) => ({ ...base, color: '#1E293B', fontWeight: 600, fontSize: '14px' }),
-    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-    menu: (base) => ({ ...base, borderRadius: '0.75rem', overflow: 'hidden', border: '1px solid #E2E8F0', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }),
+const formatDateDisplay = (dateStr) => {
+    if (!dateStr) return '—';
+    try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch {
+        return dateStr;
+    }
 };
+
+// 🟢 Custom Premium Dropdown (Smooth, searchable, zero z-index clipping)
+function SearchableSelect({ options, value, onChange, placeholder, getLabel, getValue, error, disabled }) {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState("");
+    const wrapperRef = useRef(null);
+    const inputRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(e) {
+            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+                setOpen(false);
+                setSearch("");
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        if (open && inputRef.current) inputRef.current.focus();
+    }, [open]);
+
+    const selected = options.find((opt) => String(getValue(opt)) === String(value));
+    const filtered = options.filter((opt) => getLabel(opt).toLowerCase().includes(search.toLowerCase()));
+
+    return (
+        <div ref={wrapperRef} className="relative w-full">
+            <div
+                onClick={() => !disabled && setOpen((o) => !o)}
+                className={`flex w-full cursor-pointer items-center justify-between rounded-xl border px-3.5 py-3 text-[13.5px] font-black outline-none transition-all ${
+                    disabled ? 'bg-slate-100 cursor-not-allowed opacity-70 border-slate-200 text-slate-400' : 'bg-white hover:border-indigo-400'
+                } ${
+                    error ? 'border-red-400 focus:ring-red-500/50' : 'border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 shadow-xs'
+                } ${selected && !disabled ? 'text-slate-900' : 'text-slate-400'}`}
+            >
+                <span className="truncate flex-1">{selected ? getLabel(selected) : placeholder}</span>
+                <i className={`fa-solid fa-chevron-down text-[11px] text-slate-400 shrink-0 ml-2 transition-transform duration-200 ${open ? 'rotate-180 text-indigo-600' : ''}`}></i>
+            </div>
+            {open && !disabled && (
+                <div className="absolute top-[calc(100%+6px)] left-0 flex max-h-[260px] w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl z-[99999] animate-[fadeIn_0.15s_ease-out]">
+                    <div className="border-b border-slate-100 bg-slate-50 p-2.5 shrink-0 relative">
+                        <i className="fa-solid fa-magnifying-glass absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 text-[12px]"></i>
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Type to search..."
+                            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-3 text-[12.5px] font-bold outline-none focus:ring-2 focus:ring-indigo-600 shadow-xs"
+                        />
+                    </div>
+                    <div className="overflow-y-auto py-1 custom-table-scroll max-h-[200px]">
+                        {filtered.length === 0 ? (
+                            <div className="p-4 text-center text-[12.5px] text-slate-400 font-bold">No results found</div>
+                        ) : (
+                            filtered.map((opt) => {
+                                const isActive = String(getValue(opt)) === String(value);
+                                return (
+                                    <div
+                                        key={getValue(opt)}
+                                        onClick={() => {
+                                            onChange(String(getValue(opt)));
+                                            setOpen(false);
+                                            setSearch("");
+                                        }}
+                                        className={`cursor-pointer px-4 py-2.5 text-[13px] font-black transition-colors border-b border-slate-50 last:border-0 ${
+                                            isActive ? 'bg-indigo-600 text-white' : 'text-slate-700 hover:bg-indigo-50'
+                                        }`}
+                                    >
+                                        {getLabel(opt)}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function Index({ clientWithAdvances = { data: [], links: [] }, clients = [], accounts = [], totalReceived = 0, totalUsed = 0, totalAvailable = 0, filters = {} }) {
     const { auth } = usePage().props;
@@ -629,198 +701,380 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
                 </div>
             </div>
 
-            {/* --- 🟢 PREMIUM VIEW MODAL --- */}
+            {/* --- 💎 EXECUTIVE VIEW MODAL (Advance Money Receipt Details) --- */}
             {showViewModal && selectedAdvance && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto transition-opacity">
-                    <div className="w-full max-w-lg bg-gray-50 rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#070b14]/75 backdrop-blur-md p-3 sm:p-6 overflow-y-auto">
+                    <div className="w-full max-w-xl bg-slate-50 rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/40 animate-[fadeIn_0.2s_ease-out]">
 
-                        <div className="relative bg-white px-8 py-6 shrink-0 flex items-center justify-between border-b border-gray-200">
-                            <div>
-                                <h3 className="text-[20px] font-extrabold text-gray-900 flex items-center gap-2.5">
-                                    <div className="h-8 w-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
-                                        <i className="fa-solid fa-receipt text-sm"></i>
+                        {/* EXECUTIVE HEADER */}
+                        <div className="relative overflow-hidden bg-slate-900 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-800 shrink-0">
+                            <span className="absolute -right-4 -bottom-6 text-[90px] font-mono text-white/[0.04] select-none pointer-events-none">৳</span>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className="fa-solid fa-receipt"></i>
                                     </div>
-                                    Transaction Details
-                                </h3>
+                                    <div>
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-400/10 border border-emerald-400/20 text-emerald-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                            <i className="fa-solid fa-file-invoice-dollar"></i> Money Receipt Details
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[22px] font-black text-white tracking-tight leading-tight">
+                                            Client Advance Voucher
+                                        </h3>
+                                        <div className="flex flex-wrap items-center gap-2 text-[12px] sm:text-[13px] font-bold text-slate-400 mt-0.5">
+                                            <span>Voucher Ref: #{String(selectedAdvance.id).padStart(6, '0')}</span>
+                                            <span className="text-slate-600">•</span>
+                                            <span className="text-slate-300"><i className="fa-regular fa-calendar-days text-emerald-400 mr-1"></i>{formatDateDisplay(selectedAdvance.date)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button onClick={() => setShowViewModal(false)} className="text-slate-400 hover:text-white hover:bg-rose-600/80 bg-white/5 border border-white/10 h-10 w-10 rounded-full flex items-center justify-center transition-all shadow-sm relative z-10 shrink-0">
+                                    <i className="fa-solid fa-xmark text-lg"></i>
+                                </button>
                             </div>
-                            <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-700 hover:bg-gray-100 h-9 w-9 rounded-full flex items-center justify-center transition-colors">
-                                <i className="fa-solid fa-xmark text-lg"></i>
-                            </button>
                         </div>
 
-                        <div className="p-8 space-y-6 overflow-y-auto custom-table-scroll">
+                        {/* MODAL BODY */}
+                        <div className="p-5 sm:p-7 space-y-5 overflow-y-auto custom-table-scroll flex-1 bg-slate-50">
 
-                            <div className="text-center py-8 bg-white rounded-2xl border border-emerald-100 shadow-sm relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-full h-1.5 bg-emerald-500"></div>
-                                <span className="inline-block px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-widest mb-3">Amount Received</span>
-                                <div className="text-[36px] font-black text-gray-900 tracking-tight tabular-nums leading-none">
-                                    <Taka className="text-[24px] mr-1 text-gray-400" />{Number(selectedAdvance.amount).toLocaleString('en-IN')}
+                            {/* Prominent Amount Card */}
+                            <div className="relative overflow-hidden bg-gradient-to-br from-white to-emerald-50/40 p-6 rounded-2xl border border-emerald-200 shadow-sm text-center">
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-black uppercase tracking-widest mb-2 shadow-xs">
+                                    <i className="fa-solid fa-circle-check text-emerald-600"></i> Total Advance Received
                                 </div>
-                                <div className="text-[12px] font-medium text-gray-400 mt-2">Ref: #{String(selectedAdvance.id).padStart(6, '0')}</div>
+                                <div className="text-[32px] sm:text-[38px] font-black text-emerald-700 tracking-tight tabular-nums leading-tight flex items-center justify-center">
+                                    <Taka className="text-[26px] mr-1.5 text-emerald-500" />{Number(selectedAdvance.amount).toLocaleString('en-IN')}
+                                </div>
+                                <div className="mt-2.5 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-emerald-200 text-slate-700 text-[12px] font-bold shadow-xs">
+                                    <i className="fa-solid fa-spell-check text-emerald-500"></i>
+                                    <span>In Words: <strong className="text-emerald-950 font-black">{numberToWords(selectedAdvance.amount)}</strong></span>
+                                </div>
                             </div>
 
+                            {/* Client & Financial Split Grid */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm col-span-2 flex items-center gap-4">
-                                    <div className="h-12 w-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg font-bold shrink-0">
-                                        {(clients.find(c => c.id == selectedAdvance.client_id)?.name || "?").charAt(0)}
+                                <div className="bg-white p-5 rounded-2xl border border-slate-300 shadow-xs sm:col-span-2 flex items-center gap-4">
+                                    <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-lg font-black shrink-0 shadow-sm">
+                                        {(clients.find(c => c.id == selectedAdvance.client_id)?.name || "?").charAt(0).toUpperCase()}
                                     </div>
-                                    <div>
-                                        <span className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Client</span>
-                                        <div className="text-[16px] font-bold text-gray-900">{clients.find(c => c.id == selectedAdvance.client_id)?.name || "N/A"}</div>
+                                    <div className="min-w-0">
+                                        <span className="block text-[11px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Payer / Client</span>
+                                        <div className="text-[16px] font-black text-slate-900 truncate">
+                                            {clients.find(c => c.id == selectedAdvance.client_id)?.name || "N/A"}
+                                        </div>
+                                        {clients.find(c => c.id == selectedAdvance.client_id)?.company_name && (
+                                            <div className="text-[12.5px] font-semibold text-slate-500">
+                                                <i className="fa-regular fa-building text-slate-400 mr-1"></i>
+                                                {clients.find(c => c.id == selectedAdvance.client_id)?.company_name}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
-                                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                    <span className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Adjusted Amount</span>
-                                    <div className="text-[18px] font-bold text-gray-900 tabular-nums leading-none"><Taka className="text-[13px] mr-0.5 text-gray-400" />{Number(selectedAdvance.used_amount).toLocaleString('en-IN')}</div>
+                                <div className="bg-white p-5 rounded-2xl border border-slate-300 shadow-xs">
+                                    <span className="block text-[11px] font-black uppercase tracking-widest text-rose-500 mb-1.5">Adjusted in Invoices</span>
+                                    <div className="text-[19px] font-black text-slate-800 tabular-nums leading-none">
+                                        <Taka className="text-[14px] mr-0.5 text-rose-400" />{Number(selectedAdvance.used_amount).toLocaleString('en-IN')}
+                                    </div>
                                 </div>
 
-                                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                    <span className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Net Available</span>
-                                    <div className="text-[18px] font-bold text-indigo-600 tabular-nums leading-none"><Taka className="text-[13px] mr-0.5 text-indigo-400" />{Number(selectedAdvance.amount - selectedAdvance.used_amount).toLocaleString('en-IN')}</div>
+                                <div className="bg-white p-5 rounded-2xl border border-slate-300 shadow-xs">
+                                    <span className="block text-[11px] font-black uppercase tracking-widest text-indigo-600 mb-1.5">Net Available Balance</span>
+                                    <div className="text-[19px] font-black text-indigo-700 tabular-nums leading-none">
+                                        <Taka className="text-[14px] mr-0.5 text-indigo-500" />{Number(selectedAdvance.amount - selectedAdvance.used_amount).toLocaleString('en-IN')}
+                                    </div>
                                 </div>
 
-                                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm col-span-2 flex justify-between items-center">
+                                <div className="bg-white p-5 rounded-2xl border border-slate-300 shadow-xs sm:col-span-2 flex flex-wrap items-center justify-between gap-3">
                                     <div>
-                                        <span className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1">Received Date</span>
-                                        <div className="font-bold text-gray-900 text-[14.5px]"><i className="fa-regular fa-calendar-days text-gray-400 mr-1.5"></i>{selectedAdvance.date}</div>
+                                        <span className="block text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1">Deposited Account</span>
+                                        <div className="font-black text-slate-800 text-[14.5px] flex items-center gap-1.5">
+                                            <i className="fa-solid fa-building-columns text-indigo-500"></i>
+                                            {selectedAdvance.account?.name || 'N/A'}
+                                        </div>
                                     </div>
                                     <div className="text-right">
-                                        <span className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1">Account</span>
-                                        <div className="font-bold text-gray-900 text-[14.5px]"><i className="fa-solid fa-building-columns text-gray-400 mr-1.5"></i>{selectedAdvance.account?.name}</div>
+                                        <span className="block text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1">Payment Date</span>
+                                        <div className="font-black text-slate-800 text-[14.5px] flex items-center gap-1.5 justify-end">
+                                            <i className="fa-regular fa-calendar-check text-emerald-500"></i>
+                                            {formatDateDisplay(selectedAdvance.date)}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
                             {selectedAdvance.note && (
-                                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                    <span className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2">Notes / Reason</span>
-                                    <div className="text-[13.5px] text-gray-600 italic font-medium leading-relaxed">
+                                <div className="bg-white p-5 rounded-2xl border border-slate-300 shadow-xs">
+                                    <span className="block text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">Remarks / Cheque / Reference</span>
+                                    <div className="text-[13.5px] text-slate-700 italic font-medium leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                                         "{selectedAdvance.note}"
                                     </div>
                                 </div>
                             )}
                         </div>
 
-                        <div className="px-8 py-5 border-t border-gray-200 bg-white flex items-center gap-3 shrink-0 rounded-b-3xl">
-                            <button type="button" onClick={() => setShowViewModal(false)} className="flex-1 rounded-xl border border-gray-300 bg-white px-5 py-3 text-[13.5px] font-bold text-gray-700 transition-colors hover:bg-gray-50 hover:border-gray-400">
+                        {/* FOOTER */}
+                        <div className="px-6 md:px-8 py-4 border-t border-slate-200 bg-white flex items-center justify-end gap-3 shrink-0 rounded-b-3xl">
+                            <button
+                                type="button"
+                                onClick={() => setShowViewModal(false)}
+                                className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-[13.5px] font-bold text-slate-700 transition-colors hover:bg-slate-100 shadow-xs"
+                            >
                                 Close
                             </button>
-                            <button type="button" onClick={() => handlePrintReceipt(selectedAdvance)} className="flex-[2] flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-5 py-3 text-[13.5px] font-bold text-white transition-colors hover:bg-indigo-600 shadow-md">
-                                <i className="fa-solid fa-print text-[14px]"></i> Print Receipt
+                            <button
+                                type="button"
+                                onClick={() => handlePrintReceipt(selectedAdvance)}
+                                className="rounded-xl bg-slate-900 hover:bg-indigo-600 px-6 py-3 text-[13.5px] font-black text-white transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                            >
+                                <i className="fa-solid fa-print"></i> Print Official Receipt
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* --- 🟢 MODERN CREATE / EDIT MODAL --- */}
-            {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
-                    <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+            {/* --- 💎 EXECUTIVE CREATE / EDIT ADVANCE MODAL --- */}
+            {showModal && (() => {
+                const selectedClientObj = clients.find(c => String(c.id) === String(data.client_id));
+                const clientAdvanceStats = (clientWithAdvances.data || []).find(c => String(c.id) === String(data.client_id));
+                const currentClientAdvance = clientAdvanceStats ? Number(clientAdvanceStats.available_balance || 0) : 0;
+                const selectedAccountObj = accounts.find(a => String(a.id) === String(data.account_id));
+                const currentAccountBal = selectedAccountObj ? Number(selectedAccountObj.current_balance || 0) : 0;
+                const enteredAmount = Number(data.amount || 0);
+                const projectedClientAdvance = currentClientAdvance + enteredAmount;
+                const projectedAccountBal = currentAccountBal + enteredAmount;
 
-                        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-200 bg-white shrink-0">
-                            <div>
-                                <h3 className="text-[20px] font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5">
-                                    <div className="h-8 w-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                                        <i className={`fa-solid ${editMode ? 'fa-pen-to-square' : 'fa-plus'} text-sm`}></i>
-                                    </div>
-                                    {editMode ? "Edit Advance Record" : "Receive Client Advance"}
-                                </h3>
-                            </div>
-                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-700 hover:bg-gray-100 h-9 w-9 rounded-full flex items-center justify-center transition-colors">
-                                <i className="fa-solid fa-xmark text-lg"></i>
-                            </button>
-                        </div>
+                return (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#070b14]/75 backdrop-blur-md p-3 sm:p-6 overflow-y-auto">
+                        <div className="w-full max-w-2xl bg-slate-50 rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/40 animate-[fadeIn_0.2s_ease-out]">
 
-                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden h-full">
-                            <div className="p-8 overflow-y-auto custom-table-scroll space-y-6 bg-gray-50/50">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* EXECUTIVE HEADER */}
+                            <div className="relative overflow-hidden bg-slate-900 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-800 shrink-0">
+                                <span className="absolute -right-4 -bottom-6 text-[90px] font-mono text-white/[0.04] select-none pointer-events-none">৳</span>
+                                <div className="absolute right-10 top-0 h-32 w-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
-                                    <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm md:col-span-2 relative z-[60]">
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-widest mb-2">Select Client <span className="text-red-500">*</span></label>
-                                        <Select
-                                            options={clients.map((c) => ({ value: c.id, label: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}` }))}
-                                            value={clients.map((c) => ({ value: c.id, label: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}` })).find((opt) => Number(opt.value) === Number(data.client_id)) || null}
-                                            onChange={(selected) => setData("client_id", selected ? selected.value : "")}
-                                            placeholder="Search and select client..."
-                                            isSearchable isClearable
-                                            styles={selectStyles}
-                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
-                                            menuPosition="fixed"
-                                        />
-                                        {errors.client_id && <span className="mt-2 block text-[12px] text-red-500 font-bold">{errors.client_id}</span>}
-                                    </div>
-
-                                    <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm md:col-span-2 relative z-[50]">
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-widest mb-2">Deposit To Account <span className="text-red-500">*</span></label>
-                                        <Select
-                                            options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` }))}
-                                            value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
-                                            onChange={(selected) => setData("account_id", selected ? selected.value : "")}
-                                            placeholder="Select bank or cash account..."
-                                            isSearchable isClearable
-                                            styles={selectStyles}
-                                            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
-                                            menuPosition="fixed"
-                                        />
-                                        {errors.account_id && <span className="mt-2 block text-[12px] text-red-500 font-bold">{errors.account_id}</span>}
-                                    </div>
-
-                                    <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                        <label className="block text-[12px] font-bold text-emerald-600 uppercase tracking-widest mb-2">Amount Received <span className="text-red-500">*</span></label>
-                                        <div className="relative">
-                                            <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]" />
-                                            <input
-                                                type="number" step="any" min="0"
-                                                value={data.amount}
-                                                onChange={(e) => setData('amount', e.target.value)}
-                                                placeholder="0.00"
-                                                className="w-full rounded-xl border border-gray-300 bg-white pl-10 pr-4 py-3 text-[16px] font-bold text-gray-900 outline-none transition-shadow focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm"
-                                                required
-                                            />
+                                <div className="relative z-10 flex items-start justify-between gap-4">
+                                    <div className="flex items-center gap-3.5">
+                                        <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                            <i className={`fa-solid ${editMode ? 'fa-pen-to-square' : 'fa-hand-holding-dollar'}`}></i>
                                         </div>
-                                        {errors.amount && <span className="mt-2 block text-[12px] text-red-500 font-bold">{errors.amount}</span>}
+                                        <div>
+                                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-400/10 border border-indigo-400/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                                <i className="fa-solid fa-coins"></i> Client Advance Inflow
+                                            </div>
+                                            <h3 className="text-[19px] sm:text-[23px] font-black text-white tracking-tight leading-tight">
+                                                {editMode ? "Edit Client Advance Record" : "Receive Client Advance"}
+                                            </h3>
+                                            <p className="text-[12px] sm:text-[13px] font-medium text-slate-400 mt-0.5">
+                                                Record upfront advance payment received from client into company accounts
+                                            </p>
+                                        </div>
                                     </div>
 
-                                    <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-widest mb-2">Received Date <span className="text-red-500">*</span></label>
-                                        <input
-                                            type="date"
-                                            value={data.date}
-                                            onChange={(e) => setData('date', e.target.value)}
-                                            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-[14px] font-bold text-gray-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all"
-                                            required
-                                        />
-                                        {errors.date && <span className="mt-2 block text-[12px] text-red-500 font-bold">{errors.date}</span>}
+                                    <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white hover:bg-rose-600/80 bg-white/5 border border-white/10 h-10 w-10 rounded-full flex items-center justify-center transition-all shadow-sm relative z-10 shrink-0">
+                                        <i className="fa-solid fa-xmark text-lg"></i>
+                                    </button>
+                                </div>
+
+                                {selectedClientObj && (
+                                    <div className="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[12.5px] font-bold text-slate-300">
+                                        <div className="flex items-center gap-2">
+                                            <i className="fa-solid fa-user-tie text-indigo-400"></i>
+                                            <span>{selectedClientObj.name} {selectedClientObj.company_name ? `(${selectedClientObj.company_name})` : ''}</span>
+                                        </div>
+                                        <div className="px-2.5 py-0.5 rounded-lg bg-indigo-950/80 border border-indigo-800/60 text-indigo-300 text-[11.5px] tabular-nums">
+                                            Current Advance: ৳ {currentClientAdvance.toLocaleString('en-IN')}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+                                <div className="flex-1 overflow-y-auto custom-table-scroll p-4 sm:p-6 md:p-8 space-y-5 bg-slate-50">
+                                    {Object.keys(errors).length > 0 && (
+                                        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-[13px] font-bold text-red-700 shadow-sm flex items-start gap-2.5">
+                                            <i className="fa-solid fa-triangle-exclamation text-red-500 mt-0.5 text-[15px]"></i>
+                                            <div>{Object.values(errors).join(' ')}</div>
+                                        </div>
+                                    )}
+
+                                    {/* INPUTS CARD */}
+                                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-300 shadow-sm space-y-5">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                    Select Client <span className="text-red-600">*</span>
+                                                </label>
+                                                <SearchableSelect
+                                                    options={clients}
+                                                    value={data.client_id}
+                                                    onChange={(val) => setData("client_id", val)}
+                                                    placeholder="-- Search & select client --"
+                                                    getValue={(c) => c.id}
+                                                    getLabel={(c) => `${c.name} ${c.company_name ? `(${c.company_name})` : ''}`}
+                                                    error={errors.client_id}
+                                                />
+                                                {errors.client_id && <span className="mt-1 block text-[11px] font-bold text-red-600">{errors.client_id}</span>}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                    Deposit To Account <span className="text-red-600">*</span>
+                                                </label>
+                                                <SearchableSelect
+                                                    options={accounts}
+                                                    value={data.account_id}
+                                                    onChange={(val) => setData("account_id", val)}
+                                                    placeholder="-- Select bank or cash account --"
+                                                    getValue={(a) => a.id}
+                                                    getLabel={(a) => `${a.name} (৳ ${Number(a.current_balance).toLocaleString('en-IN')})`}
+                                                    error={errors.account_id}
+                                                />
+                                                {errors.account_id && <span className="mt-1 block text-[11px] font-bold text-red-600">{errors.account_id}</span>}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-[11.5px] font-black text-emerald-700 uppercase tracking-widest mb-2">
+                                                    Amount Received (৳) <span className="text-red-600">*</span>
+                                                </label>
+                                                <div className="relative">
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-emerald-500 text-[16px]">৳</span>
+                                                    <input
+                                                        type="number"
+                                                        step="any"
+                                                        min="0.01"
+                                                        value={data.amount}
+                                                        onChange={(e) => setData('amount', e.target.value)}
+                                                        placeholder="0.00"
+                                                        className="w-full rounded-xl border border-emerald-300 bg-emerald-50/30 focus:bg-white pl-10 pr-4 py-3.5 text-[17px] font-black text-emerald-950 outline-none transition-all focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10 shadow-xs"
+                                                        required
+                                                    />
+                                                </div>
+                                                {errors.amount && <span className="mt-1 block text-[11px] font-bold text-red-600">{errors.amount}</span>}
+
+                                                {/* Live In-Words Preview */}
+                                                {Number(data.amount) > 0 && (
+                                                    <div className="mt-2 text-[11.5px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/80 rounded-xl px-3 py-1.5 flex items-center gap-2 animate-[fadeIn_0.15s_ease-out]">
+                                                        <i className="fa-solid fa-spell-check text-emerald-500 shrink-0"></i>
+                                                        <span className="truncate">In Words: <strong className="text-emerald-950 font-black">{numberToWords(data.amount)}</strong></span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                    Received Date <span className="text-red-600">*</span>
+                                                </label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="date"
+                                                        value={data.date}
+                                                        onChange={(e) => setData('date', e.target.value)}
+                                                        className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3.5 text-[13.5px] font-black text-slate-800 outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 shadow-xs transition-all cursor-pointer"
+                                                        required
+                                                    />
+                                                </div>
+                                                {errors.date && <span className="mt-1 block text-[11px] font-bold text-red-600">{errors.date}</span>}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                Note / Cheque No / Reference <span className="text-slate-400 font-semibold normal-case">(Optional)</span>
+                                            </label>
+                                            <textarea
+                                                value={data.note}
+                                                onChange={(e) => setData('note', e.target.value)}
+                                                placeholder="e.g., Cheque #849201, Bank transfer memo, Project initial advance payment..."
+                                                rows="2"
+                                                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-[13.5px] font-medium text-slate-800 outline-none transition-all focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 shadow-xs resize-none"
+                                            />
+                                            {errors.note && <span className="mt-1 block text-[11px] font-bold text-red-600">{errors.note}</span>}
+                                        </div>
                                     </div>
 
-                                    <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm md:col-span-2">
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-widest mb-2">Note <span className="text-gray-400 normal-case font-medium">(Optional)</span></label>
-                                        <textarea
-                                            value={data.note}
-                                            onChange={(e) => setData('note', e.target.value)}
-                                            placeholder="Enter any reference, check number, or details..."
-                                            rows="3"
-                                            className="w-full rounded-xl border border-gray-300 bg-white p-4 text-[14px] font-medium text-gray-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 resize-none min-h-[90px] shadow-sm transition-all"
-                                        />
-                                        {errors.note && <span className="mt-2 block text-[12px] text-red-500 font-bold">{errors.note}</span>}
+                                    {/* LIVE CALCULATION & ACCOUNT IMPACT CARD */}
+                                    <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-indigo-950 p-5 sm:p-6 text-white shadow-xl relative overflow-hidden">
+                                        <div className="absolute right-0 top-0 h-32 w-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+
+                                        <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-700/60 pb-2 flex items-center justify-between">
+                                            <span className="flex items-center gap-2">
+                                                <i className="fa-solid fa-calculator text-indigo-400"></i> Financial Projection & Impact
+                                            </span>
+                                            <span className="text-[10px] px-2.5 py-0.5 rounded font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                                                Cash Inflow
+                                            </span>
+                                        </h4>
+
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                            <div>
+                                                <span className="block text-[11px] font-bold text-slate-400 uppercase">Current Client Advance</span>
+                                                <span className="text-[16px] sm:text-[18px] font-black text-white tabular-nums">
+                                                    ৳ {currentClientAdvance.toLocaleString('en-IN')}
+                                                </span>
+                                            </div>
+
+                                            <div>
+                                                <span className="block text-[11px] font-bold text-emerald-400 uppercase">Amount Received</span>
+                                                <span className="text-[16px] sm:text-[18px] font-black text-emerald-300 tabular-nums">
+                                                    ৳ {enteredAmount.toLocaleString('en-IN')}
+                                                </span>
+                                            </div>
+
+                                            <div>
+                                                <span className="block text-[11px] font-bold text-amber-400 uppercase">Account Deposit Target</span>
+                                                <span className="text-[14px] sm:text-[16px] font-black text-amber-300 truncate block" title={selectedAccountObj?.name || 'No account selected'}>
+                                                    {selectedAccountObj ? selectedAccountObj.name : 'Not Selected'}
+                                                </span>
+                                                {selectedAccountObj && (
+                                                    <span className="text-[11px] text-slate-400 font-bold block">
+                                                        New Bal: ৳ {projectedAccountBal.toLocaleString('en-IN')}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div>
+                                                <span className="block text-[11px] font-bold text-cyan-300 uppercase">New Advance Balance</span>
+                                                <span className="text-[18px] sm:text-[22px] font-black text-cyan-300 tabular-nums leading-tight">
+                                                    ৳ {projectedClientAdvance.toLocaleString('en-IN')}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="px-8 py-5 border-t border-gray-200 bg-white flex justify-end gap-3 shrink-0 rounded-b-3xl">
-                                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[13.5px] font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors">
-                                    Cancel
-                                </button>
-                                <button type="submit" disabled={processing} className="rounded-xl bg-gray-900 px-8 py-2.5 text-[13.5px] font-bold text-white transition-all hover:bg-indigo-600 shadow-md flex items-center gap-2 disabled:opacity-70">
-                                    {processing ? <><i className="fa-solid fa-spinner fa-spin text-sm"></i> Saving...</> : <><i className="fa-solid fa-check text-sm"></i> {editMode ? "Update Record" : "Save Advance"}</>}
-                                </button>
-                            </div>
-                        </form>
+                                {/* FOOTER */}
+                                <div className="px-6 md:px-8 py-4 border-t border-slate-200 bg-white flex flex-wrap items-center justify-end gap-3 shrink-0 rounded-b-3xl">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowModal(false)}
+                                        className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-[13.5px] font-bold text-slate-700 transition-colors hover:bg-slate-100 shadow-xs"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={processing}
+                                        className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-8 py-3 text-[14px] font-black text-white transition-all shadow-md hover:shadow-lg disabled:opacity-70 flex items-center gap-2"
+                                    >
+                                        {processing ? (
+                                            <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</>
+                                        ) : (
+                                            <><i className="fa-solid fa-check"></i> {editMode ? "Update Advance Record" : "Confirm Advance Receipt"}</>
+                                        )}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </AdminLayout>
     );
 }

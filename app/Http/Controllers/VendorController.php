@@ -40,7 +40,10 @@ class VendorController extends Controller
             $perPage = \App\Support\Pagination::perPage($request, $query);
         }
 
-        $vendors = $query->latest()->paginate($perPage)->withQueryString();
+        $vendors = $query->latest()->paginate($perPage)->through(function ($v) {
+            $v->total_due = (float) ($v->total_due ?? 0) + (float) ($v->opening_balance ?? 0);
+            return $v;
+        })->withQueryString();
 
         $accounts = Account::where('is_active', true)->select('id', 'name', 'current_balance')->get();
 
@@ -155,6 +158,7 @@ class VendorController extends Controller
                 $vendor->increment('wallet_balance', $walletCredit);
                 VendorLedger::create([
                     'vendor_id'   => $vendor->id,
+                    'date'        => $request->date,
                     'type'        => 'credit',
                     'amount'      => $walletCredit,
                     'description' => 'অতিরিক্ত পেমেন্ট, ওয়ালেটে জমা হয়েছে (Bulk Bill Payment)',
@@ -243,9 +247,28 @@ class VendorController extends Controller
             ->latest('id')
             ->get();
 
-        // Chronological Statement (হিসাবের খতিয়ান)
+        // Chronological Statement (হিসাবের খতিয়ান) & Date-wise Payment Summary
         $events = [];
         $directPayments = [];
+        $paymentByDate = [];
+
+        if ((float) ($vendor->opening_balance ?? 0) > 0) {
+            $events[] = [
+                'date' => $vendor->created_at ? $vendor->created_at->toDateString() : date('Y-m-d'),
+                'sort_time' => '0000-00-00 00:00:00',
+                'type' => 'opening_balance',
+                'ref' => 'OPENING',
+                'title' => 'প্রারম্ভিক বকেয়া (Opening Balance)',
+                'project' => null,
+                'client' => null,
+                'category' => null,
+                'billed' => (float) $vendor->opening_balance,
+                'paid' => 0,
+                'discount' => 0,
+                'status' => 'due',
+                'id' => 'opening',
+            ];
+        }
 
         foreach ($bills as $bill) {
             $voucherSettled = \App\Models\VendorPaymentDetail::where('project_expense_id', $bill->id)
@@ -275,9 +298,12 @@ class VendorController extends Controller
                 if ($bill->advance_user_id) {
                     $sourceType = 'advance';
                     $sourceName = 'Employee Advance (' . (\App\Models\User::find($bill->advance_user_id)?->name ?? 'Staff') . ')';
-                } else {
+                } elseif ($bill->account_id) {
                     $sourceType = 'account';
-                    $sourceName = $bill->account_id ? (Account::find($bill->account_id)?->name ?? 'Bank/Cash') : 'Bank/Cash';
+                    $sourceName = Account::find($bill->account_id)?->name ?? 'Bank/Cash';
+                } else {
+                    $sourceType = 'wallet';
+                    $sourceName = 'Vendor Advance (Wallet)';
                 }
                 $billDate = $bill->date ?: ($bill->created_at ? $bill->created_at->toDateString() : date('Y-m-d'));
 
@@ -309,6 +335,28 @@ class VendorController extends Controller
                     'status' => 'completed',
                     'id' => $bill->id,
                 ];
+
+                if (!isset($paymentByDate[$billDate])) {
+                    $paymentByDate[$billDate] = [
+                        'date' => $billDate,
+                        'total_amount' => 0,
+                        'total_discount' => 0,
+                        'items' => [],
+                        'methods' => [],
+                    ];
+                }
+                $paymentByDate[$billDate]['total_amount'] += $directPaid;
+                $paymentByDate[$billDate]['items'][] = [
+                    'type' => 'Direct Bill',
+                    'ref' => 'BILL-' . $bill->id,
+                    'title' => $bill->title . ($bill->project?->title ? " ({$bill->project->title})" : ""),
+                    'amount' => $directPaid,
+                    'discount' => 0,
+                    'method' => $sourceName,
+                ];
+                if (!in_array($sourceName, $paymentByDate[$billDate]['methods'])) {
+                    $paymentByDate[$billDate]['methods'][] = $sourceName;
+                }
             }
         }
 
@@ -319,11 +367,14 @@ class VendorController extends Controller
                 ? ($payment->account?->name ?? 'Bank/Cash')
                 : ($payment->payment_source === 'wallet' ? 'Vendor Advance' : 'Employee Advance');
 
+            $payDate = $payment->getRawOriginal('date') ?: ($payment->created_at ? $payment->created_at->toDateString() : date('Y-m-d'));
+            $vpRef = 'VP-' . str_pad($payment->id, 5, '0', STR_PAD_LEFT);
+
             $events[] = [
-                'date' => $payment->getRawOriginal('date') ?: ($payment->created_at ? $payment->created_at->toDateString() : date('Y-m-d')),
-                'sort_time' => $payment->created_at ? $payment->created_at->toDateTimeString() : ($payment->date . ' 00:00:00'),
+                'date' => $payDate,
+                'sort_time' => $payment->created_at ? $payment->created_at->toDateTimeString() : ($payDate . ' 00:00:00'),
                 'type' => 'payment',
-                'ref' => 'VP-' . str_pad($payment->id, 5, '0', STR_PAD_LEFT),
+                'ref' => $vpRef,
                 'title' => 'পেমেন্ট ভাউচার (' . $sourceLabel . ')' . ($payment->note ? ' - ' . $payment->note : ''),
                 'project' => null,
                 'client' => null,
@@ -334,6 +385,58 @@ class VendorController extends Controller
                 'status' => $payment->status,
                 'id' => $payment->id,
             ];
+
+            if (!isset($paymentByDate[$payDate])) {
+                $paymentByDate[$payDate] = [
+                    'date' => $payDate,
+                    'total_amount' => 0,
+                    'total_discount' => 0,
+                    'items' => [],
+                    'methods' => [],
+                ];
+            }
+            $paymentByDate[$payDate]['total_amount'] += (float) $payment->pay_amount;
+            $paymentByDate[$payDate]['total_discount'] += (float) $payment->adjustment_amount;
+            $settledTitles = collect($payment->details)->map(fn($d) => $d->expense?->title)->filter()->implode(', ');
+            $paymentByDate[$payDate]['items'][] = [
+                'type' => 'Voucher',
+                'ref' => $vpRef,
+                'title' => $settledTitles ?: ($payment->note ?: 'Bill Settlement Voucher'),
+                'amount' => (float) $payment->pay_amount,
+                'discount' => (float) $payment->adjustment_amount,
+                'method' => $sourceLabel,
+            ];
+            if (!in_array($sourceLabel, $paymentByDate[$payDate]['methods'])) {
+                $paymentByDate[$payDate]['methods'][] = $sourceLabel;
+            }
+        }
+
+        // Direct wallet advances given to vendor (credit entries with transaction_id)
+        foreach ($ledgers as $l) {
+            if ($l->type === 'credit' && $l->transaction_id) {
+                $advDate = $l->date ?: ($l->created_at ? $l->created_at->toDateString() : date('Y-m-d'));
+                if (!isset($paymentByDate[$advDate])) {
+                    $paymentByDate[$advDate] = [
+                        'date' => $advDate,
+                        'total_amount' => 0,
+                        'total_discount' => 0,
+                        'items' => [],
+                        'methods' => [],
+                    ];
+                }
+                $paymentByDate[$advDate]['total_amount'] += (float) $l->amount;
+                $paymentByDate[$advDate]['items'][] = [
+                    'type' => 'Advance',
+                    'ref' => 'ADV-' . $l->id,
+                    'title' => $l->description ?: 'Vendor Wallet Advance',
+                    'amount' => (float) $l->amount,
+                    'discount' => 0,
+                    'method' => 'Wallet Advance',
+                ];
+                if (!in_array('Wallet Advance', $paymentByDate[$advDate]['methods'])) {
+                    $paymentByDate[$advDate]['methods'][] = 'Wallet Advance';
+                }
+            }
         }
 
         usort($events, function($a, $b) {
@@ -347,6 +450,10 @@ class VendorController extends Controller
             $running += $ev['billed'] - $ev['paid'] - $ev['discount'];
             $ev['balance'] = round($running, 2);
         }
+        unset($ev);
+
+        krsort($paymentByDate);
+        $dateWisePayments = array_values($paymentByDate);
 
         $completedPayments = $payments->where('status', 'completed');
         $voucherSettledTotal = \App\Models\VendorPaymentDetail::whereIn('vendor_payment_id', $completedPayments->pluck('id'))->sum('amount');
@@ -355,11 +462,11 @@ class VendorController extends Controller
         $totalDiscount = $completedPayments->sum('adjustment_amount');
 
         $stats = [
-            'totalBilled' => (float) $bills->sum('total_bill'),
+            'totalBilled' => (float) $bills->sum('total_bill') + (float) ($vendor->opening_balance ?? 0),
             'totalPaid' => (float) $bills->sum('paid_amount'),
             'actualCashPaid' => (float) $totalCashPaid,
             'totalDiscount' => (float) $totalDiscount,
-            'currentDue' => (float) $bills->sum('due_amount'),
+            'currentDue' => (float) $bills->sum('due_amount') + (float) ($vendor->opening_balance ?? 0),
             'walletBalance' => (float) $vendor->wallet_balance,
         ];
 
@@ -370,6 +477,7 @@ class VendorController extends Controller
             'bills' => $bills,
             'statement' => $events,
             'directPayments' => $directPayments,
+            'dateWisePayments' => $dateWisePayments,
             'stats' => $stats,
             'accounts' => Account::where('is_active', true)->select('id', 'name', 'current_balance')->get(),
             'advances' => AdvanceBalance::with('user:id,name')
@@ -731,6 +839,7 @@ class VendorController extends Controller
                 $payment->vendor->decrement('wallet_balance', $payment->wallet_credit_amount);
                 VendorLedger::create([
                     'vendor_id'   => $payment->vendor_id,
+                    'date'        => now()->toDateString(),
                     'type'        => 'debit',
                     'amount'      => $payment->wallet_credit_amount,
                     'description' => "পেমেন্ট ভয়েড হওয়ায় ওয়ালেট থেকে বিয়োগ (Payment #{$payment->id})",
@@ -794,7 +903,7 @@ class VendorController extends Controller
     {
         $vendor = Vendor::findOrFail($id);
 
-        $totalDue = ProjectExpense::where('vendor_id', $vendor->id)->sum('due_amount');
+        $totalDue = ProjectExpense::where('vendor_id', $vendor->id)->sum('due_amount') + (float) ($vendor->opening_balance ?? 0);
 
         if ($totalDue > 0 || $vendor->wallet_balance > 0) {
             return redirect()->back()->withErrors(['error' => 'এই ভেন্ডরের নামে বকেয়া বা অ্যাডভান্স থাকায় ডিলিট করা সম্ভব নয়।']);

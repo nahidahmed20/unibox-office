@@ -198,7 +198,7 @@ class ExpenseController extends Controller
         $expense = Expense::findOrFail($id);
         $validated = $this->validateData($request);
 
-        if ($error = $this->validateSource($validated)) return back()->withErrors(['error' => $error]);
+        if ($error = $this->validateSource($validated, $expense)) return back()->withErrors(['error' => $error]);
 
         $oldAttachment = $expense->attachment;
         if ($request->hasFile('attachment')) {
@@ -280,7 +280,7 @@ class ExpenseController extends Controller
         ]);
     }
 
-    private function validateSource(array $validated): ?string
+    private function validateSource(array $validated, ?Expense $existingExpense = null): ?string
     {
         if ($validated['pay_type'] === 'account' && empty($validated['account_id'])) return 'Please select a Bank/Cash Account.';
         if ($validated['pay_type'] === 'advance' && empty($validated['advance_user_id'])) return 'Please select an Advance User.';
@@ -289,8 +289,12 @@ class ExpenseController extends Controller
 
         if ($validated['pay_type'] === 'vendor') {
             $vendor = Vendor::find($validated['vendor_id']);
-            if (!$vendor || (float) $vendor->wallet_balance < (float) $validated['amount']) {
-                $bal = $vendor ? number_format($vendor->wallet_balance, 2) : '0.00';
+            $alreadyUsedFromSameVendor = ($existingExpense && (int) $existingExpense->vendor_id === (int) $validated['vendor_id'])
+                ? (float) $existingExpense->amount
+                : 0.0;
+            $effectiveWallet = ($vendor ? (float) $vendor->wallet_balance : 0.0) + $alreadyUsedFromSameVendor;
+            if (!$vendor || $effectiveWallet < (float) $validated['amount']) {
+                $bal = number_format($effectiveWallet, 2);
                 return "The selected vendor does not have sufficient advance balance (Available: ৳{$bal}).";
             }
         }

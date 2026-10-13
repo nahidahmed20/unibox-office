@@ -124,6 +124,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/financial-position', [ReportController::class, 'financialPosition'])->name('admin.reports.position');
     Route::get('account/transactions', [ReportController::class, 'transactionsReport'])->name('admin.account.transactions');
     Route::get('reports/client-ledger', [ReportController::class, 'clientLedger'])->name('admin.reports.client-ledger');
+    Route::get('reports/vendor-ledger', [ReportController::class, 'vendorLedger'])->name('admin.reports.vendor-ledger');
+    Route::get('reports/project-profit', [ReportController::class, 'projectProfitLoss'])->name('admin.reports.project-profit');
+    Route::get('reports/expense-analysis', [ReportController::class, 'expenseAnalysis'])->name('admin.reports.expense-analysis');
     Route::get('/daybook', [ReportController::class, 'daybook'])->name('admin.reports.daybook');
     Route::get('reports/monthly-balance', [ReportController::class, 'monthlyBalance'])->name('admin.reports.monthly-balance');
 

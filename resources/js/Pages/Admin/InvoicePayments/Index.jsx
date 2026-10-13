@@ -84,8 +84,53 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
         return raw === "all" ? "all" : (raw ? Number(raw) : 25);
     });
 
+    const [viewMode, setViewMode] = useState("invoice_wise"); // 'invoice_wise' | 'date_wise'
+
     const isFirstRender = useRef(true);
     const paymentList = payments.data || [];
+
+    const getClientGroupKey = (payment) => {
+        const cId = payment.invoice?.client_id || payment.invoice?.client?.id || payment.invoice?.client?.name || 'unknown';
+        return `${payment.payment_date}__${cId}`;
+    };
+
+    const { dailyClientMap, dateWiseGroups } = useMemo(() => {
+        const map = {};
+        const groups = [];
+        paymentList.forEach((payment) => {
+            const key = getClientGroupKey(payment);
+            if (!map[key]) {
+                map[key] = {
+                    key,
+                    payment_date: payment.payment_date,
+                    client: payment.invoice?.client || null,
+                    total_amount: 0,
+                    total_discount: 0,
+                    items: [],
+                    methods: [],
+                    notes: [],
+                };
+                groups.push(map[key]);
+            }
+            const group = map[key];
+            group.total_amount += parseFloat(payment.amount || 0);
+            group.total_discount += parseFloat(payment.discount_amount || 0);
+            group.items.push(payment);
+
+            const methodLabel = payment.method === 'Client Advance'
+                ? 'Client Advance'
+                : payment.method === 'Discount Only'
+                    ? 'Discount applied'
+                    : (payment.account?.name || payment.method || 'Account');
+            if (methodLabel && !group.methods.includes(methodLabel)) {
+                group.methods.push(methodLabel);
+            }
+            if (payment.note && !group.notes.includes(payment.note)) {
+                group.notes.push(payment.note);
+            }
+        });
+        return { dailyClientMap: map, dateWiseGroups: groups };
+    }, [paymentList]);
 
     const { data, setData, post, delete: destroy, reset, processing, errors, clearErrors, transform } = useForm({
         id: "", invoice_id: "", account_id: "", amount: "", advance_amount: "", account_payments: [{ account_id: '', amount: '' }], payment_date: new Date().toISOString().slice(0, 10), note: "", _method: "post",
@@ -97,6 +142,14 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
             client_id: overrides.client_id ?? clientId, account_id: overrides.account_id ?? accountFilter,
             year: overrides.year ?? year, date_from: overrides.date_from ?? dateFrom, date_to: overrides.date_to ?? dateTo, page: 1
         }, { preserveState: true, replace: true });
+    };
+
+    const handleViewModeSwitch = (mode) => {
+        setViewMode(mode);
+        if (mode === 'date_wise' && perPage !== 'all' && (payments.total || 0) > paymentList.length) {
+            setPerPage('all');
+            applyFilters({ per_page: 'all' });
+        }
     };
 
     useEffect(() => {
@@ -184,6 +237,40 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
             </div>
         `;
         printWindow.document.write(`<html><head><title>Money Receipt - #${receiptNo}</title><style>* { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; } body { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background: #fff; } @page { size: A4 portrait; margin: 10mm; } .page-container { width: 190mm; display: flex; flex-direction: column; } .receipt { border: 2px solid #147a5b; border-radius: 10px; padding: 16px 24px; position: relative; overflow: hidden; display: flex; flex-direction: column; } .watermark { position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); font-size: 50px; font-weight: 900; color: rgba(20, 122, 91, 0.04); z-index: 0; pointer-events: none; text-transform: uppercase; letter-spacing: 8px; } .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 10px; position: relative; z-index: 1; } .logo { height: 36px; width: auto; } .company-details { text-align: right; font-size: 10px; line-height: 1.4; color: #475569; } .company-details h2 { margin: 0 0 2px 0; font-size: 15px; color: #147a5b; text-transform: uppercase; letter-spacing: 1px; } .title-container { text-align: center; margin-bottom: 10px; position: relative; z-index: 1; } .title { display: inline-block; font-size: 14px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; color: #147a5b; background: #f0fdf4; padding: 4px 16px; border: 1px solid #147a5b; border-radius: 4px; } .copy-badge { position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 9px; font-weight: bold; color: #64748b; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; background: #f8fafc; } .content { position: relative; z-index: 1; } .details-table { width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.5; color: #1e293b; } .details-table td { padding: 4px 0; border-bottom: 1px dotted #cbd5e1; } .details-table strong { color: #475569; font-weight: 600; margin-right: 6px; } .words { font-weight: 700; font-style: italic; color: #0f172a; text-transform: capitalize; } .footer-section { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 14px; padding-top: 10px; position: relative; z-index: 1; } .amount-box { border: 2px solid #147a5b; border-radius: 6px; padding: 7px 18px; font-weight: 800; font-size: 15px; color: #147a5b; background: #f0fdf4; } .signature { text-align: center; font-size: 11px; color: #475569; width: 160px; } .sign-line { border-top: 1px solid #0f172a; padding-top: 5px; font-weight: 600; }</style></head><body><div class="page-container">${receiptHTML('Customer Copy')}</div></body></html>`);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+    };
+
+    const handlePrintCombinedReceipt = (group) => {
+        const client = group.client;
+        const receiptNo = group.items.map(i => String(i.id).padStart(3, '0')).join('/');
+        const invoiceBreakdown = group.items
+            .map(i => `${i.invoice?.invoice_number || 'INV'} (TK. ${Number(i.amount).toLocaleString('en-IN')})`)
+            .join(', ');
+        const printWindow = window.open('', '_blank');
+        const receiptHTML = (copyType) => `
+            <div class="receipt">
+                <div class="watermark">${COMPANY.name}</div>
+                <div class="header">
+                    <div><img src="${COMPANY.logo}" class="logo" alt="Logo" /></div>
+                    <div class="company-details"><h2>${COMPANY.name}</h2>${COMPANY.address}<br/>Phone: ${COMPANY.phone} | Email: ${COMPANY.email}</div>
+                </div>
+                <div class="title-container"><div class="title">Combined Money Receipt</div><div class="copy-badge">${copyType}</div></div>
+                <div class="content">
+                    <table class="details-table">
+                        <tr><td style="width: 50%;"><strong>Receipt No:</strong> #${receiptNo}</td><td style="width: 50%; text-align: right;"><strong>Date:</strong> ${group.payment_date || ''}</td></tr>
+                        <tr><td colspan="2"><strong>Received with thanks from:</strong> ${client?.name || 'N/A'} ${client?.company_name ? `(${client.company_name})` : ''}</td></tr>
+                        <tr><td colspan="2"><strong>Against Invoices (${group.items.length}):</strong> ${invoiceBreakdown}</td></tr>
+                        <tr><td colspan="2"><strong>Payment Mode:</strong> ${group.methods.join(', ')}</td></tr>
+                        <tr><td colspan="2"><strong>Amount in Words:</strong> <span class="words">${numberToWords(group.total_amount)}</span></td></tr>
+                        ${group.notes.length > 0 ? `<tr><td colspan="2"><strong>Notes:</strong> ${group.notes.join(' | ')}</td></tr>` : ''}
+                    </table>
+                </div>
+                <div class="footer-section"><div class="amount-box">TOTAL TK. ${Number(group.total_amount).toLocaleString('en-IN')}</div><div class="signature"><div class="sign-line">Authorized Signature</div></div></div>
+            </div>
+        `;
+        printWindow.document.write(`<html><head><title>Combined Money Receipt - ${group.payment_date}</title><style>* { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; } body { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background: #fff; } @page { size: A4 portrait; margin: 10mm; } .page-container { width: 190mm; display: flex; flex-direction: column; } .receipt { border: 2px solid #147a5b; border-radius: 10px; padding: 16px 24px; position: relative; overflow: hidden; display: flex; flex-direction: column; } .watermark { position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); font-size: 50px; font-weight: 900; color: rgba(20, 122, 91, 0.04); z-index: 0; pointer-events: none; text-transform: uppercase; letter-spacing: 8px; } .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 10px; position: relative; z-index: 1; } .logo { height: 36px; width: auto; } .company-details { text-align: right; font-size: 10px; line-height: 1.4; color: #475569; } .company-details h2 { margin: 0 0 2px 0; font-size: 15px; color: #147a5b; text-transform: uppercase; letter-spacing: 1px; } .title-container { text-align: center; margin-bottom: 10px; position: relative; z-index: 1; } .title { display: inline-block; font-size: 14px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; color: #147a5b; background: #f0fdf4; padding: 4px 16px; border: 1px solid #147a5b; border-radius: 4px; } .copy-badge { position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 9px; font-weight: bold; color: #64748b; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; background: #f8fafc; } .content { position: relative; z-index: 1; } .details-table { width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.5; color: #1e293b; } .details-table td { padding: 4px 0; border-bottom: 1px dotted #cbd5e1; } .details-table strong { color: #475569; font-weight: 600; margin-right: 6px; } .words { font-weight: 700; font-style: italic; color: #0f172a; text-transform: capitalize; } .footer-section { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 14px; padding-top: 10px; position: relative; z-index: 1; } .amount-box { border: 2px solid #147a5b; border-radius: 6px; padding: 7px 18px; font-weight: 800; font-size: 15px; color: #147a5b; background: #f0fdf4; } .signature { text-align: center; font-size: 11px; color: #475569; width: 160px; } .sign-line { border-top: 1px solid #0f172a; padding-top: 5px; font-weight: 600; }</style></head><body><div class="page-container">${receiptHTML('Customer Copy')}</div></body></html>`);
         printWindow.document.close();
         printWindow.focus();
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
@@ -345,35 +432,97 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 shadow-sm">
                                 <i className="fa-solid fa-money-bill-wave text-[16px]"></i>
                             </div>
-                            Payment Directory
+                            <div>
+                                <span>Payment Directory</span>
+                                <span className="block text-[11.5px] font-semibold text-slate-400">
+                                    {viewMode === 'date_wise' ? 'তারিখ অনুযায়ী মোট জমার হিসাব (একই দিনে একাধিক ইনভয়েসের মোট টাকা)' : 'ইনভয়েস অনুযায়ী বিস্তারিত পেমেন্ট তালিকা'}
+                                </span>
+                            </div>
                         </div>
-                        {hasPermission('create_receive_payment') && (
-                            <button onClick={openCreateModal} className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-black px-6 py-2.5 text-[13.5px] font-bold text-white transition-all shadow-md active:scale-95">
-                                <i className="fa-solid fa-plus text-[12px]"></i> Bulk Payment Entry
-                            </button>
-                        )}
+
+                        <div className="flex flex-wrap items-center gap-3">
+                            {/* 🟢 View Mode Toggle: Invoice-wise vs Date-wise Summary */}
+                            <div className="inline-flex items-center rounded-xl bg-slate-100 p-1 border border-slate-200 shadow-inner">
+                                <button
+                                    type="button"
+                                    onClick={() => handleViewModeSwitch('invoice_wise')}
+                                    className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[12.5px] font-black transition-all ${
+                                        viewMode === 'invoice_wise'
+                                            ? 'bg-white text-indigo-700 shadow-sm border border-indigo-200'
+                                            : 'text-slate-600 hover:text-slate-900'
+                                    }`}
+                                >
+                                    <i className="fa-solid fa-file-invoice text-[11px]"></i>
+                                    <span>ইনভয়েস অনুযায়ী (All)</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleViewModeSwitch('date_wise')}
+                                    className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[12.5px] font-black transition-all ${
+                                        viewMode === 'date_wise'
+                                            ? 'bg-emerald-600 text-white shadow-sm border border-emerald-700'
+                                            : 'text-slate-600 hover:text-slate-900'
+                                    }`}
+                                >
+                                    <i className="fa-solid fa-calendar-check text-[11px]"></i>
+                                    <span>তারিখ অনুযায়ী মোট জমা (Date-wise)</span>
+                                </button>
+                            </div>
+
+                            {hasPermission('create_receive_payment') && (
+                                <button onClick={openCreateModal} className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-black px-6 py-2.5 text-[13.5px] font-bold text-white transition-all shadow-md active:scale-95">
+                                    <i className="fa-solid fa-plus text-[12px]"></i> Bulk Payment Entry
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-slate-50/50 border-b border-slate-100 no-print">
-                        <div className="flex flex-wrap items-center gap-4 w-full justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="relative w-[130px]">
-                                    <select value={perPage} onChange={e => { setPerPage(e.target.value === "all" ? "all" : Number(e.target.value)); applyFilters({ per_page: e.target.value === "all" ? "all" : Number(e.target.value) }); }} className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-9 py-2.5 text-[13.5px] font-bold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer">
+                        <div className="flex flex-wrap items-center gap-3 w-full justify-between">
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className="relative w-[125px]">
+                                    <select value={perPage} onChange={e => { setPerPage(e.target.value === "all" ? "all" : Number(e.target.value)); applyFilters({ per_page: e.target.value === "all" ? "all" : Number(e.target.value) }); }} className="w-full bg-white border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-[13px] font-bold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer">
                                         <option value={10}>10 Rows</option><option value={25}>25 Rows</option><option value={50}>50 Rows</option><option value={100}>100 Rows</option><option value="all">All Data</option>
                                     </select>
                                 </div>
-                                <div className="h-6 w-px bg-slate-200 mx-1"></div>
                                 <div className="relative w-[240px] z-20">
                                     <Select
                                         options={clientOptions}
                                         value={clientOptions.find(opt => String(opt.value) === String(clientId)) || null}
                                         onChange={selected => { setClientId(selected ? selected.value : ""); applyFilters({ client_id: selected ? selected.value : "" }); }}
-                                        placeholder="All Clients"
+                                        placeholder="All Clients (ক্লায়েন্ট ফিল্টার)"
                                         isSearchable isClearable {...portal}
                                     />
                                 </div>
+                                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
+                                    <span className="text-[11px] font-extrabold uppercase text-slate-400">From</span>
+                                    <input
+                                        type="date"
+                                        value={dateFrom}
+                                        onChange={e => { setDateFrom(e.target.value); applyFilters({ date_from: e.target.value }); }}
+                                        className="text-[12.5px] font-bold text-slate-700 outline-none bg-transparent cursor-pointer"
+                                    />
+                                    <span className="text-slate-300">|</span>
+                                    <span className="text-[11px] font-extrabold uppercase text-slate-400">To</span>
+                                    <input
+                                        type="date"
+                                        value={dateTo}
+                                        onChange={e => { setDateTo(e.target.value); applyFilters({ date_to: e.target.value }); }}
+                                        className="text-[12.5px] font-bold text-slate-700 outline-none bg-transparent cursor-pointer"
+                                    />
+                                    {(dateFrom || dateTo) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => { setDateFrom(""); setDateTo(""); applyFilters({ date_from: "", date_to: "" }); }}
+                                            className="text-rose-500 hover:text-rose-700 text-xs ml-1"
+                                            title="Clear Dates"
+                                        >
+                                            <i className="fa-solid fa-xmark"></i>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                            <div className="relative w-full sm:w-[280px]">
+                            <div className="relative w-full sm:w-[260px]">
                                 <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-[13.5px]"></i>
                                 <input type="text" placeholder="Search payments..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={inputClassFilter} />
                             </div>
@@ -386,15 +535,99 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                 <tr>
                                     <th className="px-6 py-4 w-12 text-center">SL</th>
                                     <th className="px-6 py-4">Client Info</th>
-                                    <th className="px-6 py-4">Invoice Info</th>
+                                    <th className="px-6 py-4">{viewMode === 'date_wise' ? 'Covered Invoices & Breakdown (ইনভয়েস সমূহ)' : 'Invoice Info'}</th>
                                     <th className="px-6 py-4">Deposit Source</th>
                                     <th className="px-6 py-4">Payment Date</th>
-                                    <th className="px-6 py-4 text-right">Amount</th>
+                                    <th className="px-6 py-4 text-right">{viewMode === 'date_wise' ? 'Date Total (মোট জমা)' : 'Amount'}</th>
                                     <th className="px-6 py-4 text-center no-print w-28">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="text-[14px] text-slate-700 divide-y divide-slate-100">
-                                {paymentList.length > 0 ? paymentList.map((payment, idx) => (
+                                {viewMode === 'date_wise' ? (
+                                    dateWiseGroups.length > 0 ? dateWiseGroups.map((group, idx) => (
+                                        <tr key={group.key} className="hover:bg-emerald-50/40 transition-colors group">
+                                            <td className="px-6 py-4 font-bold text-slate-400 text-center tabular-nums">{idx + 1}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="font-bold text-slate-800 text-[14.5px]">{group.client?.name || "N/A"}</div>
+                                                {group.client?.company_name && <div className="text-[12.5px] font-medium text-slate-500 mt-1"><i className="fa-regular fa-building mr-1.5 text-slate-400"></i>{group.client.company_name}</div>}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-normal min-w-[290px]">
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-black border ${group.items.length > 1 ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                                                        <i className="fa-solid fa-layer-group text-[10px]"></i>
+                                                        {group.items.length}টি ইনভয়েস পেমেন্ট
+                                                    </span>
+                                                    {group.total_discount > 0 && (
+                                                        <span className="text-[10.5px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600 border border-amber-100 px-2 py-0.5 rounded-md">
+                                                            ছাড়: ৳{group.total_discount.toLocaleString('en-IN')}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {group.items.map((item) => (
+                                                        <span key={item.id} className="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-[12px] font-bold text-slate-700 shadow-2xs">
+                                                            <span className="text-indigo-600 font-black">{item.invoice?.invoice_number || 'INV'}</span>
+                                                            <span className="text-slate-300">:</span>
+                                                            <span className="text-emerald-700 font-black tabular-nums">৳{parseFloat(item.amount).toLocaleString('en-IN')}</span>
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {group.methods.map((m, i) => (
+                                                        <span key={i} className="inline-flex items-center gap-1.5 rounded-lg border bg-white text-slate-700 border-slate-200 px-2.5 py-1 text-[12px] font-bold shadow-2xs">
+                                                            <i className="fa-solid fa-building-columns text-slate-400 text-[11px]"></i>
+                                                            {m}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 font-bold text-slate-700">
+                                                <div className="inline-flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+                                                    <i className="fa-regular fa-calendar-check text-[12.5px] text-emerald-600"></i>
+                                                    <span>{group.payment_date}</span>
+                                                </div>
+                                                {group.notes.length > 0 && (
+                                                    <div className="text-[12px] text-slate-400 max-w-[180px] truncate mt-1.5 italic border-l-2 border-slate-200 pl-2" title={group.notes.join(' | ')}>
+                                                        {group.notes.join(' | ')}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <span className="font-black text-emerald-600 text-[16.5px] tabular-nums flex items-center justify-end">
+                                                    <Taka className="text-[14px] mr-1 opacity-80"/>{group.total_amount.toLocaleString('en-IN')}
+                                                </span>
+                                                <span className="block text-[10.5px] font-extrabold text-emerald-700 mt-0.5">
+                                                    ঐ তারিখে মোট জমা ({group.items.length}টি বিল)
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-center no-print">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <button
+                                                        onClick={() => handlePrintCombinedReceipt(group)}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white text-[12px] font-black shadow-2xs transition-all"
+                                                        title="Print Combined Money Receipt for this Date"
+                                                    >
+                                                        <i className="fa-solid fa-print text-[12px]"></i> রিসিপ্ট
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )) : (
+                                        <tr>
+                                            <td colSpan="7" className="px-6 py-28 text-center">
+                                                <div className="flex flex-col items-center justify-center">
+                                                    <div className="h-16 w-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mb-4 text-slate-300 shadow-sm"><i className="fa-solid fa-money-bill-wave text-2xl"></i></div>
+                                                    <p className="text-[16px] font-bold text-slate-700">No payment records found.</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )
+                                ) : paymentList.length > 0 ? paymentList.map((payment, idx) => {
+                                    const group = dailyClientMap[getClientGroupKey(payment)];
+                                    const hasMultipleOnSameDate = group && group.items.length > 1;
+                                    return (
                                     <tr key={payment.id} className="hover:bg-slate-50/80 transition-colors group">
                                         <td className="px-6 py-4 font-medium text-slate-400 text-center tabular-nums">{payments.from ? payments.from + idx : idx + 1}</td>
                                         <td className="px-6 py-4">
@@ -421,10 +654,24 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                             <span className="font-bold text-emerald-600 text-[15px] tabular-nums flex items-center justify-end">
                                                 <Taka className="text-[13px] mr-1 opacity-70"/>{parseFloat(payment.amount).toLocaleString('en-IN')}
                                             </span>
+                                            {hasMultipleOnSameDate && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleViewModeSwitch('date_wise')}
+                                                    className="mt-1 inline-flex items-center gap-1 rounded-md bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-0.5 text-[10.5px] font-black text-indigo-700 transition-colors"
+                                                    title="এই তারিখে ক্লায়েন্ট মোট কত টাকা দিয়েছে তা একসাথে দেখুন"
+                                                >
+                                                    <i className="fa-solid fa-layer-group text-[9px]"></i>
+                                                    ঐ তারিখে মোট: ৳{group.total_amount.toLocaleString('en-IN')} ({group.items.length}টি)
+                                                </button>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-center no-print">
-                                            <div className="flex items-center justify-center gap-2  transition-opacity duration-200">
-                                                <button onClick={() => handlePrintReceipt(payment)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-transparent border border-transparent text-emerald-500 hover:bg-emerald-50 hover:border-emerald-200 shadow-none hover:shadow-sm transition-all" title="Print Receipt"><i className="fa-solid fa-print text-[14px]"></i></button>
+                                            <div className="flex items-center justify-center gap-2 transition-opacity duration-200">
+                                                <button onClick={() => handlePrintReceipt(payment)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-transparent border border-transparent text-emerald-500 hover:bg-emerald-50 hover:border-emerald-200 shadow-none hover:shadow-sm transition-all" title="Print Single Invoice Receipt"><i className="fa-solid fa-print text-[14px]"></i></button>
+                                                {hasMultipleOnSameDate && (
+                                                    <button onClick={() => handlePrintCombinedReceipt(group)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-600 hover:text-white shadow-2xs transition-all" title={`Print Combined Receipt (৳${group.total_amount.toLocaleString('en-IN')})`}><i className="fa-solid fa-layer-group text-[12px]"></i></button>
+                                                )}
                                                 {hasPermission('edit_receive_payment') && payment.method === 'Account' && (
                                                     <button onClick={() => openEditModal(payment)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-transparent border border-transparent text-amber-500 hover:bg-amber-50 hover:border-amber-200 shadow-none hover:shadow-sm transition-all" title="Edit"><i className="fa-regular fa-pen-to-square text-[14px]"></i></button>
                                                 )}
@@ -434,7 +681,8 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                             </div>
                                         </td>
                                     </tr>
-                                )) : (
+                                    );
+                                }) : (
                                     <tr>
                                         <td colSpan="7" className="px-6 py-28 text-center">
                                             <div className="flex flex-col items-center justify-center">

@@ -89,22 +89,36 @@ export default function Print({ invoice, dbSettings }) {
         footer_text: dbSettings?.footer_text || '',
     };
 
-    const { hasTax, hasDiscount, hasAdvance, advanceAmount, payableAmount, grandTotalWords, rowSpanCount } = useMemo(() => {
+    const { hasTax, hasDiscount, hasAdvance, hasCashPaid, hasAnyPayment, advanceAmount, cashPaidAmount, payableAmount, grandTotalWords, rowSpanCount } = useMemo(() => {
         if (!invoice) return {};
         const tax = parseFloat(invoice.tax) || 0;
         const discount = parseFloat(invoice.discount) || 0;
         const advance = Number(invoice.advance_used) || 0;
+        const cashPaid = Number(invoice.cash_paid) || 0;
         const grandTotal = Number(invoice.grand_total) || 0;
 
         const hasTax = tax > 0;
         const hasDiscount = discount > 0;
         const hasAdvance = advance > 0;
+        const hasCashPaid = cashPaid > 0;
+        const hasAnyPayment = hasAdvance || hasCashPaid;
 
-        const payable = hasAdvance ? (grandTotal - advance) : grandTotal;
-        const words = numberToWords(payable);
-        const rows = 2 + (hasTax ? 1 : 0) + (hasDiscount ? 1 : 0) + (hasAdvance ? 2 : 0);
+        const payable = Math.max(0, grandTotal - advance - cashPaid);
+        const words = numberToWords(hasAnyPayment ? payable : grandTotal);
+        const rows = 2 + (hasTax ? 1 : 0) + (hasDiscount ? 1 : 0) + (hasAdvance ? 1 : 0) + (hasCashPaid ? 1 : 0) + (hasAnyPayment ? 1 : 0);
 
-        return { hasTax, hasDiscount, hasAdvance, advanceAmount: advance, payableAmount: payable, grandTotalWords: words, rowSpanCount: rows };
+        return {
+            hasTax,
+            hasDiscount,
+            hasAdvance,
+            hasCashPaid,
+            hasAnyPayment,
+            advanceAmount: advance,
+            cashPaidAmount: cashPaid,
+            payableAmount: payable,
+            grandTotalWords: words,
+            rowSpanCount: rows,
+        };
     }, [invoice]);
 
     if (!invoice) return <div style={{ padding: '20px', textAlign: 'center', fontSize: '18px', color: '#555' }}>Loading Invoice...</div>;
@@ -242,16 +256,24 @@ export default function Print({ invoice, dbSettings }) {
                                     </tr>
 
                                     {hasAdvance && (
-                                        <>
-                                            <tr>
-                                                <td className="text-right" style={{ paddingRight: '15px' }}>Advance Adjusted</td>
-                                                <td className="text-center">- {advanceAmount.toFixed(2)}/-</td>
-                                            </tr>
-                                            <tr>
-                                                <td className="text-right" style={{ paddingRight: '15px', color: "#d93025", fontSize: '15px' }}><strong>Payable Due</strong></td>
-                                                <td className="text-center" style={{ color: "#d93025", fontSize: '15px' }}><strong>{payableAmount.toFixed(2)}/-</strong></td>
-                                            </tr>
-                                        </>
+                                        <tr>
+                                            <td className="text-right" style={{ paddingRight: '15px' }}>Advance Adjusted</td>
+                                            <td className="text-center">- {advanceAmount.toFixed(2)}/-</td>
+                                        </tr>
+                                    )}
+
+                                    {hasCashPaid && (
+                                        <tr>
+                                            <td className="text-right" style={{ paddingRight: '15px' }}>Paid Amount</td>
+                                            <td className="text-center">- {cashPaidAmount.toFixed(2)}/-</td>
+                                        </tr>
+                                    )}
+
+                                    {hasAnyPayment && (
+                                        <tr>
+                                            <td className="text-right" style={{ paddingRight: '15px', color: "#d93025", fontSize: '15px' }}><strong>Payable Due</strong></td>
+                                            <td className="text-center" style={{ color: "#d93025", fontSize: '15px' }}><strong>{payableAmount.toFixed(2)}/-</strong></td>
+                                        </tr>
                                     )}
                                 </>
                             )}

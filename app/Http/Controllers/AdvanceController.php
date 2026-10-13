@@ -348,40 +348,49 @@ class AdvanceController extends Controller
 
         try {
             DB::transaction(function () use ($advance) {
-                // Fetch the transaction to find the actual bank charge that was deducted
-                $transaction = Transaction::where('transactionable_id', $advance->id)
+                $transactions = Transaction::where('transactionable_id', $advance->id)
                     ->where('transactionable_type', Advance::class)
-                    ->where('type', 'debit')
-                    ->first();
+                    ->get();
 
-                $charge = $transaction ? (float) $transaction->bank_charge : 0;
-                $returned = (float) ($advance->returned_amount ?? 0);
-
-                // Refund remaining advance + the bank charge that was cut
-                $refund_amount = ((float) $advance->amount - $returned) + $charge;
-
-                if ($refund_amount > 0 && $advance->account_id) {
-                    $account = Account::find($advance->account_id);
-                    if ($account) {
-                        $account->current_balance += $refund_amount;
-                        $account->save();
+                if ($transactions->isNotEmpty()) {
+                    foreach ($transactions as $trx) {
+                        $account = Account::lockForUpdate()->find($trx->account_id);
+                        if ($account) {
+                            if ($trx->type === 'debit') {
+                                $account->increment('current_balance', $trx->amount);
+                            } else {
+                                if ((float) $account->current_balance < (float) $trx->amount) {
+                                    throw new \Exception("অ্যাকাউন্টে পর্যাপ্ত ব্যালেন্স নেই রিটার্ন ট্রানজেকশন রিভার্স করার জন্য।");
+                                }
+                                $account->decrement('current_balance', $trx->amount);
+                            }
+                        }
+                        $trx->delete();
+                    }
+                } elseif ($advance->account_id) {
+                    $returned = (float) ($advance->returned_amount ?? 0);
+                    $refund_amount = max(0, (float) $advance->amount - $returned);
+                    if ($refund_amount > 0) {
+                        $account = Account::lockForUpdate()->find($advance->account_id);
+                        if ($account) {
+                            $account->increment('current_balance', $refund_amount);
+                        }
                     }
                 }
 
+                $returned = (float) ($advance->returned_amount ?? 0);
                 $balance = AdvanceBalance::where('user_id', $advance->user_id)->first();
                 if ($balance) {
                     $balance->decrement('total_given', $advance->amount);
-                    $balance->decrement('total_returned', $returned);
-                }
-
-                if ($transaction) {
-                    $transaction->delete();
+                    if ($returned > 0) {
+                        $balance->decrement('total_returned', $returned);
+                    }
                 }
 
                 $advance->delete();
             });
 
-            return redirect()->back()->with('success', 'Advance deleted and full amount + bank charge refunded to account.');
+            return redirect()->back()->with('success', 'Advance deleted and account balances restored.');
         } catch (\Exception $e) {
             return redirect()->back()->withErrors(['error' => $e->getMessage()]);
         }

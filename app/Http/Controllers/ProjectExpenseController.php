@@ -300,6 +300,7 @@ class ProjectExpenseController extends Controller
             $vendor->decrement('wallet_balance', $walletDeduction);
             VendorLedger::create([
                 'vendor_id' => $vendor->id,
+                'date' => $validated['date'],
                 'type' => 'debit',
                 'amount' => $walletDeduction,
                 'description' => "Paid for expense #{$expense->id}: {$expense->title}"
@@ -335,6 +336,7 @@ class ProjectExpenseController extends Controller
                 $vendor->increment('wallet_balance', $overpayment);
                 VendorLedger::create([
                     'vendor_id' => $vendor->id,
+                    'date' => $validated['date'],
                     'type' => 'credit',
                     'amount' => $overpayment,
                     'description' => "Advance from overpaid expense #{$expense->id}: {$expense->title}"
@@ -450,5 +452,6 @@ class ProjectExpenseController extends Controller
 
         if ($remaining > 0.009) throw new \Exception('Advance history cannot be safely reversed.');
 
+        \App\Models\AdvanceBalance::where('user_id', $userId)->decrement('total_used', $amount - $remaining);
     }
 }

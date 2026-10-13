@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Asset;
 use App\Models\Account;
+use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class AssetController extends Controller
@@ -81,17 +83,35 @@ class AssetController extends Controller
         }
 
         DB::transaction(function () use ($validated) {
+            $price = (float) ($validated['purchase_price'] ?? 0);
+            $account = null;
+
+            if (!empty($validated['account_id']) && $price > 0) {
+                $account = Account::where('id', $validated['account_id'])->lockForUpdate()->firstOrFail();
+                if ((float) $account->current_balance < $price) {
+                    throw ValidationException::withMessages([
+                        'account_id' => "Insufficient balance in {$account->name}.",
+                    ]);
+                }
+            }
+
             $asset = Asset::create($validated);
 
-            if (!empty($validated['account_id']) && !empty($validated['purchase_price']) && $validated['purchase_price'] > 0) {
-                $account = Account::where('id', $validated['account_id'])->lockForUpdate()->first();
-                if ($account) {
-                    $account->decrement('current_balance', $validated['purchase_price']);
-                }
+            if ($account && $price > 0) {
+                $account->decrement('current_balance', $price);
+                Transaction::create([
+                    'account_id'           => $account->id,
+                    'type'                 => 'debit',
+                    'amount'               => $price,
+                    'transaction_date'     => $validated['purchase_date'] ?: now()->toDateString(),
+                    'description'          => "Asset Purchase: {$asset->name} ({$asset->asset_code})",
+                    'transactionable_id'   => $asset->id,
+                    'transactionable_type' => Asset::class,
+                ]);
             }
         });
 
-        return redirect()->back();
+        return redirect()->back()->with('success', 'Asset created successfully.');
     }
 
     public function update(Request $request, string $id)
@@ -117,6 +137,7 @@ class AssetController extends Controller
         }
 
         DB::transaction(function () use ($asset, $validated) {
+            $asset = Asset::with('transaction')->lockForUpdate()->findOrFail($asset->id);
             $oldAccountId = $asset->account_id;
             $oldPrice     = (float) ($asset->purchase_price ?? 0);
 
@@ -127,25 +148,45 @@ class AssetController extends Controller
                 }
             }
 
-            $asset->update($validated);
-
             $newAccountId = $validated['account_id'] ?? null;
             $newPrice     = (float) ($validated['purchase_price'] ?? 0);
 
             if ($newAccountId && $newPrice > 0) {
-                $newAccount = Account::where('id', $newAccountId)->lockForUpdate()->first();
-                if ($newAccount) {
-                    $newAccount->decrement('current_balance', $newPrice);
+                $newAccount = Account::where('id', $newAccountId)->lockForUpdate()->firstOrFail();
+                if ((float) $newAccount->current_balance < $newPrice) {
+                    throw ValidationException::withMessages([
+                        'account_id' => "Insufficient balance in {$newAccount->name}.",
+                    ]);
                 }
+                $newAccount->decrement('current_balance', $newPrice);
+            }
+
+            $asset->update($validated);
+
+            if ($newAccountId && $newPrice > 0) {
+                $trxData = [
+                    'account_id'       => $newAccountId,
+                    'type'             => 'debit',
+                    'amount'           => $newPrice,
+                    'transaction_date' => $validated['purchase_date'] ?: ($asset->created_at?->toDateString() ?? now()->toDateString()),
+                    'description'      => "Asset Purchase: {$asset->name} ({$asset->asset_code})",
+                ];
+                if ($asset->transaction) {
+                    $asset->transaction->update($trxData);
+                } else {
+                    $asset->transaction()->create($trxData);
+                }
+            } else {
+                $asset->transaction?->delete();
             }
         });
 
-        return redirect()->back();
+        return redirect()->back()->with('success', 'Asset updated successfully.');
     }
 
     public function destroy(string $id)
     {
-        $asset = Asset::findOrFail($id);
+        $asset = Asset::with('transaction')->findOrFail($id);
 
         DB::transaction(function () use ($asset) {
             if ($asset->account_id && $asset->purchase_price > 0) {
@@ -155,9 +196,10 @@ class AssetController extends Controller
                 }
             }
 
+            $asset->transaction?->delete();
             $asset->delete();
         });
 
-        return redirect()->back();
+        return redirect()->back()->with('success', 'Asset deleted and balance restored.');
     }
 }

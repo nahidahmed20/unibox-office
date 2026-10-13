@@ -162,7 +162,7 @@ class SalaryController extends Controller
 
             $salary->paid_amount = $total_paid;
             $salary->due_amount = $net_pay - $total_paid;
-            $salary->status = $salary->due_amount <= 0 ? 'paid' : 'unpaid';
+            $salary->status = $salary->due_amount <= 0 ? 'paid' : ($salary->paid_amount > 0 ? 'partially_paid' : 'unpaid');
             $salary->save();
         });
 
@@ -250,6 +250,7 @@ class SalaryController extends Controller
                 $this->consumeAdvance($validated['user_id'], $newAdvanceAmount, $salary);
             }
 
+            $dueAmount = max(0, $net_pay - $total_paid);
             $salary->update([
                 'user_id'           => $validated['user_id'],
                 'month_year'        => $validated['month_year'],
@@ -260,8 +261,8 @@ class SalaryController extends Controller
                 'advance_deduction' => $newAdvanceAmount,
                 'net_pay'           => $net_pay,
                 'paid_amount'       => $total_paid,
-                'due_amount'        => $net_pay - $total_paid,
-                'status'            => ($net_pay - $total_paid) <= 0 ? 'paid' : 'unpaid',
+                'due_amount'        => $dueAmount,
+                'status'            => $dueAmount <= 0 ? 'paid' : ($total_paid > 0 ? 'partially_paid' : 'unpaid'),
                 'payment_date'      => $validated['payment_date'] ?? null,
             ]);
         });
@@ -303,8 +304,8 @@ class SalaryController extends Controller
                 // 🟢 Passed $salary to create Settlement record
                 $this->consumeAdvance($salary->user_id, $advanceCutAmount, $salary);
                 $salary->advance_deduction += $advanceCutAmount;
-                $salary->paid_amount += $advanceCutAmount;
-                $salary->due_amount -= $advanceCutAmount;
+                $salary->net_pay = max(0, $salary->net_pay - $advanceCutAmount);
+                $salary->due_amount = max(0, $salary->due_amount - $advanceCutAmount);
             }
 
             if (!empty($validated['payments'])) {
@@ -330,11 +331,12 @@ class SalaryController extends Controller
                     ]);
 
                     $salary->paid_amount += $salaryAmount;
-                    $salary->due_amount -= $salaryAmount;
+                    $salary->due_amount = max(0, $salary->due_amount - $salaryAmount);
                 }
             }
 
-            $salary->status = $salary->due_amount <= 0 ? 'paid' : 'unpaid';
+            $salary->payment_date = $validated['date'];
+            $salary->status = $salary->due_amount <= 0 ? 'paid' : (($salary->paid_amount > 0 || $salary->advance_deduction > 0) ? 'partially_paid' : 'unpaid');
             $salary->save();
         });
 

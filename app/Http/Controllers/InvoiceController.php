@@ -146,7 +146,7 @@ class InvoiceController extends Controller
             $invoice = Invoice::create($invoiceData);
 
             $invoiceItemsData = collect($validated['items'])->map(function ($item) {
-                return collect($item)->only(['project_id', 'item_name', 'description', 'quantity', 'unit_price', 'total'])->toArray();
+                return collect($item)->only(['project_id', 'item_name', 'description', 'quantity', 'unit_type', 'unit_price', 'total'])->toArray();
             })->toArray();
             $invoice->items()->createMany($invoiceItemsData);
 
@@ -229,7 +229,7 @@ class InvoiceController extends Controller
 
             $invoice->items()->delete();
             $invoiceItemsData = collect($validated['items'])->map(function ($item) {
-                return collect($item)->only(['project_id', 'item_name', 'description', 'quantity', 'unit_price', 'total'])->toArray();
+                return collect($item)->only(['project_id', 'item_name', 'description', 'quantity', 'unit_type', 'unit_price', 'total'])->toArray();
             })->toArray();
             $invoice->items()->createMany($invoiceItemsData);
 
@@ -391,6 +391,9 @@ class InvoiceController extends Controller
     public function print($id)
     {
         $invoice = Invoice::with(['client', 'items.project', 'payments'])->findOrFail($id);
+
+        // Ensure computed advance_used (raw column + 'Client Advance' payments) is serialized
+        $invoice->setAttribute('advance_used', $invoice->advance_used);
 
         // Money already received for this invoice (bank/cash etc.). Client-advance payments are
         // excluded here because they're already included in advance_used ("Advance Adjusted").

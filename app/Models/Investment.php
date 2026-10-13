@@ -16,4 +16,8 @@ class Investment extends Model {
     public function payments() {
         return $this->hasMany(InvestmentPayment::class);
     }
+
+    public function transaction() {
+        return $this->morphOne(Transaction::class, 'transactionable');
+    }
 }
