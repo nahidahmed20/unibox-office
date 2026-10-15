@@ -4,6 +4,10 @@ import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import CustomSelect from '@/Components/CustomSelect';
 
+const Taka = ({ className = "text-[14px]" }) => (
+    <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
+);
+
 export default function Index({ accounts = { data: [], links: [] }, summary = {}, filters = {} }) {
 
     const { auth } = usePage().props;
@@ -187,92 +191,120 @@ export default function Index({ accounts = { data: [], links: [] }, summary = {}
                     </div>
                 </div>
 
-                {/* --- 🟢 5 PREMIUM FINANCIAL SUMMARY CARDS --- */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+                {/* --- 🟢 5 EXECUTIVE FINANCIAL SUMMARY CARDS --- */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 xl:gap-5">
                     {/* 1. Bank & Cash Balance */}
-                    <div className="relative overflow-hidden rounded-2xl bg-blue-600 p-5 text-white shadow-md hover:shadow-lg transition-shadow duration-300 group">
-                        <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/10 transition-transform duration-500 group-hover:scale-125"></div>
-                        <div className="absolute right-12 -bottom-8 w-20 h-20 rounded-full bg-white/10 transition-transform duration-500 group-hover:scale-110"></div>
-                        <div className="relative z-10 flex flex-col gap-4">
-                            <div className="flex items-center justify-between">
-                                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm text-white shadow-inner">
-                                    <i className="fa-solid fa-building-columns text-xl"></i>
+                    <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-b from-blue-50/70 via-white to-white p-5 shadow-sm hover:shadow-xl hover:shadow-blue-500/10 hover:border-blue-300 hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between">
+                        <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-blue-400/10 blur-2xl group-hover:bg-blue-500/20 transition-all pointer-events-none"></div>
+                        <div>
+                            <div className="flex items-center justify-between mb-3.5">
+                                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform">
+                                    <i className="fa-solid fa-building-columns text-[17px]"></i>
                                 </div>
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-blue-100/70 text-blue-700 border border-blue-200/60">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse"></span>Liquid
+                                </span>
                             </div>
-                            <div>
-                                <h3 className="text-2xl font-bold tracking-tight">৳ {Number(summary.total_balance || 0).toLocaleString('en-IN')}</h3>
-                                <p className="text-blue-100 text-[13px] font-medium mt-1">Bank & Cash Bal.</p>
-                            </div>
+                            <p className="text-[11.5px] font-extrabold uppercase tracking-wider text-slate-500 mb-1">Bank &amp; Cash Bal.</p>
+                            <h3 className="text-[22px] sm:text-[24px] xl:text-[26px] font-black text-slate-900 tracking-tight tabular-nums flex items-center">
+                                <Taka className="text-[17px] text-blue-600 mr-0.5" />{Number(summary.total_balance || 0).toLocaleString('en-IN')}
+                            </h3>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-blue-100/70 flex items-center justify-between text-[11.5px] text-slate-500 font-semibold">
+                            <span>Active accounts</span>
+                            <span className="font-bold text-blue-700">{accList.filter(a => a.is_active).length} Active</span>
                         </div>
                     </div>
 
                     {/* 2. Employee Advance */}
-                    <div className="relative overflow-hidden rounded-2xl bg-teal-500 p-5 text-white shadow-md hover:shadow-lg transition-shadow duration-300 group">
-                        <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/10 transition-transform duration-500 group-hover:scale-125"></div>
-                        <div className="absolute right-12 -bottom-8 w-20 h-20 rounded-full bg-white/10 transition-transform duration-500 group-hover:scale-110"></div>
-                        <div className="relative z-10 flex flex-col gap-4">
-                            <div className="flex items-center justify-between">
-                                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm text-white shadow-inner">
-                                    <i className="fa-solid fa-user-tie text-xl"></i>
+                    <div className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-b from-emerald-50/70 via-white to-white p-5 shadow-sm hover:shadow-xl hover:shadow-emerald-500/10 hover:border-emerald-300 hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between">
+                        <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-emerald-400/10 blur-2xl group-hover:bg-emerald-500/20 transition-all pointer-events-none"></div>
+                        <div>
+                            <div className="flex items-center justify-between mb-3.5">
+                                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/25 group-hover:scale-105 transition-transform">
+                                    <i className="fa-solid fa-user-tie text-[17px]"></i>
                                 </div>
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-emerald-100/70 text-emerald-700 border border-emerald-200/60">
+                                    <i className="fa-solid fa-arrow-up-right-from-square text-[9px]"></i> Disbursed
+                                </span>
                             </div>
-                            <div>
-                                <h3 className="text-2xl font-bold tracking-tight">৳ {Number(summary.employee_advance || 0).toLocaleString('en-IN')}</h3>
-                                <p className="text-teal-100 text-[13px] font-medium mt-1">Emp. Advance <span className="opacity-75 text-[11px]">(Given)</span></p>
-                            </div>
+                            <p className="text-[11.5px] font-extrabold uppercase tracking-wider text-slate-500 mb-1">Emp. Advance</p>
+                            <h3 className="text-[22px] sm:text-[24px] xl:text-[26px] font-black text-slate-900 tracking-tight tabular-nums flex items-center">
+                                <Taka className="text-[17px] text-emerald-600 mr-0.5" />{Number(summary.employee_advance || 0).toLocaleString('en-IN')}
+                            </h3>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-emerald-100/70 flex items-center justify-between text-[11.5px] text-slate-500 font-semibold">
+                            <span>Pending cut</span>
+                            <span className="font-bold text-emerald-700">Staff Due</span>
                         </div>
                     </div>
 
                     {/* 3. Vendor Advance */}
-                    <div className="relative overflow-hidden rounded-2xl bg-violet-500 p-5 text-white shadow-md hover:shadow-lg transition-shadow duration-300 group">
-                        <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/10 transition-transform duration-500 group-hover:scale-125"></div>
-                        <div className="absolute right-12 -bottom-8 w-20 h-20 rounded-full bg-white/10 transition-transform duration-500 group-hover:scale-110"></div>
-                        <div className="relative z-10 flex flex-col gap-4">
-                            <div className="flex items-center justify-between">
-                                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm text-white shadow-inner">
-                                    <i className="fa-solid fa-truck-field text-xl"></i>
+                    <div className="relative overflow-hidden rounded-2xl border border-purple-100 bg-gradient-to-b from-purple-50/70 via-white to-white p-5 shadow-sm hover:shadow-xl hover:shadow-purple-500/10 hover:border-purple-300 hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between">
+                        <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-purple-400/10 blur-2xl group-hover:bg-purple-500/20 transition-all pointer-events-none"></div>
+                        <div>
+                            <div className="flex items-center justify-between mb-3.5">
+                                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-500/25 group-hover:scale-105 transition-transform">
+                                    <i className="fa-solid fa-truck-field text-[17px]"></i>
                                 </div>
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-purple-100/70 text-purple-700 border border-purple-200/60">
+                                    Prepaid
+                                </span>
                             </div>
-                            <div>
-                                <h3 className={`text-2xl font-bold tracking-tight ${summary.vendor_advance < 0 ? 'text-rose-200' : 'text-white'}`}>
-                                    {summary.vendor_advance < 0 ? '-' : ''}৳ {Math.abs(summary.vendor_advance || 0).toLocaleString('en-IN')}
-                                </h3>
-                                <p className="text-violet-100 text-[13px] font-medium mt-1">Vendor Adv. <span className="opacity-75 text-[11px]">(Given)</span></p>
-                            </div>
+                            <p className="text-[11.5px] font-extrabold uppercase tracking-wider text-slate-500 mb-1">Vendor Wallets</p>
+                            <h3 className={`text-[22px] sm:text-[24px] xl:text-[26px] font-black tracking-tight tabular-nums flex items-center ${summary.vendor_advance < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                                {summary.vendor_advance < 0 ? '-' : ''}<Taka className="text-[17px] text-purple-600 mr-0.5" />{Math.abs(summary.vendor_advance || 0).toLocaleString('en-IN')}
+                            </h3>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-purple-100/70 flex items-center justify-between text-[11.5px] text-slate-500 font-semibold">
+                            <span>Supplier credits</span>
+                            <span className="font-bold text-purple-700">Advance Paid</span>
                         </div>
                     </div>
 
                     {/* 4. Client Advance */}
-                    <div className="relative overflow-hidden rounded-2xl bg-amber-500 p-5 text-white shadow-md hover:shadow-lg transition-shadow duration-300 group">
-                        <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/10 transition-transform duration-500 group-hover:scale-125"></div>
-                        <div className="absolute right-12 -bottom-8 w-20 h-20 rounded-full bg-white/10 transition-transform duration-500 group-hover:scale-110"></div>
-                        <div className="relative z-10 flex flex-col gap-4">
-                            <div className="flex items-center justify-between">
-                                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm text-white shadow-inner">
-                                    <i className="fa-solid fa-hand-holding-dollar text-xl"></i>
+                    <div className="relative overflow-hidden rounded-2xl border border-amber-100 bg-gradient-to-b from-amber-50/70 via-white to-white p-5 shadow-sm hover:shadow-xl hover:shadow-amber-500/10 hover:border-amber-300 hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between">
+                        <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-amber-400/10 blur-2xl group-hover:bg-amber-500/20 transition-all pointer-events-none"></div>
+                        <div>
+                            <div className="flex items-center justify-between mb-3.5">
+                                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-md shadow-amber-500/25 group-hover:scale-105 transition-transform">
+                                    <i className="fa-solid fa-hand-holding-dollar text-[17px]"></i>
                                 </div>
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-amber-100/70 text-amber-800 border border-amber-200/60">
+                                    <i className="fa-solid fa-arrow-down-left-and-up-right-to-center text-[9px]"></i> Received
+                                </span>
                             </div>
-                            <div>
-                                <h3 className="text-2xl font-bold tracking-tight">৳ {Number(summary.client_advance || 0).toLocaleString('en-IN')}</h3>
-                                <p className="text-amber-100 text-[13px] font-medium mt-1">Client Adv. <span className="opacity-75 text-[11px]">(Rcvd)</span></p>
-                            </div>
+                            <p className="text-[11.5px] font-extrabold uppercase tracking-wider text-slate-500 mb-1">Client Advance</p>
+                            <h3 className="text-[22px] sm:text-[24px] xl:text-[26px] font-black text-slate-900 tracking-tight tabular-nums flex items-center">
+                                <Taka className="text-[17px] text-amber-600 mr-0.5" />{Number(summary.client_advance || 0).toLocaleString('en-IN')}
+                            </h3>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-amber-100/70 flex items-center justify-between text-[11.5px] text-slate-500 font-semibold">
+                            <span>Unadjusted funds</span>
+                            <span className="font-bold text-amber-800">Deposits Held</span>
                         </div>
                     </div>
 
                     {/* 5. Total Assets */}
-                    <div className="relative overflow-hidden rounded-2xl bg-slate-800 p-5 text-white shadow-md hover:shadow-lg transition-shadow duration-300 group">
-                        <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/5 transition-transform duration-500 group-hover:scale-125"></div>
-                        <div className="absolute right-12 -bottom-8 w-20 h-20 rounded-full bg-white/5 transition-transform duration-500 group-hover:scale-110"></div>
-                        <div className="relative z-10 flex flex-col gap-4">
-                            <div className="flex items-center justify-between">
-                                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm text-white shadow-inner">
-                                    <i className="fa-solid fa-wallet text-xl"></i>
+                    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-100/70 via-white to-white p-5 shadow-sm hover:shadow-xl hover:shadow-slate-500/10 hover:border-slate-300 hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between">
+                        <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-slate-400/10 blur-2xl group-hover:bg-slate-500/20 transition-all pointer-events-none"></div>
+                        <div>
+                            <div className="flex items-center justify-between mb-3.5">
+                                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 text-white flex items-center justify-center shadow-md shadow-slate-900/25 group-hover:scale-105 transition-transform">
+                                    <i className="fa-solid fa-wallet text-[17px]"></i>
                                 </div>
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-slate-200/70 text-slate-800 border border-slate-300/60">
+                                    Fixed Assets
+                                </span>
                             </div>
-                            <div>
-                                <h3 className="text-2xl font-bold tracking-tight">৳ {Number(summary.total_assets || 0).toLocaleString('en-IN')}</h3>
-                                <p className="text-slate-400 text-[13px] font-medium mt-1">Company Assets</p>
-                            </div>
+                            <p className="text-[11.5px] font-extrabold uppercase tracking-wider text-slate-500 mb-1">Company Assets</p>
+                            <h3 className="text-[22px] sm:text-[24px] xl:text-[26px] font-black text-slate-900 tracking-tight tabular-nums flex items-center">
+                                <Taka className="text-[17px] text-slate-700 mr-0.5" />{Number(summary.total_assets || 0).toLocaleString('en-IN')}
+                            </h3>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-slate-200/70 flex items-center justify-between text-[11.5px] text-slate-500 font-semibold">
+                            <span>Office equipment</span>
+                            <span className="font-bold text-slate-800">Total Value</span>
                         </div>
                     </div>
                 </div>
@@ -389,13 +421,13 @@ export default function Index({ accounts = { data: [], links: [] }, summary = {}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right group-hover:bg-slate-50/50 transition-colors">
-                                                <span className="font-semibold text-slate-600 tabular-nums">
-                                                    ৳ {parseFloat(acc.opening_balance).toLocaleString('en-IN')}
+                                                <span className="font-semibold text-slate-600 tabular-nums inline-flex items-center justify-end">
+                                                    <Taka className="text-[12px] text-slate-400" />{parseFloat(acc.opening_balance).toLocaleString('en-IN')}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right bg-slate-50/30 group-hover:bg-slate-50/80 transition-colors border-x border-slate-50">
-                                                <span className={`font-black text-[15px] tabular-nums ${acc.current_balance < 0 ? 'text-rose-600' : 'text-slate-800'}`}>
-                                                    ৳ {parseFloat(acc.current_balance).toLocaleString('en-IN')}
+                                                <span className={`font-black text-[15px] tabular-nums inline-flex items-center justify-end ${acc.current_balance < 0 ? 'text-rose-600' : 'text-slate-800'}`}>
+                                                    <Taka className={`text-[13px] ${acc.current_balance < 0 ? 'text-rose-500' : 'text-slate-400'}`} />{parseFloat(acc.current_balance).toLocaleString('en-IN')}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-center">
@@ -471,128 +503,195 @@ export default function Index({ accounts = { data: [], links: [] }, summary = {}
                 </div>
             </div>
 
-            {/* --- 🟢 STUNNING CREATE / EDIT FORM MODAL --- */}
+            {/* --- 🟢 EXECUTIVE CREATE / EDIT ACCOUNT MODAL --- */}
             {showModal && isSuperAdmin && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto opacity-100 transition-opacity duration-300">
-                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl flex flex-col max-h-full overflow-hidden scale-100 transition-transform duration-300">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-3 sm:p-5 md:p-8 overflow-y-auto">
+                    <div className="w-full max-w-2xl lg:max-w-3xl bg-slate-50 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/30 animate-[scaleIn_0.2s_ease-out]">
 
-                        {/* Modal Header */}
-                        <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100 bg-white shrink-0">
-                            <div>
-                                <h3 className="text-[20px] font-black text-slate-800 tracking-tight flex items-center gap-2.5">
-                                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                                        <i className={`fa-solid ${editMode ? 'fa-pen-to-square' : 'fa-building-columns'} text-[13px]`}></i>
-                                    </span>
-                                    {editMode ? "Modify Account" : "Register New Account"}
-                                </h3>
+                        {/* EXECUTIVE HEADER */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-700/80 shrink-0">
+                            <span className="absolute -right-4 -bottom-6 text-[90px] font-mono text-white/[0.04] select-none pointer-events-none">৳</span>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className={`fa-solid ${editMode ? 'fa-pen-to-square' : 'fa-building-columns'}`}></i>
+                                    </div>
+                                    <div>
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-400/10 border border-blue-400/20 text-blue-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                            <i className="fa-solid fa-vault"></i> Account Management
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[23px] font-black text-white tracking-tight leading-tight">
+                                            {editMode ? "Modify Account Details" : "Register New Account"}
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-medium text-slate-400 mt-0.5">
+                                            {editMode ? "Update bank credentials or status for this account" : "Add a new cash, bank, or mobile wallet account to office treasury"}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => setShowModal(false)}
+                                    className="text-slate-400 hover:text-white hover:bg-rose-600/80 bg-white/5 border border-white/10 h-10 w-10 rounded-full flex items-center justify-center transition-all shadow-sm relative z-10 shrink-0"
+                                >
+                                    <i className="fa-solid fa-xmark text-lg"></i>
+                                </button>
                             </div>
-                            <button onClick={() => setShowModal(false)} className="text-slate-400 hover:bg-slate-100 hover:text-slate-700 h-9 w-9 rounded-full flex items-center justify-center transition-colors">
-                                <i className="fa-solid fa-xmark text-lg"></i>
-                            </button>
                         </div>
 
                         {/* Modal Form */}
-                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden h-full">
-                            <div className="p-8 overflow-y-auto custom-table-scroll space-y-6 bg-slate-50/50">
+                        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+                            <div className="p-5 sm:p-7 md:p-8 overflow-y-auto custom-table-scroll space-y-6 bg-slate-50 flex-1">
 
-                                {/* Section 1: Account Info */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="md:col-span-2">
-                                        <label className="block text-[12.5px] font-bold text-slate-700 mb-1.5">Account Name <span className="text-red-500">*</span></label>
-                                        <div className="relative">
-                                            <i className="fa-solid fa-building-columns absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                                            <input
-                                                type="text"
-                                                value={data.name}
-                                                onChange={e => setData('name', e.target.value)}
-                                                placeholder="e.g. Main Cash, DBBL Bank"
-                                                required
-                                                className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-[14px] font-medium text-slate-800 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm"
-                                            />
-                                        </div>
-                                        {errors.name && <p className="text-red-500 text-[12px] font-medium mt-1">{errors.name}</p>}
+                                {/* Section 1: Account Core Details */}
+                                <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-300 shadow-sm space-y-5">
+                                    <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                                        <div className="h-6 w-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-black">1</div>
+                                        <h4 className="text-[13px] font-black uppercase tracking-wider text-slate-800">Account Credentials</h4>
                                     </div>
 
-                                    <div>
-                                        <label className="block text-[12.5px] font-bold text-slate-700 mb-1.5">Account Type <span className="text-red-500">*</span></label>
-                                        <div className="relative">
-                                            <CustomSelect
-                                                value={data.type}
-                                                onChange={e => setData('type', e.target.value)}
-                                                className="w-full appearance-none bg-white rounded-xl border border-slate-200 px-4 py-2.5 text-[14px] font-medium text-slate-800 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm"
-                                                required
-                                                style={{ backgroundImage: 'none' }}
-                                            >
-                                                <option value="cash">💵 Cash Account</option>
-                                                <option value="bank">🏦 Bank Account</option>
-                                                <option value="mobile_banking">📱 Mobile Banking</option>
-                                            </CustomSelect>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div className="md:col-span-2">
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                Account Name <span className="text-red-600">*</span>
+                                            </label>
+                                            <div className="relative">
+                                                <i className="fa-solid fa-building-columns absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                                <input
+                                                    type="text"
+                                                    value={data.name}
+                                                    onChange={e => setData('name', e.target.value)}
+                                                    placeholder="e.g. Main Cash Drawer, City Bank Principal, bKash Merchant"
+                                                    required
+                                                    className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 py-3 text-[13.5px] font-bold text-slate-900 outline-none transition-all shadow-xs focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10"
+                                                />
+                                            </div>
+                                            {errors.name && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.name}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                Account Type <span className="text-red-600">*</span>
+                                            </label>
+                                            <div className="relative">
+                                                <CustomSelect
+                                                    value={data.type}
+                                                    onChange={e => setData('type', e.target.value)}
+                                                    className="w-full appearance-none bg-white rounded-xl border border-slate-300 px-4 py-3 text-[13.5px] font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 cursor-pointer shadow-xs"
+                                                    required
+                                                    style={{ backgroundImage: 'none' }}
+                                                >
+                                                    <option value="cash">💵 Cash in Hand</option>
+                                                    <option value="bank">🏦 Commercial Bank Account</option>
+                                                    <option value="mobile_banking">📱 Mobile Banking (bKash/Nagad/Rocket)</option>
+                                                </CustomSelect>
+                                            </div>
+                                            {errors.type && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.type}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                A/C Number <span className="text-slate-400 font-bold normal-case tracking-normal">(Optional)</span>
+                                            </label>
+                                            <div className="relative">
+                                                <i className="fa-solid fa-hashtag absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                                <input
+                                                    type="text"
+                                                    value={data.account_number}
+                                                    onChange={e => setData('account_number', e.target.value)}
+                                                    placeholder="e.g. 1502401004221 or 017xxxxxxxx"
+                                                    className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 py-3 text-[13.5px] font-bold text-slate-900 outline-none transition-all shadow-xs focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10"
+                                                />
+                                            </div>
+                                            {errors.account_number && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.account_number}</p>}
                                         </div>
                                     </div>
+                                </div>
 
-                                    <div>
-                                        <label className="block text-[12.5px] font-bold text-slate-700 mb-1.5">A/C Number <span className="text-slate-400 font-normal">(Optional)</span></label>
-                                        <div className="relative">
-                                            <i className="fa-solid fa-hashtag absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                                            <input
-                                                type="text"
-                                                value={data.account_number}
-                                                onChange={e => setData('account_number', e.target.value)}
-                                                placeholder="If bank/mobile"
-                                                className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-[14px] font-medium text-slate-800 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm"
-                                            />
+                                {/* Section 2: Financial Opening Balance & Status */}
+                                <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-300 shadow-sm space-y-5">
+                                    <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                                        <div className="h-6 w-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-black">2</div>
+                                        <h4 className="text-[13px] font-black uppercase tracking-wider text-slate-800">Financial Balances & Status</h4>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                        <div>
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                Opening Balance (৳)
+                                            </label>
+                                            <div className="relative">
+                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400 text-[15px]">৳</span>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={data.opening_balance}
+                                                    onChange={e => setData('opening_balance', e.target.value)}
+                                                    disabled={editMode && !isSuperAdmin}
+                                                    placeholder="0.00"
+                                                    className={`w-full rounded-xl border pl-10 pr-4 py-3 text-[14.5px] font-bold tabular-nums outline-none transition-all shadow-xs ${editMode && !isSuperAdmin ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200' : 'bg-white text-slate-900 border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10'}`}
+                                                />
+                                            </div>
+                                            {editMode && !isSuperAdmin && (
+                                                <p className="text-amber-600 text-[11.5px] font-bold mt-1.5 flex items-center gap-1.5 bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200">
+                                                    <i className="fa-solid fa-lock text-[10px]"></i> Opening balance is locked to maintain ledger integrity.
+                                                </p>
+                                            )}
+                                            {errors.opening_balance && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.opening_balance}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                Account Status
+                                            </label>
+                                            <div className="relative">
+                                                <CustomSelect
+                                                    value={data.is_active}
+                                                    onChange={e => setData('is_active', e.target.value)}
+                                                    className="w-full appearance-none bg-white rounded-xl border border-slate-300 px-4 py-3 text-[13.5px] font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 cursor-pointer shadow-xs"
+                                                    style={{ backgroundImage: 'none' }}
+                                                >
+                                                    <option value={1}>✅ Active (Available for transactions)</option>
+                                                    <option value={0}>❌ Inactive (Hidden from selection)</option>
+                                                </CustomSelect>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Section 2: Financials & Status */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-6 bg-white border border-slate-100 rounded-2xl shadow-sm">
-                                    <div>
-                                        <label className="block text-[12.5px] font-bold text-slate-700 mb-1.5">Opening Balance</label>
-                                        <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-[15px]">৳</span>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                value={data.opening_balance}
-                                                onChange={e => setData('opening_balance', e.target.value)}
-                                                disabled={editMode && !isSuperAdmin}
-                                                placeholder="0.00"
-                                                className={`w-full rounded-xl border border-slate-200 pl-9 pr-4 py-2.5 text-[14.5px] font-bold tabular-nums outline-none transition-all shadow-sm ${editMode && !isSuperAdmin ? 'bg-slate-50 text-slate-400 cursor-not-allowed border-slate-100' : 'bg-white text-slate-800 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10'}`}
-                                            />
-                                        </div>
-                                        {editMode && !isSuperAdmin && (
-                                            <p className="text-amber-600 text-[11.5px] font-medium mt-1.5 flex items-center gap-1.5 bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-100">
-                                                <i className="fa-solid fa-lock text-[10px]"></i> Opening balance is locked.
-                                            </p>
-                                        )}
-                                        {errors.opening_balance && <p className="text-red-500 text-[12px] font-medium mt-1">{errors.opening_balance}</p>}
+                                {/* HELPER ADVISORY NOTE */}
+                                <div className="rounded-2xl border border-indigo-200/80 bg-gradient-to-r from-indigo-50/80 to-blue-50/50 p-4 sm:p-5 flex items-start gap-3.5 shadow-xs">
+                                    <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 text-sm shadow-sm mt-0.5">
+                                        <i className="fa-solid fa-shield-halved"></i>
                                     </div>
-
-                                    <div>
-                                        <label className="block text-[12.5px] font-bold text-slate-700 mb-1.5">Account Status</label>
-                                        <div className="relative">
-                                            <CustomSelect
-                                                value={data.is_active}
-                                                onChange={e => setData('is_active', e.target.value)}
-                                                className="w-full appearance-none bg-white rounded-xl border border-slate-200 px-4 py-2.5 text-[14px] font-medium text-slate-800 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm"
-                                                style={{ backgroundImage: 'none' }}
-                                            >
-                                                <option value={1}>✅ Active Account</option>
-                                                <option value={0}>❌ Inactive</option>
-                                            </CustomSelect>
-                                        </div>
+                                    <div className="text-[12px] font-medium text-indigo-950 leading-relaxed">
+                                        <p className="font-bold text-indigo-900 text-[12.5px] mb-0.5">Treasury & Transaction Integrity</p>
+                                        This account will be instantly integrated with Invoices, Client Advances, Vendor Settlements, Salaries, and Expense payments. All credits and debits maintain double-entry audit history.
                                     </div>
                                 </div>
+
                             </div>
 
                             {/* Modal Footer */}
-                            <div className="px-8 py-5 border-t border-slate-100 bg-white flex justify-end gap-3 shrink-0">
-                                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-slate-200 bg-white px-6 py-2.5 text-[14px] font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-sm transition-all active:scale-95">
+                            <div className="px-6 md:px-8 py-4 border-t border-slate-300 bg-white flex flex-wrap items-center justify-end gap-3 shrink-0 rounded-b-2xl sm:rounded-b-3xl">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-[13.5px] font-bold text-slate-700 transition-colors hover:bg-slate-100 shadow-xs"
+                                >
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={processing} className="rounded-xl bg-indigo-600 px-8 py-2.5 text-[14px] font-bold text-white transition-all hover:bg-indigo-700 shadow-md shadow-indigo-500/20 active:scale-95 disabled:opacity-70 disabled:active:scale-100 flex items-center gap-2">
-                                    {processing ? <><i className="fa-solid fa-spinner fa-spin text-sm"></i> Saving...</> : <><i className="fa-solid fa-check text-sm"></i> {editMode ? "Update Account" : "Confirm Account"}</>}
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="rounded-xl bg-indigo-600 px-8 py-2.5 text-[13.5px] font-black text-white transition-all hover:bg-indigo-700 shadow-md shadow-indigo-600/20 active:scale-95 disabled:opacity-70 flex items-center gap-2"
+                                >
+                                    {processing ? (
+                                        <><i className="fa-solid fa-spinner fa-spin text-sm"></i> Saving…</>
+                                    ) : (
+                                        <><i className="fa-solid fa-check text-sm"></i> {editMode ? "Update Account" : "Register Account"}</>
+                                    )}
                                 </button>
                             </div>
                         </form>

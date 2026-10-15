@@ -906,19 +906,41 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
 
             {/* --- 🟢 ADD / EDIT SPLIT MODAL --- */}
             {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 md:p-6 sm:p-0 transition-opacity duration-300">
-                    <div className={`w-full ${editMode ? 'max-w-2xl' : 'max-w-[1200px]'} bg-white sm:rounded-2xl shadow-2xl flex flex-col max-h-[95vh] h-[95vh] md:h-auto overflow-hidden scale-100 transition-transform duration-300 border border-slate-200`}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#070b14]/75 backdrop-blur-md p-3 sm:p-6 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
+                    <div className={`w-full ${editMode ? 'max-w-2xl' : 'max-w-[1200px]'} bg-slate-50 rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/40 animate-[scaleIn_0.2s_ease-out]`}>
 
-                        <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100 bg-white shrink-0">
-                            <h3 className="text-[20px] font-black text-slate-800 flex items-center gap-2.5">
-                                <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${editMode ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                    <i className={`fa-solid ${editMode ? 'fa-pen-to-square' : 'fa-money-bills'} text-[13px]`}></i>
-                                </span>
-                                {editMode ? "Edit Payment Record" : "Process Bulk Payment"}
-                            </h3>
-                            <button onClick={() => setShowModal(false)} className="text-slate-400 hover:bg-slate-100 hover:text-slate-700 h-9 w-9 rounded-full flex items-center justify-center transition-colors">
-                                <i className="fa-solid fa-xmark text-lg"></i>
-                            </button>
+                        {/* Executive Header */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-700/80 shrink-0">
+                            <span className="absolute -right-4 -bottom-6 text-[90px] font-mono text-white/[0.04] select-none pointer-events-none">৳</span>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className={`fa-solid ${editMode ? 'fa-pen-to-square' : 'fa-money-bills'}`}></i>
+                                    </div>
+                                    <div>
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-400/10 border border-emerald-400/20 text-emerald-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                            <i className="fa-solid fa-receipt"></i> Client Settlement Ledger
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[22px] font-black text-white tracking-tight leading-tight">
+                                            {editMode ? "Edit Payment Record" : "Process Bulk Payment"}
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-bold text-slate-400 mt-0.5">
+                                            {editMode
+                                                ? "Update received transaction amount, account and particulars"
+                                                : "Allocate collections across invoices, advance balances & accounts"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    className="text-slate-400 hover:text-white hover:bg-rose-600/80 h-9 w-9 rounded-full flex items-center justify-center transition-all shrink-0 bg-slate-800/80 border border-slate-700 cursor-pointer"
+                                >
+                                    <i className="fa-solid fa-xmark text-base"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden h-full">

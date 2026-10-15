@@ -385,21 +385,37 @@ export default function TransactionsReport({ transactions = { data: [], links: [
 
             {/* --- VIEW RECEIPT MODAL --- */}
             {showViewModal && selectedTrx && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
-                    <div className="w-full max-w-lg bg-slate-50 rounded-3xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#070b14]/75 backdrop-blur-md p-3 sm:p-6 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
+                    <div className="w-full max-w-lg bg-slate-50 rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/40 animate-[scaleIn_0.2s_ease-out]">
 
-                        {/* Modal Header */}
-                        <div className={`relative px-6 sm:px-8 py-6 shrink-0 overflow-hidden ${selectedTrx.type === 'credit' ? 'bg-emerald-600' : 'bg-rose-600'}`}>
-                            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-white opacity-10 translate-x-10 -translate-y-10"></div>
-                            <div className="flex items-center justify-between relative z-10">
-                                <h3 className="text-[18px] font-bold text-white flex items-center gap-2.5">
-                                    <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                                        <i className={`fa-solid ${selectedTrx.type === 'credit' ? 'fa-arrow-down' : 'fa-arrow-up'} text-[14px]`}></i>
+                        {/* Executive Header */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-700/80 shrink-0">
+                            <span className="absolute -right-4 -bottom-6 text-[90px] font-mono text-white/[0.04] select-none pointer-events-none">৳</span>
+                            <div className={`absolute right-10 top-0 h-32 w-32 ${selectedTrx.type === 'credit' ? 'bg-emerald-500/10' : 'bg-rose-500/10'} rounded-full blur-2xl pointer-events-none`}></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className={`h-12 w-12 rounded-2xl ${selectedTrx.type === 'credit' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'} flex items-center justify-center text-xl shadow-inner shrink-0`}>
+                                        <i className={`fa-solid ${selectedTrx.type === 'credit' ? 'fa-arrow-down' : 'fa-arrow-up'}`}></i>
                                     </div>
-                                    Transaction Receipt
-                                </h3>
-                                <button onClick={() => setShowViewModal(false)} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 h-8 w-8 rounded-full flex items-center justify-center transition-colors">
-                                    <i className="fa-solid fa-xmark"></i>
+                                    <div>
+                                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full ${selectedTrx.type === 'credit' ? 'bg-emerald-400/10 border border-emerald-400/20 text-emerald-300' : 'bg-rose-400/10 border border-rose-400/20 text-rose-300'} text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm`}>
+                                            <i className="fa-solid fa-receipt"></i> {selectedTrx.type === 'credit' ? 'Money In (Deposit)' : 'Money Out (Withdrawal)'}
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[22px] font-black text-white tracking-tight leading-tight">
+                                            Transaction Receipt
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-bold text-slate-400 mt-0.5">
+                                            Verified accounting audit log and running balance
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowViewModal(false)}
+                                    className="text-slate-400 hover:text-white hover:bg-rose-600/80 h-9 w-9 rounded-full flex items-center justify-center transition-all shrink-0 bg-slate-800/80 border border-slate-700 cursor-pointer"
+                                >
+                                    <i className="fa-solid fa-xmark text-base"></i>
                                 </button>
                             </div>
                         </div>
@@ -460,8 +476,12 @@ export default function TransactionsReport({ transactions = { data: [], links: [
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="px-6 sm:px-8 py-5 border-t border-slate-200 bg-white flex justify-end shrink-0">
-                            <button onClick={() => setShowViewModal(false)} className="w-full sm:w-auto rounded-xl bg-slate-900 px-8 py-3 text-[14px] font-bold text-white hover:bg-slate-800 shadow-md transition-all active:scale-95">
+                        <div className="px-6 sm:px-8 py-4 border-t border-slate-200 bg-white flex justify-end shrink-0 rounded-b-3xl">
+                            <button
+                                type="button"
+                                onClick={() => setShowViewModal(false)}
+                                className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-[13.5px] font-bold text-slate-700 transition-colors hover:bg-slate-100 shadow-xs cursor-pointer"
+                            >
                                 Close Receipt
                             </button>
                         </div>

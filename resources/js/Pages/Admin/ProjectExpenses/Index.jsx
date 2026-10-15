@@ -613,26 +613,56 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
 
             {/* --- VIEW DETAILS MODAL --- */}
             {showViewModal && selectedExpense && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0f172a]/80 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
-                    <div className="w-full max-w-4xl bg-slate-50 rounded-2xl shadow-2xl flex flex-col relative my-auto animate-[scaleIn_0.2s_ease-out] overflow-hidden border border-slate-700/20">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#070b14]/75 backdrop-blur-md p-3 sm:p-6 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
+                    <div className="w-full max-w-4xl bg-slate-50 rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/40 animate-[scaleIn_0.2s_ease-out]">
 
-                        <div className={`absolute top-6 left-0 px-5 py-2 text-white text-[11px] font-black tracking-widest uppercase rounded-r-xl shadow-lg z-20
-                            ${selectedExpense.payment_status === 'paid' ? 'bg-emerald-500' : selectedExpense.payment_status === 'partial' ? 'bg-amber-500' : 'bg-rose-500'}`}>
-                            {selectedExpense.payment_status}
-                        </div>
+                        {/* Executive Header */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-700/80 shrink-0">
+                            <span className="absolute -right-4 -bottom-6 text-[90px] font-mono text-white/[0.04] select-none pointer-events-none">৳</span>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
-                        <div className="flex items-center justify-between px-8 py-6 border-b border-slate-200 bg-white pl-32 shrink-0">
-                            <div>
-                                <h3 className="text-[20px] font-black text-slate-900 tracking-tight">Expense Receipt</h3>
-                                <p className="text-[13px] text-slate-500 font-bold mt-1">Reference ID: #{String(selectedExpense.id).padStart(6, '0')}</p>
-                            </div>
-                            <div className="flex items-center gap-3 relative z-20">
-                                <button onClick={() => window.print()} className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-[13px] font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm active:scale-[0.95]">
-                                    <i className="fa-solid fa-print text-slate-500"></i> Print
-                                </button>
-                                <button onClick={() => setShowViewModal(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors border border-slate-200 active:scale-[0.95]">
-                                    <i className="fa-solid fa-xmark text-lg"></i>
-                                </button>
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className="fa-solid fa-file-invoice-dollar"></i>
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-xs ${
+                                                selectedExpense.payment_status === 'paid' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' :
+                                                selectedExpense.payment_status === 'partial' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
+                                                'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                                            }`}>
+                                                {selectedExpense.payment_status}
+                                            </span>
+                                            <span className="font-mono text-[11px] font-bold text-slate-400">
+                                                Ref. #{String(selectedExpense.id).padStart(6, '0')}
+                                            </span>
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[22px] font-black text-white tracking-tight leading-tight">
+                                            Expense Receipt
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-bold text-slate-400 mt-0.5">
+                                            {selectedExpense.project?.title || "Operational Project Bill"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2.5">
+                                    <button
+                                        type="button"
+                                        onClick={() => window.print()}
+                                        className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 px-4 py-2 text-[12.5px] font-bold text-white transition-all shadow-xs cursor-pointer"
+                                    >
+                                        <i className="fa-solid fa-print text-slate-400"></i> Print
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowViewModal(false)}
+                                        className="text-slate-400 hover:text-white hover:bg-rose-600/80 h-9 w-9 rounded-full flex items-center justify-center transition-all shrink-0 bg-slate-800/80 border border-slate-700 cursor-pointer"
+                                    >
+                                        <i className="fa-solid fa-xmark text-base"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -739,6 +769,17 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 sm:px-8 py-4 border-t border-slate-200 bg-white flex justify-end shrink-0 rounded-b-3xl">
+                            <button
+                                type="button"
+                                onClick={() => setShowViewModal(false)}
+                                className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-[13.5px] font-bold text-slate-700 transition-colors hover:bg-slate-100 shadow-xs cursor-pointer"
+                            >
+                                Close Receipt
+                            </button>
                         </div>
                     </div>
                 </div>

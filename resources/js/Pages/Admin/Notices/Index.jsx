@@ -421,18 +421,37 @@ export default function Index({ notices = { data: [], links: [] } }) {
 
             {/* --- WIDE & MODERN VIEW DETAILS MODAL --- */}
             {showViewModal && selectedRecord && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
-                    <div className="w-full max-w-2xl bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#070b14]/75 backdrop-blur-md p-3 sm:p-6 overflow-y-auto">
+                    <div className="w-full max-w-2xl bg-slate-50 rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/40 animate-[fadeIn_0.2s_ease-out]">
                         
-                        {/* Header */}
-                        <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 px-8 py-6 shrink-0 overflow-hidden">
-                            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-white opacity-10 translate-x-10 -translate-y-10"></div>
-                            <div className="flex items-center justify-between relative z-10">
-                                <h3 className="text-[18px] font-extrabold text-white flex items-center gap-2">
-                                    <i className="fa-regular fa-envelope-open text-indigo-200"></i> Notice Details
-                                </h3>
-                                <button onClick={() => setShowViewModal(false)} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 h-8 w-8 rounded-full flex items-center justify-center transition-colors">
-                                    <i className="fa-solid fa-xmark"></i>
+                        {/* Executive Header */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-700/80 shrink-0">
+                            <span className="absolute -right-4 -bottom-6 text-[90px] font-mono text-white/[0.04] select-none pointer-events-none">📢</span>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className="fa-solid fa-bullhorn"></i>
+                                    </div>
+                                    <div>
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-400/10 border border-indigo-400/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                            <i className="fa-regular fa-envelope-open"></i> Notice Board
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[22px] font-black text-white tracking-tight leading-tight">
+                                            Notice Announcement
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-bold text-slate-400 mt-0.5">
+                                            Official Office Circular & Broad Announcement
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowViewModal(false)}
+                                    className="text-slate-400 hover:text-white hover:bg-rose-600/80 h-9 w-9 rounded-full flex items-center justify-center transition-all shrink-0 bg-slate-800/80 border border-slate-700 cursor-pointer"
+                                >
+                                    <i className="fa-solid fa-xmark text-base"></i>
                                 </button>
                             </div>
                         </div>
@@ -461,8 +480,12 @@ export default function Index({ notices = { data: [], links: [] } }) {
                         </div>
 
                         {/* Footer */}
-                        <div className="px-8 py-5 border-t border-gray-200 bg-white flex justify-end shrink-0 rounded-b-3xl">
-                            <button type="button" onClick={() => setShowViewModal(false)} className="rounded-xl bg-gray-900 px-8 py-3 text-[14px] font-bold text-white transition-colors hover:bg-gray-800 shadow-md">
+                        <div className="px-6 sm:px-8 py-4 border-t border-slate-200 bg-white flex justify-end shrink-0 rounded-b-3xl">
+                            <button
+                                type="button"
+                                onClick={() => setShowViewModal(false)}
+                                className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-[13.5px] font-bold text-slate-700 transition-colors hover:bg-slate-100 shadow-xs cursor-pointer"
+                            >
                                 Close Window
                             </button>
                         </div>
@@ -472,22 +495,41 @@ export default function Index({ notices = { data: [], links: [] } }) {
 
             {/* --- WIDE & MODERN CREATE / EDIT FORM MODAL --- */}
             {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
-                    <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#070b14]/75 backdrop-blur-md p-3 sm:p-6 overflow-y-auto">
+                    <div className="w-full max-w-2xl bg-slate-50 rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/40 animate-[fadeIn_0.2s_ease-out]">
                         
-                        {/* Header */}
-                        <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white shrink-0">
-                            <div>
-                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase tracking-wider mb-1.5">
-                                    <i className="fa-solid fa-bullhorn"></i> {editMode ? 'Update' : 'New Notice'}
+                        {/* EXECUTIVE HEADER */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-700/80 shrink-0">
+                            <span className="absolute -right-4 -bottom-6 text-[90px] font-mono text-white/[0.04] select-none pointer-events-none">📢</span>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className={`fa-solid ${editMode ? 'fa-pen-to-square' : 'fa-bullhorn'}`}></i>
+                                    </div>
+                                    <div>
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-400/10 border border-indigo-400/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                            <i className="fa-solid fa-scroll"></i> {editMode ? 'Circular Update' : 'Publish Circular'}
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[22px] font-black text-white tracking-tight leading-tight">
+                                            {editMode ? "Edit Notice" : "Post New Notice"}
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-bold text-slate-400 mt-0.5">
+                                            {editMode
+                                                ? "Modify announcement headline, body content and publication status"
+                                                : "Broadcast new circular or urgent notice to all company personnel"}
+                                        </p>
+                                    </div>
                                 </div>
-                                <h3 className="text-[20px] font-extrabold text-gray-900 tracking-tight">
-                                    {editMode ? "Edit Notice" : "Post New Notice"}
-                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    className="text-slate-400 hover:text-white hover:bg-rose-600/80 h-9 w-9 rounded-full flex items-center justify-center transition-all shrink-0 bg-slate-800/80 border border-slate-700 cursor-pointer"
+                                >
+                                    <i className="fa-solid fa-xmark text-base"></i>
+                                </button>
                             </div>
-                            <button type="button" onClick={() => setShowModal(false)} className="text-gray-400 hover:text-red-500 bg-gray-100 hover:bg-red-50 h-9 w-9 rounded-full flex items-center justify-center transition-colors">
-                                <i className="fa-solid fa-xmark text-lg"></i>
-                            </button>
                         </div>
 
                         {/* Form */}
@@ -539,11 +581,19 @@ export default function Index({ notices = { data: [], links: [] } }) {
                             </div>
 
                             {/* Footer */}
-                            <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0 rounded-b-3xl">
-                                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
+                            <div className="px-6 sm:px-8 py-4 border-t border-slate-200 bg-white flex justify-end gap-3 shrink-0 rounded-b-3xl">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-[13.5px] font-bold text-slate-700 transition-colors hover:bg-slate-100 shadow-xs cursor-pointer"
+                                >
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={processing} className="rounded-xl bg-indigo-600 px-8 py-2.5 text-[14px] font-bold text-white transition-all hover:bg-indigo-700 shadow-md disabled:opacity-70 flex items-center gap-2">
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 px-7 py-2.5 text-[13.5px] font-black text-white transition-all shadow-md shadow-indigo-600/20 disabled:opacity-70 flex items-center gap-2 cursor-pointer"
+                                >
                                     {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Saving...</> : <><i className="fa-solid fa-check"></i> {editMode ? "Update Notice" : "Publish Notice"}</>}
                                 </button>
                             </div>

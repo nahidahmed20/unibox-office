@@ -668,77 +668,95 @@ export default function Show({ vendor, payments = [], ledgers = [], bills = [], 
 
             {/* --- 🚨 PREMIUM VOID PAYMENT CONFIRMATION MODAL --- */}
             {showVoidModal && paymentToVoid && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/80 backdrop-blur-md p-4 sm:p-6 overflow-y-auto">
-                    <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl flex flex-col my-auto overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#070b14]/75 backdrop-blur-md p-3 sm:p-6 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
+                    <div className="w-full max-w-md bg-slate-50 rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/40 animate-[scaleIn_0.2s_ease-out]">
 
-                        <div className="flex items-center justify-between px-6 py-5 border-b border-red-100 bg-gradient-to-r from-red-50 to-white shrink-0">
-                            <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600 border border-red-200 shadow-inner">
-                                    <i className="fa-solid fa-triangle-exclamation text-lg"></i>
+                        {/* Executive Header */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-700/80 shrink-0">
+                            <span className="absolute -right-4 -bottom-6 text-[90px] font-mono text-white/[0.04] select-none pointer-events-none">⚠️</span>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-rose-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className="fa-solid fa-triangle-exclamation"></i>
+                                    </div>
+                                    <div>
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-400/10 border border-rose-400/20 text-rose-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                            <i className="fa-solid fa-shield-halved"></i> Transaction Reversal
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[22px] font-black text-white tracking-tight leading-tight">
+                                            Void Payment
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-bold text-slate-400 mt-0.5">
+                                            Revert bill dues, balances & vendor advance
+                                        </p>
+                                    </div>
                                 </div>
-                                <h3 className="text-[18px] sm:text-[20px] font-black text-red-700 tracking-tight">
-                                    Void Payment
-                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowVoidModal(false)}
+                                    className="text-slate-400 hover:text-white hover:bg-rose-600/80 h-9 w-9 rounded-full flex items-center justify-center transition-all shrink-0 bg-slate-800/80 border border-slate-700 cursor-pointer"
+                                >
+                                    <i className="fa-solid fa-xmark text-base"></i>
+                                </button>
                             </div>
-                            <button onClick={() => setShowVoidModal(false)} className="text-gray-400 hover:text-white transition-colors h-8 w-8 rounded-full bg-white hover:bg-red-500 border border-gray-200 flex items-center justify-center shadow-sm">
-                                <i className="fa-solid fa-xmark text-sm"></i>
-                            </button>
                         </div>
 
                         <form onSubmit={handleVoidSubmit} className="flex flex-col overflow-hidden">
-                            <div className="p-6 overflow-y-auto custom-table-scroll space-y-6 bg-white">
+                            <div className="p-6 overflow-y-auto custom-table-scroll space-y-6 bg-slate-50">
 
-                                <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-[13px] sm:text-[13.5px] text-red-900 leading-relaxed shadow-sm font-semibold flex gap-3 items-start">
-                                    <i className="fa-solid fa-circle-exclamation mt-0.5 text-red-500 text-lg shrink-0"></i>
+                                <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-5 text-[13px] sm:text-[13.5px] text-rose-900 leading-relaxed shadow-xs font-semibold flex gap-3 items-start">
+                                    <i className="fa-solid fa-circle-exclamation mt-0.5 text-rose-500 text-lg shrink-0"></i>
                                     <div>
-                                        Voiding this payment will revert bill dues, account balances, and advance wallets to their previous state. This action cannot be directly <span className="font-black text-red-600 bg-red-100 px-1.5 py-0.5 rounded uppercase">Undone</span>.
+                                        Voiding this payment will revert bill dues, account balances, and advance wallets to their previous state. This action cannot be directly <span className="font-black text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded uppercase">Undone</span>.
                                     </div>
                                 </div>
 
-                                <div className="rounded-2xl bg-gray-50 border border-gray-200 p-5 text-[14px] text-gray-700 flex flex-col gap-4 shadow-inner">
-                                    <div className="flex justify-between items-center border-b border-gray-200 pb-4">
-                                        <span className="font-bold text-gray-500 uppercase tracking-wider text-[11px]">Payment Amount</span>
-                                        <span className="text-red-600 text-[18px] sm:text-[22px] font-black bg-white px-3 py-1.5 rounded-xl border border-red-100 tabular-nums shadow-sm">
+                                <div className="rounded-2xl bg-white border border-slate-200 p-5 text-[14px] text-slate-700 flex flex-col gap-4 shadow-sm">
+                                    <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                                        <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">Payment Amount</span>
+                                        <span className="text-rose-600 text-[18px] sm:text-[22px] font-black bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-100 tabular-nums shadow-xs">
                                             ৳ {Number(paymentToVoid.pay_amount).toLocaleString('en-IN')}
                                         </span>
                                     </div>
                                     {Number(paymentToVoid.adjustment_amount) > 0 && (
-                                        <div className="flex justify-between items-center border-b border-gray-200 pb-4">
+                                        <div className="flex justify-between items-center border-b border-slate-100 pb-4">
                                             <span className="font-bold text-amber-700 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                                                 <i className="fa-solid fa-tag text-amber-500"></i> Discount / Adjust
                                             </span>
-                                            <span className="text-amber-800 text-[16px] font-black bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200 tabular-nums shadow-sm">
+                                            <span className="text-amber-800 text-[16px] font-black bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200 tabular-nums shadow-xs">
                                                 ৳ {Number(paymentToVoid.adjustment_amount).toLocaleString('en-IN')}
                                             </span>
                                         </div>
                                     )}
                                     <div className="flex justify-between items-center">
-                                        <span className="font-bold text-gray-500 uppercase tracking-wider text-[11px]">Payment Date</span>
-                                        <span className="font-bold bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm text-[13px]">{paymentToVoid.date}</span>
+                                        <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">Payment Date</span>
+                                        <span className="font-bold bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs text-[13px]">{paymentToVoid.date}</span>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">
-                                        Reason for Voiding <span className="text-red-500">*</span>
+                                    <label className="block text-[12px] font-bold text-slate-700 uppercase tracking-wider mb-2">
+                                        Reason for Voiding <span className="text-rose-500">*</span>
                                     </label>
                                     <textarea
                                         value={voidForm.data.void_reason}
                                         onChange={(e) => voidForm.setData("void_reason", e.target.value)}
                                         placeholder="e.g. Wrong account selected, amount incorrect..."
                                         rows="3"
-                                        className="w-full rounded-xl border border-gray-300 p-4 text-[14px] font-medium text-gray-900 outline-none transition-shadow focus:border-red-500 focus:ring-4 focus:ring-red-500/10 resize-none shadow-sm"
+                                        className="w-full rounded-xl border border-slate-300 bg-white p-4 text-[14px] font-medium text-slate-900 outline-none transition-shadow focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 resize-none shadow-sm"
                                         required
                                     ></textarea>
-                                    {voidForm.errors.void_reason && <p className="mt-1.5 block text-[12px] font-bold text-red-500">{voidForm.errors.void_reason}</p>}
+                                    {voidForm.errors.void_reason && <p className="mt-1.5 block text-[12px] font-bold text-rose-500">{voidForm.errors.void_reason}</p>}
                                 </div>
                             </div>
 
-                            <div className="px-6 py-5 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3 shrink-0 rounded-b-3xl">
-                                <button type="button" onClick={() => setShowVoidModal(false)} className="rounded-xl border border-gray-300 bg-white px-5 sm:px-6 py-2.5 text-[13.5px] sm:text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
+                            <div className="px-6 py-4 border-t border-slate-200 bg-white flex items-center justify-end gap-3 shrink-0 rounded-b-3xl">
+                                <button type="button" onClick={() => setShowVoidModal(false)} className="rounded-xl border border-slate-300 bg-white px-5 sm:px-6 py-2.5 text-[13.5px] font-bold text-slate-700 transition-colors hover:bg-slate-100 shadow-xs cursor-pointer">
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={voidForm.processing} className="rounded-xl bg-red-600 px-5 sm:px-6 py-2.5 text-[13.5px] sm:text-[14px] font-bold text-white transition-colors hover:bg-red-700 shadow-md disabled:opacity-70 flex items-center gap-2">
+                                <button type="submit" disabled={voidForm.processing} className="rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 px-6 py-2.5 text-[13.5px] font-bold text-white transition-all shadow-md shadow-rose-600/20 disabled:opacity-70 flex items-center gap-2 cursor-pointer">
                                     {voidForm.processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-rotate-left"></i> Confirm Void</>}
                                 </button>
                             </div>

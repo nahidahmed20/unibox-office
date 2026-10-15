@@ -472,58 +472,84 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
                 </div>
             </div>
 
-            {/* --- WIDE & MODERN VIEW DETAILS MODAL --- */}
+            {/* --- 💎 EXECUTIVE VIEW DETAILS MODAL --- */}
             {showViewModal && selectedRecord && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
-                    <div className="w-full max-w-lg bg-[#f8fafc] rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-3 sm:p-5 md:p-8 overflow-y-auto">
+                    <div className="w-full max-w-lg bg-slate-50 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/30 animate-[scaleIn_0.2s_ease-out]">
 
-                        {/* Header */}
-                        <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 px-8 py-6 shrink-0 overflow-hidden">
-                            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-white opacity-10 translate-x-10 -translate-y-10"></div>
-                            <div className="flex items-center justify-between relative z-10">
-                                <h3 className="text-[18px] font-extrabold text-white flex items-center gap-2">
-                                    <i className="fa-regular fa-address-card text-indigo-200"></i> Attendance Summary
-                                </h3>
-                                <button onClick={() => setShowViewModal(false)} className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 h-8 w-8 rounded-full flex items-center justify-center transition-colors">
-                                    <i className="fa-solid fa-xmark"></i>
+                        {/* EXECUTIVE HEADER */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-700/80 shrink-0">
+                            <i className="fa-regular fa-clock absolute -right-4 -bottom-6 text-[90px] text-white/[0.04] select-none pointer-events-none"></i>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className="fa-solid fa-clipboard-user"></i>
+                                    </div>
+                                    <div>
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-400/10 border border-indigo-400/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                            <i className="fa-solid fa-fingerprint"></i> Staff Attendance
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[22px] font-black text-white tracking-tight leading-tight">
+                                            Attendance Summary
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-medium text-slate-400 mt-0.5">
+                                            Daily time-log and status report
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => setShowViewModal(false)}
+                                    className="text-slate-400 hover:text-white hover:bg-rose-600/80 bg-white/5 border border-white/10 h-10 w-10 rounded-full flex items-center justify-center transition-all shadow-sm relative z-10 shrink-0"
+                                >
+                                    <i className="fa-solid fa-xmark text-lg"></i>
                                 </button>
                             </div>
                         </div>
 
                         {/* Body */}
-                        <div className="p-8 space-y-6 overflow-y-auto custom-table-scroll">
-                            <div className="text-center py-7 bg-white rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-full h-1.5 bg-indigo-500"></div>
-                                <span className={`inline-flex mb-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusStyles(selectedRecord.status)}`}>
-                                    {selectedRecord.status.replace('_', ' ')}
-                                </span>
-                                <h2 className="text-[22px] font-black text-gray-900 tracking-tight">
+                        <div className="p-6 sm:p-7 space-y-5 overflow-y-auto custom-table-scroll flex-1 bg-slate-50">
+                            <div className="text-center py-6 px-4 bg-white rounded-2xl border border-slate-300 shadow-sm relative overflow-hidden">
+                                <div className="inline-flex mb-3 px-3 py-1 rounded-full text-[10.5px] font-black uppercase tracking-widest border shadow-xs">
+                                    <span className={getStatusStyles(selectedRecord.status)}>
+                                        {selectedRecord.status.replace('_', ' ')}
+                                    </span>
+                                </div>
+                                <h2 className="text-[22px] font-black text-slate-900 tracking-tight">
                                     {selectedRecord.user?.name || "N/A"}
                                 </h2>
-                                <div className="text-[13px] font-semibold text-gray-500 mt-1 flex items-center justify-center gap-1.5">
-                                    <i className="fa-regular fa-calendar text-gray-400"></i> {selectedRecord.date || "-"}
+                                <div className="text-[12.5px] font-bold text-slate-500 mt-1 flex items-center justify-center gap-1.5">
+                                    <i className="fa-regular fa-calendar text-indigo-500"></i> {selectedRecord.date || "-"}
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col items-center justify-center">
-                                    <span className="text-[11.5px] font-bold uppercase tracking-wider text-gray-400 mb-1">Check In Time</span>
-                                    <div className="text-[18px] font-extrabold text-blue-600 flex items-center gap-1.5">
-                                        <i className="fa-regular fa-clock text-sm"></i>{selectedRecord.check_in ? selectedRecord.check_in.substring(0, 5) : '--:--'}
+                                <div className="bg-white p-5 rounded-2xl border border-slate-300 shadow-sm flex flex-col items-center justify-center">
+                                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-1">Check In Time</span>
+                                    <div className="text-[20px] font-black text-blue-600 flex items-center gap-2 tabular-nums">
+                                        <i className="fa-regular fa-clock text-sm text-blue-400"></i>
+                                        {selectedRecord.check_in ? selectedRecord.check_in.substring(0, 5) : '--:--'}
                                     </div>
                                 </div>
-                                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-col items-center justify-center">
-                                    <span className="text-[11.5px] font-bold uppercase tracking-wider text-gray-400 mb-1">Check Out Time</span>
-                                    <div className="text-[18px] font-extrabold text-amber-600 flex items-center gap-1.5">
-                                        <i className="fa-regular fa-clock text-sm"></i>{selectedRecord.check_out ? selectedRecord.check_out.substring(0, 5) : '--:--'}
+                                <div className="bg-white p-5 rounded-2xl border border-slate-300 shadow-sm flex flex-col items-center justify-center">
+                                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-1">Check Out Time</span>
+                                    <div className="text-[20px] font-black text-amber-600 flex items-center gap-2 tabular-nums">
+                                        <i className="fa-regular fa-clock text-sm text-amber-400"></i>
+                                        {selectedRecord.check_out ? selectedRecord.check_out.substring(0, 5) : '--:--'}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Footer */}
-                        <div className="px-8 py-5 border-t border-gray-200 bg-white flex justify-end shrink-0 rounded-b-3xl">
-                            <button type="button" onClick={() => setShowViewModal(false)} className="rounded-xl bg-gray-900 px-8 py-3 text-[14px] font-bold text-white transition-colors hover:bg-gray-800 shadow-md">
+                        <div className="px-6 sm:px-8 py-4 border-t border-slate-300 bg-white flex justify-end shrink-0 rounded-b-2xl sm:rounded-b-3xl">
+                            <button
+                                type="button"
+                                onClick={() => setShowViewModal(false)}
+                                className="rounded-xl bg-slate-900 hover:bg-black px-8 py-2.5 text-[13.5px] font-bold text-white transition-colors shadow-sm"
+                            >
                                 Close Window
                             </button>
                         </div>
@@ -531,119 +557,172 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
                 </div>
             )}
 
-            {/* --- WIDE & MODERN CREATE / EDIT FORM MODAL --- */}
+            {/* --- 💎 EXECUTIVE CREATE / EDIT ATTENDANCE MODAL --- */}
             {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
-                    <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-3 sm:p-5 md:p-8 overflow-y-auto">
+                    <div className="w-full max-w-2xl bg-slate-50 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/30 animate-[scaleIn_0.2s_ease-out]">
 
-                        {/* Header */}
-                        <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white shrink-0">
-                            <div>
-                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase tracking-wider mb-1.5">
-                                    <i className="fa-solid fa-clock"></i> {editMode ? 'Update' : 'New Entry'}
+                        {/* EXECUTIVE HEADER */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-700/80 shrink-0">
+                            <i className="fa-regular fa-clock absolute -right-4 -bottom-6 text-[90px] text-white/[0.04] select-none pointer-events-none"></i>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className={`fa-solid ${editMode ? 'fa-pen-to-square' : 'fa-clock'}`}></i>
+                                    </div>
+                                    <div>
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-400/10 border border-indigo-400/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                            <i className="fa-solid fa-fingerprint"></i> Daily Timesheet
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[23px] font-black text-white tracking-tight leading-tight">
+                                            {editMode ? "Edit Attendance Record" : "Log Manual Attendance"}
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-medium text-slate-400 mt-0.5">
+                                            {editMode ? "Modify check-in, check-out or status for this employee" : "Record daily attendance check-in, check-out and status"}
+                                        </p>
+                                    </div>
                                 </div>
-                                <h3 className="text-[20px] font-extrabold text-gray-900 tracking-tight">
-                                    {editMode ? "Edit Attendance Record" : "Log Manual Attendance"}
-                                </h3>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    className="text-slate-400 hover:text-white hover:bg-rose-600/80 bg-white/5 border border-white/10 h-10 w-10 rounded-full flex items-center justify-center transition-all shadow-sm relative z-10 shrink-0"
+                                >
+                                    <i className="fa-solid fa-xmark text-lg"></i>
+                                </button>
                             </div>
-                            <button type="button" onClick={() => setShowModal(false)} className="text-gray-400 hover:text-red-500 bg-gray-100 hover:bg-red-50 h-9 w-9 rounded-full flex items-center justify-center transition-colors">
-                                <i className="fa-solid fa-xmark text-lg"></i>
-                            </button>
                         </div>
 
                         {/* Form */}
-                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden h-full">
-                            <div className="p-8 overflow-y-auto custom-table-scroll space-y-6">
+                        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+                            <div className="p-5 sm:p-7 md:p-8 overflow-y-auto custom-table-scroll space-y-6 bg-slate-50 flex-1">
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="relative">
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Select Employee <span className="text-red-500">*</span></label>
-                                        <SearchableSelect
-                                            options={users}
-                                            value={data.user_id}
-                                            onChange={(val) => setData("user_id", val)}
-                                            placeholder="-- Click to Select --"
-                                            getValue={(user) => user.id}
-                                            getLabel={(user) => user.name}
-                                            error={errors.user_id}
-                                            disabled={editMode}
-                                        />
-                                        {errors.user_id && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.user_id}</p>}
+                                {/* Section 1: Staff & Date */}
+                                <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-300 shadow-sm space-y-5">
+                                    <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                                        <div className="h-6 w-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-black">1</div>
+                                        <h4 className="text-[13px] font-black uppercase tracking-wider text-slate-800">Staff Selection & Date</h4>
                                     </div>
 
-                                    <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Date <span className="text-red-500">*</span></label>
-                                        <input
-                                            type="date"
-                                            value={data.date}
-                                            onChange={e => setData('date', e.target.value)}
-                                            className={`w-full rounded-xl border border-gray-300 px-4 py-3.5 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm ${editMode ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white cursor-pointer'}`}
-                                            required
-                                            disabled={editMode}
-                                        />
-                                        {errors.date && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.date}</p>}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div className="relative">
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                Select Employee <span className="text-red-600">*</span>
+                                            </label>
+                                            <SearchableSelect
+                                                options={users}
+                                                value={data.user_id}
+                                                onChange={(val) => setData("user_id", val)}
+                                                placeholder="-- Click to Select Employee --"
+                                                getValue={(user) => user.id}
+                                                getLabel={(user) => user.name}
+                                                error={errors.user_id}
+                                                disabled={editMode}
+                                            />
+                                            {errors.user_id && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.user_id}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                Date <span className="text-red-600">*</span>
+                                            </label>
+                                            <input
+                                                type="date"
+                                                value={data.date}
+                                                onChange={e => setData('date', e.target.value)}
+                                                className={`w-full rounded-xl border px-4 py-3 text-[13.5px] font-bold text-slate-900 outline-none transition-all shadow-xs ${editMode ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200' : 'bg-white cursor-pointer border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10'}`}
+                                                required
+                                                disabled={editMode}
+                                            />
+                                            {errors.date && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.date}</p>}
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-gray-50 border border-gray-100 rounded-2xl">
-                                    <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Check In Time</label>
-                                        <div className="relative">
-                                            <i className="fa-regular fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                            <input
-                                                type="time"
-                                                value={data.check_in}
-                                                onChange={e => setData('check_in', e.target.value)}
-                                                className="w-full rounded-xl border border-gray-300 bg-white pl-10 pr-4 py-3.5 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer"
-                                            />
-                                        </div>
-                                        {errors.check_in && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.check_in}</p>}
+                                {/* Section 2: Time Tracking */}
+                                <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-300 shadow-sm space-y-5">
+                                    <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                                        <div className="h-6 w-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-black">2</div>
+                                        <h4 className="text-[13px] font-black uppercase tracking-wider text-slate-800">Check In / Out Timings</h4>
                                     </div>
 
-                                    <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Check Out Time</label>
-                                        <div className="relative">
-                                            <i className="fa-regular fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                            <input
-                                                type="time"
-                                                value={data.check_out}
-                                                onChange={e => setData('check_out', e.target.value)}
-                                                className="w-full rounded-xl border border-gray-300 bg-white pl-10 pr-4 py-3.5 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer"
-                                            />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div>
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">Check In Time</label>
+                                            <div className="relative">
+                                                <i className="fa-regular fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                                <input
+                                                    type="time"
+                                                    value={data.check_in}
+                                                    onChange={e => setData('check_in', e.target.value)}
+                                                    className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 py-3 text-[13.5px] font-bold text-slate-900 outline-none transition-all shadow-xs focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 cursor-pointer tabular-nums"
+                                                />
+                                            </div>
+                                            {errors.check_in && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.check_in}</p>}
                                         </div>
-                                        {errors.check_out && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.check_out}</p>}
+
+                                        <div>
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">Check Out Time</label>
+                                            <div className="relative">
+                                                <i className="fa-regular fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                                <input
+                                                    type="time"
+                                                    value={data.check_out}
+                                                    onChange={e => setData('check_out', e.target.value)}
+                                                    className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 py-3 text-[13.5px] font-bold text-slate-900 outline-none transition-all shadow-xs focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 cursor-pointer tabular-nums"
+                                                />
+                                            </div>
+                                            {errors.check_out && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.check_out}</p>}
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Attendance Status <span className="text-red-500">*</span></label>
+                                {/* Section 3: Status */}
+                                <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-300 shadow-sm space-y-4">
+                                    <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-1">
+                                        Attendance Status <span className="text-red-600">*</span>
+                                    </label>
                                     <div className="relative">
                                         <CustomSelect
                                             value={data.status}
                                             onChange={e => setData('status', e.target.value)}
-                                            className="w-full appearance-none bg-none rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-[14px] font-bold text-gray-800 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer shadow-sm"
+                                            className="w-full appearance-none bg-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-[13.5px] font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 cursor-pointer shadow-xs"
                                             required
                                         >
-                                            <option value="present">Present</option>
-                                            <option value="absent">Absent</option>
-                                            <option value="late">Late Check-in</option>
-                                            <option value="half_day">Half Day</option>
-                                            <option value="on_leave">On Leave</option>
-                                            <option value="holiday">Holiday</option>
+                                            <option value="present">🟢 Present (Full Day)</option>
+                                            <option value="absent">🔴 Absent</option>
+                                            <option value="late">🟡 Late Check-in</option>
+                                            <option value="half_day">🌓 Half Day</option>
+                                            <option value="on_leave">🏖️ On Approved Leave</option>
+                                            <option value="holiday">🎉 Official Holiday</option>
                                         </CustomSelect>
                                     </div>
-                                    {errors.status && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.status}</p>}
+                                    {errors.status && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.status}</p>}
                                 </div>
 
                             </div>
 
                             {/* Footer */}
-                            <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0 rounded-b-3xl">
-                                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 transition-colors hover:bg-gray-100 shadow-sm">
+                            <div className="px-6 md:px-8 py-4 border-t border-slate-300 bg-white flex flex-wrap items-center justify-end gap-3 shrink-0 rounded-b-2xl sm:rounded-b-3xl">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-[13.5px] font-bold text-slate-700 transition-colors hover:bg-slate-100 shadow-xs"
+                                >
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={processing} className="rounded-xl bg-indigo-600 px-8 py-2.5 text-[14px] font-bold text-white transition-all hover:bg-indigo-700 shadow-md disabled:opacity-70 flex items-center gap-2 border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1">
-                                    {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Saving...</> : <><i className="fa-solid fa-check"></i> {editMode ? "Update Record" : "Save Attendance"}</>}
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="rounded-xl bg-indigo-600 px-8 py-2.5 text-[13.5px] font-black text-white transition-all hover:bg-indigo-700 shadow-md shadow-indigo-600/20 active:scale-95 disabled:opacity-70 flex items-center gap-2"
+                                >
+                                    {processing ? (
+                                        <><i className="fa-solid fa-spinner fa-spin text-sm"></i> Saving…</>
+                                    ) : (
+                                        <><i className="fa-solid fa-check text-sm"></i> {editMode ? "Update Record" : "Save Attendance"}</>
+                                    )}
                                 </button>
                             </div>
                         </form>

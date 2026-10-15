@@ -716,12 +716,23 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                                     <tr key={idx} className="hover:bg-slate-50 transition-colors">
                                                         <td className="px-6 py-4 font-mono font-bold text-slate-400 text-center">{String(idx + 1).padStart(2, "0")}</td>
                                                         <td className="px-6 py-4 font-black text-slate-900">
-                                                            {item.item_name}
+                                                            <div className="flex items-center gap-2">
+                                                                {(item.unit_type === 'delivery' || item.item_name?.toLowerCase().includes('delivery')) && (
+                                                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-amber-50 text-amber-600 border border-amber-200 text-xs shrink-0" title="Delivery Charge">
+                                                                        <i className="fa-solid fa-truck"></i>
+                                                                    </span>
+                                                                )}
+                                                                <span>{item.item_name}</span>
+                                                            </div>
                                                             {item.description && item.description !== '<p><br></p>' && (
                                                                 <div className="text-[12.5px] text-slate-500 font-semibold mt-1" dangerouslySetInnerHTML={{ __html: item.description }}></div>
                                                             )}
                                                         </td>
-                                                        <td className="px-6 py-4 text-center font-mono font-bold text-slate-600 bg-slate-50/50">{Number(item.quantity).toLocaleString()} <span className="text-[10.5px] text-slate-400 uppercase ml-1 font-sans">{item.unit_type}</span></td>
+                                                        <td className="px-6 py-4 text-center font-mono font-bold text-slate-600 bg-slate-50/50">
+                                                            {Number(item.quantity).toLocaleString()} {item.unit_type && item.unit_type !== 'none' && (
+                                                                <span className="text-[10.5px] text-slate-400 uppercase ml-1 font-sans">{item.unit_type}</span>
+                                                            )}
+                                                        </td>
                                                         <td className="px-6 py-4 text-right font-mono font-bold text-slate-600 tabular-nums"><Taka className="text-[12px] text-slate-400" />{Number(item.unit_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                                                         <td className="px-6 py-4 text-right font-mono font-black text-emerald-600 tabular-nums bg-emerald-50/30"><Taka className="text-[12px] text-emerald-600" />{Number(item.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                                                     </tr>

@@ -428,60 +428,184 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                 </div>
             </div>
 
-            {/* --- CREATE / EDIT FORM MODAL --- */}
+            {/* --- 💎 EXECUTIVE CREATE / EDIT VENDOR MODAL --- */}
             {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0E1A]/60 backdrop-blur-sm p-4 md:p-6">
-                    <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl flex flex-col max-h-full overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-                        <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white shrink-0">
-                            <h3 className="text-[18px] font-extrabold text-gray-900 flex items-center gap-2">
-                                {editMode ? <><i className="fa-regular fa-pen-to-square text-indigo-600"></i> Modify Vendor Details</> : <><i className="fa-solid fa-truck-fast text-indigo-600"></i> Register New Vendor</>}
-                            </h3>
-                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-red-500 bg-gray-100 hover:bg-red-50 h-9 w-9 rounded-full flex items-center justify-center transition-colors"><i className="fa-solid fa-xmark text-lg"></i></button>
-                        </div>
-                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden h-full">
-                            <div className="p-8 overflow-y-auto custom-table-scroll space-y-6">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Vendor Name <span className="text-red-500">*</span></label>
-                                        <div className="relative">
-                                            <i className="fa-regular fa-user absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                            <input type="text" value={data.name} onChange={(e) => setData("name", e.target.value)} placeholder="e.g. Rahim Miah" required className="w-full rounded-xl border border-gray-300 pl-10 pr-4 py-3 text-[14px] font-semibold text-gray-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10" />
-                                        </div>
-                                        {errors.name && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.name}</p>}
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#070b14]/75 backdrop-blur-md p-3 sm:p-6 overflow-y-auto">
+                    <div className="w-full max-w-2xl lg:max-w-3xl bg-slate-50 rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/40 animate-[fadeIn_0.2s_ease-out]">
+                        
+                        {/* EXECUTIVE HEADER */}
+                        <div className="relative overflow-hidden bg-slate-900 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-800 shrink-0">
+                            <span className="absolute -right-4 -bottom-6 text-[90px] font-mono text-white/[0.04] select-none pointer-events-none">৳</span>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className={`fa-solid ${editMode ? 'fa-pen-to-square' : 'fa-truck-fast'}`}></i>
                                     </div>
                                     <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Company / Business Name</label>
-                                        <div className="relative">
-                                            <i className="fa-regular fa-building absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                            <input type="text" value={data.company_name} onChange={(e) => setData("company_name", e.target.value)} placeholder="e.g. Rahim Printing Press" className="w-full rounded-xl border border-gray-300 pl-10 pr-4 py-3 text-[14px] font-semibold text-gray-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10" />
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-400/10 border border-indigo-400/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                            <i className="fa-solid fa-address-book"></i> {editMode ? 'Vendor Profile Management' : 'Vendor Onboarding'}
                                         </div>
+                                        <h3 className="text-[19px] sm:text-[22px] font-black text-white tracking-tight leading-tight">
+                                            {editMode ? 'Modify Vendor Profile' : 'Register New Vendor'}
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-bold text-slate-400 mt-0.5">
+                                            {editMode
+                                                ? 'Update company credentials, contact information and initial balance'
+                                                : 'Add a supplier, subcontractor or service provider to track payables and ledgers'}
+                                        </p>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-5 bg-gray-50 border border-gray-100 rounded-2xl">
-                                    <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Phone Number</label>
-                                        <div className="relative">
-                                            <i className="fa-solid fa-phone absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                            <input type="text" value={data.phone} onChange={(e) => setData("phone", e.target.value)} placeholder="017..." className="w-full rounded-xl border border-gray-300 pl-10 pr-4 py-3 text-[14px] font-medium text-gray-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 bg-white" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Opening Balance (Due)</label>
-                                        <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-[14px]">৳</span>
-                                            <input type="number" step="0.01" value={data.opening_balance} onChange={(e) => setData("opening_balance", e.target.value)} placeholder="0.00" className="w-full rounded-xl border border-gray-300 pl-9 pr-4 py-3 text-[14px] font-bold text-gray-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 bg-white" />
-                                        </div>
-                                    </div>
-                                    <div className="sm:col-span-2">
-                                        <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Physical Address</label>
-                                        <textarea value={data.address} onChange={(e) => setData("address", e.target.value)} placeholder="Enter full address here..." rows="3" className="w-full rounded-xl border border-gray-300 p-4 text-[14px] font-medium text-gray-900 outline-none resize-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 bg-white"></textarea>
-                                    </div>
-                                </div>
+
+                                <button
+                                    onClick={() => setShowModal(false)}
+                                    className="text-slate-400 hover:text-white hover:bg-rose-600/80 bg-white/5 border border-white/10 h-10 w-10 rounded-full flex items-center justify-center transition-all shadow-sm relative z-10 shrink-0"
+                                >
+                                    <i className="fa-solid fa-xmark text-lg"></i>
+                                </button>
                             </div>
-                            <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 shrink-0 rounded-b-3xl">
-                                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-[14px] font-bold text-gray-700 hover:bg-gray-100 shadow-sm">Cancel</button>
-                                <button type="submit" disabled={processing} className="rounded-xl bg-indigo-600 px-8 py-2.5 text-[14px] font-bold text-white hover:bg-indigo-700 shadow-md flex items-center gap-2">
-                                    {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Saving...</> : <><i className="fa-solid fa-check"></i> {editMode ? "Update Vendor" : "Save Vendor"}</>}
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+                            <div className="flex-1 overflow-y-auto custom-table-scroll p-4 sm:p-6 md:p-8 space-y-6 bg-slate-50">
+                                
+                                {/* 1. BUSINESS & CONTACT IDENTITY CARD */}
+                                <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-300 shadow-sm space-y-5">
+                                    <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+                                        <div className="h-6 w-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold">
+                                            <i className="fa-solid fa-id-card"></i>
+                                        </div>
+                                        <h4 className="text-[12.5px] font-black text-slate-800 uppercase tracking-wider">
+                                            Basic & Business Identity
+                                        </h4>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                Vendor / Contact Person <span className="text-red-600">*</span>
+                                            </label>
+                                            <div className="relative">
+                                                <i className="fa-regular fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                                <input
+                                                    type="text"
+                                                    value={data.name}
+                                                    onChange={(e) => setData("name", e.target.value)}
+                                                    placeholder="e.g. Rahim Miah"
+                                                    required
+                                                    className={`w-full rounded-xl border pl-10 pr-4 py-3 text-[13.5px] font-bold text-slate-900 outline-none transition-all shadow-xs focus:ring-4 focus:ring-indigo-600/10 ${
+                                                        errors.name
+                                                            ? 'border-red-400 bg-red-50/20 focus:border-red-500'
+                                                            : 'border-slate-300 bg-white focus:border-indigo-600'
+                                                    }`}
+                                                />
+                                            </div>
+                                            {errors.name && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.name}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                Company / Business Name
+                                            </label>
+                                            <div className="relative">
+                                                <i className="fa-regular fa-building absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                                <input
+                                                    type="text"
+                                                    value={data.company_name}
+                                                    onChange={(e) => setData("company_name", e.target.value)}
+                                                    placeholder="e.g. Rahim Printing Press"
+                                                    className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 py-3 text-[13.5px] font-bold text-slate-900 outline-none transition-all shadow-xs focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                Phone Number
+                                            </label>
+                                            <div className="relative">
+                                                <i className="fa-solid fa-phone absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                                <input
+                                                    type="text"
+                                                    value={data.phone}
+                                                    onChange={(e) => setData("phone", e.target.value)}
+                                                    placeholder="e.g. 017xxxxxxxx"
+                                                    className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 py-3 text-[13.5px] font-bold text-slate-900 outline-none transition-all shadow-xs focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10"
+                                                />
+                                            </div>
+                                            {errors.phone && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.phone}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                Opening Due Balance (৳)
+                                            </label>
+                                            <div className="relative">
+                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black text-[15px]">৳</span>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={data.opening_balance}
+                                                    onChange={(e) => setData("opening_balance", e.target.value)}
+                                                    placeholder="0.00"
+                                                    className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 py-3 text-[13.5px] font-bold text-slate-900 outline-none transition-all shadow-xs focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 tabular-nums"
+                                                />
+                                            </div>
+                                            {errors.opening_balance && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.opening_balance}</p>}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                            Physical / Workshop Address
+                                        </label>
+                                        <div className="relative">
+                                            <textarea
+                                                value={data.address}
+                                                onChange={(e) => setData("address", e.target.value)}
+                                                placeholder="Enter vendor's full physical office or workshop address..."
+                                                rows="2"
+                                                className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-[13.5px] font-medium text-slate-900 outline-none transition-all shadow-xs focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 resize-none"
+                                            ></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* HELPER ADVISORY NOTE */}
+                                <div className="rounded-2xl border border-indigo-200/80 bg-gradient-to-r from-indigo-50/80 to-blue-50/50 p-4 sm:p-5 flex items-start gap-3.5 shadow-xs">
+                                    <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 text-sm shadow-sm mt-0.5">
+                                        <i className="fa-solid fa-circle-info"></i>
+                                    </div>
+                                    <div className="text-[12px] font-medium text-indigo-950 leading-relaxed">
+                                        <p className="font-bold text-indigo-900 text-[12.5px] mb-0.5">Vendor Ledger & Balance Integration</p>
+                                        Any opening due balance provided here will be automatically registered in the vendor statement. Future project bills, advances, and settlements will automatically link to this vendor profile.
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            {/* FOOTER */}
+                            <div className="px-6 md:px-8 py-4 border-t border-slate-200 bg-white flex flex-wrap items-center justify-end gap-3 shrink-0 rounded-b-3xl">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-[13.5px] font-bold text-slate-700 transition-colors hover:bg-slate-100 shadow-xs"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="rounded-xl bg-indigo-600 hover:bg-indigo-500 px-8 py-3 text-[14px] font-black text-white transition-all shadow-md hover:shadow-lg disabled:opacity-70 flex items-center gap-2"
+                                >
+                                    {processing ? (
+                                        <><i className="fa-solid fa-spinner fa-spin"></i> Saving...</>
+                                    ) : (
+                                        <><i className="fa-solid fa-check"></i> {editMode ? "Update Vendor" : "Save Vendor"}</>
+                                    )}
                                 </button>
                             </div>
                         </form>
@@ -767,7 +891,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
             {/* --- 💎 EXECUTIVE VENDOR WALLET MODAL (Deposit Advance & Receive Refund) --- */}
             {showWalletModal && selectedVendor && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#070b14]/75 backdrop-blur-md p-3 sm:p-6 overflow-y-auto">
-                    <div className="w-full max-w-xl bg-slate-50 rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/40 animate-[fadeIn_0.2s_ease-out]">
+                    <div className="w-full max-w-3xl lg:max-w-4xl bg-slate-50 rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/40 animate-[fadeIn_0.2s_ease-out]">
 
                         {/* EXECUTIVE HEADER */}
                         <div className="relative overflow-hidden bg-slate-900 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-800 shrink-0">

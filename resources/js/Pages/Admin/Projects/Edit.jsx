@@ -101,6 +101,10 @@ export default function Edit({ project, clients = [], managers = [] }) {
     };
 
     const addItemRow = () => setData("items", [...data.items, { item_name: "", description: "", quantity: 1, unit_type: "piece", unit_price: 0, total: 0 }]);
+    const addDeliveryChargeRow = () => setData("items", [
+        ...data.items,
+        { item_name: "Delivery Charge", description: "Transportation and delivery fee", quantity: 1, unit_type: "delivery", unit_price: 0, total: 0 }
+    ]);
     const removeItemRow = (index) => setData("items", data.items.filter((_, i) => i !== index));
 
     const totalBudget = data.items.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
@@ -346,9 +350,22 @@ export default function Edit({ project, clients = [], managers = [] }) {
                                     </div>
                                     <h3 className="text-[18px] font-black text-slate-900 m-0">Project items</h3>
                                 </div>
-                                <button type="button" onClick={addItemRow} className="border-2 border-slate-300 bg-white text-slate-800 px-5 py-2.5 rounded-xl text-[13.5px] font-black hover:border-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 shadow-sm transition-all flex items-center gap-2">
-                                    <i className="fa-solid fa-plus text-[12px]"></i> Add item
-                                </button>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={addDeliveryChargeRow}
+                                        className="border-2 border-amber-300 bg-amber-50/70 text-amber-900 px-4 py-2.5 rounded-xl text-[13px] font-black hover:border-amber-500 hover:bg-amber-100 shadow-sm transition-all flex items-center gap-2"
+                                    >
+                                        <i className="fa-solid fa-truck-fast text-[12px] text-amber-700"></i> + Delivery Charge
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={addItemRow}
+                                        className="border-2 border-slate-300 bg-white text-slate-800 px-5 py-2.5 rounded-xl text-[13.5px] font-black hover:border-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 shadow-sm transition-all flex items-center gap-2"
+                                    >
+                                        <i className="fa-solid fa-plus text-[12px]"></i> Add item
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="divide-y divide-slate-300">
@@ -384,9 +401,18 @@ export default function Edit({ project, clients = [], managers = [] }) {
                                                 </div>
                                                 <div className="w-28">
                                                     <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Unit</label>
-                                                    <CustomSelect value={item.unit_type} onChange={e => updateItem(index, "unit_type", e.target.value)}
+                                                    <CustomSelect value={item.unit_type || "piece"} onChange={e => updateItem(index, "unit_type", e.target.value)}
                                                         className="w-full border-0 border-b-2 border-slate-400 focus:border-indigo-600 outline-none py-1.5 bg-transparent text-[14px] font-black text-slate-900 cursor-pointer focus:ring-0 transition-colors">
-                                                        <option value="piece">Pcs</option><option value="kg">Kg</option><option value="set">Set</option><option value="box">Box</option><option value="sqft">SqFt</option>
+                                                        <option value="piece">Pcs</option>
+                                                        <option value="set">Set</option>
+                                                        <option value="box">Box</option>
+                                                        <option value="kg">Kg</option>
+                                                        <option value="sqft">SqFt</option>
+                                                        <option value="trip">Trip</option>
+                                                        <option value="delivery">Delivery</option>
+                                                        <option value="lot">Lot</option>
+                                                        <option value="service">Service</option>
+                                                        <option value="none">— (None)</option>
                                                     </CustomSelect>
                                                 </div>
                                                 <span className="font-mono text-[16px] font-black text-slate-400 pb-2">×</span>

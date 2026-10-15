@@ -487,20 +487,41 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                 </div>
             </div>
 
-            {/* --- 🟢 CREATE / EDIT PAYSLIP MODAL --- */}
+            {/* --- 🟢 EXECUTIVE CREATE / EDIT PAYSLIP MODAL --- */}
             {showModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
-                    <div className="w-full max-w-4xl bg-[#f8fafc] rounded-[24px] shadow-2xl flex flex-col max-h-[95vh] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-3 sm:p-5 md:p-8 overflow-y-auto">
+                    <div className="w-full max-w-4xl bg-slate-50 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-slate-700/30 animate-[scaleIn_0.2s_ease-out]">
                         
-                        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-white shrink-0 shadow-sm z-10">
-                            <div>
-                                <h3 className="text-[22px] font-extrabold text-gray-900 tracking-tight">
-                                    {editMode ? 'Edit Payslip' : 'Process Salary'}
-                                </h3>
+                        {/* EXECUTIVE HEADER */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-700/80 shrink-0">
+                            <span className="absolute -right-4 -bottom-6 text-[90px] font-mono text-white/[0.04] select-none pointer-events-none">৳</span>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className={`fa-solid ${editMode ? 'fa-pen-to-square' : 'fa-money-bill-wave'}`}></i>
+                                    </div>
+                                    <div>
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-400/10 border border-indigo-400/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                            <i className="fa-solid fa-calculator"></i> Payroll Processing
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[23px] font-black text-white tracking-tight leading-tight">
+                                            {editMode ? 'Edit Employee Payslip' : 'Generate Monthly Payslip'}
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-medium text-slate-400 mt-0.5">
+                                            Calculate monthly salary, allowances, bonuses, and staff advance cuts
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => setShowModal(false)}
+                                    className="text-slate-400 hover:text-white hover:bg-rose-600/80 bg-white/5 border border-white/10 h-10 w-10 rounded-full flex items-center justify-center transition-all shadow-sm relative z-10 shrink-0"
+                                >
+                                    <i className="fa-solid fa-xmark text-lg"></i>
+                                </button>
                             </div>
-                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 h-10 w-10 rounded-full flex items-center justify-center transition-colors">
-                                <i className="fa-solid fa-xmark text-lg"></i>
-                            </button>
                         </div>
 
                         <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden h-full">
@@ -622,23 +643,41 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                 </div>
             )}
 
-            {/* --- 🟢 PAY DUE MODAL --- */}
+            {/* --- 🟢 EXECUTIVE PAY DUE SALARY MODAL --- */}
             {showPaymentModal && selectedRecord && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
-                    <div className="w-full max-w-4xl bg-[#f8fafc] rounded-[24px] shadow-2xl flex flex-col max-h-[95vh] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-3 sm:p-5 md:p-8 overflow-y-auto">
+                    <div className="w-full max-w-4xl bg-slate-50 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-slate-700/30 animate-[scaleIn_0.2s_ease-out]">
                         
-                        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-white shrink-0 shadow-sm z-10">
-                            <div>
-                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-widest mb-1.5 border border-emerald-100">
-                                    <i className="fa-solid fa-hand-holding-dollar"></i> Installment Payment
+                        {/* EXECUTIVE HEADER */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-700/80 shrink-0">
+                            <span className="absolute -right-4 -bottom-6 text-[90px] font-mono text-white/[0.04] select-none pointer-events-none">৳</span>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className="fa-solid fa-hand-holding-dollar"></i>
+                                    </div>
+                                    <div>
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-400/10 border border-emerald-400/20 text-emerald-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                            <i className="fa-solid fa-money-check-dollar"></i> Installment Settlement
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[23px] font-black text-white tracking-tight leading-tight">
+                                            Disburse Due Salary
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-medium text-slate-400 mt-0.5">
+                                            Pay outstanding salary balances via bank, cash, or staff advance adjustment
+                                        </p>
+                                    </div>
                                 </div>
-                                <h3 className="text-[22px] font-extrabold text-gray-900 tracking-tight">
-                                    Process Due Salary
-                                </h3>
+
+                                <button
+                                    onClick={() => setShowPaymentModal(false)}
+                                    className="text-slate-400 hover:text-white hover:bg-rose-600/80 bg-white/5 border border-white/10 h-10 w-10 rounded-full flex items-center justify-center transition-all shadow-sm relative z-10 shrink-0"
+                                >
+                                    <i className="fa-solid fa-xmark text-lg"></i>
+                                </button>
                             </div>
-                            <button onClick={() => setShowPaymentModal(false)} className="text-gray-400 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 h-10 w-10 rounded-full flex items-center justify-center transition-colors">
-                                <i className="fa-solid fa-xmark text-lg"></i>
-                            </button>
                         </div>
 
                         <form onSubmit={handlePaymentSubmit} className="flex flex-col overflow-hidden h-full">

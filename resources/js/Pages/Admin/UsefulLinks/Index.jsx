@@ -746,145 +746,161 @@ export default function Index({
 
             {/* Modal: Add / Edit Link */}
             {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-[fadeIn_0.15s_ease-out]">
-                    <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl animate-[scaleIn_0.15s_ease-out]">
-                        {/* Modal Header */}
-                        <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/60 px-6 py-4">
-                            <div className="flex items-center gap-2.5">
-                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 font-bold">
-                                    <i className={`fa-solid ${editingLink ? 'fa-pen-to-square' : 'fa-plus'}`}></i>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#070b14]/75 backdrop-blur-md p-3 sm:p-6 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
+                    <div className="w-full max-w-xl bg-slate-50 rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/40 animate-[scaleIn_0.2s_ease-out]">
+                        {/* Executive Header */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-700/80 shrink-0">
+                            <span className="absolute -right-4 -bottom-6 text-[90px] font-mono text-white/[0.04] select-none pointer-events-none">🔗</span>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className={`fa-solid ${editingLink ? 'fa-pen-to-square' : 'fa-link'}`}></i>
+                                    </div>
+                                    <div>
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/20 text-amber-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                            <i className="fa-solid fa-bookmark"></i> Quick Portal Link
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[22px] font-black text-white tracking-tight leading-tight">
+                                            {editingLink ? 'Edit Link' : 'Add New Link'}
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-bold text-slate-400 mt-0.5">
+                                            Corporate portals, banking & government web directories
+                                        </p>
+                                    </div>
                                 </div>
-                                <h3 className="text-base font-bold text-gray-900">
-                                    {editingLink ? 'Edit Link' : 'Add New Link'}
-                                </h3>
-                            </div>
-                            <button
-                                onClick={() => setShowModal(false)}
-                                className="h-8 w-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-                            >
-                                <i className="fa-solid fa-xmark text-sm"></i>
-                            </button>
-                        </div>
-
-                        {/* Modal Form */}
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                            {/* Title */}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">
-                                    Link Title <span className="text-rose-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={data.title}
-                                    onChange={(e) => setData('title', e.target.value)}
-                                    placeholder="e.g. Sonali Bank Corporate, NBR VAT Online, Canva Team"
-                                    className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                                />
-                                {errors.title && <p className="text-xs text-rose-500 mt-1">{errors.title}</p>}
-                            </div>
-
-                            {/* URL */}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">
-                                    Website / Resource URL <span className="text-rose-500">*</span>
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type="text"
-                                        required
-                                        value={data.url}
-                                        onChange={(e) => setData('url', e.target.value)}
-                                        placeholder="e.g. https://vat.gov.bd or drive.google.com/..."
-                                        className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 font-mono"
-                                    />
-                                </div>
-                                {errors.url && <p className="text-xs text-rose-500 mt-1">{errors.url}</p>}
-                            </div>
-
-                            {/* Category Selection */}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">
-                                    Category <span className="text-rose-500">*</span>
-                                </label>
-                                <select
-                                    value={data.category}
-                                    onChange={(e) => setData('category', e.target.value)}
-                                    className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                                >
-                                    {categories.map((c) => (
-                                        <option key={c} value={c}>{c}</option>
-                                    ))}
-                                    <option value="Custom">+ Create New Category...</option>
-                                </select>
-
-                                {data.category === 'Custom' && (
-                                    <input
-                                        type="text"
-                                        required
-                                        value={data.custom_category}
-                                        onChange={(e) => setData('custom_category', e.target.value)}
-                                        placeholder="Enter new category name..."
-                                        className="mt-2 w-full rounded-xl border border-amber-300 bg-amber-50/30 px-3.5 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                                    />
-                                )}
-                            </div>
-
-                            {/* Username or Account Identifier (Optional) */}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">
-                                    Username / Email / Account ID <span className="text-gray-400 font-normal">(Optional)</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    value={data.username_or_email}
-                                    onChange={(e) => setData('username_or_email', e.target.value)}
-                                    placeholder="e.g. unibox_admin, 01700000000"
-                                    className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 font-mono"
-                                />
-                            </div>
-
-                            {/* Notes / Instructions */}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">
-                                    Notes / Instructions <span className="text-gray-400 font-normal">(Optional)</span>
-                                </label>
-                                <textarea
-                                    rows={3}
-                                    value={data.notes}
-                                    onChange={(e) => setData('notes', e.target.value)}
-                                    placeholder="Login hints, branch codes, contact info, or instructions..."
-                                    className="w-full rounded-xl border border-gray-200 px-3.5 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 leading-relaxed"
-                                />
-                            </div>
-
-                            {/* Pinned Checkbox */}
-                            <div className="flex items-center gap-2 pt-1">
-                                <input
-                                    type="checkbox"
-                                    id="is_pinned"
-                                    checked={data.is_pinned}
-                                    onChange={(e) => setData('is_pinned', e.target.checked)}
-                                    className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
-                                />
-                                <label htmlFor="is_pinned" className="text-xs font-bold text-gray-700 cursor-pointer select-none">
-                                    📌 Pin to top for quick access
-                                </label>
-                            </div>
-
-                            {/* Modal Footer */}
-                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
                                 <button
                                     type="button"
                                     onClick={() => setShowModal(false)}
-                                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                                    className="text-slate-400 hover:text-white hover:bg-rose-600/80 h-9 w-9 rounded-full flex items-center justify-center transition-all shrink-0 bg-slate-800/80 border border-slate-700 cursor-pointer"
+                                >
+                                    <i className="fa-solid fa-xmark text-base"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Modal Form */}
+                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden h-full">
+                            <div className="p-6 sm:p-8 overflow-y-auto custom-table-scroll space-y-4">
+                                {/* Title */}
+                                <div>
+                                    <label className="block text-[12px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                        Link Title <span className="text-rose-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={data.title}
+                                        onChange={(e) => setData('title', e.target.value)}
+                                        placeholder="e.g. Sonali Bank Corporate, NBR VAT Online, Canva Team"
+                                        className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none shadow-sm transition-all"
+                                    />
+                                    {errors.title && <p className="text-xs text-rose-500 mt-1">{errors.title}</p>}
+                                </div>
+
+                                {/* URL */}
+                                <div>
+                                    <label className="block text-[12px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                        Website / Resource URL <span className="text-rose-500">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            required
+                                            value={data.url}
+                                            onChange={(e) => setData('url', e.target.value)}
+                                            placeholder="e.g. https://vat.gov.bd or drive.google.com/..."
+                                            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none shadow-sm transition-all font-mono"
+                                        />
+                                    </div>
+                                    {errors.url && <p className="text-xs text-rose-500 mt-1">{errors.url}</p>}
+                                </div>
+
+                                {/* Category Selection */}
+                                <div>
+                                    <label className="block text-[12px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                        Category <span className="text-rose-500">*</span>
+                                    </label>
+                                    <select
+                                        value={data.category}
+                                        onChange={(e) => setData('category', e.target.value)}
+                                        className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none shadow-sm transition-all"
+                                    >
+                                        {categories.map((c) => (
+                                            <option key={c} value={c}>{c}</option>
+                                        ))}
+                                        <option value="Custom">+ Create New Category...</option>
+                                    </select>
+
+                                    {data.category === 'Custom' && (
+                                        <input
+                                            type="text"
+                                            required
+                                            value={data.custom_category}
+                                            onChange={(e) => setData('custom_category', e.target.value)}
+                                            placeholder="Enter new category name..."
+                                            className="mt-2 w-full rounded-xl border border-amber-300 bg-amber-50/40 px-3.5 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none shadow-sm transition-all"
+                                        />
+                                    )}
+                                </div>
+
+                                {/* Username or Account Identifier (Optional) */}
+                                <div>
+                                    <label className="block text-[12px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                        Username / Email / Account ID <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={data.username_or_email}
+                                        onChange={(e) => setData('username_or_email', e.target.value)}
+                                        placeholder="e.g. unibox_admin, 01700000000"
+                                        className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none shadow-sm transition-all font-mono"
+                                    />
+                                </div>
+
+                                {/* Notes / Instructions */}
+                                <div>
+                                    <label className="block text-[12px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                        Notes / Instructions <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        value={data.notes}
+                                        onChange={(e) => setData('notes', e.target.value)}
+                                        placeholder="Login hints, branch codes, contact info, or instructions..."
+                                        className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none shadow-sm transition-all leading-relaxed"
+                                    />
+                                </div>
+
+                                {/* Pinned Checkbox */}
+                                <div className="flex items-center gap-2 pt-1">
+                                    <input
+                                        type="checkbox"
+                                        id="is_pinned"
+                                        checked={data.is_pinned}
+                                        onChange={(e) => setData('is_pinned', e.target.checked)}
+                                        className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                                    />
+                                    <label htmlFor="is_pinned" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
+                                        📌 Pin to top for quick access
+                                    </label>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="px-6 sm:px-8 py-4 border-t border-slate-200 bg-white flex justify-end gap-3 shrink-0 rounded-b-3xl">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-[13.5px] font-bold text-slate-700 transition-colors hover:bg-slate-100 shadow-xs cursor-pointer"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={processing}
-                                    className="inline-flex items-center gap-2 rounded-xl bg-[#070b15] px-5 py-2.5 text-xs font-semibold text-white shadow hover:bg-gray-800 disabled:opacity-50 transition-all"
+                                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-slate-900 to-indigo-950 hover:from-slate-800 hover:to-indigo-900 px-6 py-2.5 text-[13.5px] font-bold text-white shadow-md shadow-indigo-950/20 transition-all disabled:opacity-50 cursor-pointer"
                                 >
                                     {processing ? (
                                         <>
