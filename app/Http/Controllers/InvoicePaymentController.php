@@ -62,6 +62,13 @@ class InvoicePaymentController extends Controller
 
     public function store(Request $request)
     {
+        // Filter out empty account payment rows
+        $cleanedAccountPayments = collect($request->account_payments)
+            ->filter(fn($a) => !empty($a['account_id']) && (float)($a['amount'] ?? 0) > 0)
+            ->values()
+            ->toArray();
+        $request->merge(['account_payments' => $cleanedAccountPayments]);
+
         $request->validate([
             'client_id' => 'required|exists:clients,id',
             'invoices' => 'required|array|min:1',
@@ -85,7 +92,7 @@ class InvoicePaymentController extends Controller
         $totalGiven = $totalAdvance + $totalAccount;
 
         if (abs($totalPayRequested - $totalGiven) > 0.01) {
-            return back()->withErrors(['amount_mismatch' => "Payment sources total ({$totalGiven}) must exactly match the total allocated invoice amount ({$totalPayRequested})."]);
+            return back()->withErrors(['amount_mismatch' => "Payment sources total ({$totalGiven} TK) must match the total payable invoice amount ({$totalPayRequested} TK)."]);
         }
 
         $availableAdvance = (float) ClientAdvance::where('client_id', $request->client_id)->selectRaw('COALESCE(SUM(amount-used_amount),0) balance')->value('balance');
@@ -114,7 +121,7 @@ class InvoicePaymentController extends Controller
                      InvoicePayment::create([
                         'invoice_id' => $invoice->id, 'account_id' => null, 'method' => 'Discount Only',
                         'amount' => 0, 'payment_date' => $request->payment_date,
-                        'note' => clone $request->note ? 'Discount: ' . $request->note : 'Special Discount Applied',
+                        'note' => $request->filled('note') ? 'Discount: ' . $request->note : 'Special Discount Applied',
                         'discount_amount' => $discount,
                     ]);
                 }

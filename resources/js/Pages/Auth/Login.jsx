@@ -182,8 +182,67 @@ export default function Login({ status, canResetPassword }) {
                         </button>
                     </form>
 
+                    {/* Quick Admin Access Presets */}
+                    <div className="mt-6 pt-5 border-t border-slate-800/80">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                                Quick Fill Credentials
+                            </span>
+                            <span className="text-[10px] text-indigo-400 font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">
+                                1-Click Fill
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setData({
+                                        ...data,
+                                        email: 'superadmin@unibox.com',
+                                        password: '12345678',
+                                    });
+                                }}
+                                className="flex flex-col items-start p-2.5 rounded-xl border border-slate-800/90 bg-slate-900/60 hover:bg-slate-800/90 hover:border-indigo-500/50 hover:shadow-md hover:shadow-indigo-500/10 transition-all text-left group"
+                            >
+                                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-200 group-hover:text-indigo-300">
+                                    <i className="fa-solid fa-user-shield text-indigo-400 text-[11px]"></i>
+                                    Super Admin
+                                </div>
+                                <span className="text-[10px] text-slate-400 font-mono mt-0.5 truncate max-w-full">
+                                    superadmin@unibox.com
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                    Pass: 12345678
+                                </span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setData({
+                                        ...data,
+                                        email: 'nahid@gmail.com',
+                                        password: '12345678',
+                                    });
+                                }}
+                                className="flex flex-col items-start p-2.5 rounded-xl border border-slate-800/90 bg-slate-900/60 hover:bg-slate-800/90 hover:border-indigo-500/50 hover:shadow-md hover:shadow-indigo-500/10 transition-all text-left group"
+                            >
+                                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-200 group-hover:text-indigo-300">
+                                    <i className="fa-solid fa-user-gear text-indigo-400 text-[11px]"></i>
+                                    Nahid (Admin)
+                                </div>
+                                <span className="text-[10px] text-slate-400 font-mono mt-0.5 truncate max-w-full">
+                                    nahid@gmail.com
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                    Pass: 12345678
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Admin Warning Note */}
-                    <p className="mt-6 text-center text-[11px] text-slate-500 leading-relaxed">
+                    <p className="mt-5 text-center text-[11px] text-slate-500 leading-relaxed">
                         Unauthorized access attempts are logged and monitored with IP tracing.
                     </p>
                 </div>

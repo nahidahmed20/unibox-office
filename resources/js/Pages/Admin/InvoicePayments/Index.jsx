@@ -163,6 +163,17 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
         return Object.values(selectedInvoices).reduce((sum, inv) => sum + Number(inv.pay_amount || 0), 0);
     }, [selectedInvoices]);
 
+    const totalDiscount = useMemo(() => {
+        return Object.values(selectedInvoices).reduce((sum, inv) => sum + Number(inv.discount || 0), 0);
+    }, [selectedInvoices]);
+
+    const totalBillOriginalDue = useMemo(() => {
+        return Object.keys(selectedInvoices).reduce((sum, id) => {
+            const inv = clientInvoices.find(i => String(i.id) === String(id));
+            return sum + Number(inv?.due_amount || 0);
+        }, 0);
+    }, [selectedInvoices, clientInvoices]);
+
     const totalSources = useMemo(() => {
         return Number(data.advance_amount || 0) + (data.account_payments || []).reduce((sum, r) => sum + Number(r.amount || 0), 0);
     }, [data.advance_amount, data.account_payments]);
@@ -177,9 +188,14 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
 
         let remaining = totalSources;
         const next = { ...selectedInvoices };
-        const sortedInvoices = [...clientInvoices].sort((a, b) => a.id - b.id);
+        const selectedIds = Object.keys(selectedInvoices);
 
-        sortedInvoices.forEach(inv => {
+        // If user already selected specific invoice(s), prioritize only those!
+        const targetInvoices = selectedIds.length > 0
+            ? clientInvoices.filter(inv => selectedIds.includes(String(inv.id)))
+            : [...clientInvoices].sort((a, b) => a.id - b.id);
+
+        targetInvoices.forEach(inv => {
             if (remaining > 0.001) {
                 if (!next[inv.id]) {
                     next[inv.id] = { id: inv.id, pay_amount: 0, discount: 0 };
@@ -202,12 +218,29 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
 
         setSelectedInvoices(next);
 
-        if(remaining > 0.01) {
+        if (remaining > 0.01) {
             Swal.fire({
                 title: "Overpayment Detected",
-                text: `You have allocated all invoices, but ৳${remaining.toLocaleString('en-IN')} is still left over.`,
+                text: `You have allocated the target invoice(s), but ৳${remaining.toLocaleString('en-IN')} is still left over.`,
                 icon: "info"
             });
+        }
+    };
+
+    // 🟢 One-click sync received amount from selected invoices net due
+    const autoFillReceivedFromInvoices = () => {
+        if (totalAllocated <= 0) {
+            return Swal.fire("Selection Required", "Please select an invoice and specify the payment amount or discount first.", "info");
+        }
+
+        const currentAccounts = [...(data.account_payments || [])];
+        const defaultAccountId = currentAccounts[0]?.account_id || accounts[0]?.id || '';
+        
+        if (currentAccounts.length === 0) {
+            setData('account_payments', [{ account_id: defaultAccountId, amount: totalAllocated }]);
+        } else {
+            currentAccounts[0] = { ...currentAccounts[0], account_id: defaultAccountId, amount: totalAllocated };
+            setData('account_payments', currentAccounts);
         }
     };
 
@@ -333,16 +366,55 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
         e.preventDefault();
 
         if (!editMode) {
-            if (Math.abs(balanceDifference) > 0.01) {
-                return Swal.fire("Amount Mismatch", "The total from payment sources must equal the total allocated to invoices. Please click Auto-Allocate.", "error");
+            const invoicesList = Object.values(selectedInvoices).filter(inv => Number(inv.pay_amount) > 0 || Number(inv.discount) > 0);
+
+            if (invoicesList.length === 0) {
+                return Swal.fire("No Invoices Selected", "Please select at least one invoice and enter a payment amount or discount.", "warning");
             }
-            transform((currentData) => ({ ...currentData, client_id: paymentClientId, invoices: Object.values(selectedInvoices) }));
+
+            if (Math.abs(balanceDifference) > 0.01) {
+                return Swal.fire({
+                    title: "Amount Mismatch",
+                    html: `
+                        <div style="text-align: left; font-size: 13.5px; line-height: 1.6;">
+                            <p style="margin-bottom: 6px;"><strong>Selected Invoices Due:</strong> ৳${totalBillOriginalDue.toLocaleString('en-IN')}</p>
+                            ${totalDiscount > 0 ? `<p style="margin-bottom: 6px; color: #d97706;"><strong>Discount Given:</strong> ৳${totalDiscount.toLocaleString('en-IN')}</p>` : ''}
+                            <p style="margin-bottom: 6px; color: #4f46e5;"><strong>Net Amount to Collect:</strong> ৳${totalAllocated.toLocaleString('en-IN')}</p>
+                            <p style="margin-bottom: 6px; color: #334155;"><strong>Payment Sources Entered:</strong> ৳${totalSources.toLocaleString('en-IN')}</p>
+                            <p style="margin-top: 10px; color: #e11d48; font-weight: bold;">The received payment sources total must match the net amount to collect (৳${totalAllocated.toLocaleString('en-IN')}).</p>
+                        </div>
+                    `,
+                    icon: "error"
+                });
+            }
+
+            const cleanAccounts = (data.account_payments || []).filter(a => a.account_id && Number(a.amount) > 0);
+
+            if (totalAllocated > 0 && cleanAccounts.length === 0 && Number(data.advance_amount || 0) <= 0) {
+                return Swal.fire("Account Required", "Please select at least one Bank/Cash account to receive the payment.", "warning");
+            }
+
+            transform((currentData) => ({
+                ...currentData,
+                client_id: paymentClientId,
+                invoices: invoicesList,
+                account_payments: cleanAccounts,
+            }));
         } else {
             transform((currentData) => currentData);
         }
 
         post(editMode ? route("invoice-payments.update", data.id) : route("invoice-payments.store"), {
             forceFormData: true,
+            onError: (errs) => {
+                const firstErr = Object.values(errs)[0];
+                Swal.fire({
+                    title: "Payment Error",
+                    text: firstErr || "Failed to log payment. Please check your inputs.",
+                    icon: "error",
+                    confirmButtonColor: "#4f46e5"
+                });
+            },
             onSuccess: () => {
                 reset();
                 setShowModal(false);
@@ -477,15 +549,18 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                         </div>
                     </div>
 
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-slate-50/50 border-b border-slate-100 no-print">
-                        <div className="flex flex-wrap items-center gap-3 w-full justify-between">
+                    <div className="flex flex-col gap-3 px-6 py-4 bg-slate-50/50 border-b border-slate-100 no-print">
+                        <div className="flex flex-wrap items-center justify-between gap-3 w-full">
                             <div className="flex flex-wrap items-center gap-3">
-                                <div className="relative w-[125px]">
-                                    <select value={perPage} onChange={e => { setPerPage(e.target.value === "all" ? "all" : Number(e.target.value)); applyFilters({ per_page: e.target.value === "all" ? "all" : Number(e.target.value) }); }} className="w-full bg-white border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-[13px] font-bold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer">
+                                {/* Rows per page */}
+                                <div className="relative w-[115px]">
+                                    <select value={perPage} onChange={e => { setPerPage(e.target.value === "all" ? "all" : Number(e.target.value)); applyFilters({ per_page: e.target.value === "all" ? "all" : Number(e.target.value) }); }} className="w-full bg-white border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-[13px] font-bold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer h-[44px]">
                                         <option value={10}>10 Rows</option><option value={25}>25 Rows</option><option value={50}>50 Rows</option><option value={100}>100 Rows</option><option value="all">All Data</option>
                                     </select>
                                 </div>
-                                <div className="relative w-[240px] z-20">
+
+                                {/* Client Filter */}
+                                <div className="relative w-[210px] z-20">
                                     <Select
                                         options={clientOptions}
                                         value={clientOptions.find(opt => String(opt.value) === String(clientId)) || null}
@@ -494,39 +569,153 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                         isSearchable isClearable {...portal}
                                     />
                                 </div>
-                                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
-                                    <span className="text-[11px] font-extrabold uppercase text-slate-400">From</span>
-                                    <input
-                                        type="date"
-                                        value={dateFrom}
-                                        onChange={e => { setDateFrom(e.target.value); applyFilters({ date_from: e.target.value }); }}
-                                        className="text-[12.5px] font-bold text-slate-700 outline-none bg-transparent cursor-pointer"
+
+                                {/* Account Filter */}
+                                <div className="relative w-[180px] z-20">
+                                    <Select
+                                        options={accountOptions}
+                                        value={accountOptions.find(opt => String(opt.value) === String(accountFilter)) || null}
+                                        onChange={selected => { setAccountFilter(selected ? selected.value : ""); applyFilters({ account_id: selected ? selected.value : "" }); }}
+                                        placeholder="All Accounts"
+                                        isSearchable isClearable {...portal}
                                     />
-                                    <span className="text-slate-300">|</span>
-                                    <span className="text-[11px] font-extrabold uppercase text-slate-400">To</span>
-                                    <input
-                                        type="date"
-                                        value={dateTo}
-                                        onChange={e => { setDateTo(e.target.value); applyFilters({ date_to: e.target.value }); }}
-                                        className="text-[12.5px] font-bold text-slate-700 outline-none bg-transparent cursor-pointer"
-                                    />
+                                </div>
+
+                                {/* 🟢 Premium Date Range Capsule */}
+                                <div className={`inline-flex items-center rounded-xl bg-white border transition-all h-[44px] shadow-sm ${
+                                    (dateFrom || dateTo)
+                                        ? 'border-indigo-400 ring-2 ring-indigo-500/10 bg-indigo-50/20'
+                                        : 'border-slate-200 hover:border-slate-300 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10'
+                                }`}>
+                                    <div className="flex items-center justify-center pl-3.5 pr-2 text-indigo-500 h-full">
+                                        <i className="fa-regular fa-calendar-days text-[14px]"></i>
+                                    </div>
+
+                                    {/* From Date */}
+                                    <div className="flex items-center gap-1.5 px-2 h-full">
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 select-none">From</span>
+                                        <input
+                                            type="date"
+                                            value={dateFrom}
+                                            onChange={e => { setDateFrom(e.target.value); applyFilters({ date_from: e.target.value }); }}
+                                            className="text-[12.5px] font-bold text-slate-800 bg-transparent outline-none cursor-pointer border-none p-0 focus:ring-0 w-[115px] sm:w-[125px]"
+                                        />
+                                    </div>
+
+                                    {/* Arrow Divider */}
+                                    <div className="text-slate-300 px-1 select-none flex items-center">
+                                        <i className="fa-solid fa-arrow-right text-[10px]"></i>
+                                    </div>
+
+                                    {/* To Date */}
+                                    <div className="flex items-center gap-1.5 px-2 h-full">
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 select-none">To</span>
+                                        <input
+                                            type="date"
+                                            value={dateTo}
+                                            onChange={e => { setDateTo(e.target.value); applyFilters({ date_to: e.target.value }); }}
+                                            className="text-[12.5px] font-bold text-slate-800 bg-transparent outline-none cursor-pointer border-none p-0 focus:ring-0 w-[115px] sm:w-[125px]"
+                                        />
+                                    </div>
+
+                                    {/* Reset Button */}
                                     {(dateFrom || dateTo) && (
-                                         <button
-                                             type="button"
-                                             onClick={() => { setDateFrom(""); setDateTo(""); applyFilters({ date_from: "", date_to: "" }); }}
-                                             className="text-rose-500 hover:text-rose-700 text-xs ml-1"
-                                             title="Clear Dates"
-                                         >
-                                             <i className="fa-solid fa-xmark"></i>
-                                         </button>
-                                     )}
+                                        <button
+                                            type="button"
+                                            onClick={() => { setDateFrom(""); setDateTo(""); applyFilters({ date_from: "", date_to: "" }); }}
+                                            className="pr-2.5 pl-1.5 h-full flex items-center justify-center text-slate-400 hover:text-rose-600 transition-colors"
+                                            title="Clear Date Filter"
+                                        >
+                                            <span className="h-5 w-5 rounded-full bg-slate-100 hover:bg-rose-100 flex items-center justify-center text-[10px]">
+                                                <i className="fa-solid fa-xmark"></i>
+                                            </span>
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Quick Date Presets */}
+                                <div className="hidden xl:inline-flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 h-[44px]">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const todayStr = new Date().toISOString().slice(0, 10);
+                                            setDateFrom(todayStr); setDateTo(todayStr);
+                                            applyFilters({ date_from: todayStr, date_to: todayStr });
+                                        }}
+                                        className={`px-3 py-1.5 text-[11.5px] font-bold rounded-lg transition-all ${
+                                            dateFrom === new Date().toISOString().slice(0, 10) && dateTo === new Date().toISOString().slice(0, 10)
+                                                ? 'bg-indigo-600 text-white shadow-xs'
+                                                : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                                        }`}
+                                    >
+                                        Today
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const now = new Date();
+                                            const y = now.getFullYear();
+                                            const m = String(now.getMonth() + 1).padStart(2, '0');
+                                            const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+                                            const from = `${y}-${m}-01`;
+                                            const to = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
+                                            setDateFrom(from); setDateTo(to);
+                                            applyFilters({ date_from: from, date_to: to });
+                                        }}
+                                        className="px-3 py-1.5 text-[11.5px] font-bold rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white transition-all"
+                                    >
+                                        This Month
+                                    </button>
                                 </div>
                             </div>
-                            <div className="relative w-full sm:w-[260px]">
+
+                            {/* Search */}
+                            <div className="relative w-full sm:w-[240px]">
                                 <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-[13.5px]"></i>
                                 <input type="text" placeholder="Search payments..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={inputClassFilter} />
                             </div>
                         </div>
+
+                        {/* Active Filters Strip */}
+                        {(clientId || accountFilter || dateFrom || dateTo || searchTerm) && (
+                            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200/60 text-[12px]">
+                                <span className="font-bold text-slate-400 text-[11px] uppercase tracking-wider mr-1">Active Filters:</span>
+                                {clientId && (
+                                    <span className="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 px-2.5 py-1 rounded-lg font-bold">
+                                        Client: {clients.find(c => String(c.id) === String(clientId))?.name}
+                                        <button type="button" onClick={() => { setClientId(''); applyFilters({ client_id: '' }); }} className="hover:text-indigo-900 ml-0.5"><i className="fa-solid fa-xmark text-[10px]"></i></button>
+                                    </span>
+                                )}
+                                {accountFilter && (
+                                    <span className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-700 px-2.5 py-1 rounded-lg font-bold">
+                                        Account: {accounts.find(a => String(a.id) === String(accountFilter))?.name}
+                                        <button type="button" onClick={() => { setAccountFilter(''); applyFilters({ account_id: '' }); }} className="hover:text-blue-900 ml-0.5"><i className="fa-solid fa-xmark text-[10px]"></i></button>
+                                    </span>
+                                )}
+                                {(dateFrom || dateTo) && (
+                                    <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 px-2.5 py-1 rounded-lg font-bold">
+                                        Date: {dateFrom || 'Start'} → {dateTo || 'End'}
+                                        <button type="button" onClick={() => { setDateFrom(''); setDateTo(''); applyFilters({ date_from: '', date_to: '' }); }} className="hover:text-emerald-900 ml-0.5"><i className="fa-solid fa-xmark text-[10px]"></i></button>
+                                    </span>
+                                )}
+                                {searchTerm && (
+                                    <span className="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-bold">
+                                        Search: "{searchTerm}"
+                                        <button type="button" onClick={() => setSearchTerm('')} className="hover:text-slate-900 ml-0.5"><i className="fa-solid fa-xmark text-[10px]"></i></button>
+                                    </span>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setClientId(''); setAccountFilter(''); setDateFrom(''); setDateTo(''); setSearchTerm('');
+                                        applyFilters({ client_id: '', account_id: '', date_from: '', date_to: '', search: '' });
+                                    }}
+                                    className="text-rose-600 hover:text-rose-800 font-bold ml-auto text-[11.5px] hover:underline flex items-center gap-1"
+                                >
+                                    <i className="fa-solid fa-rotate-left text-[10px]"></i> Reset All
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <div className="overflow-x-auto custom-table-scroll pb-2 min-h-[400px]">
@@ -837,32 +1026,58 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                         <div className="p-6 sm:p-8 flex-1 overflow-y-auto custom-table-scroll space-y-6">
 
                                             {/* Summary Box */}
-                                            <div className={`p-6 rounded-2xl border-2 shadow-sm transition-colors duration-300 ${Math.abs(balanceDifference) < 0.01 ? 'border-emerald-200 bg-emerald-50/50' : 'border-indigo-200 bg-indigo-50/30'}`}>
-                                                <div className="flex justify-between items-center mb-3 pb-3 border-b border-indigo-100">
-                                                    <span className="text-[12.5px] font-bold text-slate-600">Total Selected to Pay</span>
-                                                    <span className="text-[18px] font-bold text-slate-800 tabular-nums"><Taka className="text-[14px] text-slate-400" />{totalAllocated.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center mb-5">
-                                                    <span className="text-[12.5px] font-bold text-slate-600">Total Payment Received</span>
-                                                    <span className="text-[18px] font-bold text-indigo-600 tabular-nums"><Taka className="text-[14px] text-indigo-400" />{totalSources.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                                            <div className={`p-5 rounded-2xl border-2 shadow-sm transition-colors duration-300 ${Math.abs(balanceDifference) < 0.01 && (totalAllocated > 0 || totalDiscount > 0) ? 'border-emerald-200 bg-emerald-50/50' : 'border-indigo-200 bg-indigo-50/30'}`}>
+                                                <div className="space-y-2 mb-3 pb-3 border-b border-indigo-100">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-[12px] font-bold text-slate-600">Selected Invoices Due</span>
+                                                        <span className="text-[15px] font-bold text-slate-700 tabular-nums"><Taka className="text-[12px] text-slate-400" />{totalBillOriginalDue.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                                                    </div>
+                                                    {totalDiscount > 0 && (
+                                                        <div className="flex justify-between items-center text-amber-700 font-bold text-[12.5px]">
+                                                            <span><i className="fa-solid fa-tag mr-1 text-amber-500"></i> Discount Given</span>
+                                                            <span className="tabular-nums">- <Taka className="text-[11px]" />{totalDiscount.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="flex justify-between items-center pt-1 border-t border-indigo-100/60">
+                                                        <span className="text-[13px] font-black text-indigo-900 uppercase tracking-wider">Net to Collect</span>
+                                                        <span className="text-[19px] font-black text-indigo-600 tabular-nums"><Taka className="text-[14px] text-indigo-400" />{totalAllocated.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                                                    </div>
                                                 </div>
 
-                                                {/* MAGIC BUTTON */}
-                                                {totalSources > 0 && Math.abs(balanceDifference) > 0.01 && (
-                                                    <button type="button" onClick={autoAllocateFromTotal} className="flex items-center justify-center gap-2 bg-indigo-600 text-white text-[14px] font-bold py-3 px-4 rounded-xl shadow-md shadow-indigo-500/20 active:scale-95 transition-all w-full animate-[pulse_2s_infinite]">
-                                                        <i className="fa-solid fa-wand-magic-sparkles"></i> Auto-Allocate {totalSources.toLocaleString()} ৳
+                                                <div className="flex justify-between items-center mb-4">
+                                                    <span className="text-[12.5px] font-bold text-slate-700">Payment Sources Entered</span>
+                                                    <span className="text-[18px] font-bold text-slate-900 tabular-nums"><Taka className="text-[14px] text-slate-400" />{totalSources.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                                                </div>
+
+                                                {/* SMART BUTTONS */}
+                                                {totalAllocated > 0 && totalSources === 0 && (
+                                                    <button type="button" onClick={autoFillReceivedFromInvoices} className="flex items-center justify-center gap-2 bg-indigo-600 text-white text-[13px] font-bold py-2.5 px-4 rounded-xl shadow-md shadow-indigo-500/20 active:scale-95 transition-all w-full">
+                                                        <i className="fa-solid fa-arrow-down mr-1"></i> Auto-Fill Received (৳{totalAllocated.toLocaleString()})
                                                     </button>
                                                 )}
 
-                                                {totalSources > 0 && Math.abs(balanceDifference) < 0.01 && (
-                                                    <div className="flex items-center justify-center gap-2 bg-emerald-100 text-emerald-700 text-[14px] font-bold py-3 px-4 rounded-xl border border-emerald-200 shadow-sm w-full">
-                                                        <i className="fa-solid fa-check-circle text-lg"></i> Amount Perfectly Matched!
+                                                {totalSources > 0 && Math.abs(balanceDifference) > 0.01 && (
+                                                    <div className="flex flex-col gap-2">
+                                                        <button type="button" onClick={autoAllocateFromTotal} className="flex items-center justify-center gap-2 bg-indigo-600 text-white text-[13px] font-bold py-2.5 px-4 rounded-xl shadow-md shadow-indigo-500/20 active:scale-95 transition-all w-full animate-[pulse_2s_infinite]">
+                                                            <i className="fa-solid fa-wand-magic-sparkles"></i> Auto-Allocate ৳{totalSources.toLocaleString()}
+                                                        </button>
+                                                        {totalAllocated > 0 && (
+                                                            <button type="button" onClick={autoFillReceivedFromInvoices} className="text-[11.5px] font-bold text-indigo-600 hover:text-indigo-800 underline text-center">
+                                                                Or set received amount to net ৳{totalAllocated.toLocaleString()}
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 )}
 
-                                                {totalSources === 0 && (
-                                                    <div className="text-center text-[12.5px] font-medium text-slate-500 mt-2 bg-white/60 py-2.5 rounded-xl border border-slate-100">
-                                                        Enter the received amount below first.
+                                                {Math.abs(balanceDifference) < 0.01 && (totalAllocated > 0 || totalDiscount > 0) && (
+                                                    <div className="flex items-center justify-center gap-2 bg-emerald-100 text-emerald-800 text-[13.5px] font-bold py-2.5 px-4 rounded-xl border border-emerald-200 shadow-sm w-full">
+                                                        <i className="fa-solid fa-check-circle text-emerald-600 text-base"></i> Ready to Confirm!
+                                                    </div>
+                                                )}
+
+                                                {totalSources === 0 && totalAllocated === 0 && totalDiscount === 0 && (
+                                                    <div className="text-center text-[12px] font-medium text-slate-500 py-2 rounded-xl bg-white/60 border border-slate-100">
+                                                        Select an invoice on the left to begin.
                                                     </div>
                                                 )}
                                             </div>
@@ -926,7 +1141,7 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
 
                                         <div className="p-6 sm:p-8 border-t border-slate-100 bg-white shrink-0 flex gap-4">
                                             <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 rounded-xl border border-slate-200 bg-white text-[14px] font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-sm transition-all active:scale-95">Cancel</button>
-                                            <button type="submit" disabled={processing || totalAllocated === 0 || Math.abs(balanceDifference) > 0.01} className="flex-[2] py-3 rounded-xl bg-indigo-600 text-[14px] font-bold text-white hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2">
+                                            <button type="submit" disabled={processing || (!totalAllocated && !totalDiscount) || Math.abs(balanceDifference) > 0.01} className="flex-[2] py-3 rounded-xl bg-indigo-600 text-[14px] font-bold text-white hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2">
                                                 {processing ? <><i className="fa-solid fa-spinner fa-spin text-lg"></i> Processing</> : <><i className="fa-solid fa-check text-lg"></i> Confirm Payment</>}
                                             </button>
                                         </div>

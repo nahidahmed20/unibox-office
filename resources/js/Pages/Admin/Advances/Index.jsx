@@ -566,11 +566,11 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         </div>
 
                         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden h-full">
-                            <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto bg-slate-50 custom-table-scroll">
-                                <div className="flex-1 p-6 sm:p-8 space-y-6">
+                            <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto lg:overflow-hidden bg-slate-50">
+                                <div className="flex-1 p-5 sm:p-7 lg:p-8 space-y-5 sm:space-y-6 lg:overflow-y-auto custom-table-scroll">
                                     {errors.error && <div className="flex items-center gap-3 bg-red-50 text-red-700 p-4 rounded-2xl border border-red-200 font-bold shadow-sm"><i className="fa-solid fa-triangle-exclamation"></i> {errors.error}</div>}
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-5 sm:p-7 rounded-[1.25rem] border border-slate-200 shadow-sm relative z-[60]">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 bg-white p-5 sm:p-7 rounded-[1.25rem] border border-slate-200 shadow-sm relative z-[60]">
                                         <div className="relative z-[60]">
                                             <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2.5"><i className="fa-solid fa-user-tie text-indigo-500 mr-1.5"></i> Select Employee <span className="text-red-500">*</span></label>
                                             <SearchableSelect
@@ -601,7 +601,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-5 sm:p-7 rounded-[1.25rem] border border-slate-200 shadow-sm relative z-[40]">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 bg-white p-5 sm:p-7 rounded-[1.25rem] border border-slate-200 shadow-sm relative z-[40]">
                                         <div className="md:col-span-2 relative z-[40]">
                                             <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2.5">Purpose Category</label>
                                             <SearchableSelect
@@ -620,31 +620,83 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                     </div>
                                 </div>
 
-                                {/* PREMIUM RIGHT SIDEBAR (SUMMARY) */}
-                                <div className="w-full lg:w-[380px] bg-slate-900 p-6 sm:p-8 relative overflow-hidden flex flex-col border-t lg:border-t-0 lg:border-l border-slate-800 text-white shrink-0 shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.3)] z-10">
-                                    <span className="absolute -right-6 -top-10 text-[180px] font-mono text-white/[0.03] pointer-events-none select-none">৳</span>
-                                    <h4 className="text-[11.5px] font-black text-slate-400 uppercase tracking-widest mb-7 border-b border-slate-800 pb-3"><i className="fa-solid fa-calculator mr-1.5"></i> Financial Summary</h4>
+                                {/* PREMIUM RIGHT SIDEBAR (FINANCIAL SUMMARY) */}
+                                <div className="w-full lg:w-[330px] xl:w-[370px] bg-slate-900 p-5 sm:p-6 lg:p-7 relative flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-slate-800 text-white shrink-0 shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.3)] z-10 lg:overflow-y-auto custom-table-scroll">
+                                    <span className="absolute -right-4 -top-8 text-[140px] sm:text-[160px] font-mono text-white/[0.03] pointer-events-none select-none">৳</span>
+                                    
+                                    <div className="relative z-10">
+                                        <h4 className="text-[11.5px] font-black text-slate-400 uppercase tracking-widest mb-5 border-b border-slate-800 pb-3 flex items-center justify-between">
+                                            <span className="flex items-center gap-2"><i className="fa-solid fa-calculator text-indigo-400"></i> Financial Summary</span>
+                                            <span className="text-[10px] text-slate-500 font-mono tracking-normal">ADVANCE</span>
+                                        </h4>
 
-                                    <div className="space-y-6 flex-1">
-                                        <div>
-                                            <label className="block text-[12.5px] font-bold text-slate-300 mb-2.5">Advance Amount <span className="text-rose-500">*</span></label>
-                                            <div className="relative"><Taka className="absolute left-5 top-1/2 -translate-y-1/2 text-emerald-400 text-[18px]" /><input type="number" step="any" value={data.amount} onChange={e => setData('amount', e.target.value)} className="w-full rounded-2xl border border-emerald-500/30 bg-emerald-950/20 pl-11 pr-5 py-4 text-[18px] font-black tabular-nums text-emerald-400 outline-none focus:bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/20 transition-all shadow-inner" placeholder="0.00" required /></div>
-                                            {errors.amount && <p className="text-red-500 text-[11.5px] mt-1.5 font-bold">{errors.amount}</p>}
+                                        <div className="space-y-4 sm:space-y-5">
+                                            <div>
+                                                <label className="block text-[12px] sm:text-[12.5px] font-bold text-slate-300 mb-2">Advance Amount <span className="text-rose-500">*</span></label>
+                                                <div className="relative">
+                                                    <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 text-[16px] sm:text-[18px]" />
+                                                    <input 
+                                                        type="number" 
+                                                        step="any" 
+                                                        value={data.amount} 
+                                                        onChange={e => setData('amount', e.target.value)} 
+                                                        className="w-full rounded-xl sm:rounded-2xl border border-emerald-500/30 bg-emerald-950/20 pl-10 sm:pl-11 pr-4 py-3 sm:py-3.5 text-[16px] sm:text-[18px] font-black tabular-nums text-emerald-400 outline-none focus:bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/20 transition-all shadow-inner" 
+                                                        placeholder="0.00" 
+                                                        required 
+                                                    />
+                                                </div>
+                                                {errors.amount && <p className="text-red-500 text-[11.5px] mt-1.5 font-bold">{errors.amount}</p>}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-[12px] sm:text-[12.5px] font-bold text-slate-300 mb-2">Bank Charge <span className="text-[10.5px] font-medium text-slate-500">(extra)</span></label>
+                                                <div className="relative">
+                                                    <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-[15px] sm:text-[16px]" />
+                                                    <input 
+                                                        type="number" 
+                                                        step="any" 
+                                                        value={data.bank_charge} 
+                                                        onChange={e => setData('bank_charge', e.target.value)} 
+                                                        className="w-full rounded-xl sm:rounded-2xl border border-slate-700 bg-slate-800/50 pl-10 sm:pl-11 pr-4 py-2.5 sm:py-3 text-[15px] sm:text-[16px] font-black tabular-nums text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all shadow-inner" 
+                                                        placeholder="0.00" 
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label className="block text-[12.5px] font-bold text-slate-300 mb-2.5">Bank Charge <span className="text-[10.5px] font-medium text-slate-500">(extra)</span></label>
-                                            <div className="relative"><Taka className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 text-[16px]" /><input type="number" step="any" value={data.bank_charge} onChange={e => setData('bank_charge', e.target.value)} className="w-full rounded-2xl border border-slate-700 bg-slate-800/50 pl-11 pr-5 py-4 text-[16px] font-black tabular-nums text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all shadow-inner" placeholder="0.00" /></div>
+
+                                        {/* TOTAL OFFICE CUT CARD */}
+                                        <div className="rounded-2xl bg-indigo-950/40 border border-indigo-500/20 p-4 sm:p-5 mt-5 shadow-inner">
+                                            <div className="flex items-center justify-between gap-2 mb-1.5">
+                                                <span className="text-[11px] sm:text-[12px] text-indigo-300 font-black uppercase tracking-wider">Total Office Cut</span>
+                                                <span className="text-[9.5px] font-bold text-indigo-400/80 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">Final Amount</span>
+                                            </div>
+                                            <div className="text-[22px] sm:text-[25px] xl:text-[28px] font-black text-indigo-400 tabular-nums leading-tight tracking-tight break-words flex items-baseline">
+                                                <Taka className="text-[15px] sm:text-[17px] mr-1 opacity-70 shrink-0" />
+                                                <span className="break-all">{Number((parseFloat(data.amount||0) + parseFloat(data.bank_charge||0))).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="pt-7 border-t border-slate-800 mt-6 relative z-10">
-                                        <div className="flex justify-between items-end"><span className="text-[13.5px] text-indigo-300 font-black uppercase tracking-widest">Total Office Cut</span><span className="text-[34px] font-black text-indigo-400 tabular-nums leading-none tracking-tight">৳ {Number((parseFloat(data.amount||0) + parseFloat(data.bank_charge||0))).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span></div>
-                                    </div>
-                                    <div className="mt-8 flex flex-col gap-3">
-                                        <button type="submit" disabled={processing} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-2xl text-[14.5px] font-black transition-all shadow-[0_4px_14px_0_rgba(79,70,229,0.39)] disabled:opacity-60 flex items-center justify-center gap-2.5 active:scale-[0.98]">
-                                            {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</> : <><i className="fa-solid fa-check text-lg"></i> {editMode ? "Confirm Update" : "Save Advance"}</>}
+                                    {/* BUTTONS */}
+                                    <div className="mt-6 sm:mt-8 flex flex-col gap-2.5 sm:gap-3 shrink-0 relative z-10">
+                                        <button 
+                                            type="submit" 
+                                            disabled={processing} 
+                                            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 sm:py-3.5 rounded-xl sm:rounded-2xl text-[14px] sm:text-[14.5px] font-black transition-all shadow-[0_4px_14px_0_rgba(79,70,229,0.39)] hover:shadow-[0_6px_20px_rgba(79,70,229,0.23)] disabled:opacity-60 flex items-center justify-center gap-2 active:scale-[0.98]"
+                                        >
+                                            {processing ? (
+                                                <><i className="fa-solid fa-spinner fa-spin"></i> Processing...</>
+                                            ) : (
+                                                <><i className="fa-solid fa-check text-base"></i> {editMode ? "Confirm Update" : "Save Advance"}</>
+                                            )}
                                         </button>
-                                        <button type="button" onClick={() => setShowModal(false)} className="w-full text-slate-400 py-3.5 rounded-2xl text-[14.5px] font-bold border border-slate-700 hover:bg-slate-800 hover:text-white transition-colors active:scale-[0.98]">Cancel</button>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setShowModal(false)} 
+                                            className="w-full text-slate-400 hover:text-white py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-[13.5px] sm:text-[14px] font-bold border border-slate-700 hover:bg-slate-800 transition-colors active:scale-[0.98]"
+                                        >
+                                            Cancel
+                                        </button>
                                     </div>
                                 </div>
                             </div>
