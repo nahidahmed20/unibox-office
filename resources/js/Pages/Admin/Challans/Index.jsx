@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, Link } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 export default function Index({ challans, filters }) {
-    const [searchTerm, setSearchTerm] = useState(filters.challan_number || '');
+    const [searchTerm, setSearchTerm] = useState(filters?.challan_number || '');
     const isFirstRender = useRef(true);
 
     useEffect(() => {
@@ -14,6 +15,16 @@ export default function Index({ challans, filters }) {
         }, 400);
         return () => clearTimeout(delayFn);
     }, [searchTerm]);
+
+    const exportHeaders = ['Challan #', 'Client', 'Date', 'Status'];
+    const exportRows = useMemo(() => {
+        return (challans?.data || []).map(ch => [
+            ch.challan_number || '—',
+            ch.client?.name || '—',
+            ch.challan_date || '—',
+            ch.status || '—'
+        ]);
+    }, [challans]);
 
     const handleDelete = (id) => {
         Swal.fire({
@@ -47,11 +58,17 @@ export default function Index({ challans, filters }) {
                 </div>
 
                 <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="p-4 border-b border-gray-100 flex items-center">
+                    <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="relative w-full max-w-sm">
                             <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
                             <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search by Challan Number..." className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-[13.5px] outline-none focus:border-indigo-500 focus:bg-white" />
                         </div>
+                        <TableExportButtons
+                            headers={exportHeaders}
+                            rows={exportRows}
+                            filename="challans_list"
+                            title="Delivery Challans Directory"
+                        />
                     </div>
 
                     <div className="overflow-x-auto">

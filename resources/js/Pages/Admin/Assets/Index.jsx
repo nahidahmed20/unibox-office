@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
 import CustomSelect from '@/Components/CustomSelect';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 // 🟢 Custom Taka Component
 const Taka = ({ className = "text-[16px]" }) => (
@@ -135,28 +136,18 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
 
     const assetList = assets.data || [];
 
-    const handleCopy = () => {
-        if (!assetList.length) return Swal.fire("Empty!", "No data to copy", "warning");
-        const text = assetList.map((a) => `${a.name}\t${a.asset_code}\t${a.serial_number || '-'}\t${a.assignee?.name || 'Unassigned'}\t${a.purchase_price || '0'}\t${a.condition?.toUpperCase()}`).join("\n");
-        navigator.clipboard.writeText("Asset Name\tAsset Code\tSerial\tAssigned To\tPrice\tCondition\n" + text);
-        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false });
-    };
-
-    const handleExportCSV = () => {
-        if (!assetList.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const headers = ["Asset Name,Asset Code,Serial Number,Assigned To,Purchase Price,Condition\n"];
-        const rows = assetList.map(a => `"${a.name}","${a.asset_code}","${a.serial_number || ''}","${a.assignee?.name || ''}","${a.purchase_price || '0'}","${a.condition}"`);
-        const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `Asset_Register_${new Date().toISOString().slice(0, 10)}.csv`);
-        link.click();
-    };
-
-    const handlePrint = () => {
-        window.print();
-    };
+    const exportHeaders = ['SL', 'Asset Name', 'Asset Code', 'Serial No', 'Assigned To', 'Purchase Price (৳)', 'Condition'];
+    const exportRows = useMemo(() => {
+        return assetList.map((a, idx) => [
+            idx + 1,
+            a.name || '',
+            a.asset_code || '',
+            a.serial_number || '-',
+            a.assignee?.name || 'Unassigned',
+            parseFloat(a.purchase_price || 0).toFixed(2),
+            a.condition?.toUpperCase() || ''
+        ]);
+    }, [assetList]);
 
     const openCreateModal = () => {
         clearErrors();
@@ -320,17 +311,12 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
 
                             <div className="h-6 w-px bg-gray-200 hidden md:block mx-1"></div>
 
-                            <div className="flex items-center gap-1.5 shrink-0">
-                                <button type="button" onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm">
-                                    <i className="fas fa-copy text-blue-500"></i> Copy
-                                </button>
-                                <button type="button" onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 shadow-sm">
-                                    <i className="fas fa-file-csv"></i> CSV
-                                </button>
-                                <button type="button" onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm">
-                                    <i className="fas fa-print text-gray-500"></i> Print
-                                </button>
-                            </div>
+                            <TableExportButtons
+                                headers={exportHeaders}
+                                rows={exportRows}
+                                filename="Asset_Register_Report"
+                                title="Office Asset Inventory Register"
+                            />
                         </div>
 
                         <div className="relative w-full sm:w-[280px]">

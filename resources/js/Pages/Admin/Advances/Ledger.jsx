@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, Link } from '@inertiajs/react';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
@@ -8,6 +9,41 @@ const Taka = ({ className = "text-[14px]" }) => (
 
 export default function Ledger({ employee, advancesHistory, settlements, summary }) {
     const [activeTab, setActiveTab] = useState('taken'); // 'taken' | 'settled'
+
+    const exportHeaders = useMemo(() => {
+        if (activeTab === 'taken') {
+            return ['SL', 'Date', 'Purpose & Notes', 'Total Taken (৳)', 'Adjusted (৳)', 'Refunded (৳)', 'Unpaid Due (৳)', 'Status'];
+        }
+        return ['SL', 'Date', 'Adjustment Type', 'Reference & Description', 'Amount Deducted (৳)'];
+    }, [activeTab]);
+
+    const exportRows = useMemo(() => {
+        if (activeTab === 'taken') {
+            return (advancesHistory?.data || []).map((adv, idx) => {
+                const amount = Number(adv.amount || 0);
+                const settled = Number(adv.settled_amount || 0);
+                const returned = Number(adv.returned_amount || 0);
+                const due = amount - settled - returned;
+                return [
+                    idx + 1,
+                    adv.date || '',
+                    adv.purpose || 'Office Work',
+                    amount.toFixed(2),
+                    settled.toFixed(2),
+                    returned.toFixed(2),
+                    due.toFixed(2),
+                    adv.status || ''
+                ];
+            });
+        }
+        return (settlements?.data || []).map((settle, idx) => [
+            idx + 1,
+            settle.date || '',
+            settle.settlementable_type ? settle.settlementable_type.split('\\').pop() : 'Adjustment',
+            settle.description || '',
+            parseFloat(settle.amount || 0).toFixed(2)
+        ]);
+    }, [activeTab, advancesHistory?.data, settlements?.data]);
 
     // Helper function to render pagination links smoothly
     const renderPagination = (paginator) => {
@@ -89,13 +125,23 @@ export default function Ledger({ employee, advancesHistory, settlements, summary
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col min-h-[450px]">
                     
                     {/* Tabs */}
-                    <div className="flex border-b border-gray-200 bg-gray-50/50 px-2 pt-2">
-                        <button onClick={() => setActiveTab('taken')} className={`px-6 py-3.5 text-[14px] font-bold transition-all border-b-2 flex items-center gap-2 ${activeTab === 'taken' ? 'border-indigo-600 text-indigo-700 bg-white rounded-t-xl shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.05)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-                            <i className="fa-solid fa-money-bill-trend-up"></i> Advances Taken & Status
-                        </button>
-                        <button onClick={() => setActiveTab('settled')} className={`px-6 py-3.5 text-[14px] font-bold transition-all border-b-2 flex items-center gap-2 ${activeTab === 'settled' ? 'border-emerald-600 text-emerald-700 bg-white rounded-t-xl shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.05)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-                            <i className="fa-solid fa-list-check"></i> Settlement History (Adjustments)
-                        </button>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200 bg-gray-50/50 px-3 pt-2 gap-3">
+                        <div className="flex items-center gap-1">
+                            <button onClick={() => setActiveTab('taken')} className={`px-6 py-3.5 text-[14px] font-bold transition-all border-b-2 flex items-center gap-2 ${activeTab === 'taken' ? 'border-indigo-600 text-indigo-700 bg-white rounded-t-xl shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.05)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                                <i className="fa-solid fa-money-bill-trend-up"></i> Advances Taken & Status
+                            </button>
+                            <button onClick={() => setActiveTab('settled')} className={`px-6 py-3.5 text-[14px] font-bold transition-all border-b-2 flex items-center gap-2 ${activeTab === 'settled' ? 'border-emerald-600 text-emerald-700 bg-white rounded-t-xl shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.05)]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                                <i className="fa-solid fa-list-check"></i> Settlement History (Adjustments)
+                            </button>
+                        </div>
+                        <div className="pb-2 sm:pb-0">
+                            <TableExportButtons
+                                headers={exportHeaders}
+                                rows={exportRows}
+                                filename={`${employee?.name || 'Employee'}_Advance_Ledger_${activeTab}`}
+                                title={`${employee?.name || 'Employee'} - Advance Ledger (${activeTab === 'taken' ? 'Advances Taken' : 'Settlements'})`}
+                            />
+                        </div>
                     </div>
 
                     <div className="overflow-x-auto custom-table-scroll">

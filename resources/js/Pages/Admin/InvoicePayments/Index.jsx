@@ -4,6 +4,7 @@ import { Head, router, Link, usePage, useForm } from "@inertiajs/react";
 import Swal from "sweetalert2";
 import Select from 'react-select';
 import CustomSelect from '@/Components/CustomSelect';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -131,6 +132,35 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
         });
         return { dailyClientMap: map, dateWiseGroups: groups };
     }, [paymentList]);
+
+    const exportHeaders = useMemo(() => {
+        if (viewMode === 'date_wise') {
+            return ['Date', 'Client', 'Entries', 'Methods', 'Invoices Breakdown', 'Total Paid (৳)'];
+        }
+        return ['SL', 'Payment Date', 'Invoice No', 'Client', 'Method / Account', 'Note', 'Amount (৳)'];
+    }, [viewMode]);
+
+    const exportRows = useMemo(() => {
+        if (viewMode === 'date_wise') {
+            return dateWiseGroups.map(g => [
+                g.date,
+                g.client?.name || 'N/A',
+                g.items.length,
+                g.methods.join(', '),
+                g.items.map(i => `${i.invoice?.invoice_number || 'Inv'}: ${parseFloat(i.amount).toFixed(2)}`).join(' | '),
+                parseFloat(g.total_amount).toFixed(2)
+            ]);
+        }
+        return paymentList.map((p, idx) => [
+            idx + 1,
+            p.payment_date || '',
+            p.invoice?.invoice_number || 'N/A',
+            p.invoice?.client?.name || 'N/A',
+            p.method === 'Client Advance' ? 'Client Advance' : (p.account?.name || p.method || 'Account'),
+            p.note || '',
+            parseFloat(p.amount || 0).toFixed(2)
+        ]);
+    }, [viewMode, dateWiseGroups, paymentList]);
 
     const { data, setData, post, delete: destroy, reset, processing, errors, clearErrors, transform } = useForm({
         id: "", invoice_id: "", account_id: "", amount: "", advance_amount: "", account_payments: [{ account_id: '', amount: '' }], payment_date: new Date().toISOString().slice(0, 10), note: "", _method: "post",
@@ -540,6 +570,13 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                     <span>Date-wise Total</span>
                                 </button>
                             </div>
+
+                            <TableExportButtons
+                                headers={exportHeaders}
+                                rows={exportRows}
+                                filename={viewMode === 'date_wise' ? 'DateWise_Invoice_Payments' : 'Invoice_Payments_Directory'}
+                                title={viewMode === 'date_wise' ? 'Date-wise Invoice Payments' : 'Invoice Payments Directory'}
+                            />
 
                             {hasPermission('create_receive_payment') && (
                                 <button onClick={openCreateModal} className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-black px-6 py-2.5 text-[13.5px] font-bold text-white transition-all shadow-md active:scale-95">

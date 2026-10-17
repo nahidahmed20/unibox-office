@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { useForm, Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
@@ -7,6 +7,7 @@ import Select from "react-select";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import CustomSelect from '@/Components/CustomSelect';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -93,64 +94,18 @@ export default function Index({ employees = {}, users = [], departments = [], de
         return () => clearTimeout(delay);
     }, [searchTerm, perPage]);
 
-    // --- Export Tools ---
-    const handleCopy = () => {
-        if (!employeeList.length) return Swal.fire("Empty!", "No data to copy", "warning");
-        const header = "EMP ID\tName\tDepartment\tDesignation\tJoin Date\tBasic Salary\n";
-        const text = employeeList
-            .map((emp) => `${emp.employee_id_code}\t${emp.user?.name || "N/A"}\t${emp.department?.name || "N/A"}\t${emp.designation?.name || "N/A"}\t${emp.joining_date}\tTK. ${formatSalary(emp.basic_salary)}`)
-            .join("\n");
-        navigator.clipboard.writeText(header + text);
-        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1200, showConfirmButton: false, toast: true, position: 'top-end' });
-    };
-
-    const csvEscape = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
-
-    const handleCSVExport = () => {
-        if (!employeeList.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const rows = [
-            ["EMP ID", "Name", "Department", "Designation", "Join Date", "Basic Salary"],
-            ...employeeList.map((emp) => [
-                csvEscape(emp.employee_id_code),
-                csvEscape(emp.user?.name || "N/A"),
-                csvEscape(emp.department?.name || "N/A"),
-                csvEscape(emp.designation?.name || "N/A"),
-                csvEscape(emp.joining_date),
-                formatSalary(emp.basic_salary),
-            ]),
-        ];
-        const csv = rows.map((r) => r.join(",")).join("\n");
-        const blob = new Blob([csv], { type: "text/csv" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `Employees_List_${new Date().toISOString().slice(0, 10)}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-    };
-
-    const handleExcel = () => {
-        if (!employeeList.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const ws = XLSX.utils.json_to_sheet(
-            employeeList.map((emp) => ({
-                "EMP ID": emp.employee_id_code,
-                "Name": emp.user?.name || "N/A",
-                "Department": emp.department?.name || "N/A",
-                "Designation": emp.designation?.name || "N/A",
-                "Join Date": emp.joining_date,
-                "Basic Salary": formatSalary(emp.basic_salary),
-            }))
-        );
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Employees");
-        const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-        const file = new Blob([excelBuffer], { type: "application/octet-stream" });
-        saveAs(file, `Employees_List_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    };
-
-    const handlePrint = () => {
-        window.print();
-    };
+    const exportHeaders = ['EMP ID', 'Name', 'Department', 'Designation', 'Join Date', 'Phone', 'Basic Salary (Tk)'];
+    const exportRows = useMemo(() => {
+        return employeeList.map((emp) => [
+            emp.employee_id_code || '—',
+            emp.user?.name || 'N/A',
+            emp.department?.name || '—',
+            emp.designation?.name || '—',
+            emp.joining_date || '—',
+            emp.user?.phone || emp.emergency_contact_phone || '—',
+            Number(emp.basic_salary || 0)
+        ]);
+    }, [employeeList]);
 
     // --- Modals ---
     const openCreateModal = () => {
@@ -328,12 +283,12 @@ export default function Index({ employees = {}, users = [], departments = [], de
                             <div className="h-6 w-px bg-gray-200 hidden sm:block mx-1"></div>
 
                             {/* Export Buttons */}
-                            <div className="flex items-center gap-1.5 shrink-0">
-                                <button type="button" onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm"><i className="fas fa-copy text-blue-500"></i> Copy</button>
-                                <button type="button" onClick={handleExcel} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 shadow-sm"><i className="fas fa-file-excel text-emerald-500"></i> Excel</button>
-                                <button type="button" onClick={handleCSVExport} className="flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2.5 text-[13px] font-bold text-teal-700 transition-colors hover:bg-teal-100 shadow-sm"><i className="fas fa-file-csv"></i> CSV</button>
-                                <button type="button" onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm"><i className="fas fa-print text-gray-500"></i> Print</button>
-                            </div>
+                            <TableExportButtons
+                                headers={exportHeaders}
+                                rows={exportRows}
+                                filename="employees_staff_list"
+                                title="Employees & Staff Directory"
+                            />
                         </div>
 
                         {/* Search */}

@@ -4,6 +4,7 @@ import { useForm, Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 import Select from "react-select";
 import CustomSelect from '@/Components/CustomSelect';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 // 🟢 Custom Straight Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
@@ -479,10 +480,31 @@ export default function Index({
                         </div>
 
                         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto mt-2 lg:mt-0">
-                            <div className="flex flex-1 sm:flex-none bg-white rounded-xl shadow-sm border border-slate-300 overflow-hidden">
-                                <button onClick={handleExportCSV} className="flex-1 sm:flex-none px-4 py-2.5 border-r border-slate-300 hover:bg-slate-50 transition-colors text-[13px] font-bold text-emerald-700 flex items-center justify-center gap-1.5" title="Download CSV"><i className="fas fa-file-csv"></i> CSV</button>
-                                <button onClick={handlePrint} className="flex-1 sm:flex-none px-4 py-2.5 hover:bg-slate-50 transition-colors text-[13px] font-bold text-slate-700 flex items-center justify-center gap-1.5" title="Print Data"><i className="fas fa-print text-slate-500"></i> Print</button>
-                            </div>
+                            <TableExportButtons
+                                headers={['Date', 'Title', 'Category', 'Payment Source', 'Amount (BDT)', 'Bank Charge', 'Description']}
+                                rows={expList.map(e => [
+                                    e.date,
+                                    e.title,
+                                    e.category?.name || '',
+                                    e.account_id ? e.account?.name : (e.advance_user_id ? 'Staff Advance' : (e.vendor_id ? 'Vendor Advance' : '')),
+                                    Number(e.amount || 0).toFixed(2),
+                                    Number(e.bank_charge || 0).toFixed(2),
+                                    (e.description || '').replace(/\r?\n|\r/g, ' ')
+                                ])}
+                                data={expList.map((e, idx) => ({
+                                    "SL": idx + 1,
+                                    "Date": e.date,
+                                    "Title": e.title,
+                                    "Category": e.category?.name || '',
+                                    "Payment Source": e.account_id ? e.account?.name : (e.advance_user_id ? 'Staff Advance' : (e.vendor_id ? 'Vendor Advance' : '')),
+                                    "Amount (BDT)": Number(e.amount || 0),
+                                    "Bank Charge": Number(e.bank_charge || 0),
+                                    "Description": (e.description || '').replace(/\r?\n|\r/g, ' ')
+                                }))}
+                                filename="Office_Expenses"
+                                title="Office Expenses Report"
+                                tableId="printable-table"
+                            />
 
                             {hasPermission('create_expense') && (
                                 <button onClick={openCreateModal} className="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-[13.5px] font-black text-white transition-all hover:bg-indigo-700 hover:shadow-lg shadow-md hover:-translate-y-0.5">

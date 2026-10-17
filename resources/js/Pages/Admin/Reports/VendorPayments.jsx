@@ -1,10 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { Head, router, Link, usePage } from "@inertiajs/react";
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import Swal from "sweetalert2";
+import TableExportButtons from "@/Components/TableExportButtons";
 
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>TK. </span>
@@ -27,21 +24,16 @@ export default function VendorPayments({ payments = { data: [], links: [] }, fil
         return () => clearTimeout(delay);
     }, [searchTerm, perPage]);
 
-    const handlePDF = () => {
-        if (!payments.data.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const doc = new jsPDF();
-        autoTable(doc, {
-            head: [['Date', 'Vendor Name', 'Type', 'Amount Paid', 'Discount']],
-            body: payments.data.map(p => [
-                new Date(p.date).toLocaleDateString('en-GB'),
-                p.vendor_name,
-                p.type,
-                Number(p.amount).toLocaleString('en-IN'),
-                Number(p.discount).toLocaleString('en-IN')
-            ]),
-        });
-        doc.save(`Vendor_Payments_${new Date().toISOString().slice(0, 10)}.pdf`);
-    };
+    const exportHeaders = ['Date', 'Vendor Name', 'Type', 'Amount Paid (৳)', 'Discount (৳)'];
+    const exportRows = useMemo(() => {
+        return (payments.data || []).map(p => [
+            new Date(p.date).toLocaleDateString('en-GB'),
+            p.vendor_name || '',
+            p.type || '',
+            parseFloat(p.amount || 0).toFixed(2),
+            parseFloat(p.discount || 0).toFixed(2)
+        ]);
+    }, [payments.data]);
 
     return (
         <AdminLayout>
@@ -52,9 +44,12 @@ export default function VendorPayments({ payments = { data: [], links: [] }, fil
                         <h1 className="text-2xl font-black text-gray-900 tracking-tight">Vendor Payments Report</h1>
                         <p className="text-[14px] text-gray-500 mt-1 font-medium">All cash outflows and discounts given to vendors</p>
                     </div>
-                    <button onClick={handlePDF} className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm font-bold border border-red-100 hover:bg-red-100 transition-colors">
-                        <i className="fa-solid fa-file-pdf mr-2"></i> Export PDF
-                    </button>
+                    <TableExportButtons
+                        headers={exportHeaders}
+                        rows={exportRows}
+                        filename="Vendor_Payments_Report"
+                        title="Vendor Payments & Cash Outflows"
+                    />
                 </div>
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">

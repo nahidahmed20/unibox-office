@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
@@ -115,32 +116,40 @@ export default function Show({ vendor, payments = [], ledgers = [], bills = [], 
 
     const grandTotalDateWise = dateWisePayments.reduce((sum, g) => sum + Number(g.total_amount || 0), 0);
 
-    const handleExportCSV = () => {
-        let csvContent = "";
-        let fileName = "";
+    const exportConfig = useMemo(() => {
         if (activeTab === 'date_wise') {
-            if (!dateWisePayments.length) return Swal.fire("Empty!", "No date-wise payments to export.", "warning");
-            csvContent = "Date,Payment Sources,Entries Count,Breakdown,Discount,Total Paid on Date\n";
-            dateWisePayments.forEach(g => {
-                const breakdown = g.items.map(i => `${i.ref} (${i.title}): ${i.amount}`).join(" | ");
-                csvContent += `"${g.date}","${g.methods.join(', ')}","${g.items.length}","${breakdown.replace(/"/g, '""')}","${g.total_discount || 0}","${g.total_amount}"\n`;
-            });
-            fileName = `Vendor_DateWise_Payments_${vendor.name}_${new Date().toISOString().slice(0, 10)}.csv`;
+            return {
+                headers: ['Date', 'Payment Sources', 'Entries Count', 'Breakdown', 'Discount (Tk)', 'Total Paid on Date (Tk)'],
+                rows: (dateWisePayments || []).map(g => [
+                    g.date || '—',
+                    (g.methods || []).join(', ') || '—',
+                    g.items?.length || 0,
+                    (g.items || []).map(i => `${i.ref} (${i.title}): ${i.amount}`).join(" | "),
+                    Number(g.total_discount || 0),
+                    Number(g.total_amount || 0)
+                ]),
+                filename: `vendor_datewise_payments_${vendor?.name || 'vendor'}`,
+                title: `Vendor Date-wise Payment Summary - ${vendor?.name || ''}`
+            };
         } else {
-            if (!statement.length) return Swal.fire("Empty!", "No statement data to export.", "warning");
-            csvContent = "Date,Type,Ref,Particulars,Project,Billed (Cr),Paid (Dr),Discount,Running Due Balance\n";
-            statement.forEach(ev => {
-                csvContent += `"${ev.date}","${ev.type}","${ev.ref}","${(ev.title || '').replace(/"/g, '""')}","${(ev.project || '').replace(/"/g, '""')}","${ev.billed}","${ev.paid}","${ev.discount}","${ev.balance}"\n`;
-            });
-            fileName = `Vendor_Statement_${vendor.name}_${new Date().toISOString().slice(0, 10)}.csv`;
+            return {
+                headers: ['Date', 'Type', 'Ref', 'Particulars', 'Project', 'Billed (Cr) (Tk)', 'Paid (Dr) (Tk)', 'Discount (Tk)', 'Running Due Balance (Tk)'],
+                rows: (statement || []).map(ev => [
+                    ev.date || '—',
+                    ev.type || '—',
+                    ev.ref || '—',
+                    ev.title || '—',
+                    ev.project || '—',
+                    Number(ev.billed || 0),
+                    Number(ev.paid || 0),
+                    Number(ev.discount || 0),
+                    Number(ev.balance || 0)
+                ]),
+                filename: `vendor_statement_${vendor?.name || 'vendor'}`,
+                title: `Vendor Statement of Account - ${vendor?.name || ''}`
+            };
         }
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", fileName);
-        link.click();
-    };
+    }, [activeTab, dateWisePayments, statement, vendor?.name]);
 
     const handlePrint = () => {
         const tableEl = document.getElementById("printable-vendor-table");
@@ -227,14 +236,12 @@ export default function Show({ vendor, payments = [], ledgers = [], bills = [], 
                     </Link>
 
                     {(activeTab === 'statement' || activeTab === 'date_wise') && (
-                        <div className="flex items-center gap-2">
-                            <button onClick={handleExportCSV} className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2 text-[13px] font-bold text-emerald-700 hover:bg-emerald-100 transition-colors shadow-sm">
-                                <i className="fa-solid fa-file-csv"></i> Export CSV
-                            </button>
-                            <button onClick={handlePrint} className="flex items-center gap-2 rounded-xl bg-gray-800 border border-gray-800 px-4 py-2 text-[13px] font-bold text-white hover:bg-gray-900 transition-colors shadow-sm">
-                                <i className="fa-solid fa-print"></i> Print Statement
-                            </button>
-                        </div>
+                        <TableExportButtons
+                            headers={exportConfig.headers}
+                            rows={exportConfig.rows}
+                            filename={exportConfig.filename}
+                            title={exportConfig.title}
+                        />
                     )}
                 </div>
 

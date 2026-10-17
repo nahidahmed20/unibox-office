@@ -2,9 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
-
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
+import TableExportButtons from '@/Components/TableExportButtons';
 
 // Custom Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
@@ -134,37 +132,29 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
     const toggleExpand = (userId) => setExpandedRows((prev) => ({ ...prev, [userId]: !prev[userId] }));
 
-    const handleCopy = () => {
-        if (!advanceList.length) return Swal.fire("Empty!", "No data to copy", "warning");
-        const text = advanceList.map((adv, idx) => `${idx + 1}\t${adv.date}\t${adv.account?.name || 'N/A'}\t${adv.user?.name}\t${adv.purpose}\t${adv.status}\tBDT ${parseFloat(adv.amount).toFixed(2)}`).join("\n");
-        navigator.clipboard.writeText(text);
-        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1200, showConfirmButton: false, toast: true, position: 'top-end' });
-    };
-
-    const handleExportCSV = () => {
-        if (!advanceList.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const headers = ["SL,Date,Account,Given To,Purpose,Total Given,Bank Charge,Expensed,Returned,Due,Status\n"];
-        const rows = advanceList.map((adv, idx) => {
+    const exportHeaders = ['SL', 'Date', 'Account', 'Given To', 'Purpose', 'Total Given (৳)', 'Bank Charge (৳)', 'Expensed (৳)', 'Returned (৳)', 'Due (৳)', 'Status'];
+    const exportRows = useMemo(() => {
+        return advanceList.map((adv, idx) => {
             const expensed = parseFloat(adv.settled_amount || 0);
             const returned = parseFloat(adv.returned_amount || 0);
             const total = parseFloat(adv.amount || 0);
             const charge = parseFloat(adv.bank_charge || 0);
-            return `"${idx + 1}","${adv.date}","${adv.account?.name || 'N/A'}","${adv.user?.name}","${adv.purpose}","${total}","${charge}","${expensed}","${returned}","${total - expensed - returned}","${adv.status}"`;
+            const due = total - expensed - returned;
+            return [
+                idx + 1,
+                adv.date || '',
+                adv.account?.name || 'N/A',
+                adv.user?.name || 'N/A',
+                adv.purpose || 'Office Work',
+                total.toFixed(2),
+                charge.toFixed(2),
+                expensed.toFixed(2),
+                returned.toFixed(2),
+                due.toFixed(2),
+                adv.status || 'unsettled'
+            ];
         });
-        const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute("download", `Advance_Report_${new Date().toISOString().slice(0, 10)}.csv`); link.click();
-    };
-
-    const handlePrint = () => {
-        const tableContent = document.getElementById("printable-advance-table");
-        if (!tableContent) return;
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(`<html><head><title>Advance Payments Report</title><style>body { font-family: sans-serif; padding: 30px; } table { width: 100%; border-collapse: collapse; } th, td { padding: 10px; border: 1px solid #ddd; } .actions-col, .expand-btn-col, .no-print { display: none !important; }</style></head><body><h2>Advance Payments Directory</h2>${tableContent.outerHTML}</body></html>`);
-        printWindow.document.close(); printWindow.focus();
-        setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
-    };
+    }, [advanceList]);
 
     const openCreateModal = () => {
         clearErrors();
@@ -294,10 +284,12 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         </div>
 
                         <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2">
-                                <button onClick={handleExportCSV} className="flex h-[40px] w-[40px] items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 transition-all hover:bg-emerald-500 hover:text-white hover:shadow-md hover:-translate-y-0.5" title="Export CSV"><i className="fas fa-file-csv text-[15px]"></i></button>
-                                <button onClick={handlePrint} className="flex h-[40px] w-[40px] items-center justify-center rounded-xl bg-slate-100 text-slate-600 border border-slate-200 transition-all hover:bg-slate-600 hover:text-white hover:shadow-md hover:-translate-y-0.5" title="Print"><i className="fas fa-print text-[14px]"></i></button>
-                            </div>
+                            <TableExportButtons
+                                headers={exportHeaders}
+                                rows={exportRows}
+                                filename="Employee_Advances_Report"
+                                title="Employee Advance Payments Directory"
+                            />
 
                             {hasPermission('create_advance') && (
                                 <button onClick={openCreateModal} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-6 py-[10.5px] text-[13.5px] font-black text-white transition-all shadow-md active:scale-[0.98] ml-2">

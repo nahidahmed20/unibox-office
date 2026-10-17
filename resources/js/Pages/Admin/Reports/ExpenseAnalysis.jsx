@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -42,37 +43,57 @@ export default function ExpenseAnalysis({
         router.get(route('admin.reports.expense-analysis'), {}, { preserveState: true, replace: true });
     };
 
-    const handleExportCSV = () => {
-        let csvContent = "";
-        let fileName = "";
-
+    const exportConfig = useMemo(() => {
         if (activeTab === 'expense_category') {
-            csvContent = "Category Name,Entries Count,Office Expense,Project Expense,Total Expense,Share %\n";
-            categoryRows.forEach(r => {
-                csvContent += `"${(r.category || '').replace(/"/g, '""')}","${r.entries_count}","${r.office_amount}","${r.project_amount}","${r.total_amount}","${r.percentage}%"\n`;
-            });
-            fileName = `Expense_Category_Analysis_${new Date().toISOString().slice(0, 10)}.csv`;
+            return {
+                headers: ['Category Name', 'Entries Count', 'Office Expense (Tk)', 'Project Expense (Tk)', 'Total Expense (Tk)', 'Share %'],
+                rows: categoryRows.map(r => [
+                    r.category || '—',
+                    r.entries_count || 0,
+                    Number(r.office_amount || 0),
+                    Number(r.project_amount || 0),
+                    Number(r.total_amount || 0),
+                    `${r.percentage || 0}%`
+                ]),
+                filename: 'category_wise_expense_analysis',
+                title: 'Category-wise Expense Analysis Report'
+            };
         } else if (activeTab === 'receivable_aging') {
-            csvContent = "Invoice No,Client Name,Phone,Invoice Date,Age (Days),Bucket,Total Bill,Paid,Due Amount\n";
-            receivableAging.forEach(r => {
-                csvContent += `"${r.ref}","${(r.party_name || '').replace(/"/g, '""')}","${r.phone || ''}","${r.date || ''}","${r.days_old}","${r.bucket}","${r.total_bill}","${r.paid}","${r.due}"\n`;
-            });
-            fileName = `Client_Receivable_Aging_${new Date().toISOString().slice(0, 10)}.csv`;
+            return {
+                headers: ['Invoice #', 'Client Name', 'Phone', 'Invoice Date', 'Age (Days)', 'Bucket', 'Total Bill (Tk)', 'Paid (Tk)', 'Due Amount (Tk)'],
+                rows: receivableAging.map(r => [
+                    r.ref || '—',
+                    r.party_name || '—',
+                    r.phone || '—',
+                    r.date || '—',
+                    r.days_old || 0,
+                    r.bucket || '—',
+                    Number(r.total_bill || 0),
+                    Number(r.paid || 0),
+                    Number(r.due || 0)
+                ]),
+                filename: 'client_receivable_aging_report',
+                title: 'Client Receivable Aging Report'
+            };
         } else {
-            csvContent = "Bill Ref,Vendor Name,Project,Bill Date,Age (Days),Bucket,Total Bill,Paid,Due Amount\n";
-            payableAging.forEach(r => {
-                csvContent += `"${r.ref}","${(r.party_name || '').replace(/"/g, '""')}","${(r.project || '').replace(/"/g, '""')}","${r.date || ''}","${r.days_old}","${r.bucket}","${r.total_bill}","${r.paid}","${r.due}"\n`;
-            });
-            fileName = `Vendor_Payable_Aging_${new Date().toISOString().slice(0, 10)}.csv`;
+            return {
+                headers: ['Bill Ref', 'Vendor Name', 'Project', 'Bill Date', 'Age (Days)', 'Bucket', 'Total Bill (Tk)', 'Paid (Tk)', 'Due Amount (Tk)'],
+                rows: payableAging.map(r => [
+                    r.ref || '—',
+                    r.party_name || '—',
+                    r.project || '—',
+                    r.date || '—',
+                    r.days_old || 0,
+                    r.bucket || '—',
+                    Number(r.total_bill || 0),
+                    Number(r.paid || 0),
+                    Number(r.due || 0)
+                ]),
+                filename: 'vendor_payable_aging_report',
+                title: 'Vendor Payable Aging Report'
+            };
         }
-
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", fileName);
-        link.click();
-    };
+    }, [activeTab, categoryRows, receivableAging, payableAging]);
 
     const handlePrint = () => {
         const tableContent = document.getElementById("printable-analysis-table");
@@ -145,14 +166,12 @@ export default function ExpenseAnalysis({
                             Analysis of office and project expenses by category, plus 30/60/90+ days aging reports for client and vendor dues.
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={handleExportCSV} className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2.5 text-[13px] font-bold text-emerald-700 hover:bg-emerald-100 shadow-sm">
-                            <i className="fa-solid fa-file-csv"></i> Export CSV
-                        </button>
-                        <button onClick={handlePrint} className="flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-[13px] font-bold text-white hover:bg-gray-800 shadow-sm">
-                            <i className="fa-solid fa-print"></i> Print Report
-                        </button>
-                    </div>
+                    <TableExportButtons
+                        headers={exportConfig.headers}
+                        rows={exportConfig.rows}
+                        filename={exportConfig.filename}
+                        title={exportConfig.title}
+                    />
                 </div>
 
                 {/* Top Tab Switcher */}

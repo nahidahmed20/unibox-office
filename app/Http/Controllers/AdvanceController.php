@@ -158,8 +158,7 @@ class AdvanceController extends Controller
                     'transactionable_type' => Advance::class,
                 ]);
 
-                $balance = AdvanceBalance::firstOrCreate(['user_id' => $validated['user_id']]);
-                $balance->increment('total_given', $validated['amount']);
+                AdvanceBalance::syncForUser((int) $validated['user_id']);
             });
 
             return redirect()->back()->with('success', 'Advance logged successfully.');
@@ -257,26 +256,12 @@ class AdvanceController extends Controller
                 $oldAmount = (float) $advance->amount;
                 $newAmount = (float) $validated['amount'];
 
-                if ($oldUserId != $newUserId) {
-                    $oldBalance = AdvanceBalance::where('user_id', $oldUserId)->first();
-                    if ($oldBalance) {
-                        $oldBalance->decrement('total_given', $oldAmount);
-                        $oldBalance->decrement('total_used', (float) $advance->settled_amount);
-                        $oldBalance->decrement('total_returned', (float) $advance->returned_amount);
-                    }
-
-                    $newBalance = AdvanceBalance::firstOrCreate(['user_id' => $newUserId]);
-                    $newBalance->increment('total_given', $newAmount);
-                    $newBalance->increment('total_used', (float) $advance->settled_amount);
-                    $newBalance->increment('total_returned', (float) $advance->returned_amount);
-                } elseif ($oldAmount != $newAmount) {
-                    $balance = AdvanceBalance::where('user_id', $oldUserId)->first();
-                    if ($balance) {
-                        $balance->increment('total_given', $newAmount - $oldAmount);
-                    }
-                }
-
                 $advance->update($validated);
+
+                AdvanceBalance::syncForUser((int) $newUserId);
+                if ($oldUserId != $newUserId) {
+                    AdvanceBalance::syncForUser((int) $oldUserId);
+                }
             });
 
             return redirect()->back()->with('success', 'Advance updated successfully.');
@@ -327,8 +312,7 @@ class AdvanceController extends Controller
                     ]);
                 }
 
-                AdvanceBalance::where('user_id', $advance->user_id)
-                    ->increment('total_returned', $validated['return_amount']);
+                AdvanceBalance::syncForUser((int) $advance->user_id);
             });
 
             return redirect()->back()->with('success', 'Money returned to account successfully.');
@@ -378,16 +362,9 @@ class AdvanceController extends Controller
                     }
                 }
 
-                $returned = (float) ($advance->returned_amount ?? 0);
-                $balance = AdvanceBalance::where('user_id', $advance->user_id)->first();
-                if ($balance) {
-                    $balance->decrement('total_given', $advance->amount);
-                    if ($returned > 0) {
-                        $balance->decrement('total_returned', $returned);
-                    }
-                }
-
+                $userId = (int) $advance->user_id;
                 $advance->delete();
+                AdvanceBalance::syncForUser($userId);
             });
 
             return redirect()->back()->with('success', 'Advance deleted and account balances restored.');

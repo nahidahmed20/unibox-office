@@ -15,4 +15,28 @@ class AdvanceBalance extends Model
     {
         return $this->total_given - $this->total_used - $this->total_returned;
     }
+
+    /**
+     * Reconcile and synchronize AdvanceBalance directly from advances table for a specific user.
+     */
+    public static function syncForUser(int $userId): self
+    {
+        $balance = self::firstOrCreate(['user_id' => $userId]);
+        $balance->total_given = round((float) Advance::where('user_id', $userId)->sum('amount'), 2);
+        $balance->total_used = round((float) Advance::where('user_id', $userId)->sum('settled_amount'), 2);
+        $balance->total_returned = round((float) Advance::where('user_id', $userId)->sum('returned_amount'), 2);
+        $balance->save();
+        return $balance;
+    }
+
+    /**
+     * Reconcile all users having advances.
+     */
+    public static function syncAll(): void
+    {
+        $userIds = Advance::distinct()->pluck('user_id')->filter()->unique();
+        foreach ($userIds as $userId) {
+            self::syncForUser((int) $userId);
+        }
+    }
 }

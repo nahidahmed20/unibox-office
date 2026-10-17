@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import CustomSelect from '@/Components/CustomSelect';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -90,21 +91,19 @@ export default function TransactionsReport({ transactions = { data: [], links: [
     const recordList = transactions.data || [];
     const hasActiveFilters = accountId || sourceType || fromDate || toDate || searchTerm;
 
-    // --- Export Tools ---
-    const handleCopy = () => {
-        if (!recordList.length) return Swal.fire("Empty!", "No data to copy", "warning");
-        const text = recordList.map(tx => `${new Date(tx.transaction_date).toLocaleDateString()}\t${tx.account?.name}\t${tx.type.toUpperCase()}\t${tx.amount}`).join("\n");
-        navigator.clipboard.writeText("Date\tAccount\tType\tAmount\n" + text);
-        Swal.fire({ icon: "success", title: "Copied!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
-    };
-
-    const handleExportCSV = () => {
-        if (!recordList.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const headers = ["Date,Account,Source,Description,Type,Amount\n"];
-        const rows = recordList.map(tx => `"${new Date(tx.transaction_date).toLocaleDateString()}","${tx.account?.name || ''}","${tx.source_type || ''}","${(tx.description || '').replace(/"/g, '""')}","${tx.type}","${tx.amount}"`);
-        const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-        const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.setAttribute("download", `Transactions_Report_${new Date().toISOString().slice(0, 10)}.csv`); link.click();
-    };
+    const exportHeaders = ['SL', 'Date', 'Account', 'Source / Context', 'Description', 'Ref No', 'Type', 'Amount (৳)'];
+    const exportRows = useMemo(() => {
+        return recordList.map((tx, idx) => [
+            idx + 1,
+            tx.transaction_date ? new Date(tx.transaction_date).toLocaleDateString() : '',
+            tx.account?.name || 'N/A',
+            getSourceMeta(tx.source_type)?.label || tx.source_type || 'System',
+            tx.description || '',
+            tx.reference_number || '-',
+            tx.type?.toUpperCase() || '',
+            parseFloat(tx.amount || 0).toFixed(2)
+        ]);
+    }, [recordList]);
 
     const handlePrint = () => {
         const tableContent = document.getElementById("printable-table");
@@ -177,11 +176,12 @@ export default function TransactionsReport({ transactions = { data: [], links: [
                                 </div>
                             </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[12.5px] font-bold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 shadow-sm transition-all active:scale-95"><i className="fas fa-copy text-slate-400"></i> Copy</button>
-                            <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[12.5px] font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 shadow-sm transition-all active:scale-95"><i className="fas fa-file-csv text-emerald-500"></i> CSV</button>
-                            <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[12.5px] font-bold text-slate-700 hover:bg-slate-50 shadow-sm transition-all active:scale-95"><i className="fas fa-print text-slate-400"></i> Print</button>
-                        </div>
+                        <TableExportButtons
+                            headers={exportHeaders}
+                            rows={exportRows}
+                            filename="Account_Transactions_Report"
+                            title="Account Transactions Audit Report"
+                        />
                     </div>
 
                     {/* Filters Bar */}

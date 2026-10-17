@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import CustomSelect from '@/Components/CustomSelect';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
@@ -283,41 +284,41 @@ export default function Index({
         return { dailyPartyMap: map, dateWiseGroups: groups };
     }, [transactions.data]);
 
-    const handleCopy = () => {
-        if (!trxList.length) return Swal.fire("Empty!", "No data to copy", "warning");
+    const exportHeaders = useMemo(() => {
         if (viewMode === 'date_wise') {
-            const text = dateWiseGroups.map((g) => `${g.transaction_date}\t${Array.from(g.accounts).join(', ') || "N/A"}\t${g.party_name}\t${g.items.length} Entries\t${g.type?.toUpperCase()}\t${g.total_amount}`).join("\n");
-            navigator.clipboard.writeText("Date\tAccount\tParty/Context\tEntries\tType\tTotal Amount\n" + text);
-        } else {
-            const text = trxList.map((t) => `${t.transaction_date}\t${t.account?.name || "N/A"}\t${t.party_name || 'Manual'}\t${t.description}\t${t.type?.toUpperCase()}\t${t.amount}`).join("\n");
-            navigator.clipboard.writeText("Date\tAccount\tParty/Context\tDescription\tType\tAmount\n" + text);
+            return ['Date', 'Account', 'Party / Entity', 'Company', 'Breakdown / Items', 'Type', 'Total Amount (৳)'];
         }
-        Swal.fire({ icon: "success", title: "Copied!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
-    };
+        return ['SL', 'Date', 'Account', 'Party / Entity', 'Context', 'Description', 'Ref No', 'Type', 'Amount (৳)', 'Bank Charge (৳)'];
+    }, [viewMode]);
 
-    const handleExportCSV = () => {
-        if (!trxList.length) return Swal.fire("Empty!", "No data to export", "warning");
+    const exportRows = useMemo(() => {
         if (viewMode === 'date_wise') {
-            const headers = ["Date,Account,Party,Company,Breakdown,Type,Total Amount\n"];
-            const rows = dateWiseGroups.map(g => {
-                const breakdown = g.items.map(i => `${i.invoice_number || i.context_label}: ${i.amount}`).join(' | ');
-                return `"${g.transaction_date}","${Array.from(g.accounts).join(', ')}","${g.party_name}","${g.party_company || ''}","${breakdown}","${g.type}","${g.total_amount}"`;
+            return dateWiseGroups.map(g => {
+                const breakdown = g.items.map(i => `${i.invoice_number || i.context_label || 'Item'}: ${parseFloat(i.amount).toFixed(2)}`).join(' | ');
+                return [
+                    g.transaction_date,
+                    Array.from(g.accounts).join(', ') || 'N/A',
+                    g.party_name,
+                    g.party_company || '-',
+                    breakdown,
+                    g.type?.toUpperCase() || '',
+                    parseFloat(g.total_amount).toFixed(2)
+                ];
             });
-            const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.setAttribute("download", `DateWise_Transactions_${new Date().toISOString().slice(0, 10)}.csv`);
-            link.click();
-            return;
         }
-        const headers = ["Date,Account,Party Context,Description,Reference,Type,Amount\n"];
-        const rows = trxList.map(t => `"${t.transaction_date}","${t.account?.name || ''}","${t.party_name || 'Manual Entry'} (${t.context_label || ''})","${t.description}","${t.reference_number || ''}","${t.type}","${t.amount}"`);
-        const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute("download", `Transactions_Ledger_${new Date().toISOString().slice(0, 10)}.csv`);
-        link.click();
-    };
+        return trxList.map((t, idx) => [
+            idx + 1,
+            t.transaction_date || '',
+            t.account?.name || 'N/A',
+            t.party_name || 'Manual Entry',
+            t.context_label || '-',
+            t.description || '',
+            t.reference_number || '-',
+            t.type?.toUpperCase() || '',
+            parseFloat(t.amount || 0).toFixed(2),
+            parseFloat(t.bank_charge || 0).toFixed(2)
+        ]);
+    }, [viewMode, dateWiseGroups, trxList]);
 
     const handlePrint = () => {
         const tableContent = document.getElementById("printable-table");
@@ -601,9 +602,12 @@ export default function Index({
 
                             <div className="h-6 w-px bg-slate-300 mx-1 hidden md:block"></div>
 
-                            <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-700 transition-colors hover:bg-slate-100 shadow-sm"><i className="fas fa-copy text-blue-500"></i> Copy</button>
-                            <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 shadow-sm"><i className="fas fa-file-csv"></i> CSV</button>
-                            <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-700 transition-colors hover:bg-slate-100 shadow-sm"><i className="fas fa-print text-slate-500"></i> Print</button>
+                            <TableExportButtons
+                                headers={exportHeaders}
+                                rows={exportRows}
+                                filename={viewMode === 'date_wise' ? 'DateWise_Transactions' : 'Transactions_Ledger'}
+                                title={viewMode === 'date_wise' ? 'Date-wise Transaction Summaries' : 'Detailed Transaction Ledger'}
+                            />
 
                             {/* Toggle Advanced Filters Button */}
                             <button

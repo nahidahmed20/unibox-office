@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import CustomSelect from '@/Components/CustomSelect';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const money = (value) =>
     Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export default function MonthlyBalance({ rows = [], summary, years = [], accounts = [], filters }) {
+export default function MonthlyBalance({ rows = [], summary = {}, years = [], accounts = [], filters = {} }) {
     const applyFilters = (changes) => {
         const next = { year: filters.year, account_id: filters.account_id || '', ...changes };
         if (!next.account_id) delete next.account_id;
@@ -16,18 +17,30 @@ export default function MonthlyBalance({ rows = [], summary, years = [], account
     const selectedAccount = accounts.find((a) => Number(a.id) === Number(filters.account_id));
     const scopeLabel = selectedAccount ? selectedAccount.name : 'All accounts';
 
-    const handleExportCSV = () => {
-        const header = 'Month,Opening,Deposit (+),Withdraw (-),Closing,Transactions';
-        const lines = rows.map((r) => `"${r.label}",${r.opening},${r.deposit},${r.withdraw},${r.closing},${r.count}`);
-        lines.push(`"Total ${filters.year}",${summary.opening},${summary.deposit},${summary.withdraw},${summary.closing},`);
-        const blob = new Blob(['\uFEFF' + [header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `Monthly_Balance_${filters.year}${selectedAccount ? '_' + selectedAccount.name : ''}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
+    const exportHeaders = ['Month', 'Opening (Tk)', 'Deposit (+) (Tk)', 'Withdraw (-) (Tk)', 'Closing (Tk)', 'Net Change (Tk)', 'Transactions'];
+    const exportRows = useMemo(() => {
+        const list = (rows || []).map((r) => [
+            r.label || '—',
+            Number(r.opening || 0),
+            Number(r.deposit || 0),
+            Number(r.withdraw || 0),
+            Number(r.closing || 0),
+            Number((r.closing || 0) - (r.opening || 0)),
+            Number(r.count || 0)
+        ]);
+        if (summary) {
+            list.push([
+                `Total ${filters.year || ''}`,
+                Number(summary.opening || 0),
+                Number(summary.deposit || 0),
+                Number(summary.withdraw || 0),
+                Number(summary.closing || 0),
+                Number((summary.closing || 0) - (summary.opening || 0)),
+                ''
+            ]);
+        }
+        return list;
+    }, [rows, summary, filters.year]);
 
     const cards = [
         { label: 'Year Opening', sub: 'Start of the year', value: summary.opening, icon: 'fa-flag', tone: 'text-slate-900', bg: 'bg-slate-100 text-slate-600' },
@@ -78,12 +91,12 @@ export default function MonthlyBalance({ rows = [], summary, years = [], account
                                 ))}
                             </CustomSelect>
                         </div>
-                        <button onClick={handleExportCSV} className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13.5px] font-bold text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100">
-                            <i className="fa-solid fa-file-excel"></i> <span className="hidden sm:inline">CSV</span>
-                        </button>
-                        <button onClick={() => window.print()} className="flex items-center gap-2 rounded-xl border border-gray-900 bg-gray-900 px-4 py-2.5 text-[13.5px] font-bold text-white shadow-sm transition-colors hover:bg-gray-800">
-                            <i className="fa-solid fa-print"></i> <span className="hidden sm:inline">Print</span>
-                        </button>
+                        <TableExportButtons
+                            headers={exportHeaders}
+                            rows={exportRows}
+                            filename={`monthly_balance_${filters.year || ''}`}
+                            title={`Monthly Balance Summary - ${filters.year || ''} (${scopeLabel})`}
+                        />
                     </div>
                 </div>
 

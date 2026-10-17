@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, Link, usePage } from '@inertiajs/react';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
@@ -16,6 +17,37 @@ export default function Show({ client }) {
     const financial = client.financial_summary || { total_invoiced: 0, total_paid: 0, net_due: 0 };
     const projects = client.projects || [];
     const invoices = client.invoices || [];
+
+    const exportConfig = useMemo(() => {
+        if (activeTab === 'projects') {
+            return {
+                headers: ['Project Title', 'Status', 'Priority', 'Deadline', 'Budget (Tk)'],
+                rows: (projects || []).map(p => [
+                    p.title || '—',
+                    p.status || '—',
+                    p.priority || '—',
+                    p.deadline || '—',
+                    Number(p.budget || 0)
+                ]),
+                filename: `client_projects_${client?.name || 'client'}`,
+                title: `Client Projects - ${client?.name || ''}`
+            };
+        } else {
+            return {
+                headers: ['Invoice #', 'Date', 'Status', 'Grand Total (Tk)', 'Paid (Tk)', 'Due (Tk)'],
+                rows: (invoices || []).map(i => [
+                    i.invoice_number || '—',
+                    i.invoice_date || '—',
+                    i.status || '—',
+                    Number(i.grand_total || 0),
+                    Number(i.paid_amount || 0),
+                    Number(i.due_amount || 0)
+                ]),
+                filename: `client_invoices_${client?.name || 'client'}`,
+                title: `Client Invoices - ${client?.name || ''}`
+            };
+        }
+    }, [activeTab, projects, invoices, client?.name]);
 
     return (
         <AdminLayout>
@@ -93,13 +125,21 @@ export default function Show({ client }) {
 
                 {/* 🟢 Tabs Area */}
                 <div className="bg-white border border-gray-200 rounded-3xl shadow-sm overflow-hidden flex flex-col">
-                    <div className="flex border-b border-gray-200 bg-gray-50/80 p-3 gap-2 overflow-x-auto custom-table-scroll">
-                        <button onClick={() => setActiveTab('projects')} className={`flex items-center gap-2 px-6 py-2.5 text-[13.5px] font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'projects' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200 border border-transparent'}`}>
-                            <i className="fa-solid fa-rocket"></i> Recent Projects
-                        </button>
-                        <button onClick={() => setActiveTab('invoices')} className={`flex items-center gap-2 px-6 py-2.5 text-[13.5px] font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'invoices' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200 border border-transparent'}`}>
-                            <i className="fa-solid fa-file-invoice"></i> Invoices History
-                        </button>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200 bg-gray-50/80 p-3 gap-3 overflow-x-auto custom-table-scroll">
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => setActiveTab('projects')} className={`flex items-center gap-2 px-6 py-2.5 text-[13.5px] font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'projects' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200 border border-transparent'}`}>
+                                <i className="fa-solid fa-rocket"></i> Recent Projects
+                            </button>
+                            <button onClick={() => setActiveTab('invoices')} className={`flex items-center gap-2 px-6 py-2.5 text-[13.5px] font-bold rounded-xl transition-all whitespace-nowrap ${activeTab === 'invoices' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200 border border-transparent'}`}>
+                                <i className="fa-solid fa-file-invoice"></i> Invoices History
+                            </button>
+                        </div>
+                        <TableExportButtons
+                            headers={exportConfig.headers}
+                            rows={exportConfig.rows}
+                            filename={exportConfig.filename}
+                            title={exportConfig.title}
+                        />
                     </div>
 
                     <div className="p-0 overflow-x-auto custom-table-scroll">

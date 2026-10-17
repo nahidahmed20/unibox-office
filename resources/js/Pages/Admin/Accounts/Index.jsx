@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import CustomSelect from '@/Components/CustomSelect';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
@@ -321,15 +322,29 @@ export default function Index({ accounts = { data: [], links: [] }, summary = {}
                             Account Directory
                         </div>
                         <div className="flex items-center gap-2.5">
-                            <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[13px] font-bold text-slate-600 hover:text-blue-600 transition-all hover:bg-slate-50 shadow-sm hover:shadow active:scale-95">
-                                <i className="fas fa-copy"></i> Copy
-                            </button>
-                            <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[13px] font-bold text-slate-600 hover:text-emerald-600 transition-all hover:bg-slate-50 shadow-sm hover:shadow active:scale-95">
-                                <i className="fas fa-file-csv"></i> CSV
-                            </button>
-                            <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[13px] font-bold text-slate-600 hover:text-slate-900 transition-all hover:bg-slate-50 shadow-sm hover:shadow active:scale-95">
-                                <i className="fas fa-print"></i> Print
-                            </button>
+                            <TableExportButtons
+                                headers={['Account Name', 'Type', 'A/C Number', 'Opening Balance (BDT)', 'Current Balance (BDT)', 'Status']}
+                                rows={accList.map(a => [
+                                    a.name,
+                                    a.type,
+                                    a.account_number || '',
+                                    Number(a.opening_balance || 0).toFixed(2),
+                                    Number(a.current_balance || 0).toFixed(2),
+                                    a.is_active ? 'Active' : 'Inactive'
+                                ])}
+                                data={accList.map((a, idx) => ({
+                                    "SL": idx + 1,
+                                    "Account Name": a.name,
+                                    "Type": a.type,
+                                    "A/C Number": a.account_number || '',
+                                    "Opening Balance (BDT)": Number(a.opening_balance || 0),
+                                    "Current Balance (BDT)": Number(a.current_balance || 0),
+                                    "Status": a.is_active ? 'Active' : 'Inactive'
+                                }))}
+                                filename="Accounts_List"
+                                title="Accounts Directory Report"
+                                tableId="printable-table"
+                            />
                             {(isSuperAdmin || hasPermission('create_account')) && (
                                 <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-[13.5px] font-bold text-white transition-all hover:bg-indigo-700 shadow-md hover:shadow-lg active:scale-95 ml-2">
                                     <i className="fa-solid fa-plus text-[12px]"></i> New Account

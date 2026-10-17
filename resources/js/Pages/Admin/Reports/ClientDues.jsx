@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 import CustomSelect from '@/Components/CustomSelect';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 export default function ClientDues({ clientDues, filters, grandTotalDue = 0, grandTotalAdvance = 0 }) {
     const { auth } = usePage().props;
@@ -42,41 +43,24 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0, gra
     /* =========================================
        EXPORT FUNCTIONS (Copy, CSV, Print)
     ========================================= */
-    const handleCopy = () => {
-        if (!clients.length) return Swal.fire("Empty!", "No data to copy", "warning");
-
-        const header = "SL\tClient Name\tPhone\tAvailable Advance\tNet Due\n";
-        const text = clients
-            .map((c, idx) => {
-                const billed = parseFloat(c.total_invoiced || 0);
-                const paid = parseFloat(c.total_paid || 0);
-                const due = billed - paid;
-                return `${idx + 1}\t${c.name}\t${c.phone || "N/A"}\t${billed.toFixed(2)}\t${paid.toFixed(2)}\t${parseFloat(c.available_advance || 0).toFixed(2)}\t${due > 0 ? due.toFixed(2) : "0.00"}`;
-            })
-            .join("\n");
-
-        navigator.clipboard.writeText(header + text);
-        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1200, showConfirmButton: false, toast: true, position: 'top-end' });
-    };
-
-    const handleExportCSV = () => {
-        if (!clients.length) return Swal.fire("Empty!", "No data to export", "warning");
-
-        const headers = ["SL,Client Name,Company,Phone,Available Advance,Net Due\n"];
-        const rows = clients.map((c, idx) => {
+    const exportHeaders = ['SL', 'Client Name', 'Company', 'Phone', 'Total Billed (৳)', 'Total Paid (৳)', 'Available Advance (৳)', 'Net Due (৳)'];
+    const exportRows = useMemo(() => {
+        return clients.map((c, idx) => {
             const billed = parseFloat(c.total_invoiced || 0);
             const paid = parseFloat(c.total_paid || 0);
-            const due = billed - paid;
-            return `"${idx + 1}","${c.name}","${c.company_name || "Individual"}","${c.phone || "N/A"}","${billed}","${paid}","${c.available_advance || 0}","${due > 0 ? due : 0}"`;
+            const due = Math.max(0, billed - paid);
+            return [
+                idx + 1,
+                c.name || '',
+                c.company_name || 'Individual',
+                c.phone || 'N/A',
+                billed.toFixed(2),
+                paid.toFixed(2),
+                parseFloat(c.available_advance || 0).toFixed(2),
+                due.toFixed(2)
+            ];
         });
-
-        const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `Client_Dues_Report_${new Date().toISOString().slice(0, 10)}.csv`);
-        link.click();
-    };
+    }, [clients]);
 
     const handlePrint = () => {
         const tableContent = document.getElementById("printable-client-dues-table");
@@ -219,17 +203,12 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0, gra
 
                             <div className="h-8 w-px bg-gray-200 hidden md:block"></div>
 
-                            <div className="flex items-center gap-2">
-                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-300 shadow-sm">
-                                    <i className="fas fa-copy text-blue-500"></i> Copy
-                                </button>
-                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-all hover:bg-emerald-100 shadow-sm">
-                                    <i className="fas fa-file-csv"></i> CSV
-                                </button>
-                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-300 shadow-sm">
-                                    <i className="fas fa-print text-gray-500"></i> Print
-                                </button>
-                            </div>
+                            <TableExportButtons
+                                headers={exportHeaders}
+                                rows={exportRows}
+                                filename="Client_Dues_Report"
+                                title="Accounts Receivable - Client Dues Report"
+                            />
                         </div>
 
                         <div className="relative w-full sm:w-[320px]">
@@ -250,11 +229,10 @@ export default function ClientDues({ clientDues, filters, grandTotalDue = 0, gra
                                 <tr>
                                     <th className="px-6 py-4.5 w-12">SL</th>
                                     <th className="px-6 py-4.5">Client Profile</th>
-                                    
-                                    
-
+                                    <th className="px-6 py-4.5 text-right bg-blue-50/40">Total Billed</th>
+                                    <th className="px-6 py-4.5 text-right bg-emerald-50/40">Total Paid</th>
                                     <th className="px-6 py-4.5 text-right bg-rose-50/40 border-r border-gray-100">Net Due Amount</th>
-                                    <th className="px-6 py-4.5 text-right">Avail. Advance</th>
+                                    <th className="px-6 py-4.5 text-right bg-purple-50/40">Avail. Advance</th>
                                     <th className="px-6 py-4.5 text-center no-print w-36">Audit Trail</th>
                                 </tr>
                             </thead>

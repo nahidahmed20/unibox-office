@@ -5,6 +5,7 @@ import Swal from 'sweetalert2';
 
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import TableExportButtons from '@/Components/TableExportButtons';
 
 // Custom Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
@@ -313,10 +314,38 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                             </div>
                             Vendor Bills & Expenses
                         </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={handleCopy} className="flex h-[40px] w-[40px] items-center justify-center rounded-xl bg-blue-50 text-blue-600 border border-blue-200 transition-all hover:bg-blue-500 hover:text-white hover:shadow-md hover:-translate-y-0.5" title="Copy"><i className="fas fa-copy text-[15px]"></i></button>
-                            <button onClick={handleExportCSV} className="flex h-[40px] w-[40px] items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 transition-all hover:bg-emerald-500 hover:text-white hover:shadow-md hover:-translate-y-0.5" title="Export CSV"><i className="fas fa-file-csv text-[15px]"></i></button>
-                            <button onClick={handlePrint} className="flex h-[40px] w-[40px] items-center justify-center rounded-xl bg-slate-100 text-slate-600 border border-slate-200 transition-all hover:bg-slate-600 hover:text-white hover:shadow-md hover:-translate-y-0.5" title="Print"><i className="fas fa-print text-[14px]"></i></button>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <TableExportButtons
+                                headers={['Date', 'Client', 'Project', 'Expense Title', 'Vendor/Payee', 'Source', 'Total Bill', 'Paid', 'Due', 'Status']}
+                                rows={expList.map(e => [
+                                    e.date,
+                                    e.project?.client?.name || '',
+                                    e.project?.title || '',
+                                    e.title,
+                                    e.payee_name || e.vendor?.name || '',
+                                    e.account_id ? e.account?.name : (e.advance_user_id ? 'Staff Advance' : 'Vendor Wallet'),
+                                    Number(e.total_bill || 0).toFixed(2),
+                                    Number(e.paid_amount || 0).toFixed(2),
+                                    Number(e.due_amount || 0).toFixed(2),
+                                    (e.payment_status || '').toUpperCase()
+                                ])}
+                                data={expList.map((e, idx) => ({
+                                    "SL": idx + 1,
+                                    "Date": e.date,
+                                    "Client": e.project?.client?.name || '',
+                                    "Project": e.project?.title || '',
+                                    "Expense Title": e.title,
+                                    "Vendor / Payee": e.payee_name || e.vendor?.name || '',
+                                    "Source": e.account_id ? e.account?.name : (e.advance_user_id ? 'Staff Advance' : 'Vendor Wallet'),
+                                    "Total Bill (BDT)": Number(e.total_bill || 0),
+                                    "Paid (BDT)": Number(e.paid_amount || 0),
+                                    "Due (BDT)": Number(e.due_amount || 0),
+                                    "Status": (e.payment_status || '').toUpperCase()
+                                }))}
+                                filename="Project_Expenses"
+                                title="Project Expenses Report"
+                                tableId="printable-table"
+                            />
 
                             {hasPermission('create_project_expenses') && (
                                 <Link href={route('admin.project-expenses.create')} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 px-6 py-[10px] text-[13.5px] font-black text-white transition-all shadow-md shadow-indigo-200 hover:shadow-lg hover:shadow-indigo-300 active:scale-[0.98] border border-indigo-700/50 ml-2">

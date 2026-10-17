@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -43,19 +44,23 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
         router.get(route('admin.reports.project-profit'), {}, { preserveState: true, replace: true });
     };
 
-    const handleExportCSV = () => {
-        if (projects.length === 0) return Swal.fire("Empty!", "No project data to export.", "warning");
-        let csvContent = "Project Title,Client,Start Date,Status,Budget,Invoiced Amount,Collected,Receivable Due,Total Expense,Vendor Due,Net Profit/Loss,Margin %\n";
-        projects.forEach(p => {
-            csvContent += `"${(p.title || '').replace(/"/g, '""')}","${(p.client_name || '').replace(/"/g, '""')}","${p.start_date || ''}","${p.status || ''}","${p.budget}","${p.invoiced}","${p.collected}","${p.receivable}","${p.total_expense}","${p.due_expense}","${p.net_profit}","${p.margin}%"\n`;
-        });
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `Project_Profit_Loss_${new Date().toISOString().slice(0, 10)}.csv`);
-        link.click();
-    };
+    const exportHeaders = ['Project Title', 'Client', 'Start Date', 'Status', 'Budget (Tk)', 'Invoiced Bill (Tk)', 'Collected (Tk)', 'Client Due (Tk)', 'Project Expense (Tk)', 'Vendor Due (Tk)', 'Net Profit/Loss (Tk)', 'Margin %'];
+    const exportRows = useMemo(() => {
+        return (projects || []).map((p) => [
+            p.title || '—',
+            p.client_name || '—',
+            p.start_date || '—',
+            p.status || '—',
+            Number(p.budget || 0),
+            Number(p.invoiced || 0),
+            Number(p.collected || 0),
+            Number(p.receivable || 0),
+            Number(p.total_expense || 0),
+            Number(p.due_expense || 0),
+            Number(p.net_profit || 0),
+            `${p.margin || 0}%`
+        ]);
+    }, [projects]);
 
     const handlePrint = () => {
         if (projects.length === 0) return Swal.fire("Empty!", "No project data to print.", "warning");
@@ -123,14 +128,12 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                             Comprehensive audit of budgets, billed invoices, collections, expenses, and net profit/loss for every project.
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={handleExportCSV} className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2.5 text-[13px] font-bold text-emerald-700 hover:bg-emerald-100 shadow-sm">
-                            <i className="fa-solid fa-file-csv"></i> Export CSV
-                        </button>
-                        <button onClick={handlePrint} className="flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-[13px] font-bold text-white hover:bg-gray-800 shadow-sm">
-                            <i className="fa-solid fa-print"></i> Print Report
-                        </button>
-                    </div>
+                    <TableExportButtons
+                        headers={exportHeaders}
+                        rows={exportRows}
+                        filename="project_profit_loss_report"
+                        title="Project-wise Profit & Loss Analysis Report"
+                    />
                 </div>
 
                 {/* Summary Cards */}

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import CustomSelect from '@/Components/CustomSelect';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -65,27 +66,22 @@ export default function Index({ clients = { data: [], links: [] } }) {
         return () => clearTimeout(delayDebounceFn);
     }, [searchTerm, perPage]);
 
-    // --- Actions ---
-    const handleCopy = () => {
-        if (!clients.data || !clients.data.length) return Swal.fire("Empty!", "No data to copy", "warning");
-        const text = clients.data
-            .map((c) => `${c.name}\t${c.company_name || "N/A"}\t${c.phone || "N/A"}\tBilled: ${c.total_invoiced || 0}\tPaid: ${c.total_paid || 0}\tDue: ${c.net_due || 0}\tAdv: ${c.advance_balance || 0}`)
-            .join("\n");
-        navigator.clipboard.writeText("Name\tCompany\tPhone\tTotal Billed\tTotal Paid\tNet Due\tAdvance\n" + text);
-        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
-    };
-
-    const handleExportCSV = () => {
-        if (!clients.data || !clients.data.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const headers = ["Client Name,Company,Email,Phone,Total Billed,Total Paid,Current Due,Advance Balance,Address\n"];
-        const rows = clients.data.map(c => `"${c.name}","${c.company_name || ''}","${c.email || ''}","${c.phone || ''}","${c.total_invoiced || 0}","${c.total_paid || 0}","${c.net_due || 0}","${c.advance_balance || 0}","${c.address || ''}"`);
-        const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `Clients_Directory_${new Date().toISOString().slice(0, 10)}.csv`);
-        link.click();
-    };
+    const clientList = Array.isArray(clients) ? clients : (clients?.data || []);
+    const exportHeaders = ['SL', 'Client Name', 'Company', 'Phone', 'Email', 'Total Billed (৳)', 'Total Paid (৳)', 'Net Due (৳)', 'Advance (৳)', 'Address'];
+    const exportRows = useMemo(() => {
+        return clientList.map((c, idx) => [
+            idx + 1,
+            c.name || '',
+            c.company_name || 'N/A',
+            c.phone || 'N/A',
+            c.email || '',
+            parseFloat(c.total_invoiced || 0).toFixed(2),
+            parseFloat(c.total_paid || 0).toFixed(2),
+            parseFloat(c.net_due || 0).toFixed(2),
+            parseFloat(c.advance_balance || 0).toFixed(2),
+            c.address || ''
+        ]);
+    }, [clientList]);
 
     const handlePrint = () => {
         const tableContent = document.getElementById("printable-table");
@@ -237,17 +233,12 @@ export default function Index({ clients = { data: [], links: [] } }) {
                             <div className="h-8 w-px bg-gray-200 hidden md:block"></div>
 
                             {/* Export Buttons */}
-                            <div className="flex items-center gap-2">
-                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-300 shadow-sm">
-                                    <i className="fas fa-copy text-blue-500"></i> Copy
-                                </button>
-                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-all hover:bg-emerald-100 shadow-sm">
-                                    <i className="fas fa-file-csv"></i> CSV
-                                </button>
-                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-300 shadow-sm">
-                                    <i className="fas fa-print text-gray-500"></i> Print
-                                </button>
-                            </div>
+                            <TableExportButtons
+                                headers={exportHeaders}
+                                rows={exportRows}
+                                filename="Clients_Directory_Report"
+                                title="Clients Directory"
+                            />
                         </div>
 
                         {/* Search */}

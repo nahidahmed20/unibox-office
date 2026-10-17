@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
 import CustomSelect from '@/Components/CustomSelect';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const INVESTOR_TYPE_META = {
     lender: { label: 'Lender', chip: 'border-amber-500 bg-amber-50 text-amber-700', avatar: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
@@ -157,26 +158,24 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
         });
     };
 
-    // Export Tools
-    const handleCopy = () => {
-        if (!investmentList.length) return Swal.fire("Empty!", "No data to copy", "warning");
-        const text = investmentList.map(inv => `${inv.investor?.name}\t${inv.date}\t${inv.amount}\t${inv.due_amount}\t${inv.status}`).join("\n");
-        navigator.clipboard.writeText("Investor\tDate\tAmount\tDue\tStatus\n" + text);
-        Swal.fire({ icon: "success", title: "Copied!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
-    };
-
-    const handleExportCSV = () => {
-        if (!investmentList.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const headers = ["Investor,Type,Investment Type,Date,Amount,Due,Status\n"];
-        const rows = investmentList.map(inv => `"${inv.investor?.name}","${inv.investor?.type}","${inv.investment_type}","${inv.date}","${inv.amount}","${inv.due_amount}","${inv.status}"`);
-        const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute("download", `Investments_${new Date().toISOString().slice(0,10)}.csv`);
-        link.click();
-    };
-
-    const handlePrint = () => window.print();
+    const exportHeaders = ['SL', 'Investor Name', 'Phone', 'Investor Type', 'Investment Type', 'Date', 'Purpose', 'Account', 'Received (Tk)', 'Principal Paid (Tk)', 'Profit Paid (Tk)', 'Due Base (Tk)', 'Status'];
+    const exportRows = useMemo(() => {
+        return investmentList.map((inv, idx) => [
+            (investments.current_page ? (investments.current_page - 1) * (investments.per_page || 25) : 0) + idx + 1,
+            inv.investor?.name || 'N/A',
+            inv.investor?.phone || '—',
+            inv.investor?.type || '—',
+            inv.investment_type || '—',
+            inv.date || '—',
+            inv.purpose || '—',
+            inv.account?.name || '—',
+            Number(inv.amount || 0),
+            Number(inv.returned_principal || 0),
+            Number(inv.returned_profit || 0),
+            Number(inv.due_amount || 0),
+            inv.status || '—'
+        ]);
+    }, [investmentList, investments.current_page, investments.per_page]);
 
     const accountOptions = accounts.map(a => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` }));
 
@@ -253,12 +252,15 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
                                 <p className="text-[12px] text-slate-500 font-bold mt-0.5">{investments.total ?? investmentList.length} total records</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-all hover:bg-emerald-100 shadow-sm">
-                                <i className="fas fa-file-csv"></i> CSV
-                            </button>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <TableExportButtons
+                                headers={exportHeaders}
+                                rows={exportRows}
+                                filename="investments_loans_report"
+                                title="Investments & Loans Report"
+                            />
                             {hasPermission('create_investment') && (
-                                <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-[13.5px] font-black text-white transition-all hover:bg-indigo-700 shadow-md hover:-translate-y-0.5 ml-2">
+                                <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-[13.5px] font-black text-white transition-all hover:bg-indigo-700 shadow-md hover:-translate-y-0.5 ml-1">
                                     <i className="fa-solid fa-plus text-[12px]"></i> Add Investment
                                 </button>
                             )}

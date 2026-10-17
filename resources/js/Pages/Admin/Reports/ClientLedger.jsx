@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, usePage } from '@inertiajs/react';
 import Select from 'react-select';
 import Swal from 'sweetalert2';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -38,48 +39,37 @@ export default function ClientLedger({ clients = [], ledger = [], dateWisePaymen
         router.get(route('admin.reports.client-ledger'), {}, { preserveState: true, replace: true });
     };
 
-    const handleCopy = () => {
-        if (!clientInfo || ledger.length === 0) return Swal.fire("Empty!", "No ledger data to copy.", "warning");
+    const exportHeaders = useMemo(() => {
         if (activeTab === 'date_wise_payments') {
-            const text = dateWisePayments.map(g => {
-                const breakdown = g.items.map(i => `${i.ref} (৳${i.amount})`).join(', ');
-                return `${g.date}\t${g.methods.join(', ')}\t${breakdown}\t${g.total_amount}`;
-            }).join("\n");
-            navigator.clipboard.writeText("Date\tPayment Mode\tInvoices Breakdown\tTotal Paid\n" + text);
-        } else {
-            const text = ledger.map(item => `${item.date}\t${item.type}\t${item.description}\t${item.debit}\t${item.credit}\t${item.balance}`).join("\n");
-            navigator.clipboard.writeText("Date\tType\tDescription\tDebit\tCredit\tBalance\n" + text);
+            return ['Date', 'Payment Mode', 'Entries', 'Invoices Breakdown', 'Notes', 'Total Paid on Date (৳)'];
         }
-        Swal.fire({ icon: "success", title: "Copied!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
-    };
+        return ['Date', 'Transaction Type', 'Reference', 'Description', 'Debit (Bill ৳)', 'Credit (Paid ৳)', 'Running Balance (৳)'];
+    }, [activeTab]);
 
-    const handleExportCSV = () => {
-        if (!clientInfo || ledger.length === 0) return Swal.fire("Empty!", "No ledger data to export.", "warning");
-
-        let csvContent = "";
-        let fileName = "";
+    const exportRows = useMemo(() => {
         if (activeTab === 'date_wise_payments') {
-            csvContent = "Date,Payment Mode,Total Entries,Invoices Breakdown,Notes,Total Paid on Date\n";
-            dateWisePayments.forEach(g => {
+            return dateWisePayments.map(g => {
                 const breakdown = g.items.map(i => `${i.ref}: ${i.amount}`).join(" | ");
-                csvContent += `"${g.date}","${g.methods.join(', ')}","${g.items.length}","${breakdown.replace(/"/g, '""')}","${(g.notes || []).join(' | ').replace(/"/g, '""')}","${g.total_amount}"\n`;
+                return [
+                    g.date,
+                    g.methods.join(', '),
+                    g.items.length,
+                    breakdown,
+                    (g.notes || []).join(' | '),
+                    parseFloat(g.total_amount || 0).toFixed(2)
+                ];
             });
-            fileName = `DateWise_Payments_${clientInfo.name}_${new Date().toISOString().slice(0, 10)}.csv`;
-        } else {
-            csvContent = "Date,Transaction Type,Reference,Description,Debit (Bill),Credit (Paid),Running Balance\n";
-            ledger.forEach(item => {
-                csvContent += `"${item.date}","${item.type}","${item.ref}","${item.description}","${item.debit}","${item.credit}","${item.balance}"\n`;
-            });
-            fileName = `Ledger_${clientInfo.name}_${new Date().toISOString().slice(0, 10)}.csv`;
         }
-
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", fileName);
-        link.click();
-    };
+        return ledger.map(item => [
+            item.date,
+            item.type,
+            item.ref,
+            item.description,
+            parseFloat(item.debit || 0).toFixed(2),
+            parseFloat(item.credit || 0).toFixed(2),
+            parseFloat(item.balance || 0).toFixed(2)
+        ]);
+    }, [activeTab, dateWisePayments, ledger]);
 
     const handlePrint = () => {
         if (!clientInfo || ledger.length === 0) {
@@ -266,17 +256,12 @@ export default function ClientLedger({ clients = [], ledger = [], dateWisePaymen
                         </div>
 
                         {ledger.length > 0 && (
-                            <div className="flex items-center gap-2 shrink-0">
-                                <button onClick={handleCopy} className="flex items-center justify-center gap-2 rounded-xl bg-white border border-gray-200 px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm">
-                                    <i className="fa-solid fa-copy text-blue-500"></i> Copy
-                                </button>
-                                <button onClick={handleExportCSV} className="flex items-center justify-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 shadow-sm">
-                                    <i className="fa-solid fa-file-csv"></i> CSV
-                                </button>
-                                <button onClick={handlePrint} className="flex items-center justify-center gap-2 rounded-xl bg-gray-800 border border-gray-800 px-4 py-2.5 text-[13px] font-bold text-white transition-colors hover:bg-gray-900 shadow-sm">
-                                    <i className="fa-solid fa-print"></i> Print
-                                </button>
-                            </div>
+                            <TableExportButtons
+                                headers={exportHeaders}
+                                rows={exportRows}
+                                filename={activeTab === 'date_wise_payments' ? `DateWise_Payments_${clientInfo?.name || 'Client'}` : `Ledger_${clientInfo?.name || 'Client'}`}
+                                title={activeTab === 'date_wise_payments' ? `Date-wise Payments - ${clientInfo?.name || 'Client'}` : `Client Ledger - ${clientInfo?.name || 'Client'}`}
+                            />
                         )}
                     </div>
 

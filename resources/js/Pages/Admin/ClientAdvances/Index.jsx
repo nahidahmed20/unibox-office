@@ -4,6 +4,7 @@ import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
 import CustomSelect from '@/Components/CustomSelect';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -491,18 +492,27 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
 
                             <div className="h-8 w-px bg-gray-200 hidden md:block"></div>
 
-                            {/* Action Buttons */}
-                            <div className="flex items-center gap-2">
-                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-300 shadow-sm">
-                                    <i className="fas fa-copy text-blue-500"></i> Copy
-                                </button>
-                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-all hover:bg-emerald-100 shadow-sm">
-                                    <i className="fas fa-file-csv"></i> CSV
-                                </button>
-                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-300 shadow-sm">
-                                    <i className="fas fa-print text-gray-500"></i> Print
-                                </button>
-                            </div>
+                            <TableExportButtons
+                                headers={['Client Name', 'Company', 'Total Received (BDT)', 'Total Adjusted (BDT)', 'Net Available (BDT)']}
+                                rows={clientList.map(c => [
+                                    c.name,
+                                    c.company_name || 'Individual',
+                                    Number(c.total_amount || 0).toFixed(2),
+                                    Number(c.total_used || 0).toFixed(2),
+                                    Number(c.available_balance || 0).toFixed(2)
+                                ])}
+                                data={clientList.map((c, idx) => ({
+                                    "SL": idx + 1,
+                                    "Client Name": c.name,
+                                    "Company": c.company_name || 'Individual',
+                                    "Total Received (BDT)": Number(c.total_amount || 0),
+                                    "Total Adjusted (BDT)": Number(c.total_used || 0),
+                                    "Net Available (BDT)": Number(c.available_balance || 0)
+                                }))}
+                                filename="Client_Advances"
+                                title="Client Advances Summary"
+                                tableId="printable-table"
+                            />
                         </div>
 
                         {/* Search Bar & Create Button */}

@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 /* ---------- Design tokens & Helpers ---------- */
 const fmt = (n) => Number(n || 0).toLocaleString('en-IN');
@@ -287,17 +288,39 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                             </div>
                             Invoice Directory
                         </div>
-                        <div className="flex items-center gap-2.5">
-                            <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[13px] font-bold text-slate-600 transition-all hover:bg-slate-50 hover:text-blue-600 shadow-sm active:scale-95">
-                                <i className="fas fa-copy"></i> Copy
-                            </button>
-                            <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[13px] font-bold text-slate-600 transition-all hover:bg-slate-50 hover:text-emerald-600 shadow-sm active:scale-95">
-                                <i className="fas fa-file-csv"></i> CSV
-                            </button>
-                            <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[13px] font-bold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-900 shadow-sm active:scale-95">
-                                <i className="fas fa-print"></i> Print
-                            </button>
-                        </div>
+                        <TableExportButtons
+                            headers={['INV #', 'Client', 'Invoice Date', 'Grand Total (BDT)', 'Paid (BDT)', 'Due (BDT)', 'Status']}
+                            rows={(invoices.data || []).map(inv => {
+                                const paid = Number(inv.payments_sum_amount || 0);
+                                const due = Math.max(Number(inv.grand_total) - paid, 0);
+                                return [
+                                    inv.invoice_number,
+                                    inv.client?.company_name || inv.client?.name || '',
+                                    inv.invoice_date,
+                                    Number(inv.grand_total || 0).toFixed(2),
+                                    paid.toFixed(2),
+                                    due.toFixed(2),
+                                    (inv.status || '').toUpperCase()
+                                ];
+                            })}
+                            data={(invoices.data || []).map((inv, idx) => {
+                                const paid = Number(inv.payments_sum_amount || 0);
+                                const due = Math.max(Number(inv.grand_total) - paid, 0);
+                                return {
+                                    "SL": idx + 1,
+                                    "Invoice #": inv.invoice_number,
+                                    "Client": inv.client?.company_name || inv.client?.name || '',
+                                    "Date": inv.invoice_date,
+                                    "Grand Total (BDT)": Number(inv.grand_total || 0),
+                                    "Paid (BDT)": paid,
+                                    "Due (BDT)": due,
+                                    "Status": (inv.status || '').toUpperCase()
+                                };
+                            })}
+                            filename="Invoices"
+                            title="Invoices Directory Report"
+                            tableId="printable-table"
+                        />
                     </div>
 
                     {/* 🟢 High Contrast Filters */}

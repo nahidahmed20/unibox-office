@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import CustomSelect from '@/Components/CustomSelect';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 /* ---------- Design tokens ---------- */
 const fmt = (num) => Number(num || 0).toLocaleString('en-IN');
@@ -15,7 +16,7 @@ const Taka = ({ className = "text-[14px]" }) => (
 );
 
 /* ---------- Reusable Components ---------- */
-const Toolbar = ({ placeholder, value, onChange, onCsv, onPrint }) => (
+const Toolbar = ({ placeholder, value, onChange, exportHeaders, exportRows, exportFilename, exportTitle }) => (
     <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-4 md:flex-row md:items-center md:justify-between no-print">
         <div className="relative w-full md:w-[320px]">
             <i className="fa-solid fa-magnifying-glass pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[13px] text-slate-400"></i>
@@ -24,14 +25,12 @@ const Toolbar = ({ placeholder, value, onChange, onCsv, onPrint }) => (
                 className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-[13.5px] font-medium text-slate-800 placeholder:text-slate-400 outline-none transition hover:border-slate-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm"
             />
         </div>
-        <div className="flex items-center gap-2">
-            <button onClick={onCsv} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 shadow-sm">
-                <i className="fa-solid fa-file-csv text-emerald-500"></i> Export CSV
-            </button>
-            <button onClick={onPrint} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 shadow-sm">
-                <i className="fa-solid fa-print text-slate-400"></i> Print / PDF
-            </button>
-        </div>
+        <TableExportButtons
+            headers={exportHeaders}
+            rows={exportRows}
+            filename={exportFilename}
+            title={exportTitle}
+        />
     </div>
 );
 
@@ -205,6 +204,48 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
         return totals;
     }, { budget: 0, expense: 0, profit: 0 });
 
+    const exportClientHeaders = ['Client Name', 'Total Projects', 'Project Budget (Tk)', 'Project Cost (Expenses) (Tk)', 'Invoices Generated', 'Total Billed (Tk)', 'Received (Paid) (Tk)', 'Net Due (Tk)'];
+    const exportClientRows = useMemo(() => {
+        return filteredClients.map(c => [
+            c.client_name || '—',
+            Number(c.total_projects || 0),
+            Number(c.total_budget || 0),
+            Number(c.total_expense || 0),
+            Number(c.total_invoices || 0),
+            Number(c.total_billed || 0),
+            Number(c.total_paid || 0),
+            Number(c.total_due || 0),
+        ]);
+    }, [filteredClients]);
+
+    const exportMonthlyHeaders = ['Month', 'Project Name', 'Client', 'Budget (Tk)', 'Cost (Expenses) (Tk)', 'Est. Profit (Tk)', 'Status'];
+    const exportMonthlyRows = useMemo(() => {
+        const mRows = [];
+        filteredMonths.forEach(m => {
+            (m.projects || []).forEach(p => {
+                mRows.push([
+                    m.month || '—',
+                    p.title || '—',
+                    p.client || '—',
+                    Number(p.budget || 0),
+                    Number(p.expense || 0),
+                    Number(p.profit || 0),
+                    p.status || '—'
+                ]);
+            });
+            mRows.push([
+                `Summary for ${m.month || ''}`,
+                '',
+                '',
+                Number(m.month_budget || 0),
+                Number(m.month_expense || 0),
+                Number(m.month_profit || 0),
+                ''
+            ]);
+        });
+        return mRows;
+    }, [filteredMonths]);
+
     const profitable = Number(summary.net_actual_profit) >= 0;
     const cashPositive = Number(summary.net_cash_flow) >= 0;
     const hasFilters = startDate || endDate || filterYear || filterMonth;
@@ -336,8 +377,11 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                         <div style={{ animation: 'fadeIn .2s ease-out' }}>
                             <Toolbar
                                 placeholder="Search client…" value={searchClient}
-                                onChange={(e) => setSearchClient(e.target.value)} onCsv={exportClientCSV}
-                                onPrint={() => handlePrint('client-report-table', 'Client-Wise Profitability Report')}
+                                onChange={(e) => setSearchClient(e.target.value)}
+                                exportHeaders={exportClientHeaders}
+                                exportRows={exportClientRows}
+                                exportFilename="client_wise_profitability_report"
+                                exportTitle="Client-Wise Profitability Report"
                             />
 
                             <div className="soft-scroll overflow-x-auto pb-4">
@@ -403,8 +447,11 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                         <div style={{ animation: 'fadeIn .2s ease-out' }}>
                             <Toolbar
                                 placeholder="Search month…" value={searchMonth}
-                                onChange={(e) => setSearchMonth(e.target.value)} onCsv={exportMonthlyCSV}
-                                onPrint={() => handlePrint('monthly-report-table', 'Monthly Projects Report')}
+                                onChange={(e) => setSearchMonth(e.target.value)}
+                                exportHeaders={exportMonthlyHeaders}
+                                exportRows={exportMonthlyRows}
+                                exportFilename="monthly_projects_report"
+                                exportTitle="Monthly Projects Report"
                             />
 
                             <div className="soft-scroll overflow-x-auto pb-4">

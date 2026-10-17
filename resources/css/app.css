@@ -148,3 +148,145 @@ select.appearance-none {
     border-color: #2563eb !important;
     box-shadow: 0 2px 8px rgba(37,99,235,.25);
 }
+
+/* ==========================================================================
+   SWEETALERT2 EXECUTIVE SAAS CUSTOM THEME
+   ========================================================================== */
+.swal2-container {
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  z-index: 100000 !important;
+}
+
+.swal2-popup {
+  border-radius: 1.5rem !important;
+  padding: 1.75rem 2rem !important;
+  font-family: 'Jost', sans-serif !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25) !important;
+}
+
+.swal2-title {
+  font-size: 1.35rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  padding: 0.5rem 1rem 0 !important;
+  letter-spacing: -0.025em !important;
+}
+
+.swal2-html-container {
+  font-size: 0.925rem !important;
+  font-weight: 600 !important;
+  color: #475569 !important;
+  line-height: 1.5 !important;
+  margin: 0.75rem 0 0 !important;
+}
+
+.swal2-icon {
+  border-width: 3px !important;
+  margin: 1.25rem auto 0.75rem !important;
+  transform: scale(0.9);
+}
+
+.swal2-icon.swal2-success {
+  border-color: #10b981 !important;
+  color: #10b981 !important;
+}
+
+.swal2-icon.swal2-success [class^='swal2-success-line'] {
+  background-color: #10b981 !important;
+}
+
+.swal2-icon.swal2-success .swal2-success-ring {
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.swal2-icon.swal2-error {
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+}
+
+.swal2-icon.swal2-error [class^='swal2-x-mark-line'] {
+  background-color: #ef4444 !important;
+}
+
+.swal2-icon.swal2-warning {
+  border-color: #f59e0b !important;
+  color: #f59e0b !important;
+}
+
+.swal2-icon.swal2-info {
+  border-color: #6366f1 !important;
+  color: #6366f1 !important;
+}
+
+.swal2-actions {
+  gap: 0.75rem !important;
+  margin-top: 1.5rem !important;
+}
+
+.swal2-styled.swal2-confirm {
+  border-radius: 0.75rem !important;
+  background-color: #4f46e5 !important;
+  color: #ffffff !important;
+  font-size: 0.875rem !important;
+  font-weight: 800 !important;
+  padding: 0.7rem 1.75rem !important;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3) !important;
+  border: none !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+}
+
+.swal2-styled.swal2-confirm:hover {
+  background-color: #4338ca !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.4) !important;
+}
+
+.swal2-styled.swal2-cancel {
+  border-radius: 0.75rem !important;
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+  font-size: 0.875rem !important;
+  font-weight: 800 !important;
+  padding: 0.7rem 1.75rem !important;
+  border: 1px solid #cbd5e1 !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+}
+
+.swal2-styled.swal2-cancel:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* --- EXECUTIVE TOAST POPUP THEME --- */
+.swal2-popup.swal2-toast {
+  border-radius: 1rem !important;
+  padding: 0.85rem 1.25rem !important;
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5) !important;
+}
+
+.swal2-popup.swal2-toast .swal2-title {
+  color: #f8fafc !important;
+  font-size: 0.875rem !important;
+  font-weight: 800 !important;
+  padding: 0 !important;
+}
+
+.swal2-popup.swal2-toast .swal2-html-container {
+  color: #cbd5e1 !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+}
+
+.swal2-popup.swal2-toast .swal2-icon {
+  margin: 0 0.65rem 0 0 !important;
+  transform: scale(0.7);
+}

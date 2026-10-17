@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
 import CustomSelect from '@/Components/CustomSelect';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
@@ -114,14 +115,18 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
     const handlePaymentInputFocus = (field) => { if (paymentForm.data[field] == 0) paymentForm.setData(field, ''); };
     const handlePaymentInputBlur = (field) => { if (paymentForm.data[field] === '') paymentForm.setData(field, 0); };
 
-    const handleExportCSV = () => {
-        if (!recordList.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const headers = ["Month,Employee,Net Pay,Paid,Due,Status\n"];
-        const rows = recordList.map(s => `"${s.month_year}","${s.user?.name || ''}","${s.net_pay}","${s.paid_amount}","${s.due_amount}","${s.status}"`);
-        const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-        const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.setAttribute("download", `Payroll_Report_${new Date().toISOString().slice(0, 10)}.csv`); link.click();
-    };
-    const handlePrint = () => window.print();
+    const exportHeaders = ['SL', 'Month', 'Employee', 'Net Pay (৳)', 'Paid (৳)', 'Due (৳)', 'Status'];
+    const exportRows = useMemo(() => {
+        return recordList.map((s, idx) => [
+            idx + 1,
+            s.month_year || '',
+            s.user?.name || '',
+            parseFloat(s.net_pay || 0).toFixed(2),
+            parseFloat(s.paid_amount || 0).toFixed(2),
+            parseFloat(s.due_amount || 0).toFixed(2),
+            s.status || ''
+        ]);
+    }, [recordList]);
 
     const renderStatus = (sal) => {
         if (sal.status === 'paid') return <span className="inline-flex px-3 py-1 rounded-[10px] text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700">Paid</span>;
@@ -366,10 +371,12 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                                 </div>
                             </div>
                             <div className="h-6 w-px bg-gray-200 hidden sm:block mx-1"></div>
-                            <div className="flex items-center gap-2 shrink-0">
-                                <button onClick={handleExportCSV} className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 shadow-sm"><i className="fas fa-file-csv"></i> CSV</button>
-                                <button onClick={handlePrint} className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 transition-all hover:bg-gray-50 shadow-sm"><i className="fas fa-print"></i> Print</button>
-                            </div>
+                            <TableExportButtons
+                                headers={exportHeaders}
+                                rows={exportRows}
+                                filename="Payroll_Report"
+                                title="Payroll Management Directory"
+                            />
                         </div>
 
                         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">

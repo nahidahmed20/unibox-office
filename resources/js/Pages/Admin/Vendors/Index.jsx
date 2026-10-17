@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import axios from 'axios';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
@@ -123,36 +124,19 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         return () => clearTimeout(delayDebounceFn);
     }, [searchTerm, perPage]);
 
-    const handleCopy = () => {
-        if (!vendors.data || !vendors.data.length) return Swal.fire("Empty!", "No data to copy", "warning");
-        const text = vendors.data
-            .map((v) => `${v.name}\t${v.company_name || "N/A"}\t${v.phone || "N/A"}\tDue: ${v.total_due || 0}\tWallet: ${v.wallet_balance || 0}`)
-            .join("\n");
-        navigator.clipboard.writeText("Name\tCompany\tPhone\tTotal Due\tWallet Balance\n" + text);
-        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
-    };
-
-    const handleExportCSV = () => {
-        if (!vendors.data || !vendors.data.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const headers = ["Vendor Name,Company,Phone,Address,Total Due,Wallet Balance\n"];
-        const rows = vendors.data.map(v => `"${v.name}","${v.company_name || ''}","${v.phone || ''}","${v.address || ''}","${v.total_due || 0}","${v.wallet_balance || 0}"`);
-        const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `Vendors_Report_${new Date().toISOString().slice(0, 10)}.csv`);
-        link.click();
-    };
-
-    const handlePrint = () => {
-        const tableContent = document.getElementById("printable-table");
-        if (!tableContent) return;
-        const printWindow = window.open('', '_blank', `width=${window.screen.width},height=${window.screen.height}`);
-        printWindow.document.write(`<html><head><title>Vendors Report</title><style>body { font-family: 'Segoe UI', sans-serif; padding: 30px; color: #1e293b; } h2 { text-align: center; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; } table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; } th, td { padding: 10px; border: 1px solid #cbd5e1; font-size: 12.5px; } th { background-color: #f8fafc; color: #475569; } .no-print { display: none !important; }</style></head><body><h2>Vendors Directory Report</h2>${tableContent.outerHTML}</body></html>`);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
-    };
+    const vendorList = Array.isArray(vendors) ? vendors : (vendors?.data || []);
+    const exportHeaders = ['SL', 'Vendor Name', 'Company', 'Phone', 'Address', 'Total Due (৳)', 'Wallet Balance (৳)'];
+    const exportRows = useMemo(() => {
+        return vendorList.map((v, idx) => [
+            idx + 1,
+            v.name || '',
+            v.company_name || 'Individual',
+            v.phone || '-',
+            v.address || '-',
+            parseFloat(v.total_due || 0).toFixed(2),
+            parseFloat(v.wallet_balance || 0).toFixed(2)
+        ]);
+    }, [vendorList]);
 
     const openCreateModal = () => { clearErrors(); setData({ id: '', name: '', company_name: '', phone: '', address: '', opening_balance: 0 }); setEditMode(false); setShowModal(true); };
     const openEditModal = (vendor) => { clearErrors(); setData({ id: vendor?.id || '', name: vendor?.name || '', company_name: vendor?.company_name || '', phone: vendor?.phone || '', address: vendor?.address || '', opening_balance: vendor?.opening_balance || 0 }); setEditMode(true); setShowModal(true); };
@@ -324,11 +308,12 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                 </div>
                             </div>
                             <div className="h-8 w-px bg-gray-200 hidden md:block"></div>
-                            <div className="flex items-center gap-2">
-                                <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 hover:bg-gray-50 shadow-sm"><i className="fas fa-copy text-blue-500"></i> Copy</button>
-                                <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 hover:bg-emerald-100 shadow-sm"><i className="fas fa-file-csv"></i> CSV</button>
-                                <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-bold text-gray-700 hover:bg-gray-50 shadow-sm"><i className="fas fa-print text-gray-500"></i> Print</button>
-                            </div>
+                            <TableExportButtons
+                                headers={exportHeaders}
+                                rows={exportRows}
+                                filename="Vendors_Report"
+                                title="Vendors & Suppliers Directory"
+                            />
                         </div>
 
                         <div className="relative w-full sm:w-[320px]">

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 import CustomSelect from '@/Components/CustomSelect';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 const Taka = ({ className = "text-[13px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 ${className}`}>৳</span>
@@ -69,26 +70,19 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
     const totalProjectsBudget = projects.data.reduce((acc, curr) => acc + Number(curr.budget || 0), 0);
     const activeProjectsCount = projects.data.filter(p => p.status === 'in_progress').length;
 
-    const handleCopy = () => {
-        if (!projects.data || !projects.data.length) return Swal.fire("Empty!", "No data to copy", "warning");
-        const text = projects.data
-            .map((p) => `${p.title}\t${p.client?.name || "N/A"}\t${p.budget || "0"}\t${p.status?.toUpperCase()}\t${p.deadline || "N/A"}`)
-            .join("\n");
-        navigator.clipboard.writeText("Title\tClient\tBudget\tStatus\tDeadline\n" + text);
-        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
-    };
-
-    const handleExportCSV = () => {
-        if (!projects.data || !projects.data.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const headers = ["Project Title,Client,Budget,Status,Start Date,Deadline\n"];
-        const rows = projects.data.map(p => `"${p.title}","${p.client?.name || ''}","${p.budget || ''}","${p.status}","${p.start_date || '-'}","${p.deadline || '-'}"`);
-        const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `Projects_Directory_${new Date().toISOString().slice(0,10)}.csv`);
-        link.click();
-    };
+    const projectList = projects.data || [];
+    const exportHeaders = ['SL', 'Project Title', 'Client', 'Budget (৳)', 'Status', 'Start Date', 'Deadline'];
+    const exportRows = useMemo(() => {
+        return projectList.map((p, idx) => [
+            idx + 1,
+            p.title || '',
+            p.client?.name || 'N/A',
+            parseFloat(p.budget || 0).toFixed(2),
+            p.status || '',
+            p.start_date || '-',
+            p.deadline || '-'
+        ]);
+    }, [projectList]);
 
     const handlePrint = () => {
         const tableContent = document.getElementById("printable-table");
@@ -276,12 +270,12 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                             Project Directory
                         </div>
                         <div className="flex items-center gap-3">
-                            <button onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-[13px] font-bold text-emerald-700 transition-all hover:bg-emerald-100 shadow-sm">
-                                <i className="fas fa-file-csv"></i> Export CSV
-                            </button>
-                            <button onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-700 transition-all hover:bg-slate-100 shadow-sm">
-                                <i className="fas fa-print"></i> Print
-                            </button>
+                            <TableExportButtons
+                                headers={exportHeaders}
+                                rows={exportRows}
+                                filename="Projects_Directory_Report"
+                                title="Projects Directory Report"
+                            />
                             {hasPermission('create_project') && (
                                 <Link href={route('admin.projects.create')} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-6 py-2.5 text-[13.5px] font-bold text-white transition-colors shadow-md ml-2">
                                     <i className="fa-solid fa-plus text-[12px]"></i> New Project

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+import TableExportButtons from '@/Components/TableExportButtons';
 
 export default function Daybook({ selectedDate, formattedDate, summary, accountSummary, details, marketSnapshot }) {
     const [date, setDate] = useState(selectedDate);
@@ -18,50 +19,59 @@ export default function Daybook({ selectedDate, formattedDate, summary, accountS
         window.print();
     };
 
-    // 🟢 Dynamic CSV / Excel Export Logic
-    const handleExportCSV = () => {
-        let headers = [];
-        let rows = [];
-
-        if (activeTab === 'all') {
-            return Swal.fire("Notice", "Please select a specific tab (like 'Account Balances' or 'Complete Daybook') from the buttons above to export its data to Excel.", "info");
-        }
-
+    const daybookHeaders = useMemo(() => {
         if (activeTab === 'accounts') {
-            headers = ["Account Name,Opening Balance,Inflow (+),Outflow (-),Closing (On Date),Live Balance (Today)"];
-            rows = accountSummary.map(acc => `"${acc.name}","${acc.opening}","${acc.inflow}","${acc.outflow}","${acc.closing}","${acc.current_balance}"`);
+            return ['Account Name', 'Opening (৳)', 'Inflow (+ ৳)', 'Outflow (- ৳)', 'Closing (৳)', 'Live Balance (৳)'];
         }
-        else if (activeTab === 'combined') {
-            headers = ["Account,Context / Party,Description,Money In (+),Money Out (-)"];
-            rows = details.transactions.map(trx => `"${trx.account?.name || 'Unknown'}","${trx.party_name || 'System'} - ${trx.context_label}","${trx.description}","${trx.type === 'credit' ? trx.amount : '0'}","${trx.type === 'debit' ? trx.amount : '0'}"`);
+        if (activeTab === 'inflow') {
+            return ['SL', 'Received In (Account)', 'Context / Category', 'Description', 'Amount Received (৳)'];
         }
-        else if (activeTab === 'inflow') {
-            headers = ["Received In (Account),Context / Category,Description,Amount Received"];
-            rows = details.inflows.map(trx => `"${trx.account?.name || 'Unknown'}","${trx.party_name || 'System'} - ${trx.context_label}","${trx.description}","${trx.amount}"`);
+        if (activeTab === 'outflow') {
+            return ['SL', 'Paid From (Account)', 'Context / Payee', 'Description', 'Amount Paid (৳)'];
         }
-        else if (activeTab === 'outflow') {
-            headers = ["Paid From (Account),Context / Payee,Description,Amount Paid"];
-            rows = details.outflows.map(trx => `"${trx.account?.name || 'Unknown'}","${trx.party_name || 'System'} - ${trx.context_label}","${trx.description}","${trx.amount}"`);
-        }
-        else if (activeTab === 'transactions') {
-            headers = ["Trx ID,Account,Description,Type,Amount"];
-            rows = details.transactions.map(trx => `"#${trx.id}","${trx.account?.name}","${trx.description}","${trx.type === 'credit' ? 'In (+)' : 'Out (-)'}","${trx.amount}"`);
-        }
+        return ['SL', 'Trx ID', 'Account', 'Context / Party', 'Description', 'Type', 'Inflow (+ ৳)', 'Outflow (- ৳)'];
+    }, [activeTab]);
 
-        if (rows.length === 0) {
-            return Swal.fire("Empty!", "No data available to export.", "warning");
+    const daybookRows = useMemo(() => {
+        if (activeTab === 'accounts') {
+            return (accountSummary || []).map(acc => [
+                acc.name,
+                parseFloat(acc.opening || 0).toFixed(2),
+                parseFloat(acc.inflow || 0).toFixed(2),
+                parseFloat(acc.outflow || 0).toFixed(2),
+                parseFloat(acc.closing || 0).toFixed(2),
+                parseFloat(acc.current_balance || 0).toFixed(2)
+            ]);
         }
-
-        const csvContent = headers.join("\n") + "\n" + rows.join("\n");
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `Daybook_${activeTab}_${date}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
+        if (activeTab === 'inflow') {
+            return (details?.inflows || []).map((trx, idx) => [
+                idx + 1,
+                trx.account?.name || 'Unknown',
+                `${trx.party_name || 'System'} - ${trx.context_label || ''}`,
+                trx.description || '',
+                parseFloat(trx.amount || 0).toFixed(2)
+            ]);
+        }
+        if (activeTab === 'outflow') {
+            return (details?.outflows || []).map((trx, idx) => [
+                idx + 1,
+                trx.account?.name || 'Unknown',
+                `${trx.party_name || 'System'} - ${trx.context_label || ''}`,
+                trx.description || '',
+                parseFloat(trx.amount || 0).toFixed(2)
+            ]);
+        }
+        return (details?.transactions || []).map((trx, idx) => [
+            idx + 1,
+            `#${trx.id}`,
+            trx.account?.name || 'Unknown',
+            `${trx.party_name || 'System'} - ${trx.context_label || ''}`,
+            trx.description || '',
+            trx.type === 'credit' ? 'Inflow (+)' : 'Outflow (-)',
+            trx.type === 'credit' ? parseFloat(trx.amount || 0).toFixed(2) : '0.00',
+            trx.type === 'debit' ? parseFloat(trx.amount || 0).toFixed(2) : '0.00'
+        ]);
+    }, [activeTab, accountSummary, details]);
 
     return (
         <AdminLayout>
@@ -104,13 +114,12 @@ export default function Daybook({ selectedDate, formattedDate, summary, accountS
 
                         <div className="h-8 w-px bg-gray-200 hidden sm:block mx-1"></div>
 
-                        <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors shadow-sm font-bold text-[13.5px]">
-                            <i className="fa-solid fa-file-excel"></i> <span className="hidden sm:inline">Excel / CSV</span>
-                        </button>
-
-                        <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-900 text-white border border-gray-900 hover:bg-gray-800 transition-colors shadow-sm font-bold text-[13.5px]">
-                            <i className="fa-solid fa-print"></i> <span className="hidden sm:inline">Print Document</span>
-                        </button>
+                        <TableExportButtons
+                            headers={daybookHeaders}
+                            rows={daybookRows}
+                            filename={`Daybook_${activeTab}_${date}`}
+                            title={`Daily Daybook & Cashflow Report (${date})`}
+                        />
                     </div>
                 </div>
 
