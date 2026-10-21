@@ -1,0 +1,37 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Vendor extends Model
+{
+    protected $guarded = ['id'];
+
+    public function projectExpenses()
+    {
+        return $this->hasMany(ProjectExpense::class);
+    }
+
+    public function expenses()
+    {
+        return $this->hasMany(Expense::class);
+    }
+
+    public function getTotalDueAttribute()
+    {
+        $openingBalance = $this->opening_balance;
+        $dueFromProjects = $this->projectExpenses()->sum('due_amount');
+        return $openingBalance + $dueFromProjects;
+    }
+
+    public function ledgers()
+    {
+        return $this->hasMany(VendorLedger::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(VendorPayment::class)->latest('date')->latest('id');
+    }
+}

@@ -1,0 +1,37 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('expenses', function (Blueprint $table) {
+            $table->id();
+            $table->string('title');
+            $table->text('description')->nullable();
+            $table->unsignedBigInteger('expense_category_id');
+            $table->unsignedBigInteger('advance_user_id')->nullable();
+            $table->unsignedBigInteger('account_id')->nullable()->comment('যে অ্যাকাউন্ট থেকে টাকা খরচ হয়েছে');
+            $table->decimal('amount', 10, 2);
+            $table->decimal('bank_charge', 15, 2)->default(0);
+            $table->date('date');
+            $table->unsignedBigInteger('logged_by');
+            $table->string('attachment')->nullable(); 
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('expenses');
+    }
+};

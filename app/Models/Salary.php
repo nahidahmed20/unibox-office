@@ -1,0 +1,25 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Salary extends Model {
+    protected $guarded = [];
+    public function user() { return $this->belongsTo(User::class); }
+
+    public function transactions()
+    {
+        return $this->morphMany(Transaction::class, 'transactionable');
+    }
+
+    public function employeeProfile()
+    {
+        return $this->hasOne(EmployeeProfile::class);
+    }
+
+    public function advanceSettlements()
+    {
+        return $this->morphMany(AdvanceSettlement::class, 'settleable');
+    }
+}

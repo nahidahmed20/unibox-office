@@ -1,0 +1,159 @@
+<?php
+
+use App\Http\Controllers\AccountController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\AdvanceController;
+use App\Http\Controllers\AssetController;
+use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\ClientAdvanceController;
+use App\Http\Controllers\ClientController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\DesignationController;
+use App\Http\Controllers\EmployeeProfileController;
+use App\Http\Controllers\ExpenseCategoryController;
+use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\InvestmentController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\InvoicePaymentController;
+use App\Http\Controllers\LeaveController;
+use App\Http\Controllers\NoticeController;
+use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectExpenseController;
+use App\Http\Controllers\RequisitionController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SalaryController;
+use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\VendorController;
+use App\Http\Controllers\InvoiceSettingController;
+use App\Http\Controllers\GlobalSearchController;
+use App\Http\Controllers\ChallanController;
+use App\Http\Controllers\ChallanSettingController;
+use App\Http\Controllers\UsefulLinkController;
+use App\Http\Controllers\SampleExpenseController;
+
+use App\Models\Invoice;
+use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+
+
+Route::get('/', function () {
+    return redirect()->route('login');
+});
+
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
+
+Route::middleware('auth')->group(function () {
+
+
+
+
+
+    // Profile Routes
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Access Control Routes
+    Route::resource('permissions', PermissionController::class)->names('admin.permissions');
+    Route::resource('roles', RoleController::class)->names('admin.roles');
+    Route::resource('users', UserController::class)->names('admin.users');
+    Route::get('admin/users/export/excel', [UserController::class, 'exportExcel'])->name('admin.users.export.excel');
+
+    // 1. CRM & Projects
+    Route::patch('/admin/projects/{id}/status', [ProjectController::class, 'updateStatus'])->name('admin.projects.update-status');
+    Route::patch('vendors/payments/{payment}/bank-charge', [VendorController::class, 'updateBankCharge'])->name('admin.vendors.payments.bank-charge');
+    Route::post('vendors/payments/{payment}/void', [VendorController::class, 'voidPayment'])->name('admin.vendors.payments.void');
+    Route::get('vendors/{vendor}/payments', [VendorController::class, 'payments'])->name('admin.vendors.payments.index');
+    Route::post('vendors/{vendor}/pay', [VendorController::class, 'payVendor'])->name('admin.vendors.pay');
+    Route::resource('clients', ClientController::class)->names('admin.clients');
+    Route::resource('vendors', VendorController::class)->names('admin.vendors');
+    Route::post('/vendors/{id}/add-advance', [VendorController::class, 'addAdvance'])->name('admin.vendors.add-advance');
+    Route::post('/vendors/{id}/receive-refund', [VendorController::class, 'receiveRefund'])->name('admin.vendors.receive-refund');
+    Route::resource('projects', ProjectController::class)->names('admin.projects');
+    Route::resource('tasks', TaskController::class)->names('admin.tasks');
+
+    Route::resource('client-advances', ClientAdvanceController::class)->names('admin.client-advances');
+
+    // 2. Finance & Accounts
+    Route::get('client-dues', [ReportController::class, 'clientDuesReport'])->name('admin.client-dues');
+    Route::get('vendor-dues', [ReportController::class, 'vendorDuesReport'])->name('admin.vendor-dues');
+    Route::get('vendor-payments', [ReportController::class, 'vendorPaymentsReport'])->name('admin.vendor-payments');
+
+    Route::post('/invoices/{invoice}/apply-advance', [InvoiceController::class, 'quickApplyAdvance'])->name('admin.invoices.apply-advance');
+    Route::resource('invoices', InvoiceController::class)->names('admin.invoices');
+    Route::resource('invoice-payments', InvoicePaymentController::class)->names('invoice-payments');
+
+    Route::resource('expenses', ExpenseController::class)->names('admin.expenses');
+    Route::resource('project-expenses', ProjectExpenseController::class)->names('admin.project-expenses');
+    Route::patch('sample-expenses/{id}/status', [SampleExpenseController::class, 'updateStatus'])->name('admin.sample-expenses.update-status');
+    Route::resource('sample-expenses', SampleExpenseController::class)->names('admin.sample-expenses');
+    Route::resource('expense-categories', ExpenseCategoryController::class)->names('admin.expense-categories');
+
+    Route::post('/investments/{id}/return', [InvestmentController::class, 'returnMoney'])->name('admin.investments.return');
+    Route::resource('investments', InvestmentController::class)->names('admin.investments');
+    Route::post('/advances/{id}/return', [AdvanceController::class, 'returnMoney'])->name('admin.advances.returnMoney');
+    Route::get('/advances/ledger/{userId}', [AdvanceController::class, 'employeeLedger'])
+    ->name('admin.advances.employeeLedger');
+
+    Route::resource('advances', AdvanceController::class)->names('admin.advances');
+    Route::post('transactions/transfer', [TransactionController::class, 'transfer'])->name('admin.transactions.transfer');
+    Route::resource('transactions', TransactionController::class)->names('admin.transactions');
+    Route::resource('accounts', AccountController::class)->names('admin.accounts');
+
+    // web.php
+    Route::get('/invoices/{id}/print', [InvoiceController::class, 'print'])->name('admin.invoices.print');
+
+    // 3. Office Administration
+    Route::resource('assets', AssetController::class)->names('admin.assets');
+    Route::resource('requisitions', RequisitionController::class)->names('admin.requisitions');
+    Route::resource('notices', NoticeController::class)->names('admin.notices');
+    Route::post('useful-links/{usefulLink}/toggle-pin', [UsefulLinkController::class, 'togglePin'])->name('admin.useful-links.toggle-pin');
+    Route::resource('useful-links', UsefulLinkController::class)->names('admin.useful-links');
+
+    Route::resource('departments', DepartmentController::class)->names('admin.departments');
+    Route::resource('designations', DesignationController::class)->names('admin.designations');
+    Route::resource('employees', EmployeeProfileController::class)->names('admin.employees');
+    Route::resource('attendances', AttendanceController::class)->names('admin.attendances');
+    Route::post('salaries/{id}/add-payment', [SalaryController::class, 'addPayment'])->name('admin.salaries.add-payment');
+    Route::post('/salaries/{id}/pay', [SalaryController::class, 'addPayment'])->name('salaries.pay');
+    Route::resource('salaries', SalaryController::class)->names('admin.salaries');
+    Route::resource('leaves', LeaveController::class)->names('admin.leaves');
+    Route::get('/master-summary', [ReportController::class, 'masterSummary'])->name('admin.reports.master');
+    Route::get('/financial-reports', [ReportController::class, 'financialSummary'])->name('admin.reports.financial');
+    Route::get('/financial-position', [ReportController::class, 'financialPosition'])->name('admin.reports.position');
+    Route::get('account/transactions', [ReportController::class, 'transactionsReport'])->name('admin.account.transactions');
+    Route::get('reports/client-ledger', [ReportController::class, 'clientLedger'])->name('admin.reports.client-ledger');
+    Route::get('reports/vendor-ledger', [ReportController::class, 'vendorLedger'])->name('admin.reports.vendor-ledger');
+    Route::get('reports/project-profit', [ReportController::class, 'projectProfitLoss'])->name('admin.reports.project-profit');
+    Route::get('reports/expense-analysis', [ReportController::class, 'expenseAnalysis'])->name('admin.reports.expense-analysis');
+    Route::get('/daybook', [ReportController::class, 'daybook'])->name('admin.reports.daybook');
+    Route::get('reports/monthly-balance', [ReportController::class, 'monthlyBalance'])->name('admin.reports.monthly-balance');
+
+    Route::get('/invoice-settings', [InvoiceSettingController::class, 'index'])->name('admin.invoice-settings.index');
+    Route::post('/invoice-settings', [InvoiceSettingController::class, 'update'])->name('admin.invoice-settings.update');
+
+    Route::post('/project-expenses/{id}/move-to-wallet', [ProjectExpenseController::class, 'moveToWallet'])->name('admin.project-expenses.move-to-wallet');
+    Route::get('/admin/global-search', [GlobalSearchController::class, 'search'])->name('admin.global-search');
+
+    // Database Backup
+    Route::get('/backup/download', [\App\Http\Controllers\BackupController::class, 'download'])->name('admin.backup.download');
+
+    // Challan Routes
+    Route::resource('challans', ChallanController::class)->except(['show'])->names('admin.challans');
+    Route::get('challans/{challan}/print', [ChallanController::class, 'print'])->name('admin.challans.print');
+
+    // Challan Setting Routes
+    Route::get('challan-settings', [ChallanSettingController::class, 'index'])->name('admin.challan-settings.index');
+    Route::post('challan-settings', [ChallanSettingController::class, 'update'])->name('admin.challan-settings.update');
+
+});
+
+require __DIR__.'/auth.php';

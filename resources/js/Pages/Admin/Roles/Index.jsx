@@ -1,0 +1,647 @@
+import React, { useState, useEffect, useRef } from 'react';
+import AdminLayout from '@/Layouts/AdminLayout';
+import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
+import Swal from 'sweetalert2';
+
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import CustomSelect from '@/Components/CustomSelect';
+
+const COMPANY = {
+    name: 'UNIBOX',
+    tagline: "Let's Create Together",
+    logo: typeof window !== 'undefined' ? `${window.location.origin}/images/logo.png` : '',
+    phone: '+8801627188836',
+    email: 'uniboxbd4u@gmail.com',
+    website: 'www.uniboxbd4u.com',
+    address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
+};
+
+export default function Index({ roles = { data: [], links: [] }, permissions = [] }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
+    const hasPermission = (permission) => isSuperAdmin || auth?.permissions?.includes(permission);
+
+    const [showModal, setShowModal] = useState(false);
+    const [editMode, setEditMode] = useState(false);
+    const [isSuperAdminRole, setIsSuperAdminRole] = useState(false);
+
+    // View Details Modal State
+    const [showViewModal, setShowViewModal] = useState(false);
+    const [selectedRecord, setSelectedRecord] = useState(null);
+
+    const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get('search') || '');
+    const [perPage, setPerPage] = useState(() => {
+        const raw = new URLSearchParams(window.location.search).get("per_page");
+        return raw === "all" ? "all" : (raw ? Number(raw) : 25);
+    });
+    const isFirstRender = useRef(true);
+
+    const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
+        id: '',
+        name: '',
+        guard_name: 'web',
+        permissions: []
+    });
+
+    // --- Live Search & Pagination Sync ---
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+        const delayDebounceFn = setTimeout(() => {
+            const params = {};
+            if (searchTerm.trim()) params.search = searchTerm;
+            params.per_page = perPage;
+
+            router.get(
+                route('admin.roles.index'),
+                params,
+                { preserveState: true, replace: true }
+            );
+        }, 400);
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchTerm, perPage]);
+
+    const recordList = roles.data || (Array.isArray(roles) ? roles : []);
+
+    // --- Export Tools ---
+    const handleCopy = () => {
+        if (!recordList.length) return Swal.fire("Empty!", "No data to copy", "warning");
+        const text = recordList
+            .map((r, index) => `${index + 1}\t${r.name}\t${r.name === 'Super Admin' ? 'All Access' : (r.permissions?.length || 0) + ' Permissions'}\tActive`)
+            .join("\n");
+        navigator.clipboard.writeText("SL\tRole Title\tPermissions Count\tStatus\n" + text);
+        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
+    };
+
+    const csvEscape = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
+    const handleCSV = () => {
+        if (!recordList.length) return Swal.fire("Empty!", "No data to export", "warning");
+        const headers = ["SL,Role Title,Permissions Count,Status\n"];
+        const rows = recordList.map((r, index) => [
+            index + 1,
+            csvEscape(r.name),
+            r.name === 'Super Admin' ? 'All Access' : (r.permissions?.length || 0),
+            "Active"
+        ]);
+        const csv = [headers, ...rows.map(r => r.join(","))].join("\n");
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Roles_List_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleExcel = () => {
+        if (!recordList.length) return Swal.fire("Empty!", "No data to export", "warning");
+        const ws = XLSX.utils.json_to_sheet(
+            recordList.map((r, index) => ({
+                "SL": index + 1,
+                "Role Title": r.name,
+                "Permissions Assigned": r.name === 'Super Admin' ? 'All Access' : (r.permissions?.map(p => p.name).join(', ') || 'None'),
+                "Status": "Active"
+            }))
+        );
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Roles"); 
+        const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        const file = new Blob([excelBuffer], { type: "application/octet-stream" });
+        saveAs(file, `Roles_List_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    };
+
+    const handlePDF = () => {
+        if (!recordList.length) return Swal.fire("Empty!", "No data to export", "warning");
+        const doc = new jsPDF();
+        autoTable(doc, {
+            head: [['SL', 'Role Title', 'Permissions Count', 'Status']],
+            body: recordList.map((r, index) => [
+                index + 1,
+                r.name,
+                r.name === 'Super Admin' ? 'All Access' : (r.permissions?.length || 0),
+                "Active"
+            ])
+        });
+        doc.save(`Roles_List_${new Date().toISOString().slice(0, 10)}.pdf`);
+    };
+
+    const handlePrint = () => {
+        const tableContent = document.getElementById("printable-table");
+        if (!tableContent) return;
+        const printWindow = window.open('', '_blank', `width=${window.screen.width},height=${window.screen.height}`);
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>System Roles Report</title>
+                    <style>
+                        * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px 40px; color: #1e293b; }
+                        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #147a5b; padding-bottom: 15px; margin-bottom: 20px; }
+                        .logo { height: 45px; width: auto; }
+                        .company-details { text-align: right; font-size: 11px; line-height: 1.5; color: #475569; }
+                        .company-details h2 { margin: 0 0 3px 0; font-size: 18px; color: #147a5b; text-transform: uppercase; letter-spacing: 1px; }
+                        h2.report-title { text-align: center; color: #0f172a; margin-bottom: 5px; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; }
+                        p.report-date { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 13px; }
+                        table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 10px; }
+                        th, td { padding: 10px 12px; border: 1px solid #cbd5e1; font-size: 12.5px; }
+                        th { background-color: #f8fafc; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
+                        th:last-child, td:last-child { display: none !important; }
+                        .no-print { display: none !important; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div><img src="${COMPANY.logo}" class="logo" alt="Logo" /></div>
+                        <div class="company-details">
+                            <h2>${COMPANY.name}</h2>
+                            ${COMPANY.address}<br/>
+                            Phone: ${COMPANY.phone} | Email: ${COMPANY.email}
+                        </div>
+                    </div>
+                    <h2 class="report-title">System Roles Directory</h2>
+                    <p class="report-date">Generated on: ${new Date().toLocaleString()}</p>
+                    ${tableContent.outerHTML}
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+    };
+
+    // --- Modals & Actions ---
+    const openCreateModal = () => {
+        clearErrors();
+        setData({
+            id: '',
+            name: '',
+            guard_name: 'web',
+            permissions: []
+        });
+        setIsSuperAdminRole(false);
+        setEditMode(false);
+        setShowModal(true);
+    };
+
+    const openEditModal = (role) => {
+        clearErrors();
+        setData({
+            id: role?.id || '',
+            name: role?.name || '',
+            guard_name: role?.guard_name || 'web',
+            permissions: role?.permissions ? role.permissions.map(p => p.id) : []
+        });
+        setIsSuperAdminRole(role?.name === 'Super Admin');
+        setEditMode(true);
+        setShowModal(true);
+    };
+
+    const openViewModal = (record) => {
+        setSelectedRecord(record);
+        setShowViewModal(true);
+    };
+
+    const isPermissionChecked = (permissionId) =>
+        data.permissions.some(id => String(id) === String(permissionId));
+
+    const handleCheckboxChange = (permissionId) => {
+        if (isPermissionChecked(permissionId)) {
+            setData('permissions', data.permissions.filter(id => String(id) !== String(permissionId)));
+        } else {
+            setData('permissions', [...data.permissions, permissionId]);
+        }
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (editMode) {
+            put(route('admin.roles.update', data.id), {
+                onSuccess: () => {
+                    setShowModal(false);
+                    Swal.fire({ icon: "success", title: "Updated Successfully!", timer: 1500, showConfirmButton: false, toast: true, position: 'top-end' });
+                }
+            });
+        } else {
+            post(route('admin.roles.store'), {
+                onSuccess: () => {
+                    reset();
+                    setShowModal(false);
+                    Swal.fire({ icon: "success", title: "Added Successfully!", timer: 1500, showConfirmButton: false, toast: true, position: 'top-end' });
+                }
+            });
+        }
+    };
+
+    const handleDelete = (id) => {
+        Swal.fire({
+            title: 'Delete Role?',
+            text: "This role will be permanently deleted!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Yes, Delete It'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                destroy(route('admin.roles.destroy', id), {
+                    preserveScroll: true,
+                    onSuccess: () => Swal.fire({ icon: "success", title: "Deleted!", text: "The role has been removed.", timer: 1500, showConfirmButton: false }),
+                });
+            }
+        });
+    };
+
+    return (
+        <AdminLayout>
+            <Head title="Roles Management" />
+
+            <style dangerouslySetInnerHTML={{__html: `
+                .custom-table-scroll::-webkit-scrollbar { height: 8px; }
+                .custom-table-scroll::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
+                .custom-table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+                .custom-table-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+                @media print {
+                    body * { visibility: hidden; }
+                    #printable-table, #printable-table * { visibility: visible; }
+                    #printable-table { position: absolute; left: 0; top: 0; width: 100%; }
+                    .no-print { display: none !important; }
+                }
+            `}} />
+
+            <div className="flex flex-col gap-8 max-w-[1600px] mx-auto pb-12 mt-2">
+                
+                {/* Page Header */}
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div>
+                        <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-indigo-600">
+                            <span className="h-1.5 w-1.5 rounded-full bg-indigo-600"></span> Administration
+                        </div>
+                        <h1 className="text-[28px] font-extrabold text-gray-900 tracking-tight">Roles & Permissions</h1>
+                        <p className="text-[14.5px] text-gray-500 mt-1.5 max-w-lg leading-relaxed">Manage system roles and assign specific capabilities securely.</p>
+                    </div>
+                </div>
+
+                {/* Main Card */}
+                <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
+                    
+                    {/* Card Header & Actions */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 px-6 py-5 gap-4 bg-gray-50/40 no-print">
+                        <div className="text-[16px] font-bold text-gray-900 flex items-center gap-2.5">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                                <i className="fa-solid fa-user-shield text-[14px]"></i>
+                            </div>
+                            All System Roles
+                        </div>
+                        {hasPermission('create_role') && (
+                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-[13.5px] font-bold text-white transition-all hover:bg-indigo-700 shadow-sm hover:shadow-md">
+                                <i className="fa-solid fa-plus"></i> Create Role
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Toolbar */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100 no-print">
+                        
+                        <div className="flex flex-wrap items-center gap-3">
+                            
+                            {/* Premium Show Rows Dropdown */}
+                            <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
+                                <span className="bg-gray-50/80 px-4 py-2.5 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
+                                    Show
+                                </span>
+                                <div className="relative">
+                                    <select value={perPage} onChange={(e) =>
+ setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
+                                        className="appearance-none bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
+                                    >
+                                        <option value={10}>10 Rows</option>
+                                        <option value={25}>25 Rows</option>
+                                        <option value={50}>50 Rows</option>
+                                        <option value={100}>100 Rows</option>
+                                        <option value="all">All Data</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="h-6 w-px bg-gray-200 hidden sm:block mx-1"></div>
+
+                            {/* Export Buttons */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <button type="button" onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm"><i className="fas fa-copy text-blue-500"></i> Copy</button>
+                                <button type="button" onClick={handleExcel} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-[13px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 shadow-sm"><i className="fas fa-file-excel text-emerald-500"></i> Excel</button>
+                                <button type="button" onClick={handleCSV} className="flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-2.5 text-[13px] font-bold text-teal-700 transition-colors hover:bg-teal-100 shadow-sm"><i className="fas fa-file-csv"></i> CSV</button>
+                                <button type="button" onClick={handlePDF} className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[13px] font-bold text-rose-700 transition-colors hover:bg-rose-100 shadow-sm"><i className="fas fa-file-pdf"></i> PDF</button>
+                                <button type="button" onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm"><i className="fas fa-print text-gray-500"></i> Print</button>
+                            </div>
+                        </div>
+
+                        {/* Search */}
+                        <div className="relative w-full sm:w-[280px]">
+                            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                            <input
+                                type="text"
+                                placeholder="Search roles..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13px] outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white font-medium"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Table */}
+                    <div className="overflow-x-auto custom-table-scroll pb-2 border-t border-gray-100">
+                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                            <thead className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
+                                <tr>
+                                    <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-12">SL</th>
+                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Role Title</th>
+                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-[45%]">Assigned Permissions</th>
+                                    <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Status</th>
+                                    <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] no-print">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="text-[13.5px] text-gray-800 divide-y divide-gray-100">
+                                {recordList.length > 0 ? (
+                                    recordList.map((role, index) => (
+                                        <tr key={role.id} className="hover:bg-slate-50/80 transition-colors group">
+                                            <td className="px-6 py-4 font-medium text-gray-400 text-center">
+                                                {roles.from ? roles.from + index : index + 1}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-[12px] font-black uppercase shadow-sm">
+                                                        {(role.name || 'R').charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div className="font-extrabold text-gray-900 text-[14.5px]">{role.name}</div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-normal">
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {role.name === 'Super Admin' ? (
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-purple-50 text-[10.5px] font-bold text-purple-700 uppercase tracking-wider border border-purple-200 shadow-sm">
+                                                            <i className="fa-solid fa-star mr-1.5 text-purple-500"></i> All Access (Root Bypass)
+                                                        </span>
+                                                    ) : (
+                                                        role?.permissions?.length > 0 ? role.permissions.map(p => (
+                                                            <span key={p.id} className="inline-flex items-center px-2 py-0.5 rounded-md bg-white text-[10.5px] font-bold text-gray-600 border border-gray-200 uppercase tracking-wider shadow-sm">
+                                                                {p.name}
+                                                            </span>
+                                                        )) : <span className="text-[12px] text-gray-400 italic">No permissions assigned</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className="inline-flex items-center px-3 py-1 rounded-md bg-emerald-50 text-[10px] font-black text-emerald-600 uppercase tracking-wider border border-emerald-200 shadow-sm">
+                                                    Active
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-right no-print">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    {hasPermission('view_role') && (
+                                                        <button onClick={() => openViewModal(role)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors shadow-sm" title="View Details">
+                                                            <i className="fa-regular fa-eye text-[13px]"></i>
+                                                        </button>
+                                                    )}
+                                                    {hasPermission('edit_role') && (
+                                                        <button onClick={() => openEditModal(role)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors shadow-sm" title="Edit">
+                                                            <i className="fa-regular fa-pen-to-square text-[13px]"></i>
+                                                        </button>
+                                                    )}
+                                                    {hasPermission('delete_role') && role.name !== 'Super Admin' && (
+                                                        <button onClick={() => handleDelete(role.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors shadow-sm" title="Delete">
+                                                            <i className="fa-regular fa-trash-can text-[13px]"></i>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="5" className="px-6 py-20 text-center text-gray-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400 shadow-sm border border-gray-200">
+                                                    <i className="fa-solid fa-user-shield text-2xl"></i>
+                                                </div>
+                                                <p className="text-[15px] font-bold text-gray-700">No roles found.</p>
+                                                <p className="text-[13px] font-medium text-gray-400 mt-1">Try adjusting your filters or create a new role.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Pagination Links */}
+                    {roles.links && roles.links.length > 3 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100 bg-white px-6 py-4 no-print">
+                            <div className="text-[13.5px] font-medium text-gray-500">
+                                Showing {roles.from || 0} to {roles.to || 0} of {roles.total || 0} entries
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                {roles.links.map((link, index) => (
+                                    <Link
+                                        key={index}
+                                        href={link.url || "#"}
+                                        className={`flex min-w-[36px] items-center justify-center rounded-lg border px-3 py-2 text-[13px] font-bold transition-all
+                                            ${link.active ? 'border-indigo-600 bg-indigo-600 text-white shadow-md' : link.url ? 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300' : 'border-gray-100 bg-gray-50 text-gray-400 pointer-events-none'}
+                                        `}
+                                        preserveState
+                                        dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "«").replace("&raquo;", "»") }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* --- WIDE & MODERN VIEW DETAILS MODAL --- */}
+            {showViewModal && selectedRecord && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#070b14]/75 backdrop-blur-md p-3 sm:p-6 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
+                    <div className="w-full max-w-2xl bg-slate-50 rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/40 animate-[scaleIn_0.2s_ease-out]">
+                        
+                        {/* Executive Header */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-700/80 shrink-0">
+                            <span className="absolute -right-4 -bottom-6 text-[90px] font-mono text-white/[0.04] select-none pointer-events-none">🛡️</span>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className="fa-solid fa-user-shield"></i>
+                                    </div>
+                                    <div>
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-400/10 border border-indigo-400/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                            <i className="fa-solid fa-id-badge"></i> Role Credentials & Authority
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[22px] font-black text-white tracking-tight leading-tight">
+                                            {selectedRecord.name}
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-bold text-slate-400 mt-0.5">
+                                            Access control policy, granted capabilities and user assignments
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowViewModal(false)}
+                                    className="text-slate-400 hover:text-white hover:bg-rose-600/80 h-9 w-9 rounded-full flex items-center justify-center transition-all shrink-0 bg-slate-800/80 border border-slate-700 cursor-pointer"
+                                >
+                                    <i className="fa-solid fa-xmark text-base"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 sm:p-8 space-y-6 overflow-y-auto custom-table-scroll">
+                            <div className="text-center py-7 bg-white rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-1.5 bg-indigo-500"></div>
+                                <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-2xl font-black uppercase shadow-md mb-3">
+                                    {(selectedRecord.name || 'R').charAt(0).toUpperCase()}
+                                </div>
+                                <h2 className="text-[22px] font-black text-slate-900 tracking-tight leading-snug px-4">
+                                    {selectedRecord.name}
+                                </h2>
+                                <div className="mt-3">
+                                    <span className="inline-flex px-3 py-1 rounded-full bg-emerald-50 text-[10px] font-black uppercase tracking-widest text-emerald-600 border border-emerald-200">
+                                        Active Role
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                <span className="block text-[11.5px] font-bold uppercase tracking-wider text-slate-400 mb-3 border-b border-slate-100 pb-2">Assigned Capabilities</span>
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedRecord.name === 'Super Admin' ? (
+                                        <span className="inline-flex items-center px-4 py-2 rounded-lg text-[13px] font-bold bg-purple-50 text-purple-700 border border-purple-200 shadow-sm">
+                                            <i className="fa-solid fa-star mr-2 text-purple-500"></i> All Access Granted
+                                        </span>
+                                    ) : (
+                                        selectedRecord?.permissions?.length > 0 ? selectedRecord.permissions.map(p => (
+                                            <span key={p.id} className="inline-flex items-center px-3 py-1.5 rounded-lg text-[12px] font-bold bg-slate-50 text-slate-700 border border-slate-200 shadow-xs">
+                                                {p.name}
+                                            </span>
+                                        )) : <span className="text-[13px] text-slate-400 italic">No permissions assigned.</span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 sm:px-8 py-4 border-t border-slate-200 bg-white flex justify-end shrink-0 rounded-b-3xl">
+                            <button
+                                type="button"
+                                onClick={() => setShowViewModal(false)}
+                                className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-[13.5px] font-bold text-slate-700 transition-colors hover:bg-slate-100 shadow-xs cursor-pointer"
+                            >
+                                Close Window
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- WIDE & MODERN CREATE / EDIT FORM MODAL --- */}
+            {showModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#070b14]/75 backdrop-blur-md p-3 sm:p-6 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
+                    <div className="w-full max-w-3xl bg-slate-50 rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/40 animate-[scaleIn_0.2s_ease-out]">
+                        
+                        {/* Executive Header */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-700/80 shrink-0">
+                            <span className="absolute -right-4 -bottom-6 text-[90px] font-mono text-white/[0.04] select-none pointer-events-none">🛡️</span>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className={`fa-solid ${editMode ? 'fa-pen-to-square' : 'fa-user-shield'}`}></i>
+                                    </div>
+                                    <div>
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-400/10 border border-indigo-400/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                            <i className="fa-solid fa-key"></i> {editMode ? 'Role Modification' : 'Access Role Management'}
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[22px] font-black text-white tracking-tight leading-tight">
+                                            {editMode ? "Modify Role & Permissions" : "Create New Role"}
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-bold text-slate-400 mt-0.5">
+                                            {editMode
+                                                ? "Update role title and manage assigned operational capabilities"
+                                                : "Define system privilege level and assign granular security allowances"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    className="text-slate-400 hover:text-white hover:bg-rose-600/80 h-9 w-9 rounded-full flex items-center justify-center transition-all shrink-0 bg-slate-800/80 border border-slate-700 cursor-pointer"
+                                >
+                                    <i className="fa-solid fa-xmark text-base"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Form */}
+                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden h-full">
+                            <div className="p-6 sm:p-8 overflow-y-auto custom-table-scroll space-y-6">
+
+                                <div>
+                                    <label className="block text-[12px] font-bold text-slate-700 uppercase tracking-wider mb-2">Role Identifier / Title <span className="text-red-500">*</span></label>
+                                    <input
+                                        type="text"
+                                        disabled={isSuperAdminRole}
+                                        value={data.name}
+                                        onChange={e => setData('name', e.target.value)}
+                                        className={`w-full rounded-xl border border-slate-300 px-4 py-3 text-[14px] font-bold text-slate-900 outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm ${isSuperAdminRole ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white'}`}
+                                        placeholder="e.g., Manager, Editor, HR"
+                                        required
+                                        autoFocus
+                                    />
+                                    {errors.name && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.name}</p>}
+                                </div>
+
+                                {!isSuperAdminRole && (
+                                    <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm">
+                                        <label className="block text-[12px] font-bold text-slate-700 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2">Assign Allowed Permissions</label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[350px] overflow-y-auto brass-scroll pr-2">
+                                            {(permissions || []).map(p => (
+                                                <label key={p.id} className={`flex items-center gap-2.5 cursor-pointer bg-slate-50 px-4 py-3 rounded-xl border transition-colors shadow-xs ${isPermissionChecked(p.id) ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-300'}`}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isPermissionChecked(p.id)}
+                                                        onChange={() => handleCheckboxChange(p.id)}
+                                                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/50 cursor-pointer"
+                                                    />
+                                                    <span className={`text-[13px] font-bold ${isPermissionChecked(p.id) ? 'text-indigo-800' : 'text-slate-700'}`}>{p.name}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                        {errors.permissions && <p className="text-red-500 text-[11px] font-bold mt-2">{errors.permissions}</p>}
+                                    </div>
+                                )}
+
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-6 sm:px-8 py-4 border-t border-slate-200 bg-white flex justify-end gap-3 shrink-0 rounded-b-3xl">
+                                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-[13.5px] font-bold text-slate-700 transition-colors hover:bg-slate-100 shadow-xs cursor-pointer">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={processing} className="rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 px-8 py-2.5 text-[13.5px] font-bold text-white shadow-md shadow-indigo-600/20 transition-all disabled:opacity-70 flex items-center gap-2 cursor-pointer">
+                                    {processing ? <><i className="fa-solid fa-spinner fa-spin"></i> Saving...</> : <><i className="fa-solid fa-check"></i> {editMode ? "Update Role" : "Save Role"}</>}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </AdminLayout>
+    );
+}

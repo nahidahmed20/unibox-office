@@ -1,0 +1,734 @@
+import React, { useState, useEffect, useRef } from 'react';
+import AdminLayout from '@/Layouts/AdminLayout';
+import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
+import Swal from 'sweetalert2';
+
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import CustomSelect from '@/Components/CustomSelect';
+
+const COMPANY = {
+    name: 'UNIBOX',
+    tagline: "Let's Create Together",
+    logo: typeof window !== 'undefined' ? `${window.location.origin}/images/logo.png` : '',
+    phone: '+8801627188836',
+    email: 'uniboxbd4u@gmail.com',
+    website: 'www.uniboxbd4u.com',
+    address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
+};
+
+// 🟢 Custom Premium Dropdown (Replacing react-select)
+function SearchableSelect({ options, value, onChange, placeholder, getLabel, getValue, error, disabled }) {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState("");
+    const wrapperRef = useRef(null);
+    const inputRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(e) { if (wrapperRef.current && !wrapperRef.current.contains(e.target)) { setOpen(false); setSearch(""); } }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    useEffect(() => { if (open && inputRef.current) inputRef.current.focus(); }, [open]);
+
+    const selected = options.find((opt) => String(getValue(opt)) === String(value));
+    const filtered = options.filter((opt) => getLabel(opt).toLowerCase().includes(search.toLowerCase()));
+
+    return (
+        <div ref={wrapperRef} className="relative w-full z-[60]">
+            <div onClick={() => !disabled && setOpen((o) => !o)} className={`flex w-full cursor-pointer items-center justify-between rounded-xl border px-4 py-3.5 text-[14px] font-bold outline-none transition-all ${disabled ? 'bg-gray-100 cursor-not-allowed opacity-70 border-gray-200 text-gray-400' : 'bg-white hover:border-indigo-400'} ${error ? 'border-red-400 focus:ring-red-500/50' : 'border-gray-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 shadow-sm'} ${selected && !disabled ? 'text-gray-900' : 'text-gray-500'}`}>
+                <span className="truncate flex-1">{selected ? getLabel(selected) : placeholder}</span>
+                <i className={`fa-solid fa-chevron-down text-[11px] text-gray-400 shrink-0 ml-2 transition-transform duration-200 ${open ? 'rotate-180 text-indigo-600' : ''}`}></i>
+            </div>
+            {open && !disabled && (
+                <div className="absolute top-[calc(100%+6px)] left-0 flex max-h-[260px] w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl z-[99999] animate-[fadeIn_0.15s_ease-out]">
+                    <div className="border-b border-gray-100 bg-gray-50 p-3 shrink-0 relative">
+                        <i className="fa-solid fa-magnifying-glass absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                        <input ref={inputRef} type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search employee..." className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-[13px] font-bold outline-none focus:ring-2 focus:ring-indigo-600 shadow-sm" />
+                    </div>
+                    <div className="overflow-y-auto py-1.5 custom-table-scroll">
+                        {filtered.length === 0 ? (
+                            <div className="p-4 text-center text-[13px] text-gray-400 font-bold">No results found</div>
+                        ) : (
+                            filtered.map((opt) => {
+                                const isActive = String(getValue(opt)) === String(value);
+                                return (
+                                    <div key={getValue(opt)} onClick={() => { onChange(String(getValue(opt))); setOpen(false); setSearch(""); }} className={`cursor-pointer px-5 py-3 text-[13.5px] font-bold transition-colors border-b border-gray-50 last:border-0 ${isActive ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-indigo-50'}`}>
+                                        {getLabel(opt)}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default function Index({ attendances = { data: [], links: [] }, users = [] }) {
+    const { auth } = usePage().props;
+    const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
+    const permissions = auth?.permissions || [];
+    const hasPermission = (permission) => isSuperAdmin || permissions.includes(permission);
+
+    const [showModal, setShowModal] = useState(false);
+    const [editMode, setEditMode] = useState(false);
+
+    // View Details Modal State
+    const [showViewModal, setShowViewModal] = useState(false);
+    const [selectedRecord, setSelectedRecord] = useState(null);
+
+    const [searchTerm, setSearchTerm] = useState(() => new URLSearchParams(window.location.search).get('search') || '');
+    const [perPage, setPerPage] = useState(() => {
+        const raw = new URLSearchParams(window.location.search).get("per_page");
+        return raw === "all" ? "all" : (raw ? Number(raw) : 25);
+    });
+    const isFirstRender = useRef(true);
+
+    const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
+        id: '',
+        user_id: '',
+        date: new Date().toISOString().split('T')[0],
+        check_in: '',
+        check_out: '',
+        status: 'present'
+    });
+
+    // --- Live Search & Pagination Sync ---
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+        const delayDebounceFn = setTimeout(() => {
+            const params = {};
+            if (searchTerm.trim()) params.search = searchTerm;
+            params.per_page = perPage;
+
+            router.get(
+                route('admin.attendances.index'),
+                params,
+                { preserveState: true, replace: true }
+            );
+        }, 400);
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchTerm, perPage]);
+
+    const recordList = attendances.data || [];
+
+    // --- Export Tools ---
+    const handleCopy = () => {
+        if (!recordList.length) return Swal.fire("Empty!", "No data to copy", "warning");
+        const text = recordList
+            .map((a) => `${a.date}\t${a.user?.name || "N/A"}\t${a.check_in || '--:--'}\t${a.check_out || '--:--'}\t${a.status?.toUpperCase()}`)
+            .join("\n");
+        navigator.clipboard.writeText("Date\tEmployee Name\tCheck In\tCheck Out\tStatus\n" + text);
+        Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
+    };
+
+    const handleExportCSV = () => {
+        if (!recordList.length) return Swal.fire("Empty!", "No data to export", "warning");
+        const headers = ["Date,Employee Name,Check In,Check Out,Status\n"];
+        const rows = recordList.map(a => `"${a.date}","${a.user?.name || ''}","${a.check_in || '--:--'}","${a.check_out || '--:--'}","${a.status}"`);
+        const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `Attendance_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+        link.click();
+    };
+
+    const handleExcel = () => {
+        if (!recordList.length) return Swal.fire("Empty!", "No data to export", "warning");
+        const ws = XLSX.utils.json_to_sheet(
+            recordList.map((a, index) => ({
+                "SL": index + 1,
+                "Date": a.date,
+                "Employee Name": a.user?.name || '',
+                "Check In": a.check_in || '--:--',
+                "Check Out": a.check_out || '--:--',
+                "Status": a.status?.toUpperCase()
+            }))
+        );
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+        const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        const file = new Blob([excelBuffer], { type: "application/octet-stream" });
+        saveAs(file, `Attendance_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    };
+
+    const handlePDF = () => {
+        if (!recordList.length) return Swal.fire("Empty!", "No data to export", "warning");
+        const doc = new jsPDF();
+        autoTable(doc, {
+            head: [['Date', 'Employee Name', 'Check In', 'Check Out', 'Status']],
+            body: recordList.map((a) => [
+                a.date,
+                a.user?.name || '',
+                a.check_in || '--:--',
+                a.check_out || '--:--',
+                a.status?.toUpperCase().replace('_', ' ')
+            ])
+        });
+        doc.save(`Attendance_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
+    };
+
+    const handlePrint = () => {
+        window.print();
+    };
+
+    // --- Modals & Actions ---
+    const openCreateModal = () => {
+        clearErrors();
+        setData({
+            id: '',
+            user_id: '',
+            date: new Date().toISOString().split('T')[0],
+            check_in: '',
+            check_out: '',
+            status: 'present'
+        });
+        setEditMode(false);
+        setShowModal(true);
+    };
+
+    const openEditModal = (record) => {
+        clearErrors();
+        const formatTime = (timeStr) => timeStr ? timeStr.substring(0, 5) : '';
+
+        setData({
+            id: record.id,
+            user_id: record.user_id || '',
+            date: record.date || '',
+            check_in: formatTime(record.check_in),
+            check_out: formatTime(record.check_out),
+            status: record.status || 'present'
+        });
+        setEditMode(true);
+        setShowModal(true);
+    };
+
+    const openViewModal = (record) => {
+        setSelectedRecord(record);
+        setShowViewModal(true);
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (editMode) {
+            put(route('admin.attendances.update', data.id), {
+                onSuccess: () => {
+                    setShowModal(false);
+                    Swal.fire({ icon: "success", title: "Updated Successfully!", timer: 1500, showConfirmButton: false, toast: true, position: 'top-end' });
+                }
+            });
+        } else {
+            post(route('admin.attendances.store'), {
+                onSuccess: () => {
+                    reset();
+                    setShowModal(false);
+                    Swal.fire({ icon: "success", title: "Logged Successfully!", timer: 1500, showConfirmButton: false, toast: true, position: 'top-end' });
+                }
+            });
+        }
+    };
+
+    const handleDelete = (id) => {
+        Swal.fire({
+            title: 'Delete Attendance Record?',
+            text: "This record will be permanently deleted!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Yes, Delete It'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                destroy(route('admin.attendances.destroy', id), {
+                    preserveScroll: true,
+                    onSuccess: () => Swal.fire({ icon: "success", title: "Deleted!", text: "The record has been deleted.", timer: 1500, showConfirmButton: false }),
+                });
+            }
+        });
+    };
+
+    // Status Styling Generator
+    const getStatusStyles = (status) => {
+        const styles = {
+            present: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+            absent: 'bg-red-50 text-red-700 border-red-200',
+            late: 'bg-amber-50 text-amber-700 border-amber-200',
+            half_day: 'bg-orange-50 text-orange-700 border-orange-200',
+            on_leave: 'bg-sky-50 text-sky-700 border-sky-200',
+            holiday: 'bg-purple-50 text-purple-700 border-purple-200'
+        };
+        return styles[status] || 'bg-gray-100 text-gray-700 border-gray-200';
+    };
+
+    return (
+        <AdminLayout>
+            <Head title="Employee Attendance Ledger" />
+
+            <style dangerouslySetInnerHTML={{__html: `
+                .custom-table-scroll::-webkit-scrollbar { height: 8px; }
+                .custom-table-scroll::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
+                .custom-table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+                .custom-table-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+                @media print {
+                    body * { visibility: hidden; }
+                    #printable-table, #printable-table * { visibility: visible; }
+                    #printable-table { position: absolute; left: 0; top: 0; width: 100%; }
+                    .no-print { display: none !important; }
+                }
+            `}} />
+
+            <div className="flex flex-col gap-8 max-w-[1600px] mx-auto pb-12 mt-2">
+
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div>
+                        <div className="inline-flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest text-indigo-600">
+                            <span className="h-1.5 w-1.5 rounded-full bg-indigo-600"></span> Human Resources
+                        </div>
+                        <h1 className="text-[28px] font-extrabold text-gray-900 tracking-tight">Daily Attendance Ledger</h1>
+                        <p className="text-[14.5px] text-gray-500 mt-1.5 max-w-lg leading-relaxed">Monitor employee check-ins, check-outs, and historical logs seamlessly.</p>
+                    </div>
+                </div>
+
+                <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col">
+
+                    {/* Card Header & Actions */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 px-6 py-5 gap-4 bg-gray-50/40 no-print">
+                        <div className="text-[16px] font-bold text-gray-900 flex items-center gap-2.5">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                                <i className="fa-solid fa-clock text-[14px]"></i>
+                            </div>
+                            Attendance Records
+                        </div>
+                        {hasPermission('create_attendance') && (
+                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-[13.5px] font-bold text-white transition-all hover:bg-indigo-700 shadow-sm hover:shadow-md">
+                                <i className="fa-solid fa-plus"></i> Log Attendance
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Toolbar */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-gray-100 no-print">
+
+                        <div className="flex flex-wrap items-center gap-3">
+
+                            {/* Premium Show Rows Dropdown */}
+                            <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
+                                <span className="bg-gray-50/80 px-4 py-2.5 text-[12.5px] font-extrabold text-gray-500 border-r border-gray-200 uppercase tracking-wide">
+                                    Show
+                                </span>
+                                <div className="relative">
+                                    <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
+                                        className="appearance-none bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
+                                    >
+                                        <option value={10}>10 Rows</option>
+                                        <option value={25}>25 Rows</option>
+                                        <option value={50}>50 Rows</option>
+                                        <option value={100}>100 Rows</option>
+                                        <option value="all">All Data</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="h-6 w-px bg-gray-200 hidden sm:block mx-1"></div>
+
+                            {/* Export Buttons */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <button type="button" onClick={handleCopy} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm"><i className="fas fa-copy text-blue-500"></i> Copy</button>
+                                <button type="button" onClick={handleExcel} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-[13px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100 shadow-sm"><i className="fas fa-file-excel text-emerald-500"></i> Excel</button>
+                                <button type="button" onClick={handleExportCSV} className="flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-2.5 text-[13px] font-bold text-teal-700 transition-colors hover:bg-teal-100 shadow-sm"><i className="fas fa-file-csv"></i> CSV</button>
+                                <button type="button" onClick={handlePDF} className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[13px] font-bold text-rose-700 transition-colors hover:bg-rose-100 shadow-sm"><i className="fas fa-file-pdf"></i> PDF</button>
+                                <button type="button" onClick={handlePrint} className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-[13px] font-bold text-gray-700 transition-colors hover:bg-gray-50 shadow-sm"><i className="fas fa-print text-gray-500"></i> Print</button>
+                            </div>
+                        </div>
+
+                        {/* Search */}
+                        <div className="relative w-full sm:w-[280px]">
+                            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
+                            <input
+                                type="text"
+                                placeholder="Search name or date..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-[13px] outline-none transition-shadow focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm bg-white font-medium"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Table */}
+                    <div className="overflow-x-auto custom-table-scroll pb-2 border-t border-gray-100">
+                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                            <thead className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
+                                <tr>
+                                    <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-12">SL</th>
+                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Date</th>
+                                    <th className="px-6 py-4.5 text-left text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-[30%]">Employee</th>
+                                    <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Check In</th>
+                                    <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Check Out</th>
+                                    <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Status</th>
+                                    <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] no-print">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="text-[13.5px] text-gray-800 divide-y divide-gray-100">
+                                {recordList.length > 0 ? (
+                                    recordList.map((record, index) => {
+                                        const statusStyle = getStatusStyles(record.status);
+                                        return (
+                                            <tr key={record.id} className="hover:bg-slate-50/80 transition-colors group">
+                                                <td className="px-6 py-4 font-medium text-gray-400 text-center">
+                                                    {attendances.from ? attendances.from + index : index + 1}
+                                                </td>
+                                                <td className="px-6 py-4 font-semibold text-gray-600">
+                                                    <div className="flex items-center gap-1.5"><i className="fa-regular fa-calendar-days text-[11px] text-gray-400"></i> {record.date}</div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-[11px] font-black uppercase shadow-sm">
+                                                            {(record.user?.name || 'E').charAt(0)}
+                                                        </div>
+                                                        <div className="font-extrabold text-gray-900 text-[14px]">{record.user?.name || 'Unknown Employee'}</div>
+                                                    </div>
+                                                </td>
+                                                <td className={`px-6 py-4 text-center font-bold ${record.check_in ? 'text-gray-800' : 'text-gray-400'}`}>
+                                                    {record.check_in ? record.check_in.substring(0, 5) : '--:--'}
+                                                </td>
+                                                <td className={`px-6 py-4 text-center font-bold ${record.check_out ? 'text-gray-800' : 'text-gray-400'}`}>
+                                                    {record.check_out ? record.check_out.substring(0, 5) : '--:--'}
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <span className={`inline-flex px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${statusStyle}`}>
+                                                        {record.status.replace('_', ' ')}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-right no-print">
+                                                    <div className="flex items-center justify-end gap-1.5">
+                                                        {hasPermission('view_attendance') && (
+                                                            <button onClick={() => openViewModal(record)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors shadow-sm" title="View Details">
+                                                                <i className="fa-regular fa-eye text-[13px]"></i>
+                                                            </button>
+                                                        )}
+                                                        {hasPermission('edit_attendance') && (
+                                                            <button onClick={() => openEditModal(record)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors shadow-sm" title="Edit">
+                                                                <i className="fa-regular fa-pen-to-square text-[13px]"></i>
+                                                            </button>
+                                                        )}
+                                                        {hasPermission('delete_attendance') && (
+                                                            <button onClick={() => handleDelete(record.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors shadow-sm" title="Delete">
+                                                                <i className="fa-regular fa-trash-can text-[13px]"></i>
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr>
+                                        <td colSpan="7" className="px-6 py-20 text-center text-gray-500">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400 shadow-sm border border-gray-200">
+                                                    <i className="fa-regular fa-calendar-xmark text-2xl"></i>
+                                                </div>
+                                                <p className="text-[15px] font-bold text-gray-700">No attendance records found.</p>
+                                                <p className="text-[13px] font-medium text-gray-400 mt-1">Try adjusting your filters or log new attendance.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Pagination Links */}
+                    {attendances.links && attendances.links.length > 3 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100 bg-white px-6 py-4 no-print">
+                            <div className="text-[13.5px] font-medium text-gray-500">
+                                {attendances.total > 0 && `Showing ${attendances.from || 0} to ${attendances.to || 0} of ${attendances.total || 0} entries`}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                {attendances.links.map((link, index) => (
+                                    <Link
+                                        key={index}
+                                        href={link.url || "#"}
+                                        className={`flex min-w-[36px] items-center justify-center rounded-lg border px-3 py-2 text-[13px] font-bold transition-all
+                                            ${link.active ? 'border-indigo-600 bg-indigo-600 text-white shadow-md' : link.url ? 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300' : 'border-gray-100 bg-gray-50 text-gray-400 pointer-events-none'}
+                                        `}
+                                        preserveState
+                                        dangerouslySetInnerHTML={{ __html: link.label.includes("Previous") ? '<i class="fa-solid fa-chevron-left text-[10px]"></i>' : link.label.includes("Next") ? '<i class="fa-solid fa-chevron-right text-[10px]"></i>' : link.label.replace("&laquo;", "«").replace("&raquo;", "»") }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* --- 💎 EXECUTIVE VIEW DETAILS MODAL --- */}
+            {showViewModal && selectedRecord && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-3 sm:p-5 md:p-8 overflow-y-auto">
+                    <div className="w-full max-w-lg bg-slate-50 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/30 animate-[scaleIn_0.2s_ease-out]">
+
+                        {/* EXECUTIVE HEADER */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-700/80 shrink-0">
+                            <i className="fa-regular fa-clock absolute -right-4 -bottom-6 text-[90px] text-white/[0.04] select-none pointer-events-none"></i>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className="fa-solid fa-clipboard-user"></i>
+                                    </div>
+                                    <div>
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-400/10 border border-indigo-400/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                            <i className="fa-solid fa-fingerprint"></i> Staff Attendance
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[22px] font-black text-white tracking-tight leading-tight">
+                                            Attendance Summary
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-medium text-slate-400 mt-0.5">
+                                            Daily time-log and status report
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => setShowViewModal(false)}
+                                    className="text-slate-400 hover:text-white hover:bg-rose-600/80 bg-white/5 border border-white/10 h-10 w-10 rounded-full flex items-center justify-center transition-all shadow-sm relative z-10 shrink-0"
+                                >
+                                    <i className="fa-solid fa-xmark text-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 sm:p-7 space-y-5 overflow-y-auto custom-table-scroll flex-1 bg-slate-50">
+                            <div className="text-center py-6 px-4 bg-white rounded-2xl border border-slate-300 shadow-sm relative overflow-hidden">
+                                <div className="inline-flex mb-3 px-3 py-1 rounded-full text-[10.5px] font-black uppercase tracking-widest border shadow-xs">
+                                    <span className={getStatusStyles(selectedRecord.status)}>
+                                        {selectedRecord.status.replace('_', ' ')}
+                                    </span>
+                                </div>
+                                <h2 className="text-[22px] font-black text-slate-900 tracking-tight">
+                                    {selectedRecord.user?.name || "N/A"}
+                                </h2>
+                                <div className="text-[12.5px] font-bold text-slate-500 mt-1 flex items-center justify-center gap-1.5">
+                                    <i className="fa-regular fa-calendar text-indigo-500"></i> {selectedRecord.date || "-"}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="bg-white p-5 rounded-2xl border border-slate-300 shadow-sm flex flex-col items-center justify-center">
+                                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-1">Check In Time</span>
+                                    <div className="text-[20px] font-black text-blue-600 flex items-center gap-2 tabular-nums">
+                                        <i className="fa-regular fa-clock text-sm text-blue-400"></i>
+                                        {selectedRecord.check_in ? selectedRecord.check_in.substring(0, 5) : '--:--'}
+                                    </div>
+                                </div>
+                                <div className="bg-white p-5 rounded-2xl border border-slate-300 shadow-sm flex flex-col items-center justify-center">
+                                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-1">Check Out Time</span>
+                                    <div className="text-[20px] font-black text-amber-600 flex items-center gap-2 tabular-nums">
+                                        <i className="fa-regular fa-clock text-sm text-amber-400"></i>
+                                        {selectedRecord.check_out ? selectedRecord.check_out.substring(0, 5) : '--:--'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 sm:px-8 py-4 border-t border-slate-300 bg-white flex justify-end shrink-0 rounded-b-2xl sm:rounded-b-3xl">
+                            <button
+                                type="button"
+                                onClick={() => setShowViewModal(false)}
+                                className="rounded-xl bg-slate-900 hover:bg-black px-8 py-2.5 text-[13.5px] font-bold text-white transition-colors shadow-sm"
+                            >
+                                Close Window
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- 💎 EXECUTIVE CREATE / EDIT ATTENDANCE MODAL --- */}
+            {showModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-3 sm:p-5 md:p-8 overflow-y-auto">
+                    <div className="w-full max-w-2xl bg-slate-50 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col my-auto max-h-[96vh] sm:max-h-[92vh] overflow-hidden border border-slate-700/30 animate-[scaleIn_0.2s_ease-out]">
+
+                        {/* EXECUTIVE HEADER */}
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 px-6 py-5 sm:px-8 sm:py-6 text-white border-b border-slate-700/80 shrink-0">
+                            <i className="fa-regular fa-clock absolute -right-4 -bottom-6 text-[90px] text-white/[0.04] select-none pointer-events-none"></i>
+                            <div className="absolute right-10 top-0 h-32 w-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                            <div className="relative z-10 flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
+                                        <i className={`fa-solid ${editMode ? 'fa-pen-to-square' : 'fa-clock'}`}></i>
+                                    </div>
+                                    <div>
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-400/10 border border-indigo-400/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest mb-1 shadow-sm">
+                                            <i className="fa-solid fa-fingerprint"></i> Daily Timesheet
+                                        </div>
+                                        <h3 className="text-[19px] sm:text-[23px] font-black text-white tracking-tight leading-tight">
+                                            {editMode ? "Edit Attendance Record" : "Log Manual Attendance"}
+                                        </h3>
+                                        <p className="text-[12px] sm:text-[13px] font-medium text-slate-400 mt-0.5">
+                                            {editMode ? "Modify check-in, check-out or status for this employee" : "Record daily attendance check-in, check-out and status"}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    className="text-slate-400 hover:text-white hover:bg-rose-600/80 bg-white/5 border border-white/10 h-10 w-10 rounded-full flex items-center justify-center transition-all shadow-sm relative z-10 shrink-0"
+                                >
+                                    <i className="fa-solid fa-xmark text-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Form */}
+                        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+                            <div className="p-5 sm:p-7 md:p-8 overflow-y-auto custom-table-scroll space-y-6 bg-slate-50 flex-1">
+
+                                {/* Section 1: Staff & Date */}
+                                <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-300 shadow-sm space-y-5">
+                                    <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                                        <div className="h-6 w-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-black">1</div>
+                                        <h4 className="text-[13px] font-black uppercase tracking-wider text-slate-800">Staff Selection & Date</h4>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div className="relative">
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                Select Employee <span className="text-red-600">*</span>
+                                            </label>
+                                            <SearchableSelect
+                                                options={users}
+                                                value={data.user_id}
+                                                onChange={(val) => setData("user_id", val)}
+                                                placeholder="-- Click to Select Employee --"
+                                                getValue={(user) => user.id}
+                                                getLabel={(user) => user.name}
+                                                error={errors.user_id}
+                                                disabled={editMode}
+                                            />
+                                            {errors.user_id && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.user_id}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
+                                                Date <span className="text-red-600">*</span>
+                                            </label>
+                                            <input
+                                                type="date"
+                                                value={data.date}
+                                                onChange={e => setData('date', e.target.value)}
+                                                className={`w-full rounded-xl border px-4 py-3 text-[13.5px] font-bold text-slate-900 outline-none transition-all shadow-xs ${editMode ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200' : 'bg-white cursor-pointer border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10'}`}
+                                                required
+                                                disabled={editMode}
+                                            />
+                                            {errors.date && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.date}</p>}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Section 2: Time Tracking */}
+                                <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-300 shadow-sm space-y-5">
+                                    <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                                        <div className="h-6 w-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-black">2</div>
+                                        <h4 className="text-[13px] font-black uppercase tracking-wider text-slate-800">Check In / Out Timings</h4>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div>
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">Check In Time</label>
+                                            <div className="relative">
+                                                <i className="fa-regular fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                                <input
+                                                    type="time"
+                                                    value={data.check_in}
+                                                    onChange={e => setData('check_in', e.target.value)}
+                                                    className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 py-3 text-[13.5px] font-bold text-slate-900 outline-none transition-all shadow-xs focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 cursor-pointer tabular-nums"
+                                                />
+                                            </div>
+                                            {errors.check_in && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.check_in}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">Check Out Time</label>
+                                            <div className="relative">
+                                                <i className="fa-regular fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                                <input
+                                                    type="time"
+                                                    value={data.check_out}
+                                                    onChange={e => setData('check_out', e.target.value)}
+                                                    className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 py-3 text-[13.5px] font-bold text-slate-900 outline-none transition-all shadow-xs focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 cursor-pointer tabular-nums"
+                                                />
+                                            </div>
+                                            {errors.check_out && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.check_out}</p>}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Section 3: Status */}
+                                <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-300 shadow-sm space-y-4">
+                                    <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-1">
+                                        Attendance Status <span className="text-red-600">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <CustomSelect
+                                            value={data.status}
+                                            onChange={e => setData('status', e.target.value)}
+                                            className="w-full appearance-none bg-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-[13.5px] font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 cursor-pointer shadow-xs"
+                                            required
+                                        >
+                                            <option value="present">🟢 Present (Full Day)</option>
+                                            <option value="absent">🔴 Absent</option>
+                                            <option value="late">🟡 Late Check-in</option>
+                                            <option value="half_day">🌓 Half Day</option>
+                                            <option value="on_leave">🏖️ On Approved Leave</option>
+                                            <option value="holiday">🎉 Official Holiday</option>
+                                        </CustomSelect>
+                                    </div>
+                                    {errors.status && <p className="text-red-600 text-[11px] font-bold mt-1.5">{errors.status}</p>}
+                                </div>
+
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-6 md:px-8 py-4 border-t border-slate-300 bg-white flex flex-wrap items-center justify-end gap-3 shrink-0 rounded-b-2xl sm:rounded-b-3xl">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-[13.5px] font-bold text-slate-700 transition-colors hover:bg-slate-100 shadow-xs"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="rounded-xl bg-indigo-600 px-8 py-2.5 text-[13.5px] font-black text-white transition-all hover:bg-indigo-700 shadow-md shadow-indigo-600/20 active:scale-95 disabled:opacity-70 flex items-center gap-2"
+                                >
+                                    {processing ? (
+                                        <><i className="fa-solid fa-spinner fa-spin text-sm"></i> Saving…</>
+                                    ) : (
+                                        <><i className="fa-solid fa-check text-sm"></i> {editMode ? "Update Record" : "Save Attendance"}</>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </AdminLayout>
+    );
+}
