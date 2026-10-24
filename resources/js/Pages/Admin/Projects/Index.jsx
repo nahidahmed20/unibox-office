@@ -197,77 +197,66 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                 .custom-table-scroll::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
             `}} />
 
-            <div className="flex flex-col gap-8 w-full max-w-[1600px] mx-auto pb-12 mt-4">
+            <div className="flex w-full max-w-[1600px] mx-auto flex-col gap-6 pb-12 mt-4">
 
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 pb-6 border-b-2 border-slate-300">
-                    <div>
-                        <div className="inline-flex items-center gap-2 mb-2.5 px-3 py-1 bg-indigo-100 border border-indigo-200 rounded-full text-[11px] font-black uppercase tracking-widest text-indigo-800 shadow-sm">
-                            <i className="fa-solid fa-briefcase"></i> Operations
+                <div className="relative flex flex-col gap-5 overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-white to-indigo-50/70 px-5 py-5 shadow-sm sm:px-7 sm:py-6">
+                    <div className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full bg-indigo-100/60 blur-3xl"></div>
+                    <div className="relative flex items-start gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
+                            <i className="fa-solid fa-briefcase text-[19px]"></i>
                         </div>
-                        <h1 className="text-[28px] sm:text-[32px] font-black text-slate-900 tracking-tight leading-none">Project Workspace</h1>
-                        <p className="text-[14.5px] font-bold text-slate-600 mt-2 max-w-lg">Manage, track, and oversee client projects from start to completion.</p>
+                        <div>
+                            <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Operations</div>
+                            <h1 className="text-[27px] font-black leading-none tracking-tight text-slate-900 sm:text-[32px]">Project Workspace</h1>
+                            <p className="mt-2 max-w-lg text-[13.5px] font-medium leading-relaxed text-slate-500">Manage, track, and oversee client projects from start to completion.</p>
+                        </div>
                     </div>
                 </div>
 
                 {/* 🟢 Premium Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-6 py-6 shadow-lg border border-slate-700 text-white min-w-[240px] group">
-                        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/5 blur-2xl group-hover:bg-white/10 transition-colors"></div>
-                        <div className="flex items-center gap-5 relative z-10">
-                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-md border border-white/10 text-slate-300">
-                                <i className="fa-solid fa-layer-group text-2xl"></i>
-                            </div>
-                            <div>
-                                <p className="text-[11.5px] font-bold uppercase tracking-widest text-slate-400">Total Projects</p>
-                                <h3 className="text-[28px] font-black tracking-tight mt-0.5 tabular-nums">
-                                    {projects?.total || 0}
-                                </h3>
-                            </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-slate-500"></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600"><i className="fa-solid fa-layer-group text-[19px]"></i></div>
+                        <div className="min-w-0">
+                            <p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Total projects</p>
+                            <h3 className="mt-1 text-[25px] font-black leading-none tracking-tight text-slate-900 tabular-nums">{projects?.total || 0}</h3>
                         </div>
                     </div>
 
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-700 px-6 py-6 shadow-lg border border-indigo-500 text-white min-w-[240px] group">
-                        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl group-hover:bg-white/20 transition-colors"></div>
-                        <div className="flex items-center gap-5 relative z-10">
-                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-indigo-100">
-                                <i className="fa-solid fa-person-digging text-2xl"></i>
-                            </div>
-                            <div>
-                                <p className="text-[11.5px] font-bold uppercase tracking-widest text-indigo-200">Active / In Progress</p>
-                                <h3 className="text-[28px] font-black tracking-tight mt-0.5 tabular-nums">
-                                    {activeProjectsCount}
-                                </h3>
-                            </div>
+                    <div className="group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-indigo-100 bg-white px-5 py-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-indigo-500"></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><i className="fa-solid fa-person-digging text-[19px]"></i></div>
+                        <div className="min-w-0">
+                            <p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Active / in progress</p>
+                            <h3 className="mt-1 text-[25px] font-black leading-none tracking-tight text-slate-900 tabular-nums">{activeProjectsCount}</h3>
                         </div>
                     </div>
 
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 px-6 py-6 shadow-lg border border-emerald-500 text-white min-w-[240px] group">
-                        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl group-hover:bg-white/20 transition-colors"></div>
-                        <div className="flex items-center gap-5 relative z-10">
-                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-emerald-100">
-                                <i className="fa-solid fa-sack-dollar text-2xl"></i>
-                            </div>
-                            <div>
-                                <p className="text-[11.5px] font-bold uppercase tracking-widest text-emerald-200">Total Value (View)</p>
-                                <h3 className="text-[28px] font-black tracking-tight mt-0.5 tabular-nums flex items-center">
-                                    <Taka className="text-[18px] text-emerald-200 mr-1" />{totalProjectsBudget.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
-                                </h3>
-                            </div>
+                    <div className="group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-emerald-100 bg-white px-5 py-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md sm:col-span-2 xl:col-span-1">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-emerald-500"></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><i className="fa-solid fa-sack-dollar text-[19px]"></i></div>
+                        <div className="min-w-0">
+                            <p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Total value (view)</p>
+                            <h3 className="mt-1 flex items-center text-[25px] font-black leading-none tracking-tight text-slate-900 tabular-nums">
+                                <Taka className="mr-1 text-[16px] text-emerald-500" />{totalProjectsBudget.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                            </h3>
                         </div>
                     </div>
                 </div>
 
                 {/* Main Card */}
-                <div className="rounded-2xl border border-slate-300 bg-white overflow-hidden flex flex-col shadow-md">
+                <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
                     {/* Card Header & Actions */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 px-6 py-5 gap-4 bg-slate-50">
-                        <div className="text-[16px] font-black text-slate-900 flex items-center gap-2.5">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 border border-indigo-200 text-indigo-700">
+                    <div className="flex flex-col gap-4 border-b border-slate-100 bg-white px-5 py-4 sm:px-6 md:flex-row md:items-center md:justify-between">
+                        <div className="flex items-center gap-3 text-[16px] font-black text-slate-900">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                                 <i className="fa-solid fa-list-check text-[15px]"></i>
                             </div>
-                            Project Directory
+                            <div><h2 className="text-[16px] font-black text-slate-900">Project directory</h2>
+                            <p className="mt-0.5 text-[12px] font-medium text-slate-500">{projects?.total || 0} total projects</p></div>
                         </div>
                         <div className="flex items-center gap-3">
                             <TableExportButtons
@@ -277,7 +266,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                 title="Projects Directory Report"
                             />
                             {hasPermission('create_project') && (
-                                <Link href={route('admin.projects.create')} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-6 py-2.5 text-[13.5px] font-bold text-white transition-colors shadow-md ml-2">
+                                <Link href={route('admin.projects.create')} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-[13px] font-extrabold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-md">
                                     <i className="fa-solid fa-plus text-[12px]"></i> New Project
                                 </Link>
                             )}
@@ -285,7 +274,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                     </div>
 
                     {/* 🟢 High Contrast Filters & Search Toolbar */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-5 bg-white border-b border-slate-200" ref={filterRef}>
+                    <div className="flex flex-col justify-between gap-4 border-b border-slate-100 bg-slate-50/60 px-5 py-4 sm:px-6 lg:flex-row lg:items-center" ref={filterRef}>
 
                         {/* Left Side: Show Rows & Filters */}
                         <div className="flex flex-wrap items-center gap-3">

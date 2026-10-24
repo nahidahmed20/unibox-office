@@ -9,20 +9,28 @@ const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
 );
 
-const StatCard = ({ label, value, icon, gradient, textColor, iconColor, ringColor }) => (
-    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} p-6 shadow-lg border border-white/10 group`}>
-        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-white/10 opacity-40 transition-transform duration-500 group-hover:scale-110 blur-xl"></div>
-        <div className="relative z-10 flex items-center gap-5">
-            <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-md text-[20px] shadow-sm border border-white/20 ${iconColor}`}>
-                <i className={`fa-solid ${icon}`}></i>
+const StatCard = ({ label, value, icon, gradient }) => {
+    const tone = gradient.includes('emerald')
+        ? { border: 'border-emerald-100 hover:border-emerald-200', stripe: 'bg-emerald-500', icon: 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100' }
+        : gradient.includes('rose')
+            ? { border: 'border-rose-100 hover:border-rose-200', stripe: 'bg-rose-500', icon: 'bg-rose-50 text-rose-600 group-hover:bg-rose-100' }
+            : gradient.includes('indigo')
+                ? { border: 'border-indigo-100 hover:border-indigo-200', stripe: 'bg-indigo-500', icon: 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100' }
+                : { border: 'border-slate-200 hover:border-slate-300', stripe: 'bg-slate-500', icon: 'bg-slate-50 text-slate-600 group-hover:bg-slate-100' };
+
+    return (
+        <div className={`group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border bg-white px-5 py-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${tone.border}`}>
+            <div className={`absolute inset-y-0 left-0 w-1 ${tone.stripe}`}></div>
+            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors ${tone.icon}`}>
+                <i className={`fa-solid ${icon} text-[19px]`}></i>
             </div>
-            <div>
-                <p className={`text-[11.5px] font-bold uppercase tracking-widest mb-0.5 ${textColor}`}>{label}</p>
-                <h3 className="text-[26px] font-black tracking-tight tabular-nums text-white leading-none">{value}</h3>
+            <div className="min-w-0">
+                <p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">{label}</p>
+                <h3 className="mt-1 text-[25px] font-black leading-none tracking-tight text-slate-900 tabular-nums">{value}</h3>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 export default function Index({ 
     transactions = { data: [], links: [] }, 
@@ -442,77 +450,75 @@ export default function Index({
                 .custom-table-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
             `}} />
 
-            <div className="flex flex-col gap-8 w-full max-w-[1600px] mx-auto pb-12 mt-2">
+            <div className="flex w-full max-w-[1600px] mx-auto flex-col gap-6 pb-12 mt-2">
 
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mt-2">
-                    <div>
-                        <div className="inline-flex items-center gap-2 mb-2.5 px-3 py-1 bg-indigo-100 border border-indigo-200 rounded-full text-[11px] font-black uppercase tracking-widest text-indigo-800 shadow-sm">
-                            <i className="fa-solid fa-book-open"></i> Financial Ledger
+                <div className="relative flex flex-col gap-5 overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-white to-indigo-50/70 px-5 py-5 shadow-sm sm:px-7 sm:py-6 md:flex-row md:items-center md:justify-between">
+                    <div className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full bg-indigo-100/60 blur-3xl"></div>
+                    <div className="relative flex items-start gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
+                            <i className="fa-solid fa-book-open text-[19px]"></i>
                         </div>
-                        <h1 className="text-[28px] sm:text-[32px] font-black text-slate-900 tracking-tight leading-none">Transactions Directory</h1>
-                        <p className="text-[14.5px] font-bold text-slate-600 mt-2 max-w-lg">Monitor all cash inflows, outflows, and bank transfers across accounts.</p>
+                        <div>
+                            <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Financial ledger</div>
+                            <h1 className="text-[27px] font-black leading-none tracking-tight text-slate-900 sm:text-[32px]">Transactions</h1>
+                            <p className="mt-2 max-w-lg text-[13.5px] font-medium leading-relaxed text-slate-500">Monitor cash inflows, outflows, and transfers across your accounts.</p>
+                        </div>
                     </div>
                 </div>
 
                 {/* 🟢 Premium Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     <StatCard
                         label="Total Deposit (In)"
-                        value={<><Taka className="text-[18px] mr-1 text-emerald-200" />{parseFloat(totalCredit || 0).toLocaleString('en-IN')}</>}
+                        value={<><Taka className="text-[16px] mr-1 text-emerald-600" />{parseFloat(totalCredit || 0).toLocaleString('en-IN')}</>}
                         icon="fa-arrow-down-to-bracket"
                         gradient="from-emerald-600 to-teal-700"
-                        textColor="text-emerald-200"
-                        iconColor="text-emerald-100"
                     />
                     <StatCard
                         label="Total Withdrawal (Out)"
-                        value={<><Taka className="text-[18px] mr-1 text-rose-200" />{parseFloat(totalDebit || 0).toLocaleString('en-IN')}</>}
+                        value={<><Taka className="text-[16px] mr-1 text-rose-600" />{parseFloat(totalDebit || 0).toLocaleString('en-IN')}</>}
                         icon="fa-arrow-right-from-bracket"
                         gradient="from-rose-500 to-red-600"
-                        textColor="text-rose-200"
-                        iconColor="text-rose-100"
                     />
                     <StatCard
                         label="Net Balance"
-                        value={<>{netBalance < 0 ? '-' : ''}<Taka className={`text-[18px] mr-1 ${netBalance >= 0 ? 'text-indigo-200' : 'text-white'}`} />{Math.abs(parseFloat(netBalance || 0)).toLocaleString('en-IN')}</>}
+                        value={<>{netBalance < 0 ? '-' : ''}<Taka className={`text-[16px] mr-1 ${netBalance >= 0 ? 'text-indigo-600' : 'text-slate-600'}`} />{Math.abs(parseFloat(netBalance || 0)).toLocaleString('en-IN')}</>}
                         icon="fa-scale-balanced"
                         gradient={netBalance >= 0 ? "from-indigo-600 to-blue-700" : "from-slate-700 to-slate-900"}
-                        textColor={netBalance >= 0 ? "text-indigo-200" : "text-slate-300"}
-                        iconColor={netBalance >= 0 ? "text-indigo-100" : "text-slate-100"}
                     />
                 </div>
 
                 {/* Main Card */}
-                <div className="rounded-2xl border border-slate-300 bg-white shadow-md overflow-hidden">
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
                     {/* Card Header & Actions */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 px-6 py-5 gap-4 bg-slate-50">
-                        <div className="text-[16px] font-black text-slate-900 flex items-center gap-2.5">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 border border-indigo-200 shadow-sm">
+                    <div className="flex flex-col gap-4 border-b border-slate-100 bg-white px-5 py-4 sm:px-6 md:flex-row md:items-center md:justify-between">
+                        <div className="flex items-center gap-3 text-[16px] font-black text-slate-900">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                                 <i className="fa-solid fa-money-bill-transfer text-[15px]"></i>
                             </div>
                             <div>
-                                <h2 className="text-[16px] font-black text-slate-900 leading-tight">
+                                <h2 className="text-[16px] font-black leading-tight text-slate-900">
                                     {viewMode === 'date_wise' ? 'Date-wise Transaction Summary' : 'All Transactions'}
                                 </h2>
-                                <p className="text-[12px] text-slate-500 font-bold mt-0.5">
+                                <p className="mt-0.5 text-[12px] font-medium text-slate-500">
                                     {viewMode === 'date_wise'
                                         ? `${dateWiseGroups.length} date-wise party summaries (from ${trxList.length} records)`
                                         : `${transactions.total ?? trxList.length} total records`}
                                 </p>
                             </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                             {/* 🟢 View Mode Toggle: Detailed vs Date-wise Total */}
-                            <div className="inline-flex items-center rounded-xl bg-slate-200/80 p-1 border border-slate-300 shadow-inner">
+                            <div className="inline-flex w-full items-center rounded-xl border border-slate-200 bg-slate-50 p-1 sm:w-auto">
                                 <button
                                     type="button"
                                     onClick={() => handleViewModeSwitch('detailed')}
-                                    className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[12.5px] font-black transition-all ${
+                                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-extrabold transition-all sm:flex-none sm:px-3.5 ${
                                         viewMode === 'detailed'
-                                            ? 'bg-white text-indigo-700 shadow-sm border border-indigo-200'
-                                            : 'text-slate-600 hover:text-slate-900'
+                                            ? 'border border-indigo-100 bg-white text-indigo-700 shadow-sm'
+                                            : 'text-slate-500 hover:text-slate-800'
                                     }`}
                                 >
                                     <i className="fa-solid fa-list-ul text-[11px]"></i>
@@ -521,10 +527,10 @@ export default function Index({
                                 <button
                                     type="button"
                                     onClick={() => handleViewModeSwitch('date_wise')}
-                                    className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[12.5px] font-black transition-all ${
+                                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-extrabold transition-all sm:flex-none sm:px-3.5 ${
                                         viewMode === 'date_wise'
-                                            ? 'bg-emerald-600 text-white shadow-sm border border-emerald-700'
-                                            : 'text-slate-600 hover:text-slate-900'
+                                            ? 'border border-emerald-600 bg-emerald-600 text-white shadow-sm'
+                                            : 'text-slate-500 hover:text-slate-800'
                                     }`}
                                 >
                                     <i className="fa-solid fa-calendar-check text-[11px]"></i>
@@ -534,10 +540,10 @@ export default function Index({
 
                             {hasPermission('create_transaction') && (
                                 <>
-                                    <button onClick={openTransferModal} className="flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-2.5 text-[13.5px] font-bold text-white transition-all hover:bg-purple-700 shadow-sm hover:shadow-md hover:-translate-y-0.5">
+                                    <button onClick={openTransferModal} className="flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-[13px] font-extrabold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-violet-700 hover:shadow-md">
                                         <i className="fa-solid fa-right-left"></i> Transfer Funds
                                     </button>
-                                    <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-[13.5px] font-bold text-white transition-all hover:bg-indigo-700 shadow-sm hover:shadow-md hover:-translate-y-0.5">
+                                    <button onClick={openCreateModal} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-[13px] font-extrabold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-md">
                                         <i className="fa-solid fa-plus"></i> Manual Entry
                                     </button>
                                 </>
@@ -546,9 +552,9 @@ export default function Index({
                     </div>
 
                     {/* 🟢 Party Category Filter Tabs */}
-                    <div className="flex items-center gap-2 px-6 pt-4 pb-3 border-b border-slate-200 bg-slate-50/70 overflow-x-auto no-scrollbar">
-                        <span className="text-[11.5px] font-black uppercase tracking-wider text-slate-500 mr-1 shrink-0 flex items-center gap-1.5">
-                            <i className="fa-solid fa-filter text-indigo-500"></i> Category / Filter:
+                    <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-100 bg-slate-50/60 px-5 py-3 no-scrollbar sm:px-6">
+                        <span className="mr-1 flex shrink-0 items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
+                            <i className="fa-solid fa-filter text-indigo-500"></i> Category
                         </span>
                         {[
                             { id: '', label: 'All Transactions', icon: 'fa-list-check' },
@@ -565,10 +571,10 @@ export default function Index({
                                     key={cat.id}
                                     type="button"
                                     onClick={() => handleFilterChange('party_type', cat.id)}
-                                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-[12.5px] font-bold transition-all shrink-0 border shadow-xs ${
+                                    className={`flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-[11.5px] font-bold transition-all ${
                                         isActive
-                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-indigo-200 shadow-md ring-2 ring-indigo-600/20'
-                                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100 hover:border-slate-400'
+                                            ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm shadow-indigo-600/20'
+                                            : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700'
                                     }`}
                                 >
                                     <i className={`fa-solid ${cat.icon} text-[12px] ${isActive ? 'text-white' : 'text-slate-400'}`}></i>
@@ -579,7 +585,7 @@ export default function Index({
                     </div>
 
                     {/* 🟢 Premium Toolbar 1: Show Rows & Export & Search */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 bg-white border-b border-slate-200">
+                    <div className="flex flex-col justify-between gap-4 border-b border-slate-100 bg-white px-5 py-4 sm:px-6 lg:flex-row lg:items-center">
                         <div className="flex flex-wrap items-center gap-3">
                             {/* Premium SVG Show Dropdown */}
                             <div className="flex items-center rounded-xl border border-slate-300 bg-white shadow-sm overflow-hidden focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-600/20 transition-all z-20">

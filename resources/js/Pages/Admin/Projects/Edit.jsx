@@ -78,6 +78,8 @@ export default function Edit({ project, clients = [], managers = [] }) {
     });
 
     const [selectedClient, setSelectedClient] = useState(() => clients.find(c => c.id === project.client_id) || null);
+    const itemRefs = useRef([]);
+    const previousItemCount = useRef(data.items.length);
 
     /* Sticky Summary Refs */
     const formRef = useRef(null);
@@ -109,6 +111,22 @@ export default function Edit({ project, clients = [], managers = [] }) {
 
     const totalBudget = data.items.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
     const dLeft = daysUntil(data.deadline);
+
+    useEffect(() => {
+        if (data.items.length <= previousItemCount.current) {
+            previousItemCount.current = data.items.length;
+            return;
+        }
+
+        const frame = window.requestAnimationFrame(() => {
+            const newItem = itemRefs.current[data.items.length - 1];
+            newItem?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            newItem?.querySelector('[data-item-name]')?.focus({ preventScroll: true });
+        });
+
+        previousItemCount.current = data.items.length;
+        return () => window.cancelAnimationFrame(frame);
+    }, [data.items.length]);
 
     /* Sticky Logic */
     const updateStickyPosition = useCallback(() => {
@@ -179,10 +197,12 @@ export default function Edit({ project, clients = [], managers = [] }) {
                 .quill-wrapper:focus-within { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
                 .quill-wrapper:focus-within .ql-toolbar.ql-snow,
                 .quill-wrapper:focus-within .ql-container.ql-snow { border-color: #4F46E5 !important; }
+                .project-item-description .ql-toolbar.ql-snow { padding: 5px 8px; }
+                .project-item-description .ql-editor { min-height: 56px; max-height: 120px; overflow-y: auto; }
                 input[type="range"].ledger-range { accent-color: #4F46E5; }
             `}} />
 
-            <div className="flex flex-col gap-8 w-full max-w-[1400px] mx-auto pb-12 mt-4">
+            <div className="flex flex-col gap-8 w-full mx-auto pb-12 mt-4">
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 pb-6 border-b-2 border-slate-300">
@@ -343,12 +363,15 @@ export default function Edit({ project, clients = [], managers = [] }) {
 
                         {/* Line Items */}
                         <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-400 shadow-md">
-                            <div className="flex justify-between items-center mb-2 pb-4 border-b border-slate-200">
+                            <div className="sticky top-2 z-30 -mx-3 mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white/95 px-3 py-3 shadow-md backdrop-blur sm:mx-0 sm:px-4">
                                 <div className="flex items-center gap-3">
                                     <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700">
                                         <i className="fa-solid fa-boxes-stacked text-[16px]"></i>
                                     </div>
-                                    <h3 className="text-[18px] font-black text-slate-900 m-0">Project items</h3>
+                                    <div>
+                                        <h3 className="text-[18px] font-black text-slate-900 m-0">Project items</h3>
+                                        <p className="mt-0.5 text-[12px] font-semibold text-slate-500">{data.items.length} {data.items.length === 1 ? 'product' : 'products'}</p>
+                                    </div>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2">
                                     <button
@@ -356,53 +379,54 @@ export default function Edit({ project, clients = [], managers = [] }) {
                                         onClick={addDeliveryChargeRow}
                                         className="border-2 border-amber-300 bg-amber-50/70 text-amber-900 px-4 py-2.5 rounded-xl text-[13px] font-black hover:border-amber-500 hover:bg-amber-100 shadow-sm transition-all flex items-center gap-2"
                                     >
-                                        <i className="fa-solid fa-truck-fast text-[12px] text-amber-700"></i> + Delivery Charge
+                                        <i className="fa-solid fa-truck-fast text-[12px] text-amber-700"></i> Delivery charge
                                     </button>
                                     <button
                                         type="button"
                                         onClick={addItemRow}
                                         className="border-2 border-slate-300 bg-white text-slate-800 px-5 py-2.5 rounded-xl text-[13.5px] font-black hover:border-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 shadow-sm transition-all flex items-center gap-2"
                                     >
-                                        <i className="fa-solid fa-plus text-[12px]"></i> Add item
+                                        <i className="fa-solid fa-plus text-[12px]"></i> Add product
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="divide-y divide-slate-300">
+                            <div className="space-y-3">
                                 {data.items.map((item, index) => (
-                                    <div key={item.id ?? index} className="py-6">
-                                        <div className="flex justify-between items-center mb-5">
-                                            <span className="font-mono text-[13px] font-black text-indigo-800 tracking-widest bg-indigo-100 border border-indigo-200 px-3 py-1.5 rounded-lg shadow-sm">
-                                                ITEM NO. {String(index + 1).padStart(2, "0")}
-                                            </span>
-                                            <button type="button" onClick={() => removeItemRow(index)} disabled={data.items.length === 1} className="text-[13px] font-black text-slate-500 hover:text-red-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 bg-slate-100 hover:bg-red-50 border border-slate-300 hover:border-red-300 px-4 py-2 rounded-lg shadow-sm">
-                                                <i className="fa-solid fa-trash-can text-[12px]"></i> Remove
+                                    <div key={item.id ?? index} ref={(node) => { itemRefs.current[index] = node; }} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50/70 shadow-sm transition-colors hover:border-indigo-200">
+                                        <div className="flex justify-between items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
+                                            <div className="flex min-w-0 items-center gap-3">
+                                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 font-mono text-[11px] font-black text-indigo-700">{String(index + 1).padStart(2, "0")}</span>
+                                                <span className="truncate text-[13px] font-extrabold text-slate-800">{item.item_name || `Product ${index + 1}`}</span>
+                                            </div>
+                                            <button type="button" onClick={() => removeItemRow(index)} disabled={data.items.length === 1} aria-label={`Remove product ${index + 1}`} title="Remove product" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40">
+                                                <i className="fa-solid fa-trash-can text-[12px]"></i>
                                             </button>
                                         </div>
 
-                                        <div className="flex flex-col gap-6">
+                                        <div className="flex flex-col gap-4 p-4">
                                             <div>
-                                                <label className="block text-[13px] font-black text-slate-800 mb-2">Item name <span className="text-red-600">*</span></label>
-                                                <input type="text" value={item.item_name} onChange={(e) => updateItem(index, "item_name", e.target.value)} placeholder="E.g., Business Card Design" className={inputClass} required />
+                                                <label className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-slate-600">Product name <span className="text-red-600">*</span></label>
+                                                <input data-item-name type="text" value={item.item_name} onChange={(e) => updateItem(index, "item_name", e.target.value)} placeholder="E.g., Business Card Design" className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-[13.5px] font-bold text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10" required />
                                             </div>
 
                                             <div>
-                                                <label className="block text-[13px] font-black text-slate-800 mb-2">Description / specifications</label>
-                                                <div className="quill-wrapper">
+                                                <label className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-slate-600">Description / specifications <span className="font-semibold normal-case tracking-normal text-slate-400">(optional)</span></label>
+                                                <div className="quill-wrapper project-item-description">
                                                     <ReactQuill theme="snow" value={item.description || ''} onChange={(val) => updateItem(index, "description", val)} />
                                                 </div>
                                             </div>
 
-                                            <div className="flex flex-wrap items-end gap-x-6 gap-y-4 pt-2">
-                                                <div className="w-24">
-                                                    <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Qty</label>
+                                            <div className="grid grid-cols-2 gap-3 border-t border-slate-200 pt-4 sm:grid-cols-4">
+                                                <div>
+                                                    <label className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-slate-600">Quantity</label>
                                                     <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateItem(index, "quantity", e.target.value)}
-                                                        className="w-full font-mono border-0 border-b-2 border-slate-400 focus:border-indigo-600 outline-none py-1.5 text-[15px] font-black text-slate-900 bg-transparent focus:ring-0 transition-colors" placeholder="0" />
+                                                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-right font-mono text-[13px] font-bold text-slate-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10" placeholder="0" />
                                                 </div>
-                                                <div className="w-28">
-                                                    <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Unit</label>
+                                                <div>
+                                                    <label className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-slate-600">Unit</label>
                                                     <CustomSelect value={item.unit_type || "piece"} onChange={e => updateItem(index, "unit_type", e.target.value)}
-                                                        className="w-full border-0 border-b-2 border-slate-400 focus:border-indigo-600 outline-none py-1.5 bg-transparent text-[14px] font-black text-slate-900 cursor-pointer focus:ring-0 transition-colors">
+                                                        className="w-full">
                                                         <option value="piece">Pcs</option>
                                                         <option value="set">Set</option>
                                                         <option value="box">Box</option>
@@ -415,26 +439,45 @@ export default function Edit({ project, clients = [], managers = [] }) {
                                                         <option value="none">— (None)</option>
                                                     </CustomSelect>
                                                 </div>
-                                                <span className="font-mono text-[16px] font-black text-slate-400 pb-2">×</span>
-                                                <div className="w-36">
-                                                    <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Unit price</label>
+                                                <div>
+                                                    <label className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-slate-600">Unit price</label>
                                                     <div className="relative">
-                                                        <Taka className="absolute left-0 top-1/2 -translate-y-1/2 text-[14px] text-slate-500 font-black" />
+                                                        <Taka className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-slate-500 font-black" />
                                                         <input type="number" step="any" min="0" value={item.unit_price} onChange={(e) => updateItem(index, "unit_price", e.target.value)}
-                                                            className="w-full font-mono border-0 border-b-2 border-slate-400 focus:border-indigo-600 outline-none py-1.5 pl-6 text-[15px] font-black text-slate-900 bg-transparent text-right focus:ring-0 transition-colors" placeholder="0" />
+                                                            className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-8 pr-3 text-right font-mono text-[13px] font-bold text-slate-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10" placeholder="0" />
                                                     </div>
                                                 </div>
-                                                <span className="font-mono text-[16px] font-black text-slate-400 pb-2">=</span>
-                                                <div className="ml-auto text-right">
-                                                    <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2">Line total</label>
-                                                    <div className="font-mono text-[22px] font-black text-emerald-600 tabular-nums">
-                                                        <Taka className="text-[15px] text-emerald-600" />{Number(item.total).toLocaleString('en-IN')}
+                                                <div className="flex flex-col justify-end text-right">
+                                                    <label className="mb-1.5 block text-[11px] font-black uppercase tracking-wider text-slate-600">Line total</label>
+                                                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 font-mono text-[14px] font-black tabular-nums text-emerald-700">
+                                                        <Taka className="text-[12px] text-emerald-700" />{Number(item.total).toLocaleString('en-IN')}
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/60 p-4">
+                                <p className="m-0 text-[12.5px] font-semibold text-slate-600">
+                                    {data.items.length} {data.items.length === 1 ? 'product' : 'products'} added. Add another whenever you need.
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={addDeliveryChargeRow}
+                                        className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-amber-200 bg-white px-3.5 py-2 text-[12.5px] font-extrabold text-amber-800 transition hover:bg-amber-50"
+                                    >
+                                        <i className="fa-solid fa-truck-fast"></i> Delivery charge
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={addItemRow}
+                                        className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-[12.5px] font-extrabold text-white shadow-sm transition hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-200"
+                                    >
+                                        <i className="fa-solid fa-plus"></i> Add product
+                                    </button>
+                                </div>
                             </div>
                         </div>
 

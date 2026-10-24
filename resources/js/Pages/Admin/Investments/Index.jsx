@@ -24,20 +24,26 @@ const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
 );
 
-const StatCard = ({ label, value, icon, gradient, textColor, iconColor }) => (
-    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} p-6 shadow-lg border border-white/10 group`}>
-        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-white/10 opacity-40 transition-transform duration-500 group-hover:scale-110 blur-xl"></div>
-        <div className="relative z-10 flex items-center gap-5">
-            <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-md text-[20px] shadow-sm border border-white/20 ${iconColor}`}>
-                <i className={`fa-solid ${icon}`}></i>
+const StatCard = ({ label, value, icon, gradient }) => {
+    const tone = gradient.includes('emerald')
+        ? { border: 'border-emerald-100 hover:border-emerald-200', stripe: 'bg-emerald-500', icon: 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100' }
+        : gradient.includes('rose')
+            ? { border: 'border-rose-100 hover:border-rose-200', stripe: 'bg-rose-500', icon: 'bg-rose-50 text-rose-600 group-hover:bg-rose-100' }
+            : { border: 'border-indigo-100 hover:border-indigo-200', stripe: 'bg-indigo-500', icon: 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100' };
+
+    return (
+        <div className={`group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border bg-white px-5 py-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${tone.border}`}>
+            <div className={`absolute inset-y-0 left-0 w-1 ${tone.stripe}`}></div>
+            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors ${tone.icon}`}>
+                <i className={`fa-solid ${icon} text-[19px]`}></i>
             </div>
-            <div>
-                <p className={`text-[11.5px] font-bold uppercase tracking-widest mb-0.5 ${textColor}`}>{label}</p>
-                <h3 className="text-[26px] font-black tracking-tight tabular-nums text-white leading-none">{value}</h3>
+            <div className="min-w-0">
+                <p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">{label}</p>
+                <h3 className="mt-1 flex items-center text-[25px] font-black leading-none tracking-tight text-slate-900 tabular-nums">{value}</h3>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 // 🟢 Deeper Contrast Select Styles
 const selectStyles = {
@@ -198,58 +204,56 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
                 @media print { body * { visibility: hidden; } #printable-area, #printable-area * { visibility: visible; } #printable-area { position: absolute; left: 0; top: 0; width: 100%; } }
             `}} />
 
-            <div className="flex flex-col gap-8 w-full max-w-[1600px] mx-auto pb-12 mt-2">
+            <div className="flex w-full max-w-[1600px] mx-auto flex-col gap-6 pb-12 mt-2">
 
                 {/* Header */}
-                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-                    <div>
-                        <div className="inline-flex items-center gap-2 mb-2.5 px-3 py-1 bg-indigo-100 border border-indigo-200 rounded-full text-[11px] font-black uppercase tracking-widest text-indigo-800 shadow-sm">
-                            <i className="fa-solid fa-chart-line"></i> Capital Ledger
+                <div className="relative flex flex-col gap-5 overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-white to-indigo-50/70 px-5 py-5 shadow-sm sm:px-7 sm:py-6">
+                    <div className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full bg-indigo-100/60 blur-3xl"></div>
+                    <div className="relative flex items-start gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
+                            <i className="fa-solid fa-chart-line text-[19px]"></i>
                         </div>
-                        <h1 className="text-[28px] sm:text-[32px] font-black text-slate-900 tracking-tight leading-none">Investments & Loans</h1>
-                        <p className="text-[14.5px] font-bold text-slate-600 mt-2 max-w-lg">Track business capital, loans, and manage principal & profit returns.</p>
+                        <div>
+                            <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Capital ledger</div>
+                            <h1 className="text-[27px] font-black leading-none tracking-tight text-slate-900 sm:text-[32px]">Investments &amp; Loans</h1>
+                            <p className="mt-2 max-w-lg text-[13.5px] font-medium leading-relaxed text-slate-500">Track business capital, loans, and manage principal and profit returns.</p>
+                        </div>
                     </div>
                 </div>
 
                 {/* 🟢 Premium Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     <StatCard
                         label="Total Received"
-                        value={<><Taka className="text-[18px] mr-1 text-emerald-200" />{parseFloat(totalAmount || 0).toLocaleString('en-IN')}</>}
+                        value={<><Taka className="text-[16px] mr-1 text-emerald-600" />{parseFloat(totalAmount || 0).toLocaleString('en-IN')}</>}
                         icon="fa-arrow-down-to-bracket"
                         gradient="from-emerald-600 to-teal-700"
-                        textColor="text-emerald-200"
-                        iconColor="text-emerald-100"
                     />
                     <StatCard
                         label="Due Principal"
-                        value={<><Taka className="text-[18px] mr-1 text-rose-200" />{parseFloat((totalAmount || 0) - (totalReturned || 0)).toLocaleString('en-IN')}</>}
+                        value={<><Taka className="text-[16px] mr-1 text-rose-600" />{parseFloat((totalAmount || 0) - (totalReturned || 0)).toLocaleString('en-IN')}</>}
                         icon="fa-triangle-exclamation"
                         gradient="from-rose-500 to-red-600"
-                        textColor="text-rose-200"
-                        iconColor="text-rose-100"
                     />
                     <StatCard
                         label="Profit Paid"
-                        value={<><Taka className="text-[18px] mr-1 text-indigo-200" />{parseFloat(totalProfitPaid || 0).toLocaleString('en-IN')}</>}
+                        value={<><Taka className="text-[16px] mr-1 text-indigo-600" />{parseFloat(totalProfitPaid || 0).toLocaleString('en-IN')}</>}
                         icon="fa-chart-line"
                         gradient="from-indigo-600 to-blue-700"
-                        textColor="text-indigo-200"
-                        iconColor="text-indigo-100"
                     />
                 </div>
 
                 {/* Main Card */}
-                <div className="rounded-2xl border border-slate-300 bg-white shadow-md overflow-hidden flex flex-col" id="printable-area">
+                <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" id="printable-area">
 
-                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 px-6 py-5 gap-4 bg-slate-50">
-                        <div className="text-[16px] font-black text-slate-900 flex items-center gap-2.5">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 border border-indigo-200 shadow-sm">
+                    <div className="flex flex-col gap-4 border-b border-slate-100 bg-white px-5 py-4 sm:px-6 md:flex-row md:items-center md:justify-between">
+                        <div className="flex items-center gap-3 text-[16px] font-black text-slate-900">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                                 <i className="fa-solid fa-building-columns text-[15px]"></i>
                             </div>
                             <div>
-                                <h2 className="text-[16px] font-black text-slate-900 leading-tight">Capital Directory</h2>
-                                <p className="text-[12px] text-slate-500 font-bold mt-0.5">{investments.total ?? investmentList.length} total records</p>
+                                <h2 className="text-[16px] font-black leading-tight text-slate-900">Capital directory</h2>
+                                <p className="mt-0.5 text-[12px] font-medium text-slate-500">{investments.total ?? investmentList.length} total records</p>
                             </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-3">
@@ -260,7 +264,7 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
                                 title="Investments & Loans Report"
                             />
                             {hasPermission('create_investment') && (
-                                <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-[13.5px] font-black text-white transition-all hover:bg-indigo-700 shadow-md hover:-translate-y-0.5 ml-1">
+                                <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-[13px] font-extrabold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-md">
                                     <i className="fa-solid fa-plus text-[12px]"></i> Add Investment
                                 </button>
                             )}
@@ -268,7 +272,7 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
                     </div>
 
                     {/* Toolbar */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-5 bg-white border-b border-slate-200 no-print">
+                    <div className="flex flex-col justify-between gap-4 border-b border-slate-100 bg-slate-50/60 px-5 py-4 no-print sm:px-6 lg:flex-row lg:items-center">
                         <div className="flex flex-wrap items-center gap-4 w-full justify-between">
 
                             {/* Premium Show Rows Dropdown */}

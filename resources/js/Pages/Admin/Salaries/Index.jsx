@@ -300,66 +300,65 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                 }
             `}} />
 
-            <div className="flex flex-col gap-8 w-full max-w-[1600px] mx-auto pb-12 mt-2">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 no-print">
-                    <div>
-                        <div className="inline-flex items-center gap-1.5 mb-2.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-[10.5px] font-bold uppercase tracking-widest text-indigo-600 shadow-sm">
-                            <i className="fa-solid fa-users-gear"></i> Human Resources
+            <div className="flex w-full max-w-[1600px] mx-auto flex-col gap-6 pb-12 mt-2">
+                <div className="no-print relative flex flex-col gap-5 overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-white to-indigo-50/70 px-5 py-5 shadow-sm sm:px-7 sm:py-6">
+                    <div className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full bg-indigo-100/60 blur-3xl"></div>
+                    <div className="relative flex items-start gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
+                            <i className="fa-solid fa-users-gear text-[19px]"></i>
                         </div>
-                        <h1 className="text-[28px] font-extrabold text-gray-900 tracking-tight">Payroll Management</h1>
-                        <p className="text-[14.5px] text-gray-500 mt-1 max-w-lg leading-relaxed font-medium">Generate payslips, process partial or full salaries, and track multi-account payments efficiently.</p>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 no-print">
-                    <div className="relative overflow-hidden rounded-[20px] border border-gray-100 bg-white p-6 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] transition-all hover:shadow-lg">
-                        <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-blue-50 opacity-50"></div>
-                        <div className="flex items-center gap-5 relative z-10">
-                            <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600"><i className="fa-solid fa-money-check-dollar text-[22px]"></i></div>
-                            <div>
-                                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Total Payroll</p>
-                                <h3 className="text-[24px] font-black text-gray-900 tabular-nums tracking-tight"><Taka className="text-[18px]" />{totalPayroll.toLocaleString('en-IN')}</h3>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="relative overflow-hidden rounded-[20px] border border-emerald-100 bg-white p-6 shadow-[0_2px_10px_-3px_rgba(16,185,129,0.1)] transition-all hover:shadow-lg">
-                        <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-emerald-50 opacity-50"></div>
-                        <div className="flex items-center gap-5 relative z-10">
-                            <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600"><i className="fa-solid fa-check-double text-[22px]"></i></div>
-                            <div>
-                                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-500 mb-0.5">Cleared / Paid</p>
-                                <h3 className="text-[24px] font-black text-gray-900 tabular-nums tracking-tight"><Taka className="text-[18px]" />{totalPaid.toLocaleString('en-IN')}</h3>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="relative overflow-hidden rounded-[20px] border border-rose-100 bg-white p-6 shadow-[0_2px_10px_-3px_rgba(244,63,94,0.1)] transition-all hover:shadow-lg">
-                        <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-rose-50 opacity-50"></div>
-                        <div className="flex items-center gap-5 relative z-10">
-                            <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-600"><i className="fa-solid fa-clock-rotate-left text-[22px]"></i></div>
-                            <div>
-                                <p className="text-[11px] font-bold uppercase tracking-wider text-rose-500 mb-0.5">Pending / Due</p>
-                                <h3 className="text-[24px] font-black text-gray-900 tabular-nums tracking-tight"><Taka className="text-[18px]" />{totalUnpaid.toLocaleString('en-IN')}</h3>
-                            </div>
+                        <div>
+                            <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Human resources</div>
+                            <h1 className="text-[27px] font-black leading-none tracking-tight text-slate-900 sm:text-[32px]">Payroll Management</h1>
+                            <p className="mt-2 max-w-lg text-[13.5px] font-medium leading-relaxed text-slate-500">Generate payslips, process salary payments, and track multi-account payroll.</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="rounded-[24px] border border-gray-200 bg-white shadow-sm overflow-hidden flex flex-col" id="printable-table">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 px-6 py-5 bg-white gap-4 no-print">
-                        <div className="text-[16.5px] font-extrabold text-gray-900 flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-gray-50 border border-gray-100 text-indigo-600"><i className="fa-solid fa-file-invoice text-[15px]"></i></div>
-                            Payslip Directory
+                <div className="no-print grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-blue-100 bg-white px-5 py-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-blue-500"></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><i className="fa-solid fa-money-check-dollar text-[19px]"></i></div>
+                        <div className="min-w-0">
+                            <p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Total payroll</p>
+                            <h3 className="mt-1 flex items-center text-[25px] font-black leading-none tracking-tight text-slate-900 tabular-nums"><Taka className="mr-1 text-[16px] text-blue-500" />{totalPayroll.toLocaleString('en-IN')}</h3>
+                        </div>
+                    </div>
+
+                    <div className="group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-emerald-100 bg-white px-5 py-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-emerald-500"></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><i className="fa-solid fa-check-double text-[19px]"></i></div>
+                        <div className="min-w-0">
+                            <p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Cleared / paid</p>
+                            <h3 className="mt-1 flex items-center text-[25px] font-black leading-none tracking-tight text-slate-900 tabular-nums"><Taka className="mr-1 text-[16px] text-emerald-500" />{totalPaid.toLocaleString('en-IN')}</h3>
+                        </div>
+                    </div>
+
+                    <div className="group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-rose-100 bg-white px-5 py-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md sm:col-span-2 xl:col-span-1">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-rose-500"></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600"><i className="fa-solid fa-clock-rotate-left text-[19px]"></i></div>
+                        <div className="min-w-0">
+                            <p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Pending / due</p>
+                            <h3 className="mt-1 flex items-center text-[25px] font-black leading-none tracking-tight text-slate-900 tabular-nums"><Taka className="mr-1 text-[16px] text-rose-500" />{totalUnpaid.toLocaleString('en-IN')}</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" id="printable-table">
+                    <div className="no-print flex flex-col gap-4 border-b border-slate-100 bg-white px-5 py-4 sm:px-6 md:flex-row md:items-center md:justify-between">
+                        <div className="flex items-center gap-3 text-[16px] font-extrabold text-slate-900">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><i className="fa-solid fa-file-invoice text-[15px]"></i></div>
+                            <div><h2 className="text-[16px] font-black text-slate-900">Payslip directory</h2>
+                            <p className="mt-0.5 text-[12px] font-medium text-slate-500">{salaries.total ?? recordList.length} payroll records</p></div>
                         </div>
                         {hasPermission('create_salary') && (
-                            <button onClick={openCreateModal} className="rounded-xl bg-gray-900 px-5 py-2.5 text-[13.5px] font-bold text-white hover:bg-indigo-600 shadow-sm transition-all hover:shadow-md flex items-center gap-2">
+                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-[13px] font-extrabold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-md">
                                 <i className="fa-solid fa-plus text-[12px]"></i> Process Salary
                             </button>
                         )}
                     </div>
 
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-4 border-b border-gray-100 bg-gray-50/50 no-print">
+                    <div className="no-print flex flex-col justify-between gap-4 border-b border-slate-100 bg-slate-50/60 px-5 py-4 sm:px-6 lg:flex-row lg:items-center">
                         <div className="flex flex-wrap items-center gap-3">
                             <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
                                 <span className="bg-gray-50 px-4 py-2.5 text-[12px] font-bold text-gray-500 border-r border-gray-200">Show</span>

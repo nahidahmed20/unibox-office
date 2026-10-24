@@ -218,83 +218,83 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                 @media print { body * { visibility: hidden; } .no-print { display: none !important; } #printable-area, #printable-area * { visibility: visible; } #printable-area { position: absolute; left: 0; top: 0; width: 100%; } }
             `}} />
 
-            <div className="mx-auto mt-4 flex max-w-[1600px] flex-col gap-8 pb-12 animate-fade-in-up">
+            <div className="mx-auto mt-4 flex max-w-[1600px] flex-col gap-6 pb-12 animate-fade-in-up">
 
-                {/* 🟢 Premium Page Header & Summary */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mt-2">
-                    <div>
-                        <div className="inline-flex items-center gap-2 mb-3 px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-full text-[11px] font-black uppercase tracking-widest text-indigo-600 shadow-sm">
-                            <i className="fa-solid fa-file-invoice"></i> Billing & Finances
+                {/* Page Header */}
+                <div className="relative flex flex-col gap-5 overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-white to-indigo-50/70 px-5 py-5 shadow-sm sm:px-7 sm:py-6 md:flex-row md:items-center md:justify-between">
+                    <div className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full bg-indigo-100/60 blur-3xl"></div>
+                    <div className="relative flex items-start gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
+                            <i className="fa-solid fa-file-invoice-dollar text-[19px]"></i>
                         </div>
-                        <h1 className="text-[28px] sm:text-[34px] font-black text-slate-900 tracking-tight leading-none">Invoices</h1>
-                        <p className="text-[14.5px] font-medium text-slate-500 mt-2 max-w-lg">Track what you've billed, what's been paid, and what's still due.</p>
+                        <div>
+                            <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Billing &amp; finances</div>
+                            <h1 className="text-[27px] font-black leading-none tracking-tight text-slate-900 sm:text-[32px]">Invoices</h1>
+                            <p className="mt-2 max-w-lg text-[13.5px] font-medium leading-relaxed text-slate-500">Track what you have billed, what has been paid, and what is still due.</p>
+                        </div>
                     </div>
                     {hasPermission('create_invoice') && (
-                        <Link href={route('admin.invoices.create')} className="inline-flex w-fit items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-[14px] font-bold text-white shadow-md transition-all hover:bg-indigo-700 active:scale-95 hover:shadow-lg">
-                            <i className="fa-solid fa-plus text-[12px]"></i> New Invoice
+                        <Link href={route('admin.invoices.create')} className="relative inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-[13.5px] font-extrabold text-white shadow-md shadow-indigo-600/20 transition-all hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-lg sm:w-fit">
+                            <i className="fa-solid fa-plus text-[12px]"></i> Create invoice
                         </Link>
                     )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 px-6 py-6 shadow-lg shadow-blue-500/20 border border-blue-400 text-white min-w-[240px] group hover:-translate-y-1 transition-all duration-300">
-                        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl group-hover:bg-white/20 transition-colors"></div>
-                        <div className="flex items-center gap-5 relative z-10">
-                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md border border-white/30 text-white shadow-sm">
-                                <i className="fa-solid fa-file-invoice-dollar text-2xl"></i>
-                            </div>
-                            <div>
-                                <p className="text-[11.5px] font-bold uppercase tracking-wider text-blue-100">Total Billed</p>
-                                <h3 className="text-[28px] font-black tracking-tight mt-0.5 tabular-nums flex items-center">
-                                    <Taka className="text-[18px] text-blue-200 mr-1" />{fmt(totals.grand_total)}
-                                </h3>
-                            </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-blue-100 bg-white px-5 py-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-blue-500"></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition-colors group-hover:bg-blue-100">
+                            <i className="fa-solid fa-file-invoice-dollar text-[19px]"></i>
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Total billed</p>
+                            <h3 className="mt-1 flex items-center text-[25px] font-black leading-none tracking-tight text-slate-900 tabular-nums">
+                                <Taka className="mr-1 text-[16px] text-blue-500" />{fmt(totals.grand_total)}
+                            </h3>
                         </div>
                     </div>
 
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 px-6 py-6 shadow-lg shadow-teal-500/20 border border-teal-400 text-white min-w-[240px] group hover:-translate-y-1 transition-all duration-300">
-                        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl group-hover:bg-white/20 transition-colors"></div>
-                        <div className="flex items-center gap-5 relative z-10">
-                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md border border-white/30 text-white shadow-sm">
-                                <i className="fa-solid fa-hand-holding-dollar text-2xl"></i>
-                            </div>
-                            <div>
-                                <p className="text-[11.5px] font-bold uppercase tracking-wider text-emerald-100">Total Paid</p>
-                                <h3 className="text-[28px] font-black tracking-tight mt-0.5 tabular-nums flex items-center">
-                                    <Taka className="text-[18px] text-emerald-200 mr-1" />{fmt(totals.paid_amount)}
-                                </h3>
-                            </div>
+                    <div className="group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-emerald-100 bg-white px-5 py-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-emerald-500"></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-colors group-hover:bg-emerald-100">
+                            <i className="fa-solid fa-hand-holding-dollar text-[19px]"></i>
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Total paid</p>
+                            <h3 className="mt-1 flex items-center text-[25px] font-black leading-none tracking-tight text-slate-900 tabular-nums">
+                                <Taka className="mr-1 text-[16px] text-emerald-500" />{fmt(totals.paid_amount)}
+                            </h3>
                         </div>
                     </div>
 
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 px-6 py-6 shadow-lg shadow-rose-500/20 border border-rose-400 text-white min-w-[240px] group hover:-translate-y-1 transition-all duration-300">
-                        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl group-hover:bg-white/20 transition-colors"></div>
-                        <div className="flex items-center gap-5 relative z-10">
-                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md border border-white/30 text-white shadow-sm">
-                                <i className="fa-solid fa-scale-unbalanced text-2xl"></i>
-                            </div>
-                            <div>
-                                <p className="text-[11.5px] font-bold uppercase tracking-wider text-rose-100">Total Due</p>
-                                <h3 className="text-[28px] font-black tracking-tight mt-0.5 tabular-nums flex items-center">
-                                    <Taka className="text-[18px] text-rose-200 mr-1" />{fmt(totals.due_amount)}
-                                </h3>
-                            </div>
+                    <div className="group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-rose-100 bg-white px-5 py-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md sm:col-span-2 xl:col-span-1">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-rose-500"></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 transition-colors group-hover:bg-rose-100">
+                            <i className="fa-solid fa-scale-unbalanced text-[19px]"></i>
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Total due</p>
+                            <h3 className="mt-1 flex items-center text-[25px] font-black leading-none tracking-tight text-slate-900 tabular-nums">
+                                <Taka className="mr-1 text-[16px] text-rose-500" />{fmt(totals.due_amount)}
+                            </h3>
                         </div>
                     </div>
                 </div>
 
                 {/* 🟢 Pending billing */}
                 {uninvoicedProjects.length > 0 && hasPermission('create_invoice') && (
-                    <section className="no-print overflow-hidden rounded-2xl border border-amber-200 bg-amber-50 shadow-sm">
-                        <div className="flex items-center gap-3 px-6 py-4 border-b border-amber-100 bg-amber-100/30">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-200 text-[14px] text-amber-700 shadow-sm border border-amber-300"><i className="fa-solid fa-stopwatch"></i></span>
-                            <h2 className="text-[16px] font-black text-amber-900">Ready to bill</h2>
-                            <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-[12px] font-black text-white shadow-sm">{uninvoicedProjects.length}</span>
-                            <span className="ml-2 hidden text-[13px] font-medium text-amber-700/80 sm:inline">— Projects without an invoice yet</span>
+                    <section className="no-print overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
+                        <div className="flex flex-wrap items-center gap-3 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-white px-5 py-4 sm:px-6">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-amber-200 bg-white text-[14px] text-amber-600 shadow-sm"><i className="fa-solid fa-stopwatch"></i></span>
+                            <div>
+                                <h2 className="text-[15px] font-black leading-tight text-slate-900">Ready to bill</h2>
+                                <p className="mt-0.5 text-[12px] font-medium text-slate-500">Projects without an invoice yet</p>
+                            </div>
+                            <span className="ml-auto rounded-full border border-amber-200 bg-amber-100 px-3 py-1 text-[11px] font-black text-amber-800">{uninvoicedProjects.length} {uninvoicedProjects.length === 1 ? 'project' : 'projects'}</span>
                         </div>
-                        <div className="custom-table-scroll flex snap-x gap-4 overflow-x-auto px-6 py-5">
+                        <div className="custom-table-scroll flex snap-x gap-3 overflow-x-auto bg-amber-50/30 px-5 py-4 sm:px-6">
                             {uninvoicedProjects.map((project) => (
-                                <div key={project.id} className="flex w-[320px] shrink-0 snap-start items-center justify-between gap-4 rounded-xl border border-amber-200 bg-white p-5 transition hover:border-amber-300 hover:shadow-md shadow-sm">
+                                <div key={project.id} className="flex w-[320px] shrink-0 snap-start items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-amber-300 hover:shadow-md">
                                     <div className="min-w-0 flex-1">
                                         <h3 className="truncate text-[15px] font-bold text-slate-800 mb-1" title={project.title}>{project.title}</h3>
                                         <p className="truncate text-[12.5px] font-medium text-slate-500 mb-2" title={project.client?.company_name || project.client?.name}>
@@ -319,12 +319,18 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                 <section id="printable-area" className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
                     {/* Toolbar */}
-                    <div className="no-print flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 px-6 py-5 gap-4 bg-white">
-                        <div className="text-[17px] font-black text-slate-800 flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                    <div className="no-print flex flex-col gap-4 border-b border-slate-100 bg-white px-5 py-4 sm:px-6 md:flex-row md:items-center md:justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                                 <i className="fa-solid fa-list-check text-[15px]"></i>
                             </div>
-                            Invoice Directory
+                            <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h2 className="text-[16px] font-black text-slate-900">Invoice directory</h2>
+                                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-extrabold text-slate-600">{invoices.total || 0} total</span>
+                                </div>
+                                <p className="mt-0.5 text-[12px] font-medium text-slate-500">Search, filter, and manage your invoices</p>
+                            </div>
                         </div>
                         <TableExportButtons
                             headers={['INV #', 'Client', 'Invoice Date', 'Grand Total (BDT)', 'Paid (BDT)', 'Due (BDT)', 'Status']}
@@ -362,7 +368,13 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                     </div>
 
                     {/* 🟢 High Contrast Filters */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 px-6 py-5 bg-slate-50/50 border-b border-slate-100">
+                    <div className="border-b border-slate-100 bg-slate-50/70 px-5 py-4 sm:px-6">
+                        <div className="mb-3 flex items-center gap-2">
+                            <i className="fa-solid fa-sliders text-[12px] text-indigo-500"></i>
+                            <span className="text-[11px] font-extrabold uppercase tracking-[0.13em] text-slate-600">Find invoices</span>
+                            <span className="text-[11px] font-medium text-slate-400">Search by invoice, project, client or status</span>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
                         <div className="relative">
                             <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-[13px] text-slate-400"></i>
@@ -391,12 +403,13 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 placeholder="Select Status..." isClearable {...portal}
                             />
                         </div>
+                        </div>
                     </div>
 
-                    <div className="flex flex-col lg:flex-row lg:items-center gap-4 px-6 py-4 bg-slate-50/50 border-b border-slate-100">
+                    <div className="flex flex-col gap-3 border-b border-slate-100 bg-white px-5 py-4 sm:px-6 lg:flex-row lg:items-center">
 
                         {/* Show Rows Dropdown */}
-                        <div className="relative w-full sm:w-[130px]">
+                        <div className="relative w-full sm:w-[140px]">
                             <select value={perPage} onChange={(e) => handleFilterChange('per_page', e.target.value === "all" ? "all" : Number(e.target.value))}
                                 className="appearance-none w-full bg-white border border-slate-200 rounded-xl pl-4 pr-9 py-2.5 text-[13.5px] font-bold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer"
                             >
@@ -409,7 +422,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                         </div>
 
                         {/* Year Select */}
-                        <div className="relative w-full sm:w-[130px]">
+                        <div className="relative w-full sm:w-[140px]">
                             <select
                                 value={year}
                                 onChange={(e) => handleFilterChange('year', e.target.value)}
@@ -423,10 +436,10 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                             <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 pointer-events-none"></i>
                         </div>
 
-                        <span className="hidden lg:block text-slate-300 mx-1">|</span>
+                        <span className="hidden h-8 border-l border-slate-200 lg:block"></span>
 
                         {/* Date Range Picker */}
-                        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-2 shadow-sm focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all w-full sm:w-auto">
+                        <div className="flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2 shadow-sm transition-all focus-within:border-indigo-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-indigo-500/10 sm:w-auto">
                             <input
                                 type="date" value={dateFrom} onChange={(e) => handleFilterChange('date_from', e.target.value)}
                                 className="border-none bg-transparent px-2 py-2.5 text-[13px] font-semibold text-slate-700 outline-none focus:ring-0 cursor-pointer w-full"
@@ -440,7 +453,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
                         {/* Reset Filters */}
                         {hasFilters && (
-                            <button onClick={clearAllFilters} className="h-[42px] px-4 rounded-xl border border-rose-200 bg-rose-50 text-[12.5px] font-bold text-rose-600 transition-colors hover:bg-rose-100 hover:border-rose-300 shadow-sm flex items-center justify-center gap-1.5 sm:ml-auto whitespace-nowrap active:scale-95">
+                            <button onClick={clearAllFilters} className="inline-flex h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-rose-200 bg-white px-4 text-[12.5px] font-bold text-rose-600 shadow-sm transition-colors hover:border-rose-300 hover:bg-rose-50 active:scale-95 sm:ml-auto">
                                 <i className="fa-solid fa-rotate-left"></i> Reset Filters
                             </button>
                         )}

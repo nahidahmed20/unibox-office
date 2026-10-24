@@ -261,55 +261,62 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                 @media print { body * { visibility: hidden; } #printable-table, #printable-table * { visibility: visible; } #printable-table { position: absolute; left: 0; top: 0; width: 100%; } .no-print { display: none !important; } }
             `}} />
 
-            <div className="flex flex-col gap-8 w-full max-w-[1600px] mx-auto pb-12 mt-4 px-4 sm:px-6 lg:px-8">
+            <div className="flex w-full max-w-[1600px] mx-auto flex-col gap-6 pb-12 mt-4 px-4 sm:px-6 lg:px-8">
 
                 {/* Page Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mt-2">
-                    <div>
-                        <div className="inline-flex items-center gap-2 mb-2.5 px-3 py-1 bg-indigo-100 border border-indigo-200 rounded-full text-[11px] font-black uppercase tracking-widest text-indigo-800 shadow-sm">
-                            <span className="h-1.5 w-1.5 rounded-full bg-indigo-600"></span> Supply Chain & Billing
+                <div className="relative flex flex-col gap-5 overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-white to-indigo-50/70 px-5 py-5 shadow-sm sm:px-7 sm:py-6">
+                    <div className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full bg-indigo-100/60 blur-3xl"></div>
+                    <div className="relative flex items-start gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
+                            <i className="fa-solid fa-wallet text-[19px]"></i>
                         </div>
-                        <h1 className="text-[28px] sm:text-[32px] font-black text-slate-900 tracking-tight leading-none">Accounts Payable</h1>
-                        <p className="text-[14.5px] font-bold text-slate-500 mt-2 max-w-lg leading-relaxed">
+                        <div>
+                            <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Project finance</div>
+                            <h1 className="text-[27px] font-black leading-none tracking-tight text-slate-900 sm:text-[32px]">Accounts Payable</h1>
+                            <p className="mt-2 max-w-lg text-[13.5px] font-medium leading-relaxed text-slate-500">
                             {filteredProjectTitle ? <>Showing totals for <strong className="text-indigo-600 font-bold">{filteredProjectTitle}</strong></> : "Manage vendor bills, log project expenses, and track your payables."}
-                        </p>
+                            </p>
+                        </div>
                     </div>
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
-                    <div className="rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-700 px-6 py-6 shadow-md border border-indigo-500 text-white min-w-[220px]">
-                        <div className="flex items-center gap-4 mb-2">
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-indigo-100"><i className="fa-solid fa-file-invoice text-[20px]"></i></div>
-                            <p className="text-[11.5px] font-bold uppercase tracking-widest text-indigo-200">Total Billed</p>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-blue-100 bg-white px-5 py-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-blue-500"></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><i className="fa-solid fa-file-invoice text-[19px]"></i></div>
+                        <div className="min-w-0">
+                            <p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Total billed</p>
+                            <h3 className="mt-1 flex items-center text-[25px] font-black leading-none tracking-tight text-slate-900 tabular-nums"><Taka className="mr-1 text-[16px] text-blue-500" />{totalBilled.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</h3>
                         </div>
-                        <h3 className="text-[26px] font-black tracking-tight tabular-nums flex items-center mt-1"><Taka className="text-[18px] text-indigo-200 mr-1.5" />{totalBilled.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</h3>
                     </div>
 
-                    <div className="rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 px-6 py-6 shadow-md border border-emerald-500 text-white min-w-[220px]">
-                        <div className="flex items-center gap-4 mb-2">
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-emerald-100"><i className="fa-solid fa-check-double text-[20px]"></i></div>
-                            <p className="text-[11.5px] font-bold uppercase tracking-widest text-emerald-200">Total Paid</p>
+                    <div className="group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-emerald-100 bg-white px-5 py-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-emerald-500"></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><i className="fa-solid fa-check-double text-[19px]"></i></div>
+                        <div className="min-w-0">
+                            <p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Total paid</p>
+                            <h3 className="mt-1 flex items-center text-[25px] font-black leading-none tracking-tight text-slate-900 tabular-nums"><Taka className="mr-1 text-[16px] text-emerald-500" />{totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</h3>
                         </div>
-                        <h3 className="text-[26px] font-black tracking-tight tabular-nums flex items-center mt-1"><Taka className="text-[18px] text-emerald-200 mr-1.5" />{totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</h3>
                     </div>
 
-                    <div className="rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 px-6 py-6 shadow-md border border-rose-400 text-white min-w-[220px]">
-                        <div className="flex items-center gap-4 mb-2">
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-rose-100"><i className="fa-solid fa-clock-rotate-left text-[20px]"></i></div>
-                            <p className="text-[11.5px] font-bold uppercase tracking-widest text-rose-200">Total Due (Payables)</p>
+                    <div className="group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-rose-100 bg-white px-5 py-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md sm:col-span-2 xl:col-span-1">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-rose-500"></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600"><i className="fa-solid fa-clock-rotate-left text-[19px]"></i></div>
+                        <div className="min-w-0">
+                            <p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Total due (payables)</p>
+                            <h3 className="mt-1 flex items-center text-[25px] font-black leading-none tracking-tight text-slate-900 tabular-nums"><Taka className="mr-1 text-[16px] text-rose-500" />{totalDue.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</h3>
                         </div>
-                        <h3 className="text-[26px] font-black tracking-tight tabular-nums flex items-center mt-1"><Taka className="text-[18px] text-rose-200 mr-1.5" />{totalDue.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</h3>
                     </div>
                 </div>
 
                 {/* Main Card */}
-                <div className="rounded-3xl border border-slate-200 bg-white shadow-md overflow-hidden flex flex-col">
+                <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
                     {/* Card Header & Actions */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 px-6 py-5 gap-4 bg-slate-50/80 no-print">
-                        <div className="text-[16px] font-black text-slate-900 flex items-center gap-2.5">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 shadow-sm border border-indigo-200">
+                    <div className="no-print flex flex-col gap-4 border-b border-slate-100 bg-white px-5 py-4 sm:px-6 md:flex-row md:items-center md:justify-between">
+                        <div className="flex items-center gap-3 text-[16px] font-black text-slate-900">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                                 <i className="fa-solid fa-wallet text-[15px]"></i>
                             </div>
                             Vendor Bills & Expenses
@@ -356,7 +363,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                     </div>
 
                     {/* ADVANCED FILTER BAR */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 px-6 py-5 bg-white border-b border-slate-100">
+                    <div className="grid grid-cols-1 gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-4 sm:grid-cols-2 md:grid-cols-4 sm:px-6">
                         <div className="relative z-[50]">
                             <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2">Filter Client</label>
                             <SearchableSelect
@@ -411,7 +418,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                     </div>
 
                     {/* Secondary Filters */}
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-6 py-4 bg-slate-50/70 border-b border-slate-200">
+                    <div className="flex flex-col gap-3 border-b border-slate-100 bg-white px-5 py-4 sm:flex-row sm:items-center sm:px-6">
                         <div className="relative w-full sm:w-[130px]">
                             <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
                                 className="w-full appearance-none bg-white border border-slate-300 rounded-xl pl-4 pr-9 py-2.5 text-[13px] font-bold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer"

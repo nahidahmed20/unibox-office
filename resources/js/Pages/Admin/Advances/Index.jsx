@@ -221,7 +221,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                 @media print { body * { visibility: hidden; } #printable-advance-table, #printable-advance-table * { visibility: visible; } #printable-advance-table { position: absolute; left: 0; top: 0; width: 100%; } .no-print { display: none !important; } }
             `}} />
 
-            <div className="flex flex-col gap-6 w-full max-w-[1600px] mx-auto pb-12 px-4 sm:px-6 lg:px-8 mt-4">
+            <div className="flex w-full max-w-[1600px] mx-auto flex-col gap-6 pb-12 px-4 sm:px-6 lg:px-8 mt-4">
 
                 {/* 🌟 Outstanding Advances Showcase */}
                 {employeeBalances && employeeBalances.length > 0 && (
@@ -246,41 +246,57 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                 )}
 
                 {/* 🌟 Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mt-2">
-                    <div>
-                        <div className="inline-flex items-center gap-2 mb-2.5 px-3 py-1 bg-indigo-100 border border-indigo-200 rounded-full text-[11px] font-black uppercase tracking-widest text-indigo-800 shadow-sm"><i className="fa-solid fa-money-bill-transfer"></i> Financial Management</div>
-                        <h1 className="text-[28px] sm:text-[32px] font-black text-slate-900 tracking-tight leading-none">Advance Payments</h1>
+                <div className="relative flex flex-col gap-5 overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-white to-indigo-50/70 px-5 py-5 shadow-sm sm:px-7 sm:py-6">
+                    <div className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full bg-indigo-100/60 blur-3xl"></div>
+                    <div className="relative flex items-start gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
+                            <i className="fa-solid fa-money-bill-transfer text-[19px]"></i>
+                        </div>
+                        <div>
+                            <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600">Staff finance</div>
+                            <h1 className="text-[27px] font-black leading-none tracking-tight text-slate-900 sm:text-[32px]">Advance Payments</h1>
+                            <p className="mt-2 max-w-lg text-[13.5px] font-medium leading-relaxed text-slate-500">Track staff advances, expenses, returns, and outstanding balances.</p>
+                        </div>
                     </div>
                 </div>
 
                 {/* 🌟 Summary Metrics */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-                    <div className="rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-700 px-6 py-6 shadow-md border border-indigo-500 text-white min-w-[220px]">
-                        <p className="text-[11.5px] font-bold uppercase tracking-widest text-indigo-200">Total Given</p>
-                        <h3 className="text-[26px] font-black tracking-tight mt-0.5 tabular-nums flex items-center"><Taka className="text-[16px] text-indigo-200 mr-1" />{Number(totals.total_given || 0).toLocaleString('en-IN')}</h3>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-indigo-100 bg-white px-5 py-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-indigo-500"></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><i className="fa-solid fa-hand-holding-dollar text-[19px]"></i></div>
+                        <div className="min-w-0"><p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Total given</p>
+                        <h3 className="mt-1 flex items-center text-[23px] font-black leading-none tracking-tight text-slate-900 tabular-nums"><Taka className="mr-1 text-[15px] text-indigo-500" />{Number(totals.total_given || 0).toLocaleString('en-IN')}</h3></div>
                     </div>
-                    <div className="rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 px-6 py-6 shadow-md border border-emerald-500 text-white min-w-[220px]">
-                        <p className="text-[11.5px] font-bold uppercase tracking-widest text-emerald-200">Total Expensed</p>
-                        <h3 className="text-[26px] font-black tracking-tight mt-0.5 tabular-nums flex items-center"><Taka className="text-[16px] text-emerald-200 mr-1" />{Number(totals.total_expensed || 0).toLocaleString('en-IN')}</h3>
+                    <div className="group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-emerald-100 bg-white px-5 py-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-emerald-500"></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><i className="fa-solid fa-receipt text-[19px]"></i></div>
+                        <div className="min-w-0"><p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Total expensed</p>
+                        <h3 className="mt-1 flex items-center text-[23px] font-black leading-none tracking-tight text-slate-900 tabular-nums"><Taka className="mr-1 text-[15px] text-emerald-500" />{Number(totals.total_expensed || 0).toLocaleString('en-IN')}</h3></div>
                     </div>
-                    <div className="rounded-2xl bg-gradient-to-br from-violet-600 to-purple-700 px-6 py-6 shadow-md border border-violet-500 text-white min-w-[220px]">
-                        <p className="text-[11.5px] font-bold uppercase tracking-widest text-violet-200">Total Returned</p>
-                        <h3 className="text-[26px] font-black tracking-tight mt-0.5 tabular-nums flex items-center"><Taka className="text-[16px] text-violet-200 mr-1" />{Number(totals.total_returned || 0).toLocaleString('en-IN')}</h3>
+                    <div className="group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-violet-100 bg-white px-5 py-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-violet-500"></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><i className="fa-solid fa-arrow-rotate-left text-[19px]"></i></div>
+                        <div className="min-w-0"><p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Total returned</p>
+                        <h3 className="mt-1 flex items-center text-[23px] font-black leading-none tracking-tight text-slate-900 tabular-nums"><Taka className="mr-1 text-[15px] text-violet-500" />{Number(totals.total_returned || 0).toLocaleString('en-IN')}</h3></div>
                     </div>
-                    <div className="rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 px-6 py-6 shadow-md border border-rose-400 text-white min-w-[220px]">
-                        <p className="text-[11.5px] font-bold uppercase tracking-widest text-rose-200">Total Due Amount</p>
-                        <h3 className="text-[26px] font-black tracking-tight mt-0.5 tabular-nums flex items-center"><Taka className="text-[16px] text-rose-200 mr-1" />{Number(totals.total_due || 0).toLocaleString('en-IN')}</h3>
+                    <div className="group relative flex min-w-0 items-center gap-4 overflow-hidden rounded-2xl border border-rose-100 bg-white px-5 py-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md">
+                        <div className="absolute inset-y-0 left-0 w-1 bg-rose-500"></div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600"><i className="fa-solid fa-scale-unbalanced text-[19px]"></i></div>
+                        <div className="min-w-0"><p className="text-[10.5px] font-extrabold uppercase tracking-[0.14em] text-slate-500">Total due amount</p>
+                        <h3 className="mt-1 flex items-center text-[23px] font-black leading-none tracking-tight text-slate-900 tabular-nums"><Taka className="mr-1 text-[15px] text-rose-500" />{Number(totals.total_due || 0).toLocaleString('en-IN')}</h3></div>
                     </div>
                 </div>
 
                 {/* 🌟 Main Card */}
-                <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col">
+                <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
                     {/* Header Toolbar */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 px-6 py-5 gap-4 bg-slate-50/50">
-                        <div className="text-[16px] font-black text-slate-900 flex items-center gap-2.5">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 shadow-sm"><i className="fa-solid fa-list-check text-[15px]"></i></div>
-                            Advance History
+                    <div className="flex flex-col gap-4 border-b border-slate-100 bg-white px-5 py-4 sm:px-6 md:flex-row md:items-center md:justify-between">
+                        <div className="flex items-center gap-3 text-[16px] font-black text-slate-900">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><i className="fa-solid fa-list-check text-[15px]"></i></div>
+                            <div><h2 className="text-[16px] font-black text-slate-900">Advance history</h2>
+                            <p className="mt-0.5 text-[12px] font-medium text-slate-500">{advanceList.length} records</p></div>
                         </div>
 
                         <div className="flex items-center gap-3">
@@ -292,7 +308,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                             />
 
                             {hasPermission('create_advance') && (
-                                <button onClick={openCreateModal} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-6 py-[10.5px] text-[13.5px] font-black text-white transition-all shadow-md active:scale-[0.98] ml-2">
+                                <button onClick={openCreateModal} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-[10.5px] text-[13px] font-extrabold text-white shadow-sm transition-all hover:bg-indigo-700 active:scale-[0.98]">
                                     <i className="fa-solid fa-plus text-[12px]"></i> Log Advance
                                 </button>
                             )}
@@ -300,7 +316,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                     </div>
 
                     {/* Premium Filters Area */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-6 py-5 bg-white border-b border-slate-100">
+                    <div className="grid grid-cols-1 gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-4 sm:grid-cols-2 lg:grid-cols-4 sm:px-6">
                         <div className="relative w-full z-[40]">
                             <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2">Search Records</label>
                             <i className="fa-solid fa-magnifying-glass absolute left-4 top-[36px] text-slate-400 text-[13px]"></i>
