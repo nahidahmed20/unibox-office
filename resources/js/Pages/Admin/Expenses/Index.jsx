@@ -3,6 +3,7 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { useForm, Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 import Select from "@/Components/PortalSelect";
+import CustomSelect from '@/Components/CustomSelect';
 import TableExportButtons from '@/Components/TableExportButtons';
 
 // 🟢 Custom Straight Taka Component
