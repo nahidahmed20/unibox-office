@@ -212,8 +212,10 @@ export default function Edit({ invoice, clients = [], projects = [] }) {
     const inputClass = "w-full rounded-xl border border-slate-400 bg-white px-4 py-3 text-[14px] font-extrabold text-slate-900 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm transition-all";
 
     const portal = { styles: selectStyles };
+    const totalPaidAmount = cashPaidAmount + Number(data.use_advance_amount || 0);
+    const dueAmount = Math.max(0, Number(data.grand_total) - totalPaidAmount);
     const maxAdvanceAmount = Math.min(availableAdvance, Math.max(Number(data.grand_total) - cashPaidAmount, 0));
-    const payable = Math.max(0, Number(data.grand_total) - cashPaidAmount - Number(data.use_advance_amount || 0));
+    const payable = dueAmount;
 
     return (
         <AdminLayout>
