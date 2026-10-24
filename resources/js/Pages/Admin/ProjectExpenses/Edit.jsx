@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, useForm, Link } from '@inertiajs/react';
 import Swal from 'sweetalert2';
-import Select from 'react-select';
+import Select from '@/Components/PortalSelect';
 import axios from 'axios';
 
 // 🟢 Custom Straight Taka Component
@@ -159,7 +159,7 @@ export default function Edit({ expense, projects = [], categories = [], accounts
         })
     };
 
-    const selectMenuPortalTarget = null;
+    const selectMenuPortalTarget = typeof document === 'undefined' ? null : document.body;
 
     const handleCreateVendor = async () => {
         if (!newVendor.name.trim()) return Swal.fire("Required", "Vendor name is required.", "warning");
@@ -299,6 +299,7 @@ export default function Edit({ expense, projects = [], categories = [], accounts
                                             isClearable
                                             styles={selectStyles}
                                             menuPortalTarget={selectMenuPortalTarget}
+                                            menuPosition="fixed"
                                         />
                                         {errors.project_id && <p className="text-rose-600 text-xs mt-1.5 font-bold">{errors.project_id}</p>}
                                     </div>
@@ -330,6 +331,7 @@ export default function Edit({ expense, projects = [], categories = [], accounts
                                             isClearable
                                             styles={selectStyles}
                                             menuPortalTarget={selectMenuPortalTarget}
+                                            menuPosition="fixed"
                                         />
                                         {errors.expense_category_id && <p className="text-rose-600 text-xs mt-1.5 font-bold">{errors.expense_category_id}</p>}
                                     </div>
@@ -392,6 +394,7 @@ export default function Edit({ expense, projects = [], categories = [], accounts
                                                 isClearable
                                                 styles={selectStyles}
                                                 menuPortalTarget={selectMenuPortalTarget}
+                                                menuPosition="fixed"
                                             />
                                         </div>
 
@@ -581,6 +584,7 @@ export default function Edit({ expense, projects = [], categories = [], accounts
                                                 isClearable
                                                 styles={selectStyles}
                                                 menuPortalTarget={selectMenuPortalTarget}
+                                                menuPosition="fixed"
                                             />
                                             {errors.account_id && <p className="text-rose-600 text-xs mt-1.5 font-bold">{errors.account_id}</p>}
                                         </div>
@@ -599,6 +603,7 @@ export default function Edit({ expense, projects = [], categories = [], accounts
                                                 isClearable
                                                 styles={selectStyles}
                                                 menuPortalTarget={selectMenuPortalTarget}
+                                                menuPosition="fixed"
                                             />
                                             {errors.advance_user_id && <p className="text-rose-600 text-xs mt-1.5 font-bold">{errors.advance_user_id}</p>}
                                         </div>
@@ -777,6 +782,7 @@ export default function Edit({ expense, projects = [], categories = [], accounts
                                                             isClearable
                                                             styles={darkSelectStyles}
                                                             menuPortalTarget={selectMenuPortalTarget}
+                                                            menuPosition="fixed"
                                                         />
                                                     </div>
                                                 )}

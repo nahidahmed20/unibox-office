@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * CustomSelect - Seamless, rock-solid dropdown component.
@@ -23,7 +24,7 @@ export default function CustomSelect({
     const isActuallyDisabled = disabled || isDisabled;
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
-    const [openUpward, setOpenUpward] = useState(false);
+    const [menuPosition, setMenuPosition] = useState(null);
 
     const wrapperRef = useRef(null);
     const inputRef = useRef(null);
@@ -67,7 +68,11 @@ export default function CustomSelect({
     // Close on click outside
     useEffect(() => {
         function handleClickOutside(e) {
-            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+            if (
+                wrapperRef.current &&
+                !wrapperRef.current.contains(e.target) &&
+                !menuRef.current?.contains(e.target)
+            ) {
                 setOpen(false);
                 setSearch('');
             }
@@ -76,21 +81,45 @@ export default function CustomSelect({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Only open upwards if strictly necessary (very little space below, e.g. < 140px, and much more space above)
     useEffect(() => {
-        if (open && wrapperRef.current) {
-            const rect = wrapperRef.current.getBoundingClientRect();
-            const spaceBelow = window.innerHeight - rect.bottom;
-            const spaceAbove = rect.top;
-            if (spaceBelow < 150 && spaceAbove > 200) {
-                setOpenUpward(true);
-            } else {
-                setOpenUpward(false);
-            }
-            if (inputRef.current) {
-                setTimeout(() => inputRef.current?.focus(), 50);
-            }
+        if (!open || !wrapperRef.current) {
+            setMenuPosition(null);
+            return;
         }
+
+        function updateMenuPosition() {
+            if (!wrapperRef.current) return;
+
+            const rect = wrapperRef.current.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom - 8;
+            const spaceAbove = rect.top - 8;
+            const openUpward = spaceBelow < 260 && spaceAbove > spaceBelow;
+            const availableSpace = openUpward ? spaceAbove : spaceBelow;
+            const width = Math.min(rect.width, window.innerWidth - 16);
+            const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+
+            setMenuPosition({
+                position: 'fixed',
+                left,
+                width,
+                maxHeight: Math.max(0, Math.min(260, availableSpace)),
+                zIndex: 100000,
+                ...(openUpward
+                    ? { bottom: window.innerHeight - rect.top + 4 }
+                    : { top: rect.bottom + 4 }),
+            });
+        }
+
+        updateMenuPosition();
+        window.addEventListener('resize', updateMenuPosition);
+        window.addEventListener('scroll', updateMenuPosition, true);
+        const focusTimeout = window.setTimeout(() => inputRef.current?.focus(), 50);
+
+        return () => {
+            window.removeEventListener('resize', updateMenuPosition);
+            window.removeEventListener('scroll', updateMenuPosition, true);
+            window.clearTimeout(focusTimeout);
+        };
     }, [open]);
 
     // Find selected item
@@ -192,13 +221,12 @@ export default function CustomSelect({
                 </div>
             </div>
 
-            {/* Dropdown Menu - Opens downwards by default right under trigger */}
-            {open && !isActuallyDisabled && (
+            {/* Render outside overflow-clipped containers while keeping the trigger alignment. */}
+            {open && !isActuallyDisabled && menuPosition && createPortal(
                 <div
                     ref={menuRef}
-                    className={`absolute ${
-                        openUpward ? 'bottom-[calc(100%+4px)]' : 'top-[calc(100%+4px)]'
-                    } left-0 flex max-h-[260px] w-full flex-col overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl z-[99999] animate-[fadeIn_0.1s_ease-out]`}
+                    style={menuPosition}
+                    className="flex max-h-[260px] flex-col overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl animate-[fadeIn_0.1s_ease-out]"
                 >
                     {/* Search Bar (Only shown for 8+ options) */}
                     {showSearch && (
@@ -223,7 +251,7 @@ export default function CustomSelect({
                     )}
 
                     {/* Options List */}
-                    <div className="overflow-y-auto py-1 custom-table-scroll max-h-[210px]">
+                    <div className="min-h-0 overflow-y-auto py-1 custom-table-scroll max-h-[210px]">
                         {filteredOptions.length === 0 ? (
                             <div className="p-3 text-center text-[12.5px] text-slate-400 font-bold">
                                 No matching options
@@ -250,7 +278,8 @@ export default function CustomSelect({
                             })
                         )}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

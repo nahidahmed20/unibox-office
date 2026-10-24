@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import AdminLayout from "@/Layouts/AdminLayout";
 import { Head, router, Link, usePage, useForm } from "@inertiajs/react";
 import Swal from "sweetalert2";
-import Select from 'react-select';
+import Select from '@/Components/PortalSelect';
 import CustomSelect from '@/Components/CustomSelect';
 import TableExportButtons from '@/Components/TableExportButtons';
 

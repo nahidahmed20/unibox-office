@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, usePage } from '@inertiajs/react';
-import Select from 'react-select';
+import Select from '@/Components/PortalSelect';
 import Swal from 'sweetalert2';
 import TableExportButtons from '@/Components/TableExportButtons';
 

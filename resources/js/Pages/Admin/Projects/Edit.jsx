@@ -2,7 +2,7 @@ import React, { useMemo, useState, useRef, useEffect, useCallback } from "react"
 import AdminLayout from "@/Layouts/AdminLayout";
 import { Head, useForm, Link } from "@inertiajs/react";
 import Swal from "sweetalert2";
-import Select from "react-select";
+import Select from "@/Components/PortalSelect";
 import ReactQuill from "react-quill";
 import 'react-quill/dist/quill.snow.css';
 import CustomSelect from '@/Components/CustomSelect';

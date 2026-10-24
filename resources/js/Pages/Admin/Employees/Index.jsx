@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { useForm, Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
-import Select from "react-select";
+import Select from "@/Components/PortalSelect";
 
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";

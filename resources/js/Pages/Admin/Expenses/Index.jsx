@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { useForm, Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
-import Select from "react-select";
-import CustomSelect from '@/Components/CustomSelect';
+import Select from "@/Components/PortalSelect";
 import TableExportButtons from '@/Components/TableExportButtons';
 
 // 🟢 Custom Straight Taka Component
@@ -725,6 +724,8 @@ export default function Index({
                                             <div className="relative z-[60]">
                                                 <label className="block text-[11.5px] sm:text-[12.5px] font-black text-slate-800 uppercase tracking-widest mb-2 sm:mb-2.5">Expense Category <span className="text-red-600">*</span></label>
                                                 <Select
+                                                    menuPortalTarget={document.body}
+                                                    menuPosition="fixed"
                                                     options={categories.map((c) => ({ value: c.id, label: c.name }))}
                                                     value={categories.map((c) => ({ value: c.id, label: c.name })).find((opt) => Number(opt.value) === Number(data.expense_category_id)) || null}
                                                     onChange={(selected) => setData("expense_category_id", selected ? selected.value : "")}
@@ -790,6 +791,8 @@ export default function Index({
                                             </label>
                                             {data.pay_type === 'account' && (
                                                 <Select
+                                                    menuPortalTarget={document.body}
+                                                    menuPosition="fixed"
                                                     options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` }))}
                                                     value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
                                                     onChange={(selected) => setData("account_id", selected ? selected.value : "")}
@@ -798,6 +801,8 @@ export default function Index({
                                             )}
                                             {data.pay_type === 'advance' && (
                                                 <Select
+                                                    menuPortalTarget={document.body}
+                                                    menuPosition="fixed"
                                                     options={advanceOptions}
                                                     value={advanceOptions.find((opt) => Number(opt.value) === Number(data.advance_user_id)) || null}
                                                     onChange={(selected) => setData("advance_user_id", selected ? selected.value : "")}
@@ -807,6 +812,8 @@ export default function Index({
                                             {data.pay_type === 'vendor' && (
                                                 <>
                                                     <Select
+                                                        menuPortalTarget={document.body}
+                                                        menuPosition="fixed"
                                                         options={vendorOptions}
                                                         value={vendorOptions.find((opt) => Number(opt.value) === Number(data.vendor_id)) || null}
                                                         onChange={(selected) => setData("vendor_id", selected ? selected.value : "")}
@@ -1015,4 +1022,3 @@ export default function Index({
         </AdminLayout>
     );
 }
-
