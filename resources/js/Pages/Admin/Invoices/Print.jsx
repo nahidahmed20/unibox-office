@@ -8,19 +8,39 @@ const numberToWords = (num) => {
     const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
     const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
 
-    const convertInteger = (n) => {
-        if (n === 0) return '';
-        let str = '';
-        let numStr = ('000000000' + n).slice(-9);
-        let matches = numStr.match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
-        if (!matches) return '';
+    const convertTwoDigits = (n) => {
+        if (n < 20) return a[n];
+        return `${b[Math.floor(n / 10)]}${n % 10 ? ` ${a[n % 10]}` : ''}`;
+    };
 
-        str += (matches[1] != 0) ? (a[Number(matches[1])] || b[matches[1][0]] + ' ' + a[matches[1][1]]) + ' Crore ' : '';
-        str += (matches[2] != 0) ? (a[Number(matches[2])] || b[matches[2][0]] + ' ' + a[matches[2][1]]) + ' Lakh ' : '';
-        str += (matches[3] != 0) ? (a[Number(matches[3])] || b[matches[3][0]] + ' ' + a[matches[3][1]]) + ' Thousand ' : '';
-        str += (matches[4] != 0) ? (a[Number(matches[4])] || b[matches[4][0]] + ' ' + a[matches[4][1]]) + ' Hundred ' : '';
-        str += (matches[5] != 0) ? ((str !== '') ? 'and ' : '') + (a[Number(matches[5])] || b[matches[5][0]] + ' ' + a[matches[5][1]]) : '';
-        return str.trim();
+    const convertInteger = (n) => {
+        if (!Number.isSafeInteger(n) || n < 0) return '';
+        if (n === 0) return '';
+
+        const scales = ['', 'Thousand', 'Lakh', 'Crore', 'Arab', 'Kharab', 'Neel', 'Padma'];
+        const groups = [];
+        let remainder = n;
+        groups.push(remainder % 1000);
+        remainder = Math.floor(remainder / 1000);
+
+        while (remainder > 0 && groups.length < scales.length) {
+            groups.push(remainder % 100);
+            remainder = Math.floor(remainder / 100);
+        }
+
+        if (remainder > 0) return '';
+
+        return groups
+            .map((group, index) => ({ group, index }))
+            .filter(({ group }) => group > 0)
+            .reverse()
+            .map(({ group, index }) => {
+                const words = index === 0 && group >= 100
+                    ? `${a[Math.floor(group / 100)]} Hundred${group % 100 ? ` and ${convertTwoDigits(group % 100)}` : ''}`
+                    : convertTwoDigits(group);
+                return `${words}${scales[index] ? ` ${scales[index]}` : ''}`;
+            })
+            .join(' ');
     };
 
     const [taka, paisa] = Number(num).toFixed(2).split('.');
@@ -188,7 +208,7 @@ export default function Print({ invoice, dbSettings }) {
                             <p className="font-bold" style={{ fontSize: "16px", color: "#147a5b" }}>
                                 <strong>{invoice.client?.company_name || invoice.client?.name || 'Unknown Client'}</strong>
                             </p>
-                            <p style={{ maxWidth: "250px" }}>{invoice.client?.address || 'Address not provided'}</p>
+                            <p style={{ maxWidth: "250px" }}>{invoice.client?.address || ''}</p>
                         </div>
 
                         <div className="text-right" style={{ visibility: settings.show_invoice_meta ? 'visible' : 'hidden' }}>

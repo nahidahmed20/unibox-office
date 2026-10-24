@@ -205,7 +205,8 @@ export default function Show({ vendor, payments = [], ledgers = [], bills = [], 
                             <div class="summary-row"><span>Total Billed:</span> <span>TK. ${Number(stats.totalBilled || 0).toLocaleString('en-IN')}</span></div>
                             <div class="summary-row"><span>Total Settled / Paid:</span> <span>TK. ${Number(stats.totalPaid || 0).toLocaleString('en-IN')}</span></div>
                             <div class="summary-row"><span>Wallet Advance:</span> <span>TK. ${Number(vendor.wallet_balance || 0).toLocaleString('en-IN')}</span></div>
-                            <div class="summary-row total"><span>Current Payable Due:</span> <span>TK. ${Number(vendor.total_due || 0).toLocaleString('en-IN')}</span></div>
+                            <div class="summary-row"><span>Gross Payable Due:</span> <span>TK. ${Number(vendor.total_due || 0).toLocaleString('en-IN')}</span></div>
+                            <div class="summary-row total"><span>Net Payable after Advance:</span> <span>TK. ${Number(vendor.net_due || 0).toLocaleString('en-IN')}</span></div>
                         </div>
                     </div>
                     ${tableEl.outerHTML}
@@ -265,7 +266,7 @@ export default function Show({ vendor, payments = [], ledgers = [], bills = [], 
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 bg-gray-50 p-5 sm:p-6 rounded-2xl border border-gray-100 shrink-0 w-full xl:w-auto">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 bg-gray-50 p-5 sm:p-6 rounded-2xl border border-gray-100 shrink-0 w-full xl:w-auto">
                         <div className="flex flex-col border-b sm:border-b-0 sm:border-r border-gray-200 pb-4 sm:pb-0 sm:pr-6">
                             <span className="text-[11px] font-black uppercase tracking-wider text-rose-500 mb-1.5 flex items-center gap-1.5"><i className="fa-solid fa-money-check-dollar"></i> Total Payable (Due)</span>
                             <span className="text-[22px] sm:text-[26px] font-black tabular-nums text-rose-700">
@@ -276,6 +277,12 @@ export default function Show({ vendor, payments = [], ledgers = [], bills = [], 
                             <span className="text-[11px] font-black uppercase tracking-wider text-purple-500 mb-1.5 flex items-center gap-1.5"><i className="fa-solid fa-wallet"></i> Wallet (Advance)</span>
                             <span className="text-[22px] sm:text-[26px] font-black tabular-nums text-purple-700">
                                 <Taka className="text-lg sm:text-xl text-purple-500"/>{Number(vendor.wallet_balance || 0).toLocaleString('en-IN')}
+                            </span>
+                        </div>
+                        <div className="flex flex-col sm:pl-2">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-emerald-600 mb-1.5 flex items-center gap-1.5"><i className="fa-solid fa-scale-balanced"></i> Net Payable</span>
+                            <span className="text-[22px] sm:text-[26px] font-black tabular-nums text-emerald-700">
+                                <Taka className="text-lg sm:text-xl text-emerald-500"/>{Number(vendor.net_due || 0).toLocaleString('en-IN')}
                             </span>
                         </div>
                     </div>

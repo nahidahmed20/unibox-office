@@ -274,6 +274,16 @@ class SalaryController extends Controller
     {
         $salary = Salary::findOrFail($id);
 
+        if (!$request->has('payments') && $request->filled('account_id') && $request->filled('amount')) {
+            $request->merge([
+                'payments' => [[
+                    'account_id' => $request->input('account_id'),
+                    'amount' => $request->input('amount'),
+                    'bank_charge' => $request->input('bank_charge', 0),
+                ]],
+            ]);
+        }
+
         $validated = $request->validate([
             'date'       => 'required|date',
             'note'       => 'nullable|string',
@@ -403,7 +413,9 @@ class SalaryController extends Controller
         }
 
         if ($remaining > 0.009) {
-            throw new \Exception('Employee does not have sufficient advance balance!');
+            throw ValidationException::withMessages([
+                'advance_deduction' => 'Employee does not have sufficient advance balance.',
+            ]);
         }
 
         AdvanceBalance::where('user_id', $userId)->increment('total_used', $amount);

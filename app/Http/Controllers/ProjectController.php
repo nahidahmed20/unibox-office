@@ -32,12 +32,7 @@ class ProjectController extends Controller
         $query->when($request->filled('client_id'), fn($q) => $q->where('client_id', $request->client_id));
         $query->when($request->filled('status'), fn($q) => $q->where('status', $request->status));
 
-        if ($request->input('per_page') === 'all') {
-            $totalCount = clone $query->count();
-            $perPage = $totalCount > 0 ? $totalCount : 1;
-        } else {
-            $perPage = (int) $request->input('per_page', 25);
-        }
+        $perPage = \App\Support\Pagination::perPage($request, $query);
 
         $projects = $query->latest('created_at')->paginate($perPage)->withQueryString();
 

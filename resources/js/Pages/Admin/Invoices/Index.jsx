@@ -7,6 +7,19 @@ import TableExportButtons from '@/Components/TableExportButtons';
 
 /* ---------- Design tokens & Helpers ---------- */
 const fmt = (n) => Number(n || 0).toLocaleString('en-IN');
+const getInvoicePaidAmount = (invoice) => {
+    if (invoice.paid_amount !== undefined) return Number(invoice.paid_amount || 0);
+    const payments = invoice.payments || [];
+    const paymentTotal = invoice.payments_sum_amount ?? payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    const advancePaymentTotal = payments
+        .filter((payment) => payment.method === 'Client Advance')
+        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    const legacyAdvance = invoice.legacy_advance_used !== undefined
+        ? Number(invoice.legacy_advance_used || 0)
+        : Math.max(Number(invoice.advance_used || 0) - advancePaymentTotal, 0);
+    return Number(paymentTotal || 0) + legacyAdvance;
+};
+const getInvoiceDueAmount = (invoice) => Math.max(Number(invoice.grand_total || 0) - getInvoicePaidAmount(invoice), 0);
 const inputClass = "w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13.5px] font-bold text-slate-800 outline-none transition-all hover:border-slate-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm";
 
 const STATUS = {
@@ -127,8 +140,8 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         if (!invoices.data.length) return Swal.fire("Empty!", "No data to copy", "warning");
         const header = "SL\tINV #\tClient\tDate\tGrand Total\tPaid\tDue\tStatus\n";
         const text = invoices.data.map((inv, idx) => {
-            const paid = Number(inv.payments_sum_amount || 0);
-            const due = Math.max(Number(inv.grand_total) - paid, 0);
+            const paid = getInvoicePaidAmount(inv);
+            const due = getInvoiceDueAmount(inv);
             return `${idx + 1}\t${inv.invoice_number}\t${inv.client?.company_name || inv.client?.name}\t${inv.invoice_date}\t${inv.grand_total}\t${paid}\t${due}\t${inv.status}`;
         }).join("\n");
         navigator.clipboard.writeText(header + text);
@@ -139,8 +152,8 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         if (!invoices.data.length) return Swal.fire("Empty!", "No data to export", "warning");
         const headers = ["SL,INV #,Client,Date,Grand Total,Paid,Due,Status\n"];
         const rows = invoices.data.map((inv, idx) => {
-            const paid = Number(inv.payments_sum_amount || 0);
-            const due = Math.max(Number(inv.grand_total) - paid, 0);
+            const paid = getInvoicePaidAmount(inv);
+            const due = getInvoiceDueAmount(inv);
             return `"${idx + 1}","${inv.invoice_number}","${inv.client?.company_name || inv.client?.name}","${inv.invoice_date}","${inv.grand_total}","${paid}","${due}","${inv.status}"`;
         });
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
@@ -182,6 +195,10 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
     const openViewModal = (inv) => { setSelectedInvoice(inv); setShowViewModal(true); };
 
     const invList = invoices.data || [];
+    const selectedInvoiceDue = selectedInvoice ? getInvoiceDueAmount(selectedInvoice) : 0;
+    const advanceToApply = selectedInvoice
+        ? Math.min(selectedInvoiceDue, Number(selectedInvoice.client?.available_advance || 0))
+        : 0;
     const clientOptions = clients.map(c => ({ value: c.id, label: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}` }));
     const yearOptions = years.map(y => ({ value: String(y), label: String(y) }));
 
@@ -312,8 +329,8 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                         <TableExportButtons
                             headers={['INV #', 'Client', 'Invoice Date', 'Grand Total (BDT)', 'Paid (BDT)', 'Due (BDT)', 'Status']}
                             rows={(invoices.data || []).map(inv => {
-                                const paid = Number(inv.payments_sum_amount || 0);
-                                const due = Math.max(Number(inv.grand_total) - paid, 0);
+                                const paid = getInvoicePaidAmount(inv);
+                                const due = getInvoiceDueAmount(inv);
                                 return [
                                     inv.invoice_number,
                                     inv.client?.company_name || inv.client?.name || '',
@@ -325,8 +342,8 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 ];
                             })}
                             data={(invoices.data || []).map((inv, idx) => {
-                                const paid = Number(inv.payments_sum_amount || 0);
-                                const due = Math.max(Number(inv.grand_total) - paid, 0);
+                                const paid = getInvoicePaidAmount(inv);
+                                const due = getInvoiceDueAmount(inv);
                                 return {
                                     "SL": idx + 1,
                                     "Invoice #": inv.invoice_number,
@@ -446,8 +463,8 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-[14px] text-slate-700">
                                 {invList.length > 0 ? invList.map((inv, index) => {
-                                    const totalPaid = Number(inv.payments_sum_amount || 0);
-                                    const dueAmount = Math.max(Number(inv.grand_total) - totalPaid, 0);
+                                    const totalPaid = getInvoicePaidAmount(inv);
+                                    const dueAmount = getInvoiceDueAmount(inv);
                                     const projectItems = inv.items?.filter(item => item.project);
                                     const expanded = expandedProjects.includes(inv.id);
                                     const chip = "flex w-max max-w-[250px] items-center gap-1.5 truncate rounded-lg bg-white border border-slate-200 shadow-sm px-2.5 py-1 text-[12px] font-bold text-slate-600";
@@ -706,9 +723,9 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
                                     <div className="flex items-center justify-between border-t border-white/10 px-6 py-5 bg-white/[0.04] relative z-10">
                                         <span className="text-[14px] font-bold uppercase tracking-widest text-rose-400">Invoice Due</span>
-                                        <span className="text-[24px] font-black tabular-nums text-rose-400"><Taka className="text-[16px] text-rose-500/70 mr-1" />{fmt(Math.max(Number(selectedInvoice.grand_total) - (selectedInvoice.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0) - Number(selectedInvoice.advance_used || 0), 0))}</span>
+                                        <span className="text-[24px] font-black tabular-nums text-rose-400"><Taka className="text-[16px] text-rose-500/70 mr-1" />{fmt(selectedInvoiceDue)}</span>
                                     </div>
-                                    {Number(selectedInvoice.client?.available_advance || 0) > 0 && Math.max(Number(selectedInvoice.grand_total) - (selectedInvoice.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0) - Number(selectedInvoice.advance_used || 0), 0) > 0 && (
+                                    {advanceToApply > 0 && (
                                         <>
                                             <div className="flex justify-between items-center border-t border-white/10 px-6 py-3 text-[13px] font-bold text-purple-300 bg-purple-900/30 relative z-10">
                                                 <span className="flex items-center gap-1.5"><i className="fa-solid fa-wallet text-purple-400"></i> Client Advance In-Hand</span>
@@ -721,17 +738,17 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                                 </div>
                                                 <span className="text-[24px] font-black tabular-nums text-rose-300">
                                                     <Taka className="text-[16px] mr-1" />
-                                                    {fmt(Math.max(0, Math.max(Number(selectedInvoice.grand_total) - (selectedInvoice.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0) - Number(selectedInvoice.advance_used || 0), 0) - Number(selectedInvoice.client.available_advance)))}
+                                                    {fmt(Math.max(0, selectedInvoiceDue - Number(selectedInvoice.client.available_advance)))}
                                                 </span>
                                             </div>
                                             <div className="border-t border-white/10 p-4 bg-white/[0.02]">
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleApplyAdvance(selectedInvoice, Math.min(Math.max(Number(selectedInvoice.grand_total) - (selectedInvoice.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0) - Number(selectedInvoice.advance_used || 0), 0), Number(selectedInvoice.client.available_advance)))}
+                                                    onClick={() => handleApplyAdvance(selectedInvoice, advanceToApply)}
                                                     className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold py-3 px-4 rounded-xl text-[13px] flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-98"
                                                 >
                                                     <i className="fa-solid fa-bolt-lightning text-amber-300"></i>
-                                                    <span>Adjust ৳{fmt(Math.min(Math.max(Number(selectedInvoice.grand_total) - (selectedInvoice.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0) - Number(selectedInvoice.advance_used || 0), 0), Number(selectedInvoice.client.available_advance)))} from Client Advance Now</span>
+                                                    <span>Adjust ৳{fmt(advanceToApply)} from Client Advance Now</span>
                                                 </button>
                                             </div>
                                         </>
@@ -780,4 +797,3 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
         </AdminLayout>
     );
 }
-

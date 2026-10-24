@@ -44,7 +44,10 @@ class ClientAdvanceController extends Controller
             ->paginate($perPage)
             ->withQueryString()
             ->through(function ($client) {
-                $client->available_balance = ($client->total_amount ?? 0) - ($client->total_used ?? 0);
+                $client->available_balance = max(
+                    (float) ($client->total_amount ?? 0) - (float) ($client->total_used ?? 0),
+                    0
+                );
                 return $client;
             });
 
@@ -69,7 +72,7 @@ class ClientAdvanceController extends Controller
             'accounts' => $accounts,
             'totalReceived' => $totalReceived,
             'totalUsed' => $totalUsed,
-            'totalAvailable' => $totalReceived - $totalUsed,
+            'totalAvailable' => max($totalReceived - $totalUsed, 0),
         ]);
     }
 

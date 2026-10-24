@@ -140,6 +140,11 @@ class AssetController extends Controller
             $asset = Asset::with('transaction')->lockForUpdate()->findOrFail($asset->id);
             $oldAccountId = $asset->account_id;
             $oldPrice     = (float) ($asset->purchase_price ?? 0);
+            $assetTransactions = Transaction::where('transactionable_type', $asset->getMorphClass())
+                ->where('transactionable_id', $asset->id)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
 
             if ($oldAccountId && $oldPrice > 0) {
                 $oldAccount = Account::where('id', $oldAccountId)->lockForUpdate()->first();
@@ -171,13 +176,18 @@ class AssetController extends Controller
                     'transaction_date' => $validated['purchase_date'] ?: ($asset->created_at?->toDateString() ?? now()->toDateString()),
                     'description'      => "Asset Purchase: {$asset->name} ({$asset->asset_code})",
                 ];
-                if ($asset->transaction) {
-                    $asset->transaction->update($trxData);
+                if ($assetTransactions->isNotEmpty()) {
+                    $assetTransactions->first()->update($trxData);
+                    $assetTransactions->skip(1)->each->delete();
                 } else {
-                    $asset->transaction()->create($trxData);
+                    Transaction::create([
+                        ...$trxData,
+                        'transactionable_type' => $asset->getMorphClass(),
+                        'transactionable_id' => $asset->id,
+                    ]);
                 }
             } else {
-                $asset->transaction?->delete();
+                $assetTransactions->each->delete();
             }
         });
 
@@ -186,9 +196,14 @@ class AssetController extends Controller
 
     public function destroy(string $id)
     {
-        $asset = Asset::with('transaction')->findOrFail($id);
+        $asset = Asset::findOrFail($id);
 
         DB::transaction(function () use ($asset) {
+            $assetTransactions = Transaction::where('transactionable_type', $asset->getMorphClass())
+                ->where('transactionable_id', $asset->id)
+                ->lockForUpdate()
+                ->get();
+
             if ($asset->account_id && $asset->purchase_price > 0) {
                 $account = Account::where('id', $asset->account_id)->lockForUpdate()->first();
                 if ($account) {
@@ -196,7 +211,7 @@ class AssetController extends Controller
                 }
             }
 
-            $asset->transaction?->delete();
+            $assetTransactions->each->delete();
             $asset->delete();
         });
 

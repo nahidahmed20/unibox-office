@@ -42,7 +42,7 @@ class VendorController extends Controller
         }
 
         $vendors = $query->latest()->paginate($perPage)->through(function ($v) {
-            $v->total_due = (float) ($v->total_due ?? 0) + (float) ($v->opening_balance ?? 0);
+            $v->net_due = $v->net_due;
             return $v;
         })->withQueryString();
 
@@ -70,7 +70,7 @@ class VendorController extends Controller
         $payments = $vendor->payments()
             ->with(['account:id,name', 'details.expense:id,title'])
             ->latest('date')
-            ->paginate($request->input('per_page', 5));
+            ->paginate(\App\Support\Pagination::perPage($request, $vendor->payments(), 5));
 
         return response()->json($payments);
     }
@@ -226,7 +226,7 @@ class VendorController extends Controller
     public function show($id)
     {
         $vendor = Vendor::findOrFail($id);
-        $vendor->append('total_due');
+        $vendor->append(['total_due', 'net_due']);
 
         // All payment history for vendor
         $payments = VendorPayment::with(['account', 'details.expense.project'])
@@ -470,6 +470,12 @@ class VendorController extends Controller
             'totalDiscount' => (float) $totalDiscount,
             'currentDue' => (float) $bills->sum('due_amount') + (float) ($vendor->opening_balance ?? 0),
             'walletBalance' => (float) $vendor->wallet_balance,
+            'netDue' => max(
+                (float) $bills->sum('due_amount')
+                + (float) ($vendor->opening_balance ?? 0)
+                - (float) $vendor->wallet_balance,
+                0
+            ),
         ];
 
         return Inertia::render('Admin/Vendors/Show', [

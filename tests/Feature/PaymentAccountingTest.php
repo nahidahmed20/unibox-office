@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\{Account, Advance, AdvanceBalance, Client, Expense, ExpenseCategory, Project, ProjectExpense, Salary, Transaction, User, Vendor, VendorLedger, VendorPayment};
+use App\Models\{Account, Advance, AdvanceBalance, Client, ClientAdvance, Expense, ExpenseCategory, Invoice, InvoicePayment, Project, ProjectExpense, Salary, Transaction, User, Vendor, VendorLedger, VendorPayment, VendorPaymentDetail};
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -52,6 +52,260 @@ class PaymentAccountingTest extends TestCase
             'advance_deduction' => 300, 'status' => 'paid', 'payment_date' => '2026-09-01',
             'payments' => [['account_id' => $this->account->id, 'amount' => 700, 'bank_charge' => 10]],
         ], $overrides);
+    }
+
+    public function test_client_advance_and_legacy_invoice_advance_are_included_in_all_client_balances(): void
+    {
+        $client = Client::create(['name' => 'Advance Client']);
+        $invoice = Invoice::create([
+            'client_id' => $client->id,
+            'invoice_number' => 'INV-ADV-001',
+            'invoice_date' => '2026-09-01',
+            'due_date' => '2026-09-30',
+            'sub_total' => 1000,
+            'grand_total' => 1000,
+            'advance_used' => 200,
+            'status' => 'partially_paid',
+        ]);
+        ClientAdvance::create([
+            'client_id' => $client->id,
+            'account_id' => $this->account->id,
+            'amount' => 300,
+            'used_amount' => 100,
+            'date' => '2026-08-01',
+        ]);
+        InvoicePayment::create([
+            'invoice_id' => $invoice->id,
+            'account_id' => null,
+            'method' => 'Client Advance',
+            'amount' => 100,
+            'payment_date' => '2026-09-02',
+        ]);
+        InvoicePayment::create([
+            'invoice_id' => $invoice->id,
+            'account_id' => null,
+            'method' => 'Cash',
+            'amount' => 250,
+            'payment_date' => '2026-09-03',
+        ]);
+
+        $this->get(route('admin.clients.index', ['search' => 'Advance Client']))->assertInertia(fn (Assert $p) => $p
+            ->where('clients.data.0.total_paid', 550)
+            ->where('clients.data.0.invoice_due', 450)
+            ->where('clients.data.0.advance_balance', 200)
+            ->where('clients.data.0.net_due', 250)
+            ->etc());
+
+        $this->get(route('admin.client-dues', ['search' => 'Advance Client']))->assertInertia(fn (Assert $p) => $p
+            ->where('clientDues.data.0.total_paid', 550)
+            ->where('clientDues.data.0.invoice_due', 450)
+            ->where('clientDues.data.0.available_advance', 200)
+            ->where('clientDues.data.0.net_due', 250)
+            ->where('grandTotalNetDue', 250)
+            ->etc());
+
+        $this->get(route('admin.clients.show', $client))->assertInertia(fn (Assert $p) => $p
+            ->where('client.financial_summary.total_paid', 550)
+            ->where('client.financial_summary.invoice_due', 450)
+            ->where('client.financial_summary.advance_balance', 200)
+            ->where('client.financial_summary.net_due', 250)
+            ->where('client.invoices.0.paid_amount', 550)
+            ->where('client.invoices.0.due_amount', 450)
+            ->etc());
+
+        $this->get(route('admin.invoices.index'))->assertInertia(fn (Assert $p) => $p
+            ->where('invoices.data.0.paid_amount', 550)
+            ->where('invoices.data.0.legacy_advance_used', 200)
+            ->where('invoices.data.0.advance_used', 300)
+            ->where('invoices.data.0.due_amount', 450)
+            ->where('totals.paid_amount', 550)
+            ->where('totals.due_amount', 450)
+            ->etc());
+
+        $this->get(route('admin.invoices.edit', $invoice))->assertInertia(fn (Assert $p) => $p
+            ->where('invoice.advance_used', 300)
+            ->where('invoice.cash_paid', 250)
+            ->etc());
+
+        $this->get(route('admin.reports.client-ledger', ['client_id' => $client->id]))->assertInertia(fn (Assert $p) => $p
+            ->where('summary.total_paid', 550)
+            ->where('summary.total_advance', 200)
+            ->where('summary.net_due', 250)
+            ->etc());
+
+        ClientAdvance::create([
+            'client_id' => $client->id,
+            'account_id' => $this->account->id,
+            'amount' => 500,
+            'used_amount' => 0,
+            'date' => '2026-08-02',
+        ]);
+        $this->post(route('admin.invoices.apply-advance', $invoice))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('invoice_payments', [
+            'invoice_id' => $invoice->id,
+            'method' => 'Client Advance',
+            'amount' => 450,
+        ]);
+        $this->assertEquals('paid', $invoice->fresh()->status);
+    }
+
+    public function test_invoice_payment_endpoint_rejects_cross_client_and_overdue_allocations(): void
+    {
+        $client = Client::create(['name' => 'Payment Boundary Client']);
+        $invoice = Invoice::create([
+            'client_id' => $client->id,
+            'invoice_number' => 'INV-PAY-BOUNDARY',
+            'invoice_date' => '2026-09-01',
+            'due_date' => '2026-09-30',
+            'sub_total' => 1000,
+            'grand_total' => 1000,
+            'advance_used' => 200,
+            'status' => 'partially_paid',
+        ]);
+
+        $this->post(route('invoice-payments.store'), [
+            'client_id' => $client->id,
+            'invoices' => [['id' => $invoice->id, 'pay_amount' => 801, 'discount' => 0]],
+            'advance_amount' => 0,
+            'account_payments' => [['account_id' => $this->account->id, 'amount' => 801]],
+            'payment_date' => '2026-09-10',
+        ])->assertSessionHasErrors('invoices');
+        $this->assertDatabaseCount('invoice_payments', 0);
+        $this->assertEquals(10000, $this->account->fresh()->current_balance);
+
+        $otherClient = Client::create(['name' => 'Different Payment Client']);
+        $otherInvoice = Invoice::create([
+            'client_id' => $otherClient->id,
+            'invoice_number' => 'INV-PAY-OTHER',
+            'invoice_date' => '2026-09-01',
+            'due_date' => '2026-09-30',
+            'sub_total' => 100,
+            'grand_total' => 100,
+            'advance_used' => 0,
+            'status' => 'unpaid',
+        ]);
+        $this->post(route('invoice-payments.store'), [
+            'client_id' => $client->id,
+            'invoices' => [['id' => $otherInvoice->id, 'pay_amount' => 100, 'discount' => 0]],
+            'advance_amount' => 0,
+            'account_payments' => [['account_id' => $this->account->id, 'amount' => 100]],
+            'payment_date' => '2026-09-10',
+        ])->assertSessionHasErrors('invoices');
+        $this->assertDatabaseCount('invoice_payments', 0);
+        $this->assertEquals(10000, $this->account->fresh()->current_balance);
+    }
+
+    public function test_deleting_legacy_client_advance_payment_restores_advance_balance(): void
+    {
+        $client = Client::create(['name' => 'Legacy Advance Refund Client']);
+        $advance = ClientAdvance::create([
+            'client_id' => $client->id,
+            'account_id' => $this->account->id,
+            'amount' => 300,
+            'used_amount' => 100,
+            'date' => '2026-08-01',
+        ]);
+        $invoice = Invoice::create([
+            'client_id' => $client->id,
+            'invoice_number' => 'INV-LEGACY-REFUND',
+            'invoice_date' => '2026-09-01',
+            'due_date' => '2026-09-30',
+            'sub_total' => 100,
+            'grand_total' => 100,
+            'advance_used' => 0,
+            'status' => 'paid',
+        ]);
+        $payment = InvoicePayment::create([
+            'invoice_id' => $invoice->id,
+            'account_id' => null,
+            'method' => 'Client Advance',
+            'amount' => 100,
+            'payment_date' => '2026-09-02',
+        ]);
+
+        $this->delete(route('invoice-payments.destroy', $payment))->assertSessionHasNoErrors();
+        $this->assertEquals(0, $advance->fresh()->used_amount);
+        $this->assertDatabaseMissing('invoice_payments', ['id' => $payment->id]);
+        $this->assertEquals('unpaid', $invoice->fresh()->status);
+    }
+
+    public function test_vendor_net_payable_subtracts_only_remaining_wallet_advance_in_all_summaries(): void
+    {
+        $vendor = Vendor::create(['name' => 'Advance Vendor', 'opening_balance' => 100, 'wallet_balance' => 400]);
+        $this->post(route('admin.project-expenses.store'), $this->expenseData([
+            'vendor_id' => $vendor->id,
+            'paid_amount' => 0,
+            'bank_charge' => 0,
+        ]))->assertSessionHasNoErrors();
+
+        $this->get(route('admin.vendors.index'))->assertInertia(fn (Assert $p) => $p
+            ->where('vendors.data.0.total_due', 1100)
+            ->where('vendors.data.0.net_due', 700)
+            ->etc());
+
+        $this->get(route('admin.vendors.show', $vendor))->assertInertia(fn (Assert $p) => $p
+            ->where('vendor.total_due', 1100)
+            ->where('vendor.net_due', 700)
+            ->where('stats.netDue', 700)
+            ->etc());
+
+        $this->get(route('admin.vendor-dues'))->assertInertia(fn (Assert $p) => $p
+            ->where('vendorDues.data.0.total_due', 1100)
+            ->where('vendorDues.data.0.net_due', 700)
+            ->where('grandTotalNetDue', 700)
+            ->etc());
+
+        $this->get(route('admin.reports.vendor-ledger', ['vendor_id' => $vendor->id]))->assertInertia(fn (Assert $p) => $p
+            ->where('summary.gross_due', 1100)
+            ->where('summary.wallet_balance', 400)
+            ->where('summary.net_due', 700)
+            ->etc());
+    }
+
+    public function test_dashboard_does_not_double_count_client_advances_and_uses_all_account_cash_movements(): void
+    {
+        $client = Client::create(['name' => 'Dashboard Client']);
+        Invoice::create([
+            'client_id' => $client->id,
+            'invoice_number' => 'INV-DASH-001',
+            'invoice_date' => now()->toDateString(),
+            'due_date' => now()->addDays(30)->toDateString(),
+            'sub_total' => 1000,
+            'grand_total' => 1000,
+            'advance_used' => 0,
+            'status' => 'unpaid',
+        ]);
+        ClientAdvance::create([
+            'client_id' => $client->id,
+            'account_id' => $this->account->id,
+            'amount' => 500,
+            'used_amount' => 0,
+            'date' => now()->toDateString(),
+        ]);
+        Transaction::create([
+            'account_id' => $this->account->id,
+            'type' => 'credit',
+            'amount' => 123,
+            'transaction_date' => now()->toDateString(),
+            'description' => 'Other cash receipt',
+        ]);
+        Transaction::create([
+            'account_id' => $this->account->id,
+            'type' => 'debit',
+            'amount' => 47,
+            'transaction_date' => now()->toDateString(),
+            'description' => 'Other cash payment',
+        ]);
+
+        $this->get(route('dashboard'))->assertInertia(fn (Assert $p) => $p
+            ->where('stats.totalClientDue', 1000)
+            ->where('stats.netClientDue', 500)
+            ->where('stats.totalReceivables', 1000)
+            ->where('stats.totalPayables', 500)
+            ->where('stats.overallNetWorth', 10500)
+            ->where('stats.monthlyCashIn', 123)
+            ->where('stats.monthlyCashOut', 47)
+            ->etc());
     }
 
     public function test_salary_deducts_advance_and_reverses_exact_entries_when_edited_and_deleted(): void
@@ -328,6 +582,101 @@ class PaymentAccountingTest extends TestCase
             ->where('summary.total_cash_out', 202)->etc());
     }
 
+    public function test_financial_report_cash_flow_includes_account_movements_but_excludes_opening_balances_and_transfers(): void
+    {
+        $date = now()->toDateString();
+        Transaction::create(['account_id' => $this->account->id, 'type' => 'credit', 'amount' => 123, 'transaction_date' => $date, 'description' => 'Investment received']);
+        Transaction::create(['account_id' => $this->account->id, 'type' => 'debit', 'amount' => 77, 'transaction_date' => $date, 'description' => 'Manual payment']);
+        Transaction::create(['account_id' => $this->account->id, 'type' => 'credit', 'amount' => 500, 'transaction_date' => $date, 'description' => 'Opening Balance']);
+        Transaction::create(['account_id' => $this->account->id, 'type' => 'debit', 'amount' => 52, 'bank_charge' => 2, 'transaction_date' => $date, 'description' => 'Fund transfer to Cash (Out)']);
+        Transaction::create(['account_id' => $this->account->id, 'type' => 'credit', 'amount' => 50, 'transaction_date' => $date, 'description' => 'Fund transfer from Bank (In)']);
+        $investor = \App\Models\Investor::create(['name' => 'Test Investor']);
+        $investment = \App\Models\Investment::create([
+            'investor_id' => $investor->id,
+            'account_id' => $this->account->id,
+            'investment_type' => 'loan',
+            'amount' => 500,
+            'date' => $date,
+        ]);
+        $investmentPayment = \App\Models\InvestmentPayment::create([
+            'investor_id' => $investor->id,
+            'investment_id' => $investment->id,
+            'account_id' => $this->account->id,
+            'principal_amount' => 50,
+            'profit_amount' => 50,
+            'total_amount' => 100,
+            'payment_date' => $date,
+        ]);
+        $this->assertDatabaseHas('transactions', [
+            'transactionable_id' => $investmentPayment->id,
+            'transactionable_type' => \App\Models\InvestmentPayment::class,
+            'type' => 'debit',
+            'amount' => 100,
+            'transaction_date' => $date,
+        ]);
+
+        $this->get(route('admin.reports.financial', ['start_date' => $date, 'end_date' => $date]))
+            ->assertInertia(fn (Assert $p) => $p
+                ->where('summary.total_cash_in', 623)
+                ->where('summary.total_cash_out', 179)
+                ->where('summary.net_cash_flow', 444)
+                ->etc());
+    }
+
+    public function test_receivable_aging_uses_due_date_instead_of_invoice_date(): void
+    {
+        $invoice = Invoice::create([
+            'client_id' => $this->project->client_id,
+            'invoice_number' => 'INV-AGING-001',
+            'invoice_date' => now()->subDays(100)->toDateString(),
+            'due_date' => now()->subDays(10)->toDateString(),
+            'sub_total' => 1000,
+            'grand_total' => 1000,
+        ]);
+
+        $this->get(route('admin.reports.expense-analysis'))->assertInertia(fn (Assert $p) => $p
+            ->where('receivableAging.0.ref', $invoice->invoice_number)
+            ->where('receivableAging.0.days_old', 10)
+            ->where('receivableAging.0.bucket', '0-30 Days')
+            ->where('receivableAging.0.due_date', $invoice->due_date)
+            ->etc());
+    }
+
+    public function test_vendor_payment_report_does_not_subtract_voided_voucher_details_from_direct_payments(): void
+    {
+        $vendor = Vendor::create(['name' => 'Printer']);
+        $bill = ProjectExpense::create([
+            'project_id' => $this->project->id,
+            'expense_category_id' => $this->category->id,
+            'title' => 'Partially paid bill',
+            'vendor_id' => $vendor->id,
+            'total_bill' => 100,
+            'paid_amount' => 20,
+            'due_amount' => 80,
+            'payment_status' => 'partial',
+            'date' => now()->toDateString(),
+            'logged_by' => $this->staff->id,
+        ]);
+        $voidedPayment = VendorPayment::create([
+            'vendor_id' => $vendor->id,
+            'payment_source' => 'account',
+            'account_id' => $this->account->id,
+            'pay_amount' => 50,
+            'date' => now()->toDateString(),
+            'status' => 'voided',
+        ]);
+        VendorPaymentDetail::create([
+            'vendor_payment_id' => $voidedPayment->id,
+            'project_expense_id' => $bill->id,
+            'amount' => 50,
+        ]);
+
+        $this->get(route('admin.vendor-payments', ['per_page' => 'all']))->assertInertia(fn (Assert $p) => $p
+            ->where('payments.data.0.type', 'Direct Bill')
+            ->where('payments.data.0.amount', 20)
+            ->etc());
+    }
+
     public function test_account_summary_vendor_advance_has_correct_sign(): void
     {
         Vendor::create(['name' => 'Printer', 'wallet_balance' => 1000]);
@@ -337,9 +686,18 @@ class PaymentAccountingTest extends TestCase
     public function test_project_and_vendor_pagination_defaults_and_all_preserve_search(): void
     {
         for ($i = 0; $i < 26; $i++) Vendor::create(['name' => 'Printer '.$i]);
+        for ($i = 0; $i < 26; $i++) {
+            Project::create([
+                'client_id' => $this->project->client_id,
+                'title' => 'Pagination Project '.$i,
+                'deadline' => '2026-12-31',
+            ]);
+        }
         $this->get(route('admin.vendors.index'))->assertInertia(fn (Assert $p) => $p->has('vendors.data', 25)->etc());
         $this->get(route('admin.vendors.index', ['per_page' => 'all', 'search' => 'Printer']))->assertInertia(fn (Assert $p) => $p->has('vendors.data', 26)->etc());
         $this->get(route('admin.projects.index', ['per_page' => 0]))->assertInertia(fn (Assert $p) => $p->where('projects.per_page', 25)->etc());
+        $this->get(route('admin.projects.index', ['per_page' => 'all', 'search' => 'Pagination Project']))
+            ->assertInertia(fn (Assert $p) => $p->has('projects.data', 26)->etc());
     }
 
     public function test_salary_can_be_fully_settled_by_advance_without_bank_payment(): void

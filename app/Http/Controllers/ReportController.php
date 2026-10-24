@@ -356,14 +356,20 @@ class ReportController extends Controller
                     ->select('invoices.client_id', DB::raw('SUM(invoice_payments.amount) as total_paid'))
                     ->groupBy('invoices.client_id')->get()->keyBy('client_id');
 
+                $legacyAdvanceStats = DB::table('invoices')->whereIn('id', $filteredInvoiceIds)
+                    ->select('client_id', DB::raw('SUM(advance_used) as total_legacy_advance'))
+                    ->groupBy('client_id')->get()->keyBy('client_id');
+
                 foreach ($clientsMap as $cName => &$data) {
                     $cId = $data['client_id'];
                     if ($cId) {
                         $inv = $invoiceStats->get($cId) ?? null;
                         $pay = $paymentStats->get($cId) ?? null;
+                        $legacy = $legacyAdvanceStats->get($cId) ?? null;
                         $data['total_invoices'] = $inv ? (int)$inv->total_invoices : 0;
                         $data['total_billed']   = $inv ? (float)$inv->total_billed : 0;
-                        $data['total_paid']     = $pay ? (float)$pay->total_paid : 0;
+                        $data['total_paid']     = ($pay ? (float)$pay->total_paid : 0)
+                            + ($legacy ? (float) $legacy->total_legacy_advance : 0);
                         $data['total_due']      = $data['total_billed'] - $data['total_paid'];
                     }
                 }
@@ -382,33 +388,41 @@ class ReportController extends Controller
         $clientAdvQuery = DB::table('client_advances');
         $expenseQuery = DB::table('transactions')->where('transactionable_type', \App\Models\Expense::class)->where('type', 'debit');
         $salaryQuery = DB::table('transactions')->where('transactionable_type', \App\Models\Salary::class)->where('type', 'debit');
-        $bankChargeQuery = DB::table('transactions');
+        $cashFlowQuery = DB::table('transactions');
         $projectCostQuery = DB::table('transactions')->whereIn('transactionable_type', [\App\Models\ProjectExpense::class, \App\Models\VendorPayment::class]);
-        $financeCostQuery = DB::table('investment_payments');
 
         $applyPeriod($revenueQuery, 'invoice_date');
         $applyPeriod($receivedQuery, 'invoice_payments.payment_date');
         $applyPeriod($clientAdvQuery, 'date');
         $applyPeriod($expenseQuery, 'transaction_date');
         $applyPeriod($salaryQuery, 'transaction_date');
-        $applyPeriod($bankChargeQuery, 'transaction_date');
+        $applyPeriod($cashFlowQuery, 'transaction_date');
         $applyPeriod($projectCostQuery, 'transaction_date');
-        $applyPeriod($financeCostQuery, 'payment_date');
 
         $receivedQuery->whereNotNull('invoice_payments.account_id')->where('invoice_payments.method', '!=', 'Client Advance');
         $totalInvoiceReceived = (float) $receivedQuery->sum('invoice_payments.amount');
 
         $totalClientAdvanceReceived = (float) $clientAdvQuery->sum('amount');
-        $totalCashIn = $totalInvoiceReceived + $totalClientAdvanceReceived;
+        $cashInQuery = (clone $cashFlowQuery)->where('type', 'credit')
+            ->where(function ($query) {
+                $query->whereNull('description')->orWhere('description', 'not like', '% (In)');
+            })
+            ->where(function ($query) {
+                $query->whereNull('description')->orWhere('description', '!=', 'Opening Balance');
+            });
+        $cashOutQuery = (clone $cashFlowQuery)->where('type', 'debit')
+            ->where(function ($query) {
+                $query->whereNull('description')->orWhere('description', '!=', 'Opening Balance');
+            })
+            ->selectRaw("COALESCE(SUM(CASE WHEN description LIKE '% (Out)' THEN COALESCE(bank_charge, 0) ELSE amount END), 0) as total");
+        $totalCashIn = (float) $cashInQuery->sum('amount');
+        $totalCashOut = (float) $cashOutQuery->value('total');
 
         // 🟢 FIX: Handled NULL bank_charge properly in mathematical additions
         $totalProjectExpensePaid = (float) (clone $projectCostQuery)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN amount - COALESCE(bank_charge, 0) ELSE -amount + COALESCE(bank_charge, 0) END), 0) as total")->value('total');
         $totalOfficeExpense = (float) (clone $expenseQuery)->selectRaw('COALESCE(SUM(amount - COALESCE(bank_charge, 0)), 0) as total')->value('total');
         $totalSalaryPaid = (float) (clone $salaryQuery)->selectRaw('COALESCE(SUM(amount - COALESCE(bank_charge, 0)), 0) as total')->value('total');
-        $totalBankCharges = (float) (clone $bankChargeQuery)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN COALESCE(bank_charge, 0) ELSE -COALESCE(bank_charge, 0) END), 0) as total")->value('total');
-        $totalFinanceCost = (float) $financeCostQuery->sum('profit_amount');
-
-        $totalCashOut = $totalProjectExpensePaid + $totalOfficeExpense + $totalSalaryPaid + $totalFinanceCost + $totalBankCharges;
+        $totalBankCharges = (float) (clone $cashFlowQuery)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN COALESCE(bank_charge, 0) ELSE -COALESCE(bank_charge, 0) END), 0) as total")->value('total');
         $netCashFlow = $totalCashIn - $totalCashOut;
 
         $accrualRevenueQuery = DB::table('invoices')->whereNull('deleted_at')->whereIn('id', $validInvoiceIds);
@@ -612,6 +626,48 @@ class ReportController extends Controller
                     ]);
                     $summary['total_billed'] += (float) $invoice->grand_total;
 
+                    $legacyAdvance = (float) ($invoice->getRawOriginal('advance_used') ?? 0);
+                    if ($legacyAdvance > 0) {
+                        $advanceDate = $invoice->invoice_date ?? $invoice->created_at->format('Y-m-d');
+                        $invRef = $invoice->invoice_number ?? 'INV-' . $invoice->id;
+                        $summary['total_paid'] += $legacyAdvance;
+                        $events->push([
+                            'date' => $advanceDate,
+                            'created_at' => $invoice->created_at,
+                            'type' => 'Payment',
+                            'ref' => $invRef,
+                            'method' => 'Invoice Advance',
+                            'description' => "Legacy invoice advance applied to {$invRef}",
+                            'debit' => 0,
+                            'credit' => $legacyAdvance,
+                            'adjusted' => 0,
+                        ]);
+
+                        if (!isset($paymentByDate[$advanceDate])) {
+                            $paymentByDate[$advanceDate] = [
+                                'date' => $advanceDate,
+                                'total_amount' => 0,
+                                'cash_bank_amount' => 0,
+                                'advance_adjusted_amount' => 0,
+                                'items' => [],
+                                'methods' => [],
+                                'notes' => [],
+                            ];
+                        }
+                        $paymentByDate[$advanceDate]['total_amount'] += $legacyAdvance;
+                        $paymentByDate[$advanceDate]['cash_bank_amount'] += $legacyAdvance;
+                        $paymentByDate[$advanceDate]['items'][] = [
+                            'type' => 'Invoice Advance',
+                            'ref' => $invRef,
+                            'amount' => $legacyAdvance,
+                            'method' => 'Invoice Advance',
+                            'note' => null,
+                        ];
+                        if (!in_array('Invoice Advance', $paymentByDate[$advanceDate]['methods'])) {
+                            $paymentByDate[$advanceDate]['methods'][] = 'Invoice Advance';
+                        }
+                    }
+
                     foreach ($invoice->payments as $payment) {
                         $payDate = $payment->payment_date ?? $payment->created_at->format('Y-m-d');
                         $invRef = $invoice->invoice_number ?? 'INV-' . $invoice->id;
@@ -787,6 +843,11 @@ class ReportController extends Controller
                     ->whereNull('invoices.deleted_at')
                     ->selectRaw('COALESCE(SUM(invoice_payments.amount), 0)'),
 
+                'legacy_advance' => DB::table('invoices')
+                    ->whereColumn('client_id', 'clients.id')
+                    ->whereNull('deleted_at')
+                    ->selectRaw('COALESCE(SUM(advance_used), 0)'),
+
                 'total_advance' => DB::table('client_advances')
                     ->whereColumn('client_id', 'clients.id')
                     ->selectRaw('COALESCE(SUM(amount), 0)'),
@@ -811,7 +872,7 @@ class ReportController extends Controller
 
         $grandTotalInvoiceDue = $allClients->sum(function ($client) {
             $invoiced = (float) $client->total_invoiced;
-            $paid = (float) $client->total_paid;
+            $paid = (float) $client->total_paid + (float) $client->legacy_advance;
             return max($invoiced - $paid, 0);
         });
 
@@ -823,7 +884,7 @@ class ReportController extends Controller
 
         $grandTotalNetDue = $allClients->sum(function ($client) {
             $invoiced = (float) $client->total_invoiced;
-            $paid = (float) $client->total_paid;
+            $paid = (float) $client->total_paid + (float) $client->legacy_advance;
             $advance = (float) $client->total_advance;
             $used = (float) $client->total_used;
             $invDue = max($invoiced - $paid, 0);
@@ -831,11 +892,11 @@ class ReportController extends Controller
             return max($invDue - $availAdv, 0);
         });
 
-        $perPage = $request->input('per_page') === 'all' ? 999999 : (int) $request->input('per_page', 25);
+        $perPage = Pagination::perPage($request, $query);
 
         $clientDues = $query->latest('clients.created_at')->paginate($perPage)->through(function ($client) {
             $invoiced = (float) $client->total_invoiced;
-            $paid = (float) $client->total_paid;
+            $paid = (float) $client->total_paid + (float) $client->legacy_advance;
             $advance = (float) $client->total_advance;
             $used = (float) $client->total_used;
 
@@ -904,14 +965,14 @@ class ReportController extends Controller
                 'project_expenses.id',
                 'vendors.name as vendor_name',
                 'project_expenses.date',
-                DB::raw('(project_expenses.paid_amount - COALESCE(SUM(vendor_payment_details.amount), 0)) as amount'),
+                DB::raw('(project_expenses.paid_amount - COALESCE(SUM(CASE WHEN vendor_payments.status = \'completed\' THEN vendor_payment_details.amount ELSE 0 END), 0)) as amount'),
                 DB::raw('0 as discount'),
                 DB::raw("'Direct Bill' as type")
             )
             ->whereNotNull('project_expenses.vendor_id')
             ->where('project_expenses.paid_amount', '>', 0)
             ->groupBy('project_expenses.id', 'vendors.name', 'project_expenses.date', 'project_expenses.paid_amount')
-            ->havingRaw('(project_expenses.paid_amount - COALESCE(SUM(vendor_payment_details.amount), 0)) > 0');
+            ->havingRaw('(project_expenses.paid_amount - COALESCE(SUM(CASE WHEN vendor_payments.status = \'completed\' THEN vendor_payment_details.amount ELSE 0 END), 0)) > 0');
 
         if ($search) {
             $direct->where('vendors.name', 'like', "%{$search}%");
@@ -963,9 +1024,14 @@ class ReportController extends Controller
         $vendorIds = (clone $query)->pluck('id');
         $grandTotalDue = (float) ProjectExpense::whereIn('vendor_id', $vendorIds)->sum('due_amount') + (float) (clone $query)->sum('opening_balance');
         $totalAdvanceAmount = (float) (clone $query)->sum('wallet_balance');
+        $grandTotalNetDue = (clone $query)->get()->sum(function ($vendor) {
+            $grossDue = max((float) $vendor->opening_balance + (float) ($vendor->project_due ?? 0), 0);
+            return max($grossDue - (float) $vendor->wallet_balance, 0);
+        });
 
         $vendorDues = $query->latest('id')->paginate($perPage)->through(function ($v) {
-            $v->total_due = max((float) $v->opening_balance + (float) ($v->project_due ?? 0), 0);
+            $v->append(['total_due', 'net_due']);
+            $v->net_due = $v->net_due;
             return $v;
         })->withQueryString();
 
@@ -973,6 +1039,7 @@ class ReportController extends Controller
             'vendorDues' => $vendorDues,
             'grandTotal' => $grandTotalDue,
             'grandTotalAdvance' => $totalAdvanceAmount,
+            'grandTotalNetDue' => $grandTotalNetDue,
             'filters' => $request->only(['search', 'per_page']),
         ]);
     }
@@ -1465,7 +1532,8 @@ class ReportController extends Controller
                     $ledger[] = $item;
                 }
 
-                $summary['net_due'] = max(0, $balance);
+                $summary['gross_due'] = max(0, $balance);
+                $summary['net_due'] = max(0, $balance - $summary['wallet_balance']);
 
                 krsort($paymentByDate);
                 $dateWisePayments = array_values($paymentByDate);
@@ -1547,7 +1615,8 @@ class ReportController extends Controller
                 'invoices.id as invoice_id',
                 'invoices.invoice_number',
                 'invoices.sub_total',
-                'invoices.grand_total'
+                'invoices.grand_total',
+                'invoices.advance_used'
             )
             ->get();
 
@@ -1575,7 +1644,7 @@ class ReportController extends Controller
 
             $ratio = $subTotal > 0 ? ($itemTotal / $subTotal) : 1;
             $effectiveBilled = round($grandTotal * $ratio, 2);
-            $effectiveCollected = round(min($invPaid, $grandTotal) * $ratio, 2);
+            $effectiveCollected = round(min($invPaid + (float) $row->advance_used, $grandTotal) * $ratio, 2);
 
             $billingByProject[$pid]['invoiced'] += $effectiveBilled;
             $billingByProject[$pid]['collected'] += $effectiveCollected;
@@ -1808,7 +1877,7 @@ class ReportController extends Controller
             $due = round((float) $inv->grand_total - (float) $inv->paid_amount - (float) $inv->advance_used, 2);
             if ($due <= 0) continue;
 
-            $refDate = $inv->invoice_date ? Carbon::parse($inv->invoice_date) : $today;
+            $refDate = $inv->due_date ? Carbon::parse($inv->due_date) : Carbon::parse($inv->invoice_date ?? $today);
             $daysOld = max(0, (int) $refDate->diffInDays($today, false));
 
             if ($daysOld <= 30) {
@@ -1833,6 +1902,7 @@ class ReportController extends Controller
                 'company_name' => $inv->company_name,
                 'phone' => $inv->client_phone,
                 'date' => $inv->invoice_date,
+                'due_date' => $inv->due_date,
                 'days_old' => $daysOld,
                 'bucket' => $bucket,
                 'total_bill' => (float) $inv->grand_total,
@@ -1921,4 +1991,3 @@ class ReportController extends Controller
         ]);
     }
 }
-

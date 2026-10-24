@@ -43,7 +43,10 @@ class InvoicePaymentController extends Controller
 
         // Add advances to clients
         $clients = Client::select('id', 'name', 'company_name')->orderBy('name')->get()->map(function($client) {
-            $client->advance_balance = (float) ClientAdvance::where('client_id', $client->id)->selectRaw('COALESCE(SUM(amount-used_amount),0) balance')->value('balance');
+            $client->advance_balance = max(
+                (float) ClientAdvance::where('client_id', $client->id)->selectRaw('COALESCE(SUM(amount-used_amount),0) balance')->value('balance'),
+                0
+            );
             return $client;
         });
 
@@ -72,7 +75,7 @@ class InvoicePaymentController extends Controller
         $request->validate([
             'client_id' => 'required|exists:clients,id',
             'invoices' => 'required|array|min:1',
-            'invoices.*.id' => 'required|exists:invoices,id',
+            'invoices.*.id' => 'required|distinct|exists:invoices,id',
             'invoices.*.pay_amount' => 'required|numeric|min:0',
             'invoices.*.discount' => 'nullable|numeric|min:0',
             'advance_amount' => 'nullable|numeric|min:0',
@@ -102,13 +105,54 @@ class InvoicePaymentController extends Controller
             $advanceRemaining = $totalAdvance;
             $accountsRemaining = collect($request->account_payments)->map(fn($a) => (object) ['id' => $a['account_id'], 'amount' => (float)$a['amount']]);
 
+            $invoiceIds = $invoicesToPay->pluck('id');
+            $lockedInvoices = Invoice::whereIn('id', $invoiceIds)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+            $paidByInvoice = InvoicePayment::whereIn('invoice_id', $invoiceIds)
+                ->selectRaw('invoice_id, COALESCE(SUM(amount), 0) as paid_amount')
+                ->groupBy('invoice_id')
+                ->pluck('paid_amount', 'invoice_id');
+
+            foreach ($invoicesToPay as $invData) {
+                $invoice = $lockedInvoices->get($invData['id']);
+                if (!$invoice || (int) $invoice->client_id !== (int) $request->client_id) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'invoices' => 'Every invoice must belong to the selected client.',
+                    ]);
+                }
+
+                $legacyAdvance = (float) ($invoice->getRawOriginal('advance_used') ?? 0);
+                $currentDue = max(
+                    (float) $invoice->grand_total
+                    - (float) ($paidByInvoice[$invoice->id] ?? 0)
+                    - $legacyAdvance,
+                    0
+                );
+                $discount = round((float) ($invData['discount'] ?? 0), 2);
+                $payAmount = round((float) $invData['pay_amount'], 2);
+                if ($discount > $currentDue || $payAmount > $currentDue - $discount) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'invoices' => "Payment and discount cannot exceed the remaining due for invoice {$invoice->invoice_number}.",
+                    ]);
+                }
+            }
+
             $advances = collect();
             if ($advanceRemaining > 0) {
                 $advances = ClientAdvance::where('client_id', $request->client_id)->whereColumn('used_amount', '<', 'amount')->orderBy('date')->orderBy('id')->lockForUpdate()->get();
+                $lockedAvailableAdvance = $advances->sum(fn ($advance) => max((float) $advance->amount - (float) $advance->used_amount, 0));
+                if ($lockedAvailableAdvance + 0.001 < $advanceRemaining) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'advance_amount' => 'Client advance balance changed while processing this payment. Please refresh and try again.',
+                    ]);
+                }
             }
 
             foreach ($invoicesToPay as $invData) {
-                $invoice = Invoice::findOrFail($invData['id']);
+                $invoice = $lockedInvoices->get($invData['id']);
                 $payAmount = round((float) $invData['pay_amount'], 2);
                 $discount = round((float) ($invData['discount'] ?? 0), 2);
 
@@ -147,6 +191,11 @@ class InvoicePaymentController extends Controller
                             $adv->update(['is_settled' => (float)$adv->fresh()->used_amount >= (float)$adv->amount]);
                             $payment->advanceAllocations()->create(['client_advance_id' => $adv->id, 'amount' => $deduct]);
                             $takeFromAdvances -= $deduct;
+                        }
+                        if ($takeFromAdvances > 0.001) {
+                            throw \Illuminate\Validation\ValidationException::withMessages([
+                                'advance_amount' => 'The selected client advance could not be fully allocated. Please refresh and try again.',
+                            ]);
                         }
                     } else {
                         $acc = $accountsRemaining->firstWhere('amount', '>', 0.001);
@@ -206,9 +255,13 @@ class InvoicePaymentController extends Controller
         $payment = InvoicePayment::with('advanceAllocations.clientAdvance')->findOrFail($id);
         DB::transaction(function () use ($payment) {
             if ($payment->method === 'Client Advance') {
-                foreach ($payment->advanceAllocations as $allocation) {
-                    $allocation->clientAdvance->decrement('used_amount', $allocation->amount);
-                    $allocation->clientAdvance->update(['is_settled' => false]);
+                if ($payment->advanceAllocations->isNotEmpty()) {
+                    foreach ($payment->advanceAllocations as $allocation) {
+                        $allocation->clientAdvance->decrement('used_amount', $allocation->amount);
+                        $allocation->clientAdvance->update(['is_settled' => false]);
+                    }
+                } else {
+                    $this->restoreClientAdvance($payment->invoice->client_id, (float) $payment->amount);
                 }
             } else if($payment->method === 'Account') {
                 Account::find($payment->account_id)?->decrement('current_balance', $payment->amount);
@@ -231,5 +284,30 @@ class InvoicePaymentController extends Controller
         $invoice = Invoice::withSum('payments', 'amount')->findOrFail($invoiceId);
         $settled = (float) ($invoice->payments_sum_amount ?? 0) + (float) ($invoice->getRawOriginal('advance_used') ?? 0);
         $invoice->update(['status' => $settled >= $invoice->grand_total ? 'paid' : ($settled > 0.01 ? 'partially_paid' : 'unpaid')]);
+    }
+
+    private function restoreClientAdvance(int $clientId, float $amount): void
+    {
+        $remaining = $amount;
+        $advances = ClientAdvance::where('client_id', $clientId)
+            ->where('used_amount', '>', 0)
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($advances as $advance) {
+            if ($remaining <= 0) break;
+            $restored = min($remaining, (float) $advance->used_amount);
+            $advance->decrement('used_amount', $restored);
+            $advance->update(['is_settled' => false]);
+            $remaining -= $restored;
+        }
+
+        if ($remaining > 0.009) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'advance' => 'The original client advance balance cannot be fully restored.',
+            ]);
+        }
     }
 }

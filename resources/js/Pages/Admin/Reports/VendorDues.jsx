@@ -24,7 +24,7 @@ const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
 );
 
-export default function VendorDues({ vendorDues = { data: [], links: [] }, grandTotal = 0, grandTotalAdvance = 0 }) {
+export default function VendorDues({ vendorDues = { data: [], links: [] }, grandTotal = 0, grandTotalAdvance = 0, grandTotalNetDue = 0 }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
     const permissions = auth?.permissions || [];
@@ -64,17 +64,17 @@ export default function VendorDues({ vendorDues = { data: [], links: [] }, grand
     const handleCopy = () => {
         if (!vendorsList.length) return Swal.fire("Empty!", "No data to copy", "warning");
         const text = vendorsList
-            .map((v, idx) => `${(vendorDues.from || 1) + idx}\t${v.vendor_name}\t${v.total_due > 0 ? 'Payable' : (v.wallet_balance > 0 ? 'Advance Given' : 'Clear')}\t${v.total_due || 0}\t${v.wallet_balance || 0}`)
+            .map((v, idx) => `${(vendorDues.from || 1) + idx}\t${v.vendor_name}\t${v.net_due > 0 ? 'Payable' : (v.wallet_balance > v.total_due ? 'Advance Given' : 'Clear')}\t${v.total_due || 0}\t${v.wallet_balance || 0}\t${v.net_due || 0}`)
             .join("\n");
-        navigator.clipboard.writeText("SL\tVendor Name\tStatus\tTotal Due (Payable)\tAdvance (Wallet Balance)\n" + text);
+        navigator.clipboard.writeText("SL\tVendor Name\tStatus\tTotal Due (Payable)\tAdvance (Wallet Balance)\tNet Payable\n" + text);
         Swal.fire({ icon: "success", title: "Copied to Clipboard!", timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
     };
 
     const handleExportCSV = () => {
         if (!vendorsList.length) return Swal.fire("Empty!", "No data to export", "warning");
-        const headers = ["SL,Vendor Name,Status,Total Due (Payable),Advance (Wallet Balance)\n"];
+        const headers = ["SL,Vendor Name,Status,Total Due (Payable),Advance (Wallet Balance),Net Payable\n"];
         const rows = vendorsList.map((v, idx) =>
-            `"${(vendorDues.from || 1) + idx}","${v.vendor_name}","${v.total_due > 0 ? 'Payable' : (v.wallet_balance > 0 ? 'Advance' : 'Clear')}","${v.total_due || 0}","${v.wallet_balance || 0}"`
+            `"${(vendorDues.from || 1) + idx}","${v.vendor_name}","${v.net_due > 0 ? 'Payable' : (v.wallet_balance > v.total_due ? 'Advance' : 'Clear')}","${v.total_due || 0}","${v.wallet_balance || 0}","${v.net_due || 0}"`
         );
         const blob = new Blob([headers + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
@@ -87,9 +87,10 @@ export default function VendorDues({ vendorDues = { data: [], links: [] }, grand
             vendorsList.map((v, idx) => ({
                 "SL": (vendorDues.from || 1) + idx,
                 "Vendor Name": v.vendor_name,
-                "Status": v.total_due > 0 ? 'Payable' : (v.wallet_balance > 0 ? 'Advance Given' : 'Settled'),
+                "Status": v.net_due > 0 ? 'Payable' : (v.wallet_balance > v.total_due ? 'Advance Given' : 'Settled'),
                 "Total Due": parseFloat(v.total_due || 0),
-                "Advance Wallet": parseFloat(v.wallet_balance || 0)
+                "Advance Wallet": parseFloat(v.wallet_balance || 0),
+                "Net Payable": parseFloat(v.net_due || 0)
             }))
         );
         const wb = XLSX.utils.book_new();
@@ -103,13 +104,14 @@ export default function VendorDues({ vendorDues = { data: [], links: [] }, grand
         if (!vendorsList.length) return Swal.fire("Empty!", "No data to export", "warning");
         const doc = new jsPDF();
         autoTable(doc, {
-            head: [['SL', 'Vendor Name', 'Status', 'Total Due', 'Advance']],
+            head: [['SL', 'Vendor Name', 'Status', 'Total Due', 'Advance', 'Net Payable']],
             body: vendorsList.map((v, idx) => [
                 (vendorDues.from || 1) + idx,
                 v.vendor_name,
-                v.total_due > 0 ? 'Payable' : (v.wallet_balance > 0 ? 'Advance Given' : 'Clear'),
+                v.net_due > 0 ? 'Payable' : (v.wallet_balance > v.total_due ? 'Advance Given' : 'Clear'),
                 `BDT ${parseFloat(v.total_due || 0).toLocaleString()}`,
-                `BDT ${parseFloat(v.wallet_balance || 0).toLocaleString()}`
+                `BDT ${parseFloat(v.wallet_balance || 0).toLocaleString()}`,
+                `BDT ${parseFloat(v.net_due || 0).toLocaleString()}`
             ])
         });
         doc.save(`Accounts_Payable_${new Date().toISOString().slice(0, 10)}.pdf`);
@@ -149,6 +151,7 @@ export default function VendorDues({ vendorDues = { data: [], links: [] }, grand
                     <div class="summary">
                         <span style="color: #e11d48;">Total Payable: TK. ${Number(grandTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                         <span style="color: #059669;">Total Advance: TK. ${Number(grandTotalAdvance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        <span style="color: #047857;">Net Payable: TK. ${Number(grandTotalNetDue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                     ${tableContent.outerHTML}
                 </body>
@@ -191,7 +194,7 @@ export default function VendorDues({ vendorDues = { data: [], links: [] }, grand
                 </div>
 
                 {/* Summary Stat Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 no-print">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 no-print">
                     <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
                         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-sm">
                             <i className="fa-solid fa-store text-[22px]"></i>
@@ -222,6 +225,17 @@ export default function VendorDues({ vendorDues = { data: [], links: [] }, grand
                             <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-emerald-600/90">Total Advance in Wallets</p>
                             <h3 className="text-[24px] font-black text-emerald-700 tabular-nums tracking-tight m-0">
                                 <Taka className="text-[20px]" />{Number(grandTotalAdvance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </h3>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4 rounded-2xl border border-teal-100 bg-gradient-to-br from-white to-teal-50/50 p-5 shadow-sm transition-shadow hover:shadow-md">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-600 text-white shadow-sm">
+                            <i className="fa-solid fa-scale-balanced text-[22px]"></i>
+                        </div>
+                        <div>
+                            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-teal-700">Net Payable after Advances</p>
+                            <h3 className="text-[24px] font-black text-teal-800 tabular-nums tracking-tight m-0">
+                                <Taka className="text-[20px]" />{Number(grandTotalNetDue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </h3>
                         </div>
                     </div>
@@ -291,7 +305,7 @@ export default function VendorDues({ vendorDues = { data: [], links: [] }, grand
 
                     {/* Data Table */}
                     <div className="overflow-x-auto custom-table-scroll pb-2 border-t border-gray-100">
-                        <table id="printable-vendor-dues-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                        <table id="printable-vendor-dues-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1050px]">
                             <thead className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
                                 <tr>
                                     <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em] w-12 no-print">SL</th>
@@ -299,12 +313,13 @@ export default function VendorDues({ vendorDues = { data: [], links: [] }, grand
                                     <th className="px-6 py-4.5 text-center text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Status</th>
                                     <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Total Due (Payable)</th>
                                     <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Advance (Wallet)</th>
+                                    <th className="px-6 py-4.5 text-right text-[11.5px] font-extrabold text-[#64748B] uppercase tracking-[0.06em]">Net Payable</th>
                                 </tr>
                             </thead>
                             <tbody className="text-[13.5px] text-[#202223] divide-y divide-gray-100">
                                 {vendorsList.length === 0 ? (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-20 text-center text-gray-500 no-print">
+                                        <td colSpan="6" className="px-6 py-20 text-center text-gray-500 no-print">
                                             <div className="flex flex-col items-center justify-center">
                                                 <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400 shadow-sm border border-gray-200">
                                                     <i className="fa-solid fa-check-double text-2xl"></i>
@@ -334,11 +349,11 @@ export default function VendorDues({ vendorDues = { data: [], links: [] }, grand
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                {vendor.total_due > 0 ? (
+                                                {vendor.net_due > 0 ? (
                                                     <span className="inline-flex px-3 py-1 rounded-md bg-rose-50 text-[10px] font-black uppercase tracking-wider text-rose-600 border border-rose-200 shadow-sm">
                                                         Payable
                                                     </span>
-                                                ) : vendor.wallet_balance > 0 ? (
+                                                ) : vendor.wallet_balance > vendor.total_due ? (
                                                     <span className="inline-flex px-3 py-1 rounded-md bg-emerald-50 text-[10px] font-black uppercase tracking-wider text-emerald-600 border border-emerald-200 shadow-sm">
                                                         Advance Given
                                                     </span>
@@ -353,6 +368,9 @@ export default function VendorDues({ vendorDues = { data: [], links: [] }, grand
                                             </td>
                                             <td className="px-6 py-4 text-right font-black text-emerald-600 text-[15px] tabular-nums bg-emerald-50/10 group-hover:bg-emerald-50/30 transition-colors border-r border-gray-100">
                                                 {vendor.wallet_balance > 0 ? <><Taka />{parseFloat(vendor.wallet_balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</> : <span className="text-gray-300">-</span>}
+                                            </td>
+                                            <td className="px-6 py-4 text-right font-black text-teal-700 text-[15px] tabular-nums bg-teal-50/10 group-hover:bg-teal-50/30 transition-colors">
+                                                <Taka />{parseFloat(vendor.net_due || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                             </td>
                                         </tr>
                                     ))

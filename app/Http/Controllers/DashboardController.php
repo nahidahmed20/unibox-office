@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\{Account, Invoice, InvoicePayment, ProjectExpense, Expense, Investment, InvestmentPayment, EmployeeProfile, Attendance, Project, Client, Task, Leave, Requisition, Notice, Transaction, Salary, Vendor, ClientAdvance, AdvanceBalance, VendorPayment, Asset};
+use App\Models\{Account, Invoice, ProjectExpense, Expense, Investment, EmployeeProfile, Attendance, Project, Client, Task, Leave, Requisition, Notice, Transaction, Salary, Vendor, ClientAdvance, AdvanceBalance, VendorPayment, Asset};
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -19,21 +19,26 @@ class DashboardController extends Controller
 
         // 2. Market Dues & Advances
         $totalInvoiced = Invoice::whereIn('id', $validInvoiceIds)->whereNull('deleted_at')->sum('grand_total');
-        $totalPaid = InvoicePayment::whereIn('invoice_id', $validInvoiceIds)->sum('amount')
+        $totalPaid = DB::table('invoice_payments')->whereIn('invoice_id', $validInvoiceIds)->sum('amount')
             + Invoice::whereIn('id', $validInvoiceIds)->whereNull('deleted_at')->sum('advance_used');
-        $totalClientDue = max($totalInvoiced - $totalPaid, 0);
-
         $clientAdvance = max((float) ClientAdvance::sum('amount') - (float) ClientAdvance::sum('used_amount'), 0);
 
-        // Actual Net Client Due factoring in each client's unapplied advance in hand
-        $netClientDue = (float) Client::query()
+        $clientBalances = Client::query()
             ->addSelect([
                 'inv_total' => DB::table('invoices')->whereColumn('client_id', 'clients.id')->whereNull('deleted_at')->selectRaw('COALESCE(SUM(grand_total), 0)'),
-                'inv_paid' => DB::table('invoice_payments')->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')->whereColumn('invoices.client_id', 'clients.id')->whereNull('invoices.deleted_at')->selectRaw('COALESCE(SUM(invoice_payments.amount), 0) + COALESCE(SUM(invoices.advance_used), 0)'),
+                'payment_sum' => DB::table('invoice_payments')->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')->whereColumn('invoices.client_id', 'clients.id')->whereNull('invoices.deleted_at')->selectRaw('COALESCE(SUM(invoice_payments.amount), 0)'),
+                'legacy_advance_sum' => DB::table('invoices')->whereColumn('client_id', 'clients.id')->whereNull('deleted_at')->selectRaw('COALESCE(SUM(advance_used), 0)'),
                 'adv_bal' => DB::table('client_advances')->whereColumn('client_id', 'clients.id')->selectRaw('COALESCE(SUM(amount - used_amount), 0)'),
-            ])->get()->sum(function ($c) {
-                $due = max((float)$c->inv_total - (float)$c->inv_paid, 0);
-                $adv = (float)$c->adv_bal;
+            ])->get();
+
+        $totalClientDue = $clientBalances->sum(function ($client) {
+            $paid = (float) $client->payment_sum + (float) $client->legacy_advance_sum;
+            return max((float) $client->inv_total - $paid, 0);
+        });
+        $netClientDue = $clientBalances->sum(function ($c) {
+                $paid = (float) $c->payment_sum + (float) $c->legacy_advance_sum;
+                $due = max((float) $c->inv_total - $paid, 0);
+                $adv = max((float) $c->adv_bal, 0);
                 return max($due - $adv, 0);
             });
 
@@ -51,7 +56,8 @@ class DashboardController extends Controller
         $unpaidSalaries = Salary::whereIn('status', ['unpaid', 'partially_paid'])->sum('due_amount');
 
         // 3. Receivables & Market Payables (Vendors and Market Liabilities)
-        $totalReceivables = $netClientDue + $employeeAdvance + $vendorAdvance;
+        // Keep gross invoice receivables here; unused client advances are already a separate payable.
+        $totalReceivables = $totalClientDue + $employeeAdvance + $vendorAdvance;
         $totalPayables = $vendorDue + $clientAdvance + $unpaidSalaries;
 
         // 4. Monthly Operational Data
@@ -79,13 +85,15 @@ class DashboardController extends Controller
 
         $monthlyProjectCostPaid = (float) Transaction::whereIn('transactionable_type', [ProjectExpense::class, VendorPayment::class])->whereMonth('transaction_date', $currentMonth)->whereYear('transaction_date', $currentYear)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN amount - COALESCE(bank_charge, 0) ELSE -amount + COALESCE(bank_charge, 0) END), 0) total")->value('total');
 
-        $monthlyCashIn = InvoicePayment::whereNotNull('account_id')->where('method', '!=', 'Client Advance')->whereIn('invoice_id', $validInvoiceIds)->whereMonth('payment_date', $currentMonth)->whereYear('payment_date', $currentYear)->sum('amount')
-            + ClientAdvance::whereMonth('date', $currentMonth)->whereYear('date', $currentYear)->sum('amount');
+        $monthlyCashIn = (float) Transaction::where('type', 'credit')
+            ->whereMonth('transaction_date', $currentMonth)
+            ->whereYear('transaction_date', $currentYear)
+            ->sum('amount');
 
-        $monthlyBankCharges = (float) Transaction::whereMonth('transaction_date', $currentMonth)->whereYear('transaction_date', $currentYear)->selectRaw("COALESCE(SUM(CASE WHEN type = 'debit' THEN COALESCE(bank_charge, 0) ELSE -COALESCE(bank_charge, 0) END), 0) total")->value('total');
-        $officeCashPaid = (float) Transaction::where('transactionable_type', Expense::class)->where('type', 'debit')->whereMonth('transaction_date', $currentMonth)->whereYear('transaction_date', $currentYear)->selectRaw('COALESCE(SUM(amount - COALESCE(bank_charge, 0)), 0) total')->value('total');
-        $monthlyFinanceCost = InvestmentPayment::whereMonth('payment_date', $currentMonth)->whereYear('payment_date', $currentYear)->sum('profit_amount');
-        $monthlyCashOut = $monthlyProjectCostPaid + $officeCashPaid + $monthlySalaryPaid + $monthlyBankCharges + $monthlyFinanceCost;
+        $monthlyCashOut = (float) Transaction::where('type', 'debit')
+            ->whereMonth('transaction_date', $currentMonth)
+            ->whereYear('transaction_date', $currentYear)
+            ->sum('amount');
 
         $totalAccountBalance = Account::where('is_active', true)->sum('current_balance');
         $availableBalance = $totalAccountBalance;
@@ -227,4 +235,3 @@ class DashboardController extends Controller
         ]);
     }
 }
-

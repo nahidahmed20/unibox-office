@@ -125,7 +125,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
     }, [searchTerm, perPage]);
 
     const vendorList = Array.isArray(vendors) ? vendors : (vendors?.data || []);
-    const exportHeaders = ['SL', 'Vendor Name', 'Company', 'Phone', 'Address', 'Total Due (৳)', 'Wallet Balance (৳)'];
+    const exportHeaders = ['SL', 'Vendor Name', 'Company', 'Phone', 'Address', 'Total Due (৳)', 'Wallet Balance (৳)', 'Net Payable (৳)'];
     const exportRows = useMemo(() => {
         return vendorList.map((v, idx) => [
             idx + 1,
@@ -134,7 +134,8 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
             v.phone || '-',
             v.address || '-',
             parseFloat(v.total_due || 0).toFixed(2),
-            parseFloat(v.wallet_balance || 0).toFixed(2)
+            parseFloat(v.wallet_balance || 0).toFixed(2),
+            parseFloat(v.net_due || 0).toFixed(2)
         ]);
     }, [vendorList]);
 
@@ -236,6 +237,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
 
     const listedTotalDue = (vendors.data || []).reduce((acc, curr) => acc + Number(curr.total_due || 0), 0);
     const listedTotalWallet = (vendors.data || []).reduce((acc, curr) => acc + Number(curr.wallet_balance || 0), 0);
+    const listedTotalNetDue = (vendors.data || []).reduce((acc, curr) => acc + Number(curr.net_due || 0), 0);
 
     return (
         <AdminLayout>
@@ -261,7 +263,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                 </div>
 
                 {/* 🟢 Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
                     <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-all group">
                         <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-blue-50 opacity-50 transition-transform group-hover:scale-110"></div>
                         <div className="relative flex items-center gap-5">
@@ -291,6 +293,15 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                 <h3 className="text-[26px] font-black text-purple-700 m-0 tabular-nums tracking-tight"><Taka className="text-[18px] mr-1.5 opacity-80"/>{listedTotalWallet.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</h3>
                             </div>
                         </div>
+                    </div>
+                        <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50/50 p-6 shadow-sm hover:shadow-md transition-all group">
+                            <div className="relative flex items-center gap-5">
+                                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-200"><i className="fa-solid fa-scale-balanced text-[20px]"></i></div>
+                                <div>
+                                    <p className="mb-1 text-[11.5px] font-bold uppercase tracking-wider text-emerald-700">Net Payable after Advance</p>
+                                    <h3 className="text-[26px] font-black text-emerald-800 m-0 tabular-nums tracking-tight"><Taka className="text-[18px] mr-1.5 opacity-80"/>{listedTotalNetDue.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</h3>
+                                </div>
+                            </div>
                     </div>
                 </div>
 
@@ -334,7 +345,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
 
                     {/* Data Table */}
                     <div className="overflow-x-auto custom-table-scroll pb-2">
-                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1100px]">
+                        <table id="printable-table" className="w-full text-left border-collapse whitespace-nowrap min-w-[1250px]">
                             <thead className="bg-slate-50 text-[10.5px] font-bold uppercase tracking-wider text-slate-500 border-b border-gray-200">
                                 <tr>
                                     <th className="px-6 py-4.5 w-12">SL</th>
@@ -342,6 +353,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                     <th className="px-6 py-4.5">Contact & Location</th>
                                     <th className="px-6 py-4.5 text-right bg-rose-50/40">Total Payables (Due)</th>
                                     <th className="px-6 py-4.5 text-right bg-purple-50/40 border-r border-gray-100">Wallet (Advance)</th>
+                                    <th className="px-6 py-4.5 text-right bg-emerald-50/40">Net Payable</th>
                                     <th className="px-6 py-4.5 text-center no-print w-64">Actions</th>
                                 </tr>
                             </thead>
@@ -379,6 +391,9 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                                     </span>
                                                 ) : <span className="text-gray-300 font-medium">-</span>}
                                             </td>
+                                            <td className="px-6 py-4 text-right font-black text-emerald-700 tabular-nums bg-emerald-50/20">
+                                                <Taka />{Number(vendor.net_due || 0).toLocaleString('en-IN')}
+                                            </td>
                                             <td className="px-6 py-4 text-center no-print">
                                                 <div className="flex items-center justify-center gap-1.5">
                                                     {hasPermission('view_pay_vendor') && <button onClick={() => openPayModal(vendor)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white border border-amber-200 transition-all shadow-sm" title="Pay Bills"><i className="fa-solid fa-money-bills text-[12.5px]"></i></button>}
@@ -398,7 +413,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="6" className="px-6 py-20 text-center text-gray-500">
+                                        <td colSpan="7" className="px-6 py-20 text-center text-gray-500">
                                             <div className="flex flex-col items-center justify-center">
                                                 <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center mb-4"><i className="fa-solid fa-truck-slash text-2xl text-gray-400"></i></div>
                                                 <p className="text-[15px] font-bold text-gray-700">No vendors found.</p>

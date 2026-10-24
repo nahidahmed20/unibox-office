@@ -61,12 +61,12 @@ export default function ExpenseAnalysis({
             };
         } else if (activeTab === 'receivable_aging') {
             return {
-                headers: ['Invoice #', 'Client Name', 'Phone', 'Invoice Date', 'Age (Days)', 'Bucket', 'Total Bill (Tk)', 'Paid (Tk)', 'Due Amount (Tk)'],
+                headers: ['Invoice #', 'Client Name', 'Phone', 'Due Date', 'Overdue Age (Days)', 'Bucket', 'Total Bill (Tk)', 'Paid (Tk)', 'Due Amount (Tk)'],
                 rows: receivableAging.map(r => [
                     r.ref || '—',
                     r.party_name || '—',
                     r.phone || '—',
-                    r.date || '—',
+                    r.due_date || r.date || '—',
                     r.days_old || 0,
                     r.bucket || '—',
                     Number(r.total_bill || 0),
@@ -393,8 +393,12 @@ export default function ExpenseAnalysis({
                                                         <th className="px-5 py-4 text-[11px] font-extrabold text-[#64748B] uppercase">
                                                             {activeTab === 'receivable_aging' ? 'Client Name & Phone' : 'Vendor & Project'}
                                                         </th>
-                                                        <th className="px-5 py-4 text-[11px] font-extrabold text-[#64748B] uppercase">Bill Date</th>
-                                                        <th className="px-5 py-4 text-center text-[11px] font-extrabold text-[#64748B] uppercase">Age</th>
+                                                        <th className="px-5 py-4 text-[11px] font-extrabold text-[#64748B] uppercase">
+                                                            {activeTab === 'receivable_aging' ? 'Due Date' : 'Bill Date'}
+                                                        </th>
+                                                        <th className="px-5 py-4 text-center text-[11px] font-extrabold text-[#64748B] uppercase">
+                                                            {activeTab === 'receivable_aging' ? 'Overdue Age' : 'Age'}
+                                                        </th>
                                                         <th className="px-5 py-4 text-right text-[11px] font-extrabold text-[#64748B] uppercase">Total Bill</th>
                                                         <th className="px-5 py-4 text-right text-[11px] font-extrabold text-[#64748B] uppercase">Paid</th>
                                                         <th className="px-5 py-4 text-right text-[11px] font-extrabold text-[#64748B] uppercase">Outstanding Due</th>
@@ -451,4 +455,3 @@ export default function ExpenseAnalysis({
         </AdminLayout>
     );
 }
-

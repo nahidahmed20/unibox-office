@@ -19,11 +19,16 @@ class ClientController extends Controller
                     ->whereNull('deleted_at')
                     ->selectRaw('COALESCE(SUM(grand_total), 0)'),
 
-                'total_paid' => DB::table('invoice_payments')
+                'paid_from_payments' => DB::table('invoice_payments')
                     ->join('invoices', 'invoice_payments.invoice_id', '=', 'invoices.id')
                     ->whereColumn('invoices.client_id', 'clients.id')
                     ->whereNull('invoices.deleted_at')
                     ->selectRaw('COALESCE(SUM(invoice_payments.amount), 0)'),
+
+                'legacy_advance' => DB::table('invoices')
+                    ->whereColumn('client_id', 'clients.id')
+                    ->whereNull('deleted_at')
+                    ->selectRaw('COALESCE(SUM(advance_used), 0)'),
 
                 // 🟢 FIXED: Advance balance now correctly calculates (Amount - Used Amount)
                 'advance_balance' => DB::table('client_advances')
@@ -51,8 +56,8 @@ class ClientController extends Controller
 
         $clients->getCollection()->transform(function ($client) {
             $invoiced = (float) $client->total_invoiced;
-            $paid = (float) $client->total_paid;
-            $advance = (float) $client->advance_balance;
+            $paid = (float) $client->paid_from_payments + (float) $client->legacy_advance;
+            $advance = max((float) $client->advance_balance, 0);
             $invoiceDue = max(0, $invoiced - $paid);
             $netDue = max(0, $invoiceDue - $advance);
             $advanceSurplus = max(0, $advance - $invoiceDue);
@@ -95,9 +100,20 @@ class ClientController extends Controller
     {
         $client->append(['financial_summary', 'project_stats']);
 
-        $client->load(['projects' => function($q) {
-            $q->latest()->take(5);
-        }, 'invoices.items']);
+        $client->load([
+            'projects' => function($q) {
+                $q->latest()->take(5);
+            },
+            'invoices' => function ($q) {
+                $q->with('items')->withSum('payments', 'amount');
+            },
+        ]);
+
+        $client->invoices->each(function ($invoice) {
+            $invoice->paid_amount = (float) ($invoice->payments_sum_amount ?? 0)
+                + (float) ($invoice->getRawOriginal('advance_used') ?? 0);
+            $invoice->due_amount = max((float) $invoice->grand_total - $invoice->paid_amount, 0);
+        });
 
         return inertia('Admin/Clients/Show', [
             'client' => $client

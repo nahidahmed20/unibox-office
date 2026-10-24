@@ -20,9 +20,20 @@ class Vendor extends Model
 
     public function getTotalDueAttribute()
     {
-        $openingBalance = $this->opening_balance;
-        $dueFromProjects = $this->projectExpenses()->sum('due_amount');
-        return $openingBalance + $dueFromProjects;
+        if (array_key_exists('project_due', $this->attributes)) {
+            $dueFromProjects = (float) $this->attributes['project_due'];
+        } elseif (array_key_exists('total_due', $this->attributes)) {
+            $dueFromProjects = (float) $this->attributes['total_due'];
+        } else {
+            $dueFromProjects = (float) $this->projectExpenses()->sum('due_amount');
+        }
+
+        return (float) $this->opening_balance + $dueFromProjects;
+    }
+
+    public function getNetDueAttribute()
+    {
+        return max((float) $this->total_due - (float) $this->wallet_balance, 0);
     }
 
     public function ledgers()

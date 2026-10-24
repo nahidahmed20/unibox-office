@@ -27,7 +27,10 @@ class InvoiceController extends Controller
             },
             'items.project',
             'payments'
-        ])->withSum('payments', 'amount');
+        ])->withSum('payments', 'amount')
+            ->withSum(['payments as advance_payment_amount' => function ($query) {
+                $query->where('method', 'Client Advance');
+            }], 'amount');
 
         if ($request->filled('invoice_number')) {
             $query->where('invoice_number', 'like', "%{$request->invoice_number}%");
@@ -61,9 +64,16 @@ class InvoiceController extends Controller
 
         $totals = [
             'grand_total' => $invoicesList->sum('grand_total'),
-            'paid_amount' => $invoicesList->sum('payments_sum_amount'),
+            'paid_amount' => $invoicesList->sum(function ($inv) {
+                return (float) $inv->payments_sum_amount + (float) ($inv->getRawOriginal('advance_used') ?? 0);
+            }),
             'due_amount'  => $invoicesList->sum(function ($inv) {
-                return max((float)$inv->grand_total - (float)$inv->payments_sum_amount, 0);
+                return max(
+                    (float) $inv->grand_total
+                    - (float) $inv->payments_sum_amount
+                    - (float) ($inv->getRawOriginal('advance_used') ?? 0),
+                    0
+                );
             })
         ];
 
@@ -71,6 +81,11 @@ class InvoiceController extends Controller
         $invoices = $query->orderByDesc('invoice_date')->orderByDesc('id')->paginate($perPage)->withQueryString();
 
         $invoices->getCollection()->transform(function ($invoice) {
+            $legacyAdvance = (float) ($invoice->getRawOriginal('advance_used') ?? 0);
+            $invoice->legacy_advance_used = $legacyAdvance;
+            $invoice->advance_used = $legacyAdvance + (float) $invoice->advance_payment_amount;
+            $invoice->paid_amount = (float) $invoice->payments_sum_amount + $legacyAdvance;
+            $invoice->due_amount = max((float) $invoice->grand_total - (float) $invoice->paid_amount, 0);
             if ($invoice->client) {
                 $invoice->client->available_advance = max(0, (float)($invoice->client->total_advance ?? 0) - (float)($invoice->client->total_used ?? 0));
             }
@@ -84,7 +99,10 @@ class InvoiceController extends Controller
                 $client->available_advance = max(0, (float)($client->total_advance ?? 0) - (float)($client->total_used ?? 0));
                 return $client;
             });
-        $years = Invoice::selectRaw('DISTINCT YEAR(invoice_date) as year')->orderByDesc('year')->pluck('year');
+        $yearExpression = DB::connection()->getDriverName() === 'sqlite'
+            ? "strftime('%Y', invoice_date)"
+            : 'YEAR(invoice_date)';
+        $years = Invoice::selectRaw("DISTINCT {$yearExpression} as year")->orderByDesc('year')->pluck('year');
 
         $invoicedProjectIds = DB::table('invoice_items')->whereNotNull('project_id')->pluck('project_id')->toArray();
 
@@ -198,8 +216,11 @@ class InvoiceController extends Controller
     {
         $invoice = Invoice::with(['items.project', 'client'])->withSum('payments', 'amount')->findOrFail($id);
 
-        $advanceUsed = \App\Models\InvoicePayment::where('invoice_id', $invoice->id)->where('method', 'Client Advance')->sum('amount');
-        $invoice->advance_used = $advanceUsed;
+        $legacyAdvance = (float) ($invoice->getRawOriginal('advance_used') ?? 0);
+        $advancePaymentAmount = (float) InvoicePayment::where('invoice_id', $invoice->id)->where('method', 'Client Advance')->sum('amount');
+        $invoice->advance_used = $legacyAdvance + $advancePaymentAmount;
+        $invoice->legacy_advance_used = $legacyAdvance;
+        $invoice->cash_paid = max((float) $invoice->payments_sum_amount - $advancePaymentAmount, 0);
 
         $clients = Client::select('id', 'name', 'company_name')
             ->withSum('clientAdvances as total_advance', 'amount')
@@ -365,8 +386,14 @@ class InvoiceController extends Controller
     private function applyClientAdvance(Invoice $invoice, int $clientId, float $amount): void
     {
         if ($amount <= 0) return;
-        if ($amount > (float) $invoice->grand_total) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['use_advance_amount' => 'Advance cannot exceed invoice total.']);
+        $remainingDue = max(
+            (float) $invoice->grand_total
+            - (float) $invoice->payments()->sum('amount')
+            - (float) ($invoice->getRawOriginal('advance_used') ?? 0),
+            0
+        );
+        if ($amount > $remainingDue) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['use_advance_amount' => 'Advance cannot exceed the remaining invoice due.']);
         }
 
         $advances = ClientAdvance::where('client_id', $clientId)->whereColumn('used_amount', '<', 'amount')
@@ -405,8 +432,9 @@ class InvoiceController extends Controller
             $payment->delete();
         }
 
-        if ($payments->isEmpty() && (float) ($invoice->getRawOriginal('advance_used') ?? 0) > 0) {
-            $this->restoreClientAdvance($invoice->client_id, (float) $invoice->getRawOriginal('advance_used'));
+        $legacyAdvance = (float) ($invoice->getRawOriginal('advance_used') ?? 0);
+        if ($legacyAdvance > 0) {
+            $this->restoreClientAdvance($invoice->client_id, $legacyAdvance);
         }
         $invoice->update(['advance_used' => 0]);
     }
@@ -462,7 +490,12 @@ class InvoiceController extends Controller
 
     public function quickApplyAdvance(Invoice $invoice)
     {
-        $due = max((float) $invoice->grand_total - (float) $invoice->payments()->sum('amount'), 0);
+        $due = max(
+            (float) $invoice->grand_total
+            - (float) $invoice->payments()->sum('amount')
+            - (float) ($invoice->getRawOriginal('advance_used') ?? 0),
+            0
+        );
         if ($due <= 0) {
             return back()->with('error', 'This invoice has no outstanding due.');
         }
@@ -480,7 +513,8 @@ class InvoiceController extends Controller
         DB::transaction(function () use ($invoice, $adjustAmount) {
             $this->applyClientAdvance($invoice, $invoice->client_id, $adjustAmount);
 
-            $totalPaid = (float) InvoicePayment::where('invoice_id', $invoice->id)->sum('amount');
+            $totalPaid = (float) InvoicePayment::where('invoice_id', $invoice->id)->sum('amount')
+                + (float) ($invoice->getRawOriginal('advance_used') ?? 0);
             $invoice->update([
                 'status' => $totalPaid >= $invoice->grand_total ? 'paid' : ($totalPaid > 0 ? 'partially_paid' : 'unpaid')
             ]);

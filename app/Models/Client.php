@@ -27,9 +27,12 @@ class Client extends Model {
         if (array_key_exists('total_paid', $this->attributes)) {
             return (float) $this->attributes['total_paid'];
         }
-        return (float) (InvoicePayment::whereHas('invoice', function($q) {
+        $payments = InvoicePayment::whereHas('invoice', function($q) {
             $q->where('client_id', $this->id)->whereNull('deleted_at');
-        })->sum('amount') ?? 0);
+        })->sum('amount');
+        $legacyAdvances = $this->invoices()->whereNull('deleted_at')->sum('advance_used');
+
+        return (float) $payments + (float) $legacyAdvances;
     }
 
     public function getAdvanceBalanceAttribute()

@@ -61,8 +61,7 @@ const selectStyles = {
 };
 
 export default function Edit({ invoice, clients = [], projects = [] }) {
-    const totalPaidAmount = Number(invoice.payments_sum_amount || 0);
-    const dueAmount = Math.max(Number(invoice.grand_total) - totalPaidAmount, 0);
+    const cashPaidAmount = Number(invoice.cash_paid ?? invoice.payments_sum_amount ?? 0);
     const [availableAdvance, setAvailableAdvance] = useState(0);
 
     /* Sticky summary refs */
@@ -150,7 +149,8 @@ export default function Edit({ invoice, clients = [], projects = [] }) {
 
         setData(prev => {
             let validAdvanceUsed = Number(prev.use_advance_amount) || 0;
-            if (validAdvanceUsed > grand) validAdvanceUsed = grand;
+            const remainingDue = Math.max(grand - cashPaidAmount, 0);
+            if (validAdvanceUsed > remainingDue) validAdvanceUsed = remainingDue;
             if (validAdvanceUsed > availableAdvance) validAdvanceUsed = availableAdvance;
 
             if (prev.sub_total !== subtotal || prev.grand_total !== grand || prev.use_advance_amount !== validAdvanceUsed) {
@@ -158,7 +158,7 @@ export default function Edit({ invoice, clients = [], projects = [] }) {
             }
             return prev;
         });
-    }, [data.items, data.tax, data.discount, availableAdvance]);
+    }, [data.items, data.tax, data.discount, availableAdvance, cashPaidAmount]);
 
     /* Sticky Logic */
     const updateStickyPosition = useCallback(() => {
@@ -212,7 +212,8 @@ export default function Edit({ invoice, clients = [], projects = [] }) {
     const inputClass = "w-full rounded-xl border border-slate-400 bg-white px-4 py-3 text-[14px] font-extrabold text-slate-900 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm transition-all";
 
     const portal = { styles: selectStyles };
-    const payable = Math.max(0, Number(data.grand_total) - Number(data.use_advance_amount || 0));
+    const maxAdvanceAmount = Math.min(availableAdvance, Math.max(Number(data.grand_total) - cashPaidAmount, 0));
+    const payable = Math.max(0, Number(data.grand_total) - cashPaidAmount - Number(data.use_advance_amount || 0));
 
     return (
         <AdminLayout>
@@ -524,7 +525,7 @@ export default function Edit({ invoice, clients = [], projects = [] }) {
                                                     <div className="flex items-center gap-1.5">
                                                         <button
                                                             type="button"
-                                                            onClick={() => setData("use_advance_amount", Math.min(availableAdvance, Number(data.grand_total) || 0))}
+                                                            onClick={() => setData("use_advance_amount", maxAdvanceAmount)}
                                                             className="rounded-lg bg-emerald-500/30 hover:bg-emerald-500/50 text-emerald-200 border border-emerald-500/40 px-2.5 py-1 text-[11px] font-extrabold transition flex items-center gap-1 shadow-xs"
                                                         >
                                                             <i className="fa-solid fa-bolt-lightning text-amber-300"></i> Use Full Advance
@@ -542,7 +543,7 @@ export default function Edit({ invoice, clients = [], projects = [] }) {
                                                 </div>
                                                 <div className="relative mb-5">
                                                     <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-400">Use Amount</span>
-                                                    <input type="number" min="0" max={availableAdvance} value={data.use_advance_amount} onChange={(e) => setData("use_advance_amount", e.target.value)}
+                                                    <input type="number" min="0" max={maxAdvanceAmount} value={data.use_advance_amount} onChange={(e) => setData("use_advance_amount", Math.min(Number(e.target.value) || 0, maxAdvanceAmount))}
                                                         className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-3 pl-24 pr-4 text-right text-[15px] font-black tabular-nums text-emerald-400 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/50 shadow-inner" />
                                                 </div>
                                                 <div className="flex items-center justify-between text-[14px] pt-2">
