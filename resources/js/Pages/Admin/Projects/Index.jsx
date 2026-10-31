@@ -4,6 +4,7 @@ import { Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 import CustomSelect from '@/Components/CustomSelect';
 import TableExportButtons from '@/Components/TableExportButtons';
+import sanitizeHtml from '@/Utils/sanitizeHtml';
 
 const Taka = ({ className = "text-[13px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 ${className}`}>৳</span>
@@ -258,15 +259,16 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                             <div><h2 className="text-[16px] font-black text-slate-900">Project directory</h2>
                             <p className="mt-0.5 text-[12px] font-medium text-slate-500">{projects?.total || 0} total projects</p></div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex w-full min-w-0 flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
                             <TableExportButtons
                                 headers={exportHeaders}
                                 rows={exportRows}
                                 filename="Projects_Directory_Report"
                                 title="Projects Directory Report"
+                                className="w-full !shrink justify-start sm:w-auto sm:!shrink-0 sm:justify-end"
                             />
                             {hasPermission('create_project') && (
-                                <Link href={route('admin.projects.create')} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-[13px] font-extrabold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-md">
+                                <Link href={route('admin.projects.create')} className="flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-[13px] font-extrabold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-md sm:w-auto">
                                     <i className="fa-solid fa-plus text-[12px]"></i> New Project
                                 </Link>
                             )}
@@ -653,7 +655,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                     <span className="block text-[13px] font-black text-slate-900 mb-4 pb-3 border-b border-slate-200 uppercase tracking-widest"><i className="fa-solid fa-align-left mr-1.5 text-slate-500"></i> Project notes</span>
                                     <div
                                         className="text-slate-800 text-[14.5px] leading-relaxed bg-slate-50 p-5 rounded-xl border border-slate-200"
-                                        dangerouslySetInnerHTML={{ __html: selectedProject.description }}
+                                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedProject.description) }}
                                     />
                                 </div>
                             )}
@@ -708,7 +710,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                                                 <span>{item.item_name}</span>
                                                             </div>
                                                             {item.description && item.description !== '<p><br></p>' && (
-                                                                <div className="text-[12.5px] text-slate-500 font-semibold mt-1" dangerouslySetInnerHTML={{ __html: item.description }}></div>
+                                                                <div className="text-[12.5px] text-slate-500 font-semibold mt-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.description) }}></div>
                                                             )}
                                                         </td>
                                                         <td className="px-6 py-4 text-center font-mono font-bold text-slate-600 bg-slate-50/50">

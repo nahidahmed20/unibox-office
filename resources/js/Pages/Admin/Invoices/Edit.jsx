@@ -3,9 +3,10 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, Link } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from '@/Components/PortalSelect';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import CustomSelect from '@/Components/CustomSelect';
+import sanitizeHtml from '@/Utils/sanitizeHtml';
 
 /* ---------- Constants & Helpers ---------- */
 const fmt = (n) => Number(n || 0).toLocaleString('en-IN');
@@ -83,11 +84,11 @@ export default function Edit({ invoice, clients = [], projects = [] }) {
         grand_total: invoice.grand_total || 0,
         use_advance_amount: invoice.advance_used || 0,
         status: invoice.status || "unpaid",
-        notes: invoice.notes || "",
+        notes: sanitizeHtml(invoice.notes || ""),
         items: invoice.items.length ? invoice.items.map(i => ({
             project_id: i.project_id || "",
             item_name: i.item_name || "",
-            description: i.description || "",
+            description: sanitizeHtml(i.description || ""),
             quantity: i.quantity || 1,
             unit_type: i.unit_type || "piece",
             unit_price: i.unit_price || 0,

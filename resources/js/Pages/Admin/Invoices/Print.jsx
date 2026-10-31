@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Head } from '@inertiajs/react';
+import sanitizeHtml from '@/Utils/sanitizeHtml';
 
 // 🟢 Number to Words Helper Function
 const numberToWords = (num) => {
@@ -231,7 +232,7 @@ export default function Print({ invoice, dbSettings }) {
                             {invoice.items && invoice.items.length > 0 ? invoice.items.map((item, index) => (
                                 <tr key={index}>
                                     <td className="align-top">
-                                        <div className="html-text-box" style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: item.description || 'No description' }}></div>
+                                        <div className="html-text-box" style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.description || 'No description') }}></div>
                                     </td>
                                     <td className="text-center align-middle">
                                         <strong>{item.quantity}</strong>
@@ -263,7 +264,7 @@ export default function Print({ invoice, dbSettings }) {
                                             {invoice.notes && invoice.notes !== '<p><br></p>' && (
                                                 <div style={{ marginTop: '20px', visibility: settings.show_notes ? 'visible' : 'hidden' }}>
                                                     <strong>Notes / Terms & Conditions:</strong>
-                                                    <div className="html-text-box" style={{ marginTop: "8px", borderTop: "1px dashed #cbd5e1", paddingTop: "8px", whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: invoice.notes }}></div>
+                                                    <div className="html-text-box" style={{ marginTop: "8px", borderTop: "1px dashed #cbd5e1", paddingTop: "8px", whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(invoice.notes) }}></div>
                                                 </div>
                                             )}
                                         </td>
@@ -317,7 +318,7 @@ export default function Print({ invoice, dbSettings }) {
 
                     <div className="bank-info" style={{ visibility: settings.show_bank_info ? 'visible' : 'hidden' }}>
                         {settings.bank_details ? (
-                            <div className="html-text-box" style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: formatBankText(settings.bank_details) }}></div>
+                            <div className="html-text-box" style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(formatBankText(settings.bank_details)) }}></div>
                         ) : (
                             <div className="html-text-box">
                                 <p><strong>A/C No:</strong> 2304997144001</p>
@@ -343,7 +344,7 @@ export default function Print({ invoice, dbSettings }) {
                     {/* 🟢 Updated Dynamic Footer Text */}
                     <div className="invoice-footer" style={{ visibility: settings.show_footer ? 'visible' : 'hidden' }}>
                         {settings.footer_text ? (
-                            <div dangerouslySetInnerHTML={{ __html: formatFooterText(settings.footer_text) }}></div>
+                            <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(formatFooterText(settings.footer_text)) }}></div>
                         ) : (
                             <>
                                 <p style={{ color: '#147a5b', fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>Thank you for your business!</p>

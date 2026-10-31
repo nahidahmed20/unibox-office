@@ -22,6 +22,7 @@ class GlobalSearchController extends Controller
 
         $results = [];
 
+        if ($this->canView($request, ['view_project', 'view_crm'])) {
         $projects = Project::where('title', 'like', "%{$query}%")
             ->select('id', 'title', 'status')
             ->take(4)
@@ -35,7 +36,9 @@ class GlobalSearchController extends Controller
                 'icon'     => 'fa-solid fa-rocket text-indigo-500',
             ];
         }
+        }
 
+        if ($this->canView($request, ['view_clients', 'view_crm'])) {
         $clients = Client::where('name', 'like', "%{$query}%")
             ->orWhere('company_name', 'like', "%{$query}%")
             ->select('id', 'name', 'company_name')
@@ -50,7 +53,9 @@ class GlobalSearchController extends Controller
                 'icon'     => 'fa-solid fa-users-line text-blue-500',
             ];
         }
+        }
 
+        if ($this->canView($request, ['view_invoices', 'view_finance'])) {
         $invoices = Invoice::where('invoice_number', 'like', "%{$query}%")
             ->select('id', 'invoice_number', 'grand_total', 'status')
             ->take(4)
@@ -64,7 +69,9 @@ class GlobalSearchController extends Controller
                 'icon'     => 'fa-solid fa-file-invoice text-emerald-500',
             ];
         }
+        }
 
+        if ($this->canView($request, ['view_tasks', 'view_crm'])) {
         $tasks = Task::where('title', 'like', "%{$query}%")
             ->select('id', 'title', 'priority')
             ->take(4)
@@ -78,7 +85,9 @@ class GlobalSearchController extends Controller
                 'icon'     => 'fa-solid fa-list-check text-amber-500',
             ];
         }
+        }
 
+        if ($this->canView($request, ['view_employee', 'view_hr'])) {
         $employees = User::where('name', 'like', "%{$query}%")
             ->whereHas('employeeProfile')
             ->select('id', 'name', 'email')
@@ -93,7 +102,9 @@ class GlobalSearchController extends Controller
                 'icon'     => 'fa-solid fa-id-badge text-purple-500',
             ];
         }
+        }
 
+        if ($this->canView($request, ['view_office'])) {
         $links = UsefulLink::where('title', 'like', "%{$query}%")
             ->orWhere('category', 'like', "%{$query}%")
             ->orWhere('notes', 'like', "%{$query}%")
@@ -110,7 +121,9 @@ class GlobalSearchController extends Controller
                 'icon'     => 'fa-solid fa-link text-teal-500',
             ];
         }
+        }
 
+        if ($this->canView($request, ['view_expense', 'view_expences', 'view_expenses', 'view_finance'])) {
         $samples = \App\Models\Expense::sample()
             ->where(function ($q) use ($query) {
                 $q->where('title', 'like', "%{$query}%")
@@ -129,7 +142,25 @@ class GlobalSearchController extends Controller
                 'icon'     => 'fa-solid fa-flask text-emerald-500',
             ];
         }
+        }
 
         return response()->json($results);
+    }
+
+    private function canView(Request $request, array $permissions): bool
+    {
+        $user = $request->user();
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->hasAnyRole(['Super Admin', 'super-admin'])) {
+            return true;
+        }
+
+        return (bool) array_intersect(
+            $permissions,
+            $user->getAllPermissions()->pluck('name')->all()
+        );
     }
 }

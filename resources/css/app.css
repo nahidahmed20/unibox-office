@@ -61,6 +61,21 @@ body {
     row-gap: .75rem;
   }
 
+  /* Shared action/filter rows wrap cleanly instead of pushing controls off-screen. */
+  .admin-content [class~="flex"][class~="items-center"] {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .admin-content [class~="shrink-0"] {
+    max-width: 100%;
+  }
+
+  .admin-content [class~="flex"] > button,
+  .admin-content [class~="flex"] > a {
+    min-width: 0;
+  }
+
   .admin-content [class*="whitespace-nowrap"]:not(table) {
     max-width: 100%;
   }

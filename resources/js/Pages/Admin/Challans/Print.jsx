@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Head } from '@inertiajs/react';
+import sanitizeHtml from '@/Utils/sanitizeHtml';
 
 export default function Print({ challan, dbSettings }) {
     
@@ -107,7 +108,7 @@ export default function Print({ challan, dbSettings }) {
                                 <td className="py-4 px-4 border-r border-gray-200 align-top">
                                     <div className="font-bold text-[13px] text-gray-900">{item.item_name}</div>
                                     {item.description && (
-                                        <div className="text-[12px] text-gray-600 mt-1 prose prose-sm max-w-none leading-snug" dangerouslySetInnerHTML={{ __html: item.description }}></div>
+                                        <div className="text-[12px] text-gray-600 mt-1 prose prose-sm max-w-none leading-snug" dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.description) }}></div>
                                     )}
                                 </td>
                                 <td className="py-4 px-4 text-[14px] font-black text-center align-top border-r border-gray-200 text-indigo-700 bg-indigo-50/30">
@@ -122,7 +123,7 @@ export default function Print({ challan, dbSettings }) {
                 {challan.notes && (
                     <div className="mb-12 bg-gray-50 border border-gray-200 p-4 rounded-lg">
                         <h4 className="text-[11px] font-black text-gray-500 mb-1.5 uppercase tracking-wider">Special Notes / Remarks</h4>
-                        <div className="text-[12px] text-gray-700 prose prose-sm max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: challan.notes }}></div>
+                        <div className="text-[12px] text-gray-700 prose prose-sm max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeHtml(challan.notes) }}></div>
                     </div>
                 )}
 
@@ -151,7 +152,7 @@ export default function Print({ challan, dbSettings }) {
                 {/* 6. Footer Terms */}
                 {settings.terms_conditions && (
                     <div className="mt-16 pt-4 border-t border-gray-200 text-center">
-                        <div className="text-[10.5px] text-gray-500 inline-block prose prose-sm prose-p:my-0 text-center leading-relaxed" dangerouslySetInnerHTML={{ __html: settings.terms_conditions }}></div>
+                        <div className="text-[10.5px] text-gray-500 inline-block prose prose-sm prose-p:my-0 text-center leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeHtml(settings.terms_conditions) }}></div>
                     </div>
                 )}
                 

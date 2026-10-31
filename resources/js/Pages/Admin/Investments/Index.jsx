@@ -388,7 +388,7 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
                                                             <i className="fa-regular fa-pen-to-square text-[13px]"></i>
                                                         </button>
                                                     )}
-                                                    {hasPermission('delete_client') && inv.due_amount === parseFloat(inv.amount) && (
+                                                    {hasPermission('delete_investment') && inv.due_amount === parseFloat(inv.amount) && (
                                                         <button onClick={() => handleDelete(inv.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-slate-300 text-slate-500 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600 transition-colors shadow-sm" title="Delete">
                                                             <i className="fa-regular fa-trash-can text-[13px]"></i>
                                                         </button>

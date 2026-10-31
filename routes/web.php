@@ -47,7 +47,7 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth', 'verified', 'admin.permission'])
     ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
@@ -61,12 +61,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // Access Control Routes
-    Route::resource('permissions', PermissionController::class)->names('admin.permissions');
-    Route::resource('roles', RoleController::class)->names('admin.roles');
-    Route::resource('users', UserController::class)->names('admin.users');
-    Route::get('admin/users/export/excel', [UserController::class, 'exportExcel'])->name('admin.users.export.excel');
-
+    Route::middleware('admin.permission')->group(function () {
     // 1. CRM & Projects
     Route::patch('/admin/projects/{id}/status', [ProjectController::class, 'updateStatus'])->name('admin.projects.update-status');
     Route::patch('vendors/payments/{payment}/bank-charge', [VendorController::class, 'updateBankCharge'])->name('admin.vendors.payments.bank-charge');
@@ -141,10 +136,18 @@ Route::middleware('auth')->group(function () {
     Route::post('/invoice-settings', [InvoiceSettingController::class, 'update'])->name('admin.invoice-settings.update');
 
     Route::post('/project-expenses/{id}/move-to-wallet', [ProjectExpenseController::class, 'moveToWallet'])->name('admin.project-expenses.move-to-wallet');
-    Route::get('/admin/global-search', [GlobalSearchController::class, 'search'])->name('admin.global-search');
+    Route::get('/admin/global-search', [GlobalSearchController::class, 'search'])
+        ->middleware('throttle:30,1')
+        ->name('admin.global-search');
 
-    // Database Backup
-    Route::get('/backup/download', [\App\Http\Controllers\BackupController::class, 'download'])->name('admin.backup.download');
+    Route::middleware('role:Super Admin')->group(function () {
+        Route::resource('permissions', PermissionController::class)->names('admin.permissions');
+        Route::resource('roles', RoleController::class)->names('admin.roles');
+        Route::resource('users', UserController::class)->names('admin.users');
+        Route::get('admin/users/export/excel', [UserController::class, 'exportExcel'])->name('admin.users.export.excel');
+
+        Route::get('/backup/download', [\App\Http\Controllers\BackupController::class, 'download'])->name('admin.backup.download');
+    });
 
     // Challan Routes
     Route::resource('challans', ChallanController::class)->except(['show'])->names('admin.challans');
@@ -154,6 +157,7 @@ Route::middleware('auth')->group(function () {
     Route::get('challan-settings', [ChallanSettingController::class, 'index'])->name('admin.challan-settings.index');
     Route::post('challan-settings', [ChallanSettingController::class, 'update'])->name('admin.challan-settings.update');
 
+    });
 });
 
 require __DIR__.'/auth.php';

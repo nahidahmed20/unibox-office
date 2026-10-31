@@ -35,8 +35,8 @@ class BackupController extends Controller
             return response()->download($path)->deleteFileAfterSend(true);
             
         } catch (\Exception $e) {
-            Log::error('Backup Error: ' . $e->getMessage());
-            return back()->with('error', 'Failed to generate backup: ' . $e->getMessage());
+            Log::error('Backup generation failed.', ['exception' => $e]);
+            return back()->with('error', 'Failed to generate backup.');
         }
     }
 }

@@ -223,10 +223,10 @@ export default function Edit({ expense, projects = [], categories = [], accounts
     return (
         <AdminLayout>
             <Head title={`Edit Project Expense #${expense.id}`} />
-            <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 pb-36">
+            <div className="flex w-full max-w-none flex-col gap-6 px-0 pb-36 pt-2">
 
                 {/* --- 🟢 EXECUTIVE HEADER --- */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 bg-white p-6 sm:p-7 rounded-3xl shadow-sm border border-slate-200/80">
+                <div className="flex flex-col justify-between gap-5 rounded-3xl border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/60 to-slate-50 p-6 shadow-sm shadow-indigo-950/5 sm:flex-row sm:items-center sm:p-7">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200/60 text-indigo-700 text-[11px] font-black uppercase tracking-widest shadow-xs">
@@ -798,7 +798,7 @@ export default function Edit({ expense, projects = [], categories = [], accounts
 
                     {/* --- 🟢 FIXED BOTTOM ACTION BAR --- */}
                     <div className="fixed bottom-0 left-0 md:left-[var(--sidebar-width,270px)] right-0 z-[90] bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-10px_35px_rgba(0,0,0,0.06)] transition-all duration-300">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-3">
+                        <div className="flex w-full flex-col items-center justify-between gap-3 px-4 py-3.5 sm:flex-row sm:px-6 lg:px-8">
                             <div className="hidden sm:flex items-center gap-2 text-[13px] font-bold text-slate-500">
                                 <i className="fa-solid fa-pen-nib text-indigo-500"></i>
                                 <span>Editing Expense #EXP-{expense.id}. Changes will adjust balances safely.</span>

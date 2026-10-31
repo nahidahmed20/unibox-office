@@ -169,7 +169,9 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    'secure' => in_array(strtolower((string) env('APP_ENV', 'production')), ['production', 'prod'], true)
+        ? true
+        : env('SESSION_SECURE_COOKIE', false),
 
     /*
     |--------------------------------------------------------------------------

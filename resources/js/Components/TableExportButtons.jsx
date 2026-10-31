@@ -28,7 +28,7 @@ export default function TableExportButtons({
 
     const handleExcel = () => {
         if (onExcel) return onExcel();
-        exportToExcel({ data, filename, sheetName: title });
+        exportToExcel({ data, filename, sheetName: title, headers, rows });
     };
 
     const handleCSV = () => {
@@ -47,7 +47,7 @@ export default function TableExportButtons({
     };
 
     return (
-        <div className={`flex flex-wrap items-center gap-1.5 shrink-0 ${className}`}>
+        <div className={`flex w-full min-w-0 max-w-full flex-wrap items-center gap-1.5 sm:w-auto sm:shrink-0 ${className}`}>
             {showCopy && (
                 <button
                     type="button"
@@ -110,4 +110,3 @@ export default function TableExportButtons({
         </div>
     );
 }
-

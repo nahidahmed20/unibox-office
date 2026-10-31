@@ -4,6 +4,7 @@ import { Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from '@/Components/PortalSelect';
 import TableExportButtons from '@/Components/TableExportButtons';
+import sanitizeHtml from '@/Utils/sanitizeHtml';
 
 /* ---------- Design tokens & Helpers ---------- */
 const fmt = (n) => Number(n || 0).toLocaleString('en-IN');
@@ -683,7 +684,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                                             </span>
                                                         )}
                                                         {item.description && item.description !== '<p><br></p>' && (
-                                                            <div className="html-content-view text-[13px] font-medium leading-relaxed text-slate-500 mt-1" dangerouslySetInnerHTML={{ __html: item.description }}></div>
+                                                            <div className="html-content-view text-[13px] font-medium leading-relaxed text-slate-500 mt-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.description) }}></div>
                                                         )}
                                                     </td>
                                                     <td className="px-6 py-4 text-center font-bold text-slate-600 tabular-nums bg-slate-50/30">
@@ -794,7 +795,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                             {selectedInvoice.notes && selectedInvoice.notes !== '<p><br></p>' && (
                                 <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
                                     <h4 className="mb-4 flex items-center gap-2.5 text-[14px] font-bold uppercase tracking-widest text-slate-700 border-b border-slate-100 pb-3"><i className="fa-solid fa-file-contract text-indigo-500"></i> Terms and notes</h4>
-                                    <div className="html-content-view text-[13.5px] font-medium leading-relaxed text-slate-600 bg-slate-50/50 p-5 rounded-xl border border-slate-100" dangerouslySetInnerHTML={{ __html: selectedInvoice.notes }}></div>
+                                    <div className="html-content-view text-[13.5px] font-medium leading-relaxed text-slate-600 bg-slate-50/50 p-5 rounded-xl border border-slate-100" dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedInvoice.notes) }}></div>
                                 </div>
                             )}
                         </div>

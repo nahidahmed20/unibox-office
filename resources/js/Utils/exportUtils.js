@@ -33,26 +33,57 @@ export function copyTableData({ headers = [], rows = [] }) {
 /**
  * Export structured JSON data to Excel (.xlsx)
  */
-export function exportToExcel({ data = [], filename = "Export", sheetName = "Data" }) {
-    if (!data.length) {
+export function exportToExcel({
+    data = [],
+    filename = "Export",
+    sheetName = "Data",
+    headers = [],
+    rows = [],
+}) {
+    const exportHeaders = headers.length
+        ? headers
+        : Array.isArray(rows[0])
+            ? rows[0].map((_, index) => `Column ${index + 1}`)
+            : Object.keys(rows[0] || {});
+    const exportData = data.length
+        ? data
+        : rows.map((row) => {
+            if (!Array.isArray(row)) return row;
+
+            return Object.fromEntries(
+                exportHeaders.map((header, index) => [header, row[index] ?? ""])
+            );
+        });
+
+    if (!exportData.length) {
         return Swal.fire("Empty!", "No data available to export to Excel.", "warning");
     }
 
     try {
-        const ws = XLSX.utils.json_to_sheet(data);
+        const ws = XLSX.utils.json_to_sheet(exportData);
 
         // Auto-fit column widths
-        const colWidths = Object.keys(data[0] || {}).map(key => {
-            const maxLen = Math.max(
-                key.length,
-                ...data.map(row => String(row[key] ?? "").length)
+        const colWidths = Object.keys(exportData[0] || {}).map(key => {
+            const maxLen = exportData.reduce(
+                (length, row) => Math.max(length, String(row[key] ?? "").length),
+                key.length
             );
             return { wch: Math.min(Math.max(maxLen + 3, 10), 45) };
         });
         ws["!cols"] = colWidths;
 
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, sheetName.substring(0, 31));
+        const safeSheetName = String(sheetName || "Data")
+            .replaceAll("\\", " ")
+            .replaceAll("/", " ")
+            .replaceAll("?", " ")
+            .replaceAll("*", " ")
+            .replaceAll("[", " ")
+            .replaceAll("]", " ")
+            .replaceAll(":", " ")
+            .trim()
+            .slice(0, 31) || "Data";
+        XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
 
         const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
         const file = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
@@ -222,4 +253,3 @@ export function exportToPrint({ tableId = "printable-table", title = "Report" })
         printWindow.close();
     }, 300);
 }
-

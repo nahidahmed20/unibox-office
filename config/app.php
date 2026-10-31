@@ -39,7 +39,8 @@ return [
     |
     */
 
-    'debug' => (bool) env('APP_DEBUG', false),
+    'debug' => !in_array(strtolower((string) env('APP_ENV', 'production')), ['production', 'prod'], true)
+        && (bool) env('APP_DEBUG', false),
 
     /*
     |--------------------------------------------------------------------------
