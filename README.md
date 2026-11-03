@@ -1,59 +1,90 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Unibox Office
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Unibox Office হলো অফিস পরিচালনার ওয়েব অ্যাপ। একই জায়গা থেকে client ও project, invoice ও payment, খরচ, কর্মী এবং হিসাবের রিপোর্ট পরিচালনা করা যায়। এই নির্দেশিকাটি project চালু করা এবং প্রতিদিনের সাধারণ কাজ খুঁজে পেতে সাহায্য করবে।
 
-## About Laravel
+## প্রথমবার চালু করা
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### প্রয়োজনীয় সফটওয়্যার
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- PHP 8.2 বা তার পরের compatible version
+- Composer
+- Node.js ও npm
+- MySQL database
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Local development setup
 
-## Learning Laravel
+Repository folder-এ terminal খুলে নিচের ধাপগুলো অনুসরণ করুন:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+```powershell
+Copy-Item .env.example .env
+composer install
+npm install
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+`.env` ফাইলে `APP_ENV=local`, `APP_DEBUG=true`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` এবং `APP_URL` নিজের local environment অনুযায়ী সেট করুন। এরপর:
 
-## Laravel Sponsors
+```powershell
+php artisan key:generate
+php artisan migrate
+composer run dev
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Development server বন্ধ করতে terminal-এ `Ctrl+C` চাপুন। Frontend production build করতে:
 
-### Premium Partners
+```powershell
+npm run build
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## প্রতিদিনের সাধারণ কাজ
 
-## Contributing
+নতুন client-এর কাজ সাধারণত এই ক্রমে করুন:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+1. **Client যোগ করুন** — `Clients & Projects` → `Clients`
+2. **Project তৈরি করুন** — `Clients & Projects` → `Projects`
+3. **কাজ ভাগ করুন** — `Clients & Projects` → `Tasks`
+4. **Invoice তৈরি করুন** — `Invoices & Payments` → `Invoices`
+5. **Payment নথিভুক্ত করুন** — `Invoices & Payments` → `Received Payments`
+6. **অবস্থা যাচাই করুন** — `Reports` → `Client Ledger` বা `Client Dues`
 
-## Code of Conduct
+Project-সংক্রান্ত খরচ `Money` → `Accounts & Expenses` থেকে যোগ করুন। দৈনিক লেনদেন দেখতে `Reports` → `Daily Daybook` ব্যবহার করুন।
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## কোন কাজ কোথায়
 
-## Security Vulnerabilities
+| Menu | কী পাওয়া যাবে |
+|---|---|
+| Dashboard | আজকের আয়-ব্যয়, গুরুত্বপূর্ণ হিসাব, pending item ও সাধারণ workflow |
+| Clients & Projects | Client, project, task এবং vendor |
+| People & Payroll | Employee, attendance, leave, payroll ও department |
+| Invoices & Payments | Invoice, received payment ও client advance |
+| Accounts & Expenses | Account balance, transaction, investment এবং বিভিন্ন খরচ |
+| Office Tools | Requisition, asset, delivery challan, notice ও useful links |
+| Reports | Financial summary, daybook, dues, ledger ও project report |
+| Administration | Invoice/challan settings, user, role, permission ও database backup |
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+কোনো menu না দেখালে আপনার account-এ সেই অংশের permission নাও থাকতে পারে। প্রয়োজন হলে Super Admin-এর সঙ্গে যোগাযোগ করুন।
 
-## License
+## Project-এর গুরুত্বপূর্ণ জায়গা
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+| Path | ব্যবহার |
+|---|---|
+| `app/Http/Controllers/` | Request ও page-এর business flow |
+| `app/Models/` | Database model |
+| `app/Services/` | একাধিক জায়গায় ব্যবহৃত business logic |
+| `routes/web.php` | Login-পরবর্তী page ও action route |
+| `resources/js/Pages/Admin/` | Admin module-এর React page |
+| `resources/js/Layouts/AdminLayout.jsx` | Sidebar, search ও shared navigation |
+| `database/migrations/` | Database table-এর versioned change |
+| `tests/` | Feature ও unit test |
+
+## সহায়ক shortcut ও যাচাই
+
+- Global search খুলুন: `Ctrl+K` (Mac-এ `⌘K`)
+- Sidebar দেখানো/লুকানো: `Ctrl+B` (Mac-এ `⌘B`)
+- Test চালান: `composer test`
+- Frontend build যাচাই করুন: `npm run build`
+
+## গুরুত্বপূর্ণ
+
+- বাস্তব credentials ও server-specific configuration শুধু `.env` ফাইলে রাখুন; `.env` কখনো Git-এ commit করবেন না।
+- Database migration চালানোর আগে database backup ও deployment procedure যাচাই করুন।
+- Production server-এ `APP_DEBUG=false` রাখুন।
