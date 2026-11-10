@@ -77,6 +77,13 @@ export default function Dashboard({
 }) {
     const { auth } = usePage().props;
     const [duesTab, setDuesTab] = useState("client_dues"); // 'client_dues' | 'vendor_dues'
+    const userPermissions = auth?.permissions || [];
+    const isSuperAdmin = (auth?.roles || []).some((role) =>
+        ["Super Admin", "super-admin"].includes(role)
+    );
+    const canViewCrm = isSuperAdmin || userPermissions.includes("view_crm");
+    const canViewFinance = isSuperAdmin || userPermissions.includes("view_finance");
+    const canViewReports = isSuperAdmin || userPermissions.includes("view_report") || canViewFinance;
 
     const totalSpentThisMonth =
         (Number(stats.monthlyOfficeExpenses || stats.monthlyExpensesOnly) || 0) +
@@ -130,53 +137,43 @@ export default function Dashboard({
                         <div>
                             <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1 text-[11px] font-bold uppercase tracking-widest text-[#E7C572] border border-white/10 mb-3">
                                 <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                                Executive Command Center
+                                Dashboard at a glance
                             </div>
                             <h1 className="text-[26px] sm:text-[32px] font-black tracking-tight text-white">
                                 Welcome, {auth?.user?.name || "Admin"}!
                             </h1>
                             <p className="text-[13.5px] sm:text-[14.5px] text-slate-300 mt-1 font-medium">
-                                Monitor your live cashflow, bank balances, receivables, and overall office performance in real time.
+                                A clear overview of your business, finances, and today's activity.
                             </p>
 
                             {/* Quick Action Pills */}
                             <div className="flex flex-wrap items-center gap-2.5 mt-5">
-                                <Link
-                                    href={route("admin.invoices.create")}
-                                    className="inline-flex items-center gap-2 rounded-xl bg-[#C89B3C] hover:bg-[#b88b2e] text-slate-950 px-4 py-2 text-[12.5px] font-black transition-all shadow-md"
-                                >
-                                    <i className="fa-solid fa-plus text-[11px]"></i> New Invoice
-                                </Link>
-                                <Link
-                                    href={route("admin.reports.daybook")}
-                                    className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 px-4 py-2 text-[12.5px] font-bold transition-all"
-                                >
-                                    <i className="fa-solid fa-book-open text-[#E7C572]"></i> Today's Daybook
-                                </Link>
-                                <Link
-                                    href={route("admin.reports.project-profit")}
-                                    className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 px-4 py-2 text-[12.5px] font-bold transition-all"
-                                >
-                                    <i className="fa-solid fa-sack-dollar text-emerald-400"></i> Project Profit & Loss
-                                </Link>
-                                <Link
-                                    href={route("admin.sample-expenses.index")}
-                                    className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 px-4 py-2 text-[12.5px] font-bold transition-all"
-                                >
-                                    <i className="fa-solid fa-flask text-teal-400"></i> Sample Expenses
-                                </Link>
-                                <Link
-                                    href={route("admin.reports.client-ledger")}
-                                    className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 px-4 py-2 text-[12.5px] font-bold transition-all"
-                                >
-                                    <i className="fa-solid fa-book-journal-whills text-indigo-300"></i> Client Ledger
-                                </Link>
-                                <Link
-                                    href={route("admin.reports.vendor-ledger")}
-                                    className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 px-4 py-2 text-[12.5px] font-bold transition-all"
-                                >
-                                    <i className="fa-solid fa-book-bookmark text-amber-300"></i> Vendor Ledger
-                                </Link>
+                                {canViewFinance && (
+                                    <>
+                                        <Link
+                                            href={route("admin.invoices.create")}
+                                            className="inline-flex items-center gap-2 rounded-xl bg-[#C89B3C] hover:bg-[#b88b2e] text-slate-950 px-4 py-2 text-[12.5px] font-black transition-all shadow-md"
+                                        >
+                                            <i className="fa-solid fa-plus text-[11px]"></i> New Invoice
+                                        </Link>
+                                    </>
+                                )}
+                                {canViewReports && (
+                                    <Link
+                                        href={route("admin.reports.daybook")}
+                                        className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 px-4 py-2 text-[12.5px] font-bold transition-all"
+                                    >
+                                        <i className="fa-solid fa-book-open text-[#E7C572]"></i> Today's Daybook
+                                    </Link>
+                                )}
+                                {canViewCrm && (
+                                    <Link
+                                        href={route("admin.projects.index")}
+                                        className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 px-4 py-2 text-[12.5px] font-bold transition-all"
+                                    >
+                                        <i className="fa-solid fa-diagram-project text-indigo-300"></i> View Projects
+                                    </Link>
+                                )}
                             </div>
                         </div>
 
@@ -215,6 +212,72 @@ export default function Dashboard({
                         </div>
                     </div>
                 </div>
+
+                {(canViewCrm || canViewFinance) && (
+                    <section
+                        aria-labelledby="workflow-heading"
+                        className="rounded-3xl border border-gray-200/90 bg-white p-5 shadow-sm sm:p-6"
+                    >
+                        <div className="mb-4">
+                            <h2 id="workflow-heading" className="text-[17px] font-extrabold text-gray-900">
+                                কাজ শুরুর সহজ ধাপ
+                            </h2>
+                            <p className="mt-1 text-[13px] text-gray-500">
+                                নতুন client-এর কাজ হলে ধাপগুলো একে একে অনুসরণ করুন।
+                            </p>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            {canViewCrm && (
+                                <>
+                                    <Link
+                                        href={route("admin.clients.index")}
+                                        className="group flex items-start gap-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4 transition hover:border-indigo-200 hover:bg-indigo-50/50"
+                                    >
+                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-[12px] font-black text-indigo-700">1</span>
+                                        <span>
+                                            <span className="block text-[13px] font-bold text-gray-800">Client যোগ করুন</span>
+                                            <span className="mt-1 block text-[11.5px] text-gray-500">প্রথমে client-এর তথ্য সংরক্ষণ করুন।</span>
+                                        </span>
+                                    </Link>
+                                    <Link
+                                        href={route("admin.projects.index")}
+                                        className="group flex items-start gap-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4 transition hover:border-indigo-200 hover:bg-indigo-50/50"
+                                    >
+                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-[12px] font-black text-indigo-700">2</span>
+                                        <span>
+                                            <span className="block text-[13px] font-bold text-gray-800">Project খুলুন</span>
+                                            <span className="mt-1 block text-[11.5px] text-gray-500">কাজের বিবরণ ও দায়িত্ব ঠিক করুন।</span>
+                                        </span>
+                                    </Link>
+                                </>
+                            )}
+                            {canViewFinance && (
+                                <>
+                                    <Link
+                                        href={route("admin.invoices.create")}
+                                        className="group flex items-start gap-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4 transition hover:border-amber-200 hover:bg-amber-50/50"
+                                    >
+                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-[12px] font-black text-amber-700">{canViewCrm ? 3 : 1}</span>
+                                        <span>
+                                            <span className="block text-[13px] font-bold text-gray-800">Invoice তৈরি করুন</span>
+                                            <span className="mt-1 block text-[11.5px] text-gray-500">কাজের বিপরীতে bill তৈরি করুন।</span>
+                                        </span>
+                                    </Link>
+                                    <Link
+                                        href={route("invoice-payments.index")}
+                                        className="group flex items-start gap-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4 transition hover:border-emerald-200 hover:bg-emerald-50/50"
+                                    >
+                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-[12px] font-black text-emerald-700">{canViewCrm ? 4 : 2}</span>
+                                        <span>
+                                            <span className="block text-[13px] font-bold text-gray-800">Payment নথিভুক্ত করুন</span>
+                                            <span className="mt-1 block text-[11.5px] text-gray-500">পাওয়া টাকা invoice-এর সাথে মিলিয়ে নিন।</span>
+                                        </span>
+                                    </Link>
+                                </>
+                            )}
+                        </div>
+                    </section>
+                )}
 
                 {/* 🟢 MASTER FINANCIAL POSITION BLOCK */}
                 <div className="bg-white rounded-3xl border border-gray-200/90 shadow-sm overflow-hidden relative">

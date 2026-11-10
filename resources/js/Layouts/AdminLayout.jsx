@@ -296,14 +296,14 @@ export default function AdminLayout({ children }) {
                         </li>
 
                         {/* ================= OPERATIONS ================= */}
-                        {(hasPermission('view_crm') || hasPermission('view_hr')) && <SectionLabel>Operations</SectionLabel>}
+                        {(hasPermission('view_crm') || hasPermission('view_hr')) && <SectionLabel>Work</SectionLabel>}
 
                         {hasPermission('view_crm') && (
                             <li className="mx-3 mt-0.5">
                                 <button onClick={() => toggleMenu('crm')} aria-expanded={openMenus.crm} className={groupToggleClass(openMenus.crm, activeRoutes.crm)}>
                                     <span className="flex items-center gap-3.5">
                                         <i className={groupIconClass(openMenus.crm, activeRoutes.crm) + ' fa-layer-group'}></i>
-                                        CRM & Projects
+                                        Clients & Projects
                                     </span>
                                     <i className={chevronClass(openMenus.crm)}></i>
                                 </button>
@@ -323,7 +323,7 @@ export default function AdminLayout({ children }) {
                                 <button onClick={() => toggleMenu('hr')} aria-expanded={openMenus.hr} className={groupToggleClass(openMenus.hr, activeRoutes.hr)}>
                                     <span className="flex items-center gap-3.5">
                                         <i className={groupIconClass(openMenus.hr, activeRoutes.hr) + ' fa-users-viewfinder'}></i>
-                                        HR & Payroll
+                                        People & Payroll
                                     </span>
                                     <i className={chevronClass(openMenus.hr)}></i>
                                 </button>
@@ -342,14 +342,14 @@ export default function AdminLayout({ children }) {
                         )}
 
                         {/* ================= FINANCE & ACCOUNTS ================= */}
-                        {hasPermission('view_finance') && <SectionLabel>Finance</SectionLabel>}
+                        {hasPermission('view_finance') && <SectionLabel>Money</SectionLabel>}
 
                         {hasPermission('view_finance') && (
                             <li className="mx-3 mt-0.5">
                                 <button onClick={() => toggleMenu('sales')} aria-expanded={openMenus.sales} className={groupToggleClass(openMenus.sales, activeRoutes.sales)}>
                                     <span className="flex items-center gap-3.5">
                                         <i className={groupIconClass(openMenus.sales, activeRoutes.sales) + ' fa-file-invoice-dollar'}></i>
-                                        Sales & Billing
+                                        Invoices & Payments
                                     </span>
                                     <i className={chevronClass(openMenus.sales)}></i>
                                 </button>
@@ -368,7 +368,7 @@ export default function AdminLayout({ children }) {
                                 <button onClick={() => toggleMenu('accounting')} aria-expanded={openMenus.accounting} className={groupToggleClass(openMenus.accounting, activeRoutes.accounting)}>
                                     <span className="flex items-center gap-3.5">
                                         <i className={groupIconClass(openMenus.accounting, activeRoutes.accounting) + ' fa-wallet'}></i>
-                                        Accounting & Expenses
+                                        Accounts & Expenses
                                     </span>
                                     <i className={chevronClass(openMenus.accounting)}></i>
                                 </button>
@@ -390,14 +390,14 @@ export default function AdminLayout({ children }) {
                         )}
 
                         {/* ================= ADMINISTRATION ================= */}
-                        {(hasPermission('view_office') || hasPermission('view_report')) && <SectionLabel>Administration</SectionLabel>}
+                        {(hasPermission('view_office') || hasPermission('view_report')) && <SectionLabel>Office & Insights</SectionLabel>}
 
                         {hasPermission('view_office') && (
                             <li className="mx-3 mt-0.5">
                                 <button onClick={() => toggleMenu('office')} aria-expanded={openMenus.office} className={groupToggleClass(openMenus.office, activeRoutes.office)}>
                                     <span className="flex items-center gap-3.5">
                                         <i className={groupIconClass(openMenus.office, activeRoutes.office) + ' fa-building'}></i>
-                                        Office & Assets
+                                        Office Tools
                                     </span>
                                     <i className={chevronClass(openMenus.office)}></i>
                                 </button>
@@ -418,7 +418,7 @@ export default function AdminLayout({ children }) {
                                 <button onClick={() => toggleMenu('report')} aria-expanded={openMenus.report} className={groupToggleClass(openMenus.report, activeRoutes.report)}>
                                     <span className="flex items-center gap-3.5">
                                         <i className={groupIconClass(openMenus.report, activeRoutes.report) + ' fa-chart-line'}></i>
-                                        Reports & Analytics
+                                        Reports
                                     </span>
                                     <i className={chevronClass(openMenus.report)}></i>
                                 </button>
@@ -447,12 +447,12 @@ export default function AdminLayout({ children }) {
                         {/* ================= SYSTEM ================= */}
                         {hasPermission('view_settings') && (
                             <>
-                                <SectionLabel>System</SectionLabel>
+                                <SectionLabel>Administration</SectionLabel>
                                 <li className="mx-3 mt-0.5 mb-4">
                                     <button onClick={() => toggleMenu('settings')} aria-expanded={openMenus.settings} className={groupToggleClass(openMenus.settings, activeRoutes.settings)}>
                                         <span className="flex items-center gap-3.5">
                                             <i className={groupIconClass(openMenus.settings, activeRoutes.settings) + ' fa-gear'}></i>
-                                            Settings & Security
+                                            Users & Settings
                                         </span>
                                         <i className={chevronClass(openMenus.settings)}></i>
                                     </button>
@@ -518,7 +518,7 @@ export default function AdminLayout({ children }) {
                                 <span className="min-[420px]:hidden font-medium text-gray-500">Search...</span>
                             </div>
                             <div className="hidden sm:flex items-center gap-1 rounded-md bg-white border border-gray-200 px-2 py-0.5 text-[10px] font-bold text-gray-400 shadow-sm transition-colors group-hover:text-[var(--accent)] group-hover:border-[var(--accent)]/30">
-                                <span>⌘</span><span>K</span>
+                                <span>Ctrl/⌘</span><span>K</span>
                             </div>
                         </button>
                     </div>
@@ -526,32 +526,50 @@ export default function AdminLayout({ children }) {
                     <div className="flex items-center gap-3 sm:gap-4">
 
                         {/* Quick Add Dropdown */}
-                        <div className="relative hidden sm:block" ref={quickAddRef}>
-                            <button
-                                onClick={() => setQuickAddDropdown(!quickAddDropdown)}
-                                className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-[13px] font-bold transition-all shadow-sm ${quickAddDropdown ? 'bg-gray-800 text-white shadow-md' : 'bg-gray-900 text-white hover:bg-gray-800 hover:-translate-y-0.5'}`}
-                            >
-                                <i className="fa-solid fa-plus text-[12px]"></i>
-                                <span>Create New</span>
-                            </button>
+                        {(hasPermission('view_crm') || hasPermission('view_finance')) && (
+                            <div className="relative hidden sm:block" ref={quickAddRef}>
+                                <button
+                                    type="button"
+                                    onClick={() => setQuickAddDropdown(!quickAddDropdown)}
+                                    aria-expanded={quickAddDropdown}
+                                    className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-[13px] font-bold transition-all shadow-sm ${quickAddDropdown ? 'bg-gray-800 text-white shadow-md' : 'bg-gray-900 text-white hover:bg-gray-800 hover:-translate-y-0.5'}`}
+                                >
+                                    <i className="fa-solid fa-plus text-[12px]"></i>
+                                    <span>Create New</span>
+                                </button>
 
-                            {quickAddDropdown && (
-                                <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl ring-1 ring-black/5 animate-[scaleIn_0.15s_ease-out] transform origin-top-right">
-                                    <div className="px-4 py-2.5 border-b border-gray-50 bg-gray-50/50 text-[11px] font-bold uppercase tracking-wider text-gray-500">Quick Actions</div>
-                                    <div className="p-1.5 flex flex-col gap-0.5">
-                                        <Link href={route('admin.invoices.create')} className="flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-bold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
-                                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-500"><i className="fa-solid fa-file-invoice"></i></div> Invoice
-                                        </Link>
-                                        <Link href={route('admin.project-expenses.create')} className="flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-bold text-gray-700 hover:bg-rose-50 hover:text-rose-600 transition-colors">
-                                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-100 text-rose-500"><i className="fa-solid fa-file-invoice-dollar"></i></div> Expense
-                                        </Link>
-                                        <Link href={route('admin.tasks.index')} className="flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-bold text-gray-700 hover:bg-amber-50 hover:text-amber-600 transition-colors">
-                                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-500"><i className="fa-solid fa-list-check"></i></div> Task
-                                        </Link>
+                                {quickAddDropdown && (
+                                    <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl ring-1 ring-black/5 animate-[scaleIn_0.15s_ease-out] transform origin-top-right">
+                                        <div className="px-4 py-2.5 border-b border-gray-50 bg-gray-50/50 text-[11px] font-bold uppercase tracking-wider text-gray-500">Create a new record</div>
+                                        <div className="p-1.5 flex flex-col gap-0.5">
+                                            {hasPermission('view_crm') && (
+                                                <>
+                                                    <Link href={route('admin.clients.index')} onClick={() => setQuickAddDropdown(false)} className="flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-bold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
+                                                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-500"><i className="fa-solid fa-building-user"></i></div> Client
+                                                    </Link>
+                                                    <Link href={route('admin.projects.create')} onClick={() => setQuickAddDropdown(false)} className="flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-bold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
+                                                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-500"><i className="fa-solid fa-diagram-project"></i></div> Project
+                                                    </Link>
+                                                    <Link href={route('admin.tasks.index')} onClick={() => setQuickAddDropdown(false)} className="flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-bold text-gray-700 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                                                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-500"><i className="fa-solid fa-list-check"></i></div> Task
+                                                    </Link>
+                                                </>
+                                            )}
+                                            {hasPermission('view_finance') && (
+                                                <>
+                                                    <Link href={route('admin.invoices.create')} onClick={() => setQuickAddDropdown(false)} className="flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-colors">
+                                                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-500"><i className="fa-solid fa-file-invoice"></i></div> Invoice
+                                                    </Link>
+                                                    <Link href={route('admin.project-expenses.create')} onClick={() => setQuickAddDropdown(false)} className="flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-bold text-gray-700 hover:bg-rose-50 hover:text-rose-600 transition-colors">
+                                                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-100 text-rose-500"><i className="fa-solid fa-receipt"></i></div> Project expense
+                                                    </Link>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className="h-7 w-px bg-gray-200 hidden sm:block"></div>
 
@@ -656,7 +674,7 @@ export default function AdminLayout({ children }) {
                                 ) : (
                                     <div className="p-4 text-[12.5px] text-gray-400 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                         <span>Type at least 2 characters to search across all records...</span>
-                                        <span className="font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg w-fit">Pro tip: Press ⌘K anytime</span>
+                                        <span className="font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg w-fit">Tip: Press Ctrl/⌘ K anytime</span>
                                     </div>
                                 )}
                             </div>
