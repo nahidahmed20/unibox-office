@@ -591,9 +591,9 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                             <div className="flex flex-wrap items-center gap-3">
                                 {/* Rows per page */}
                                 <div className="relative w-[115px]">
-                                    <select value={perPage} onChange={e => { setPerPage(e.target.value === "all" ? "all" : Number(e.target.value)); applyFilters({ per_page: e.target.value === "all" ? "all" : Number(e.target.value) }); }} className="w-full bg-white border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-[13px] font-bold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer h-[44px]">
+                                    <CustomSelect value={perPage} onChange={e => { setPerPage(e.target.value === "all" ? "all" : Number(e.target.value)); applyFilters({ per_page: e.target.value === "all" ? "all" : Number(e.target.value) }); }} className="w-full bg-white border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-[13px] font-bold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer h-[44px]">
                                         <option value={10}>10 Rows</option><option value={25}>25 Rows</option><option value={50}>50 Rows</option><option value={100}>100 Rows</option><option value="all">All Data</option>
-                                    </select>
+                                    </CustomSelect>
                                 </div>
 
                                 {/* Client Filter */}

@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import TableExportButtons from '@/Components/TableExportButtons';
+import CustomSelect from '@/Components/CustomSelect';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -226,7 +227,7 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                             />
                         </div>
                         <div>
-                            <select
+                            <CustomSelect
                                 value={clientId}
                                 onChange={(e) => { setClientId(e.target.value); applyFilters({ client_id: e.target.value }); }}
                                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13.5px] focus:border-[var(--accent)] focus:outline-none"
@@ -235,10 +236,10 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                                 {clients.map(c => (
                                     <option key={c.id} value={c.id}>{c.name} {c.company_name ? `(${c.company_name})` : ''}</option>
                                 ))}
-                            </select>
+                            </CustomSelect>
                         </div>
                         <div>
-                            <select
+                            <CustomSelect
                                 value={status}
                                 onChange={(e) => { setStatus(e.target.value); applyFilters({ status: e.target.value }); }}
                                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13.5px] focus:border-[var(--accent)] focus:outline-none"
@@ -249,7 +250,7 @@ export default function ProjectProfitLoss({ projects = [], summary = {}, clients
                                 <option value="completed">Completed</option>
                                 <option value="on_hold">On Hold</option>
                                 <option value="cancelled">Cancelled</option>
-                            </select>
+                            </CustomSelect>
                         </div>
                         <div className="flex items-center gap-2 lg:col-span-2">
                             <input

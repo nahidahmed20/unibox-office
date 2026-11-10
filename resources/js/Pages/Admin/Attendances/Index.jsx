@@ -8,6 +8,7 @@ import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import CustomSelect from '@/Components/CustomSelect';
+import SearchableSelect from '@/Components/SearchableSelect';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -18,56 +19,6 @@ const COMPANY = {
     website: 'www.uniboxbd4u.com',
     address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
 };
-
-// 🟢 Custom Premium Dropdown (Replacing react-select)
-function SearchableSelect({ options, value, onChange, placeholder, getLabel, getValue, error, disabled }) {
-    const [open, setOpen] = useState(false);
-    const [search, setSearch] = useState("");
-    const wrapperRef = useRef(null);
-    const inputRef = useRef(null);
-
-    useEffect(() => {
-        function handleClickOutside(e) { if (wrapperRef.current && !wrapperRef.current.contains(e.target)) { setOpen(false); setSearch(""); } }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    useEffect(() => { if (open && inputRef.current) inputRef.current.focus(); }, [open]);
-
-    const selected = options.find((opt) => String(getValue(opt)) === String(value));
-    const filtered = options.filter((opt) => getLabel(opt).toLowerCase().includes(search.toLowerCase()));
-
-    return (
-        <div ref={wrapperRef} className="relative w-full z-[60]">
-            <div onClick={() => !disabled && setOpen((o) => !o)} className={`flex w-full cursor-pointer items-center justify-between rounded-xl border px-4 py-3.5 text-[14px] font-bold outline-none transition-all ${disabled ? 'bg-gray-100 cursor-not-allowed opacity-70 border-gray-200 text-gray-400' : 'bg-white hover:border-indigo-400'} ${error ? 'border-red-400 focus:ring-red-500/50' : 'border-gray-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 shadow-sm'} ${selected && !disabled ? 'text-gray-900' : 'text-gray-500'}`}>
-                <span className="truncate flex-1">{selected ? getLabel(selected) : placeholder}</span>
-                <i className={`fa-solid fa-chevron-down text-[11px] text-gray-400 shrink-0 ml-2 transition-transform duration-200 ${open ? 'rotate-180 text-indigo-600' : ''}`}></i>
-            </div>
-            {open && !disabled && (
-                <div className="absolute top-[calc(100%+6px)] left-0 flex max-h-[260px] w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl z-[99999] animate-[fadeIn_0.15s_ease-out]">
-                    <div className="border-b border-gray-100 bg-gray-50 p-3 shrink-0 relative">
-                        <i className="fa-solid fa-magnifying-glass absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]"></i>
-                        <input ref={inputRef} type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search employee..." className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-[13px] font-bold outline-none focus:ring-2 focus:ring-indigo-600 shadow-sm" />
-                    </div>
-                    <div className="overflow-y-auto py-1.5 custom-table-scroll">
-                        {filtered.length === 0 ? (
-                            <div className="p-4 text-center text-[13px] text-gray-400 font-bold">No results found</div>
-                        ) : (
-                            filtered.map((opt) => {
-                                const isActive = String(getValue(opt)) === String(value);
-                                return (
-                                    <div key={getValue(opt)} onClick={() => { onChange(String(getValue(opt))); setOpen(false); setSearch(""); }} className={`cursor-pointer px-5 py-3 text-[13.5px] font-bold transition-colors border-b border-gray-50 last:border-0 ${isActive ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-indigo-50'}`}>
-                                        {getLabel(opt)}
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
 
 export default function Index({ attendances = { data: [], links: [] }, users = [] }) {
     const { auth } = usePage().props;
@@ -327,7 +278,7 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
+                                    <CustomSelect value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
                                         className="appearance-none bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
                                     >
                                         <option value={10}>10 Rows</option>
@@ -335,7 +286,7 @@ export default function Index({ attendances = { data: [], links: [] }, users = [
                                         <option value={50}>50 Rows</option>
                                         <option value={100}>100 Rows</option>
                                         <option value="all">All Data</option>
-                                    </select>
+                                    </CustomSelect>
                                 </div>
                             </div>
 

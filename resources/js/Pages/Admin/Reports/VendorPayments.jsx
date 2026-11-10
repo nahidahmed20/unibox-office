@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { Head, router, Link, usePage } from "@inertiajs/react";
 import TableExportButtons from "@/Components/TableExportButtons";
+import CustomSelect from '@/Components/CustomSelect';
 
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>TK. </span>
@@ -55,12 +56,12 @@ export default function VendorPayments({ payments = { data: [], links: [] }, fil
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
                     <div className="p-5 border-b border-gray-100 flex gap-4 bg-gray-50/50">
                         <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search vendor..." className="flex-1 rounded-xl border border-gray-300 py-2.5 px-4 text-sm focus:ring-2 focus:ring-indigo-500/20" />
-                        <select value={perPage} onChange={e => setPerPage(e.target.value)} className="rounded-xl border border-gray-300 py-2.5 px-4 text-sm bg-white font-medium">
+                        <CustomSelect value={perPage} onChange={e => setPerPage(e.target.value)} className="rounded-xl border border-gray-300 py-2.5 px-4 text-sm bg-white font-medium">
                             <option value="10">10 Rows</option>
                             <option value="25">25 Rows</option>
                             <option value="50">50 Rows</option>
                             <option value="100">100 Rows</option>
-                        </select>
+                        </CustomSelect>
                     </div>
 
                     <div className="overflow-x-auto">

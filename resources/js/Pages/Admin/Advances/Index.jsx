@@ -3,6 +3,8 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import TableExportButtons from '@/Components/TableExportButtons';
+import CustomSelect from '@/Components/CustomSelect';
+import SearchableSelect from '@/Components/SearchableSelect';
 
 // Custom Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
@@ -10,65 +12,6 @@ const Taka = ({ className = "text-[14px]" }) => (
 );
 
 // 🟢 Custom Premium Dropdown (Fixes z-index issues perfectly matching your design)
-function SearchableSelect({ options, value, onChange, placeholder, getLabel, getValue, error, disabled, isClearable = false }) {
-    const [open, setOpen] = useState(false);
-    const [search, setSearch] = useState("");
-    const wrapperRef = useRef(null);
-    const inputRef = useRef(null);
-
-    useEffect(() => {
-        function handleClickOutside(e) { if (wrapperRef.current && !wrapperRef.current.contains(e.target)) { setOpen(false); setSearch(""); } }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    useEffect(() => { if (open && inputRef.current) inputRef.current.focus(); }, [open]);
-
-    const selected = options.find((opt) => String(getValue(opt)) === String(value));
-    const filtered = options.filter((opt) => getLabel(opt).toLowerCase().includes(search.toLowerCase()));
-
-    const handleClear = (e) => {
-        e.stopPropagation();
-        onChange("");
-        setSearch("");
-    };
-
-    return (
-        <div ref={wrapperRef} className="relative w-full z-[60]">
-            <div onClick={() => !disabled && setOpen((o) => !o)} className={`flex w-full cursor-pointer items-center justify-between rounded-[0.875rem] min-h-[52px] border bg-white px-4 py-3 outline-none transition-all duration-200 ${disabled ? 'bg-slate-100 cursor-not-allowed opacity-70 border-slate-200 text-slate-400' : 'hover:border-indigo-600'} ${error ? 'border-red-400 focus:ring-red-500/50' : 'border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 shadow-sm'} ${selected && !disabled ? 'text-slate-900 font-[800] text-[14.5px]' : 'text-[#94A3B8] font-[700] text-[14px]'}`}>
-                <span className="truncate flex-1">{selected ? getLabel(selected) : placeholder}</span>
-                <div className="flex items-center gap-2 shrink-0">
-                    {isClearable && selected && !disabled && (
-                        <i onClick={handleClear} className="fa-solid fa-xmark text-[13px] text-slate-400 hover:text-rose-500 transition-colors h-6 w-6 flex items-center justify-center rounded-full hover:bg-rose-50"></i>
-                    )}
-                    <i className={`fa-solid fa-chevron-down text-[11px] text-slate-400 transition-transform duration-300 ${open ? 'rotate-180 text-indigo-600' : ''}`}></i>
-                </div>
-            </div>
-            {open && !disabled && (
-                <div className="absolute top-[calc(100%+6px)] left-0 flex max-h-[300px] w-full flex-col overflow-hidden rounded-[0.875rem] border border-slate-300 bg-white shadow-2xl z-[99999] animate-[fadeIn_0.15s_ease-out]">
-                    <div className="border-b border-slate-200 bg-slate-50 p-3 shrink-0 relative">
-                        <i className="fa-solid fa-magnifying-glass absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 text-[13px]"></i>
-                        <input ref={inputRef} type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search here..." className="w-full rounded-[0.5rem] border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-[14px] font-bold outline-none focus:ring-2 focus:ring-indigo-600 shadow-sm" />
-                    </div>
-                    <div className="overflow-y-auto py-1.5 custom-table-scroll">
-                        {filtered.length === 0 ? (
-                            <div className="p-4 text-center text-[13px] text-slate-400 font-bold">No results found</div>
-                        ) : (
-                            filtered.map((opt) => {
-                                const isActive = String(getValue(opt)) === String(value);
-                                return (
-                                    <div key={getValue(opt)} onClick={() => { onChange(String(getValue(opt))); setOpen(false); setSearch(""); }} className={`cursor-pointer px-4 py-2.5 text-[14.5px] font-[700] transition-colors border-b border-slate-50 last:border-0 ${isActive ? 'bg-[#4F46E5] text-white' : 'text-[#0F172A] hover:bg-[#EEF2FF]'}`}>
-                                        {getLabel(opt)}
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
 
 const inputClass = "w-full rounded-[0.875rem] border border-slate-300 bg-white px-5 py-3.5 text-[14.5px] font-bold text-slate-900 outline-none transition-all focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 shadow-sm";
 
@@ -349,10 +292,9 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                         <div className="w-full">
                             <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2">Show Rows</label>
                             <div className="relative">
-                                <select value={perPage} onChange={(e) => setPerPage(e.target.value)} className="w-full appearance-none rounded-[0.875rem] border border-slate-300 bg-white py-[11.5px] pl-4 pr-10 text-[14px] font-bold text-slate-800 outline-none cursor-pointer shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all">
+                                <CustomSelect value={perPage} onChange={(e) => setPerPage(e.target.value)} className="w-full appearance-none rounded-[0.875rem] border border-slate-300 bg-white py-[11.5px] pl-4 pr-10 text-[14px] font-bold text-slate-800 outline-none cursor-pointer shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all">
                                     <option value="10">10 Rows</option><option value="25">25 Rows</option><option value="50">50 Rows</option><option value="100">100 Rows</option><option value="all">All Data</option>
-                                </select>
-                                <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 pointer-events-none"></i>
+                                </CustomSelect>
                             </div>
                         </div>
                     </div>

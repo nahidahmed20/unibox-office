@@ -6,6 +6,8 @@ import Swal from 'sweetalert2';
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import TableExportButtons from '@/Components/TableExportButtons';
+import CustomSelect from '@/Components/CustomSelect';
+import SearchableSelect from '@/Components/SearchableSelect';
 
 // Custom Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
@@ -26,68 +28,6 @@ const formatDateDisplay = (dateStr) => {
     }
 };
 
-// 🟢 Custom Premium Dropdown (Fully Replaces react-select & fixes z-index/toLowerCase issues)
-function SearchableSelect({ options, value, onChange, placeholder, getLabel, getValue, error, disabled, isClearable = false }) {
-    const [open, setOpen] = useState(false);
-    const [search, setSearch] = useState("");
-    const wrapperRef = useRef(null);
-    const inputRef = useRef(null);
-
-    useEffect(() => {
-        function handleClickOutside(e) { if (wrapperRef.current && !wrapperRef.current.contains(e.target)) { setOpen(false); setSearch(""); } }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    useEffect(() => { if (open && inputRef.current) inputRef.current.focus(); }, [open]);
-
-    const selected = options.find((opt) => String(getValue(opt)) === String(value));
-
-    // 🟢 FIXED: Converted getLabel to String to prevent .toLowerCase() error on numbers (like Year)
-    const filtered = options.filter((opt) => String(getLabel(opt)).toLowerCase().includes(search.toLowerCase()));
-
-    const handleClear = (e) => {
-        e.stopPropagation();
-        onChange("");
-        setSearch("");
-    };
-
-    return (
-        <div ref={wrapperRef} className="relative w-full z-[60]">
-            <div onClick={() => !disabled && setOpen((o) => !o)} className={`flex w-full cursor-pointer items-center justify-between rounded-[0.875rem] min-h-[44px] border bg-white px-4 py-2.5 outline-none transition-all duration-200 ${disabled ? 'bg-slate-100 cursor-not-allowed opacity-70 border-slate-200 text-slate-400' : 'hover:border-indigo-600'} ${error ? 'border-red-400 focus:ring-red-500/50' : 'border-slate-300 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]'} ${selected && !disabled ? 'text-slate-900 font-[800] text-[13.5px]' : 'text-[#94A3B8] font-[700] text-[13px]'}`}>
-                <span className="truncate flex-1">{selected ? getLabel(selected) : placeholder}</span>
-                <div className="flex items-center gap-2 shrink-0">
-                    {isClearable && selected && !disabled && (
-                        <i onClick={handleClear} className="fa-solid fa-xmark text-[13px] text-slate-400 hover:text-rose-500 transition-colors h-6 w-6 flex items-center justify-center rounded-full hover:bg-rose-50"></i>
-                    )}
-                    <i className={`fa-solid fa-chevron-down text-[11px] text-slate-400 transition-transform duration-300 ${open ? 'rotate-180 text-indigo-600' : ''}`}></i>
-                </div>
-            </div>
-            {open && !disabled && (
-                <div className="absolute top-[calc(100%+6px)] left-0 flex max-h-[300px] w-full flex-col overflow-hidden rounded-[0.875rem] border border-slate-300 bg-white shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),_0_8px_10px_-6px_rgba(0,0,0,0.1)] z-[99999] animate-[fadeIn_0.15s_ease-out]">
-                    <div className="border-b border-slate-200 bg-slate-50 p-3 shrink-0 relative">
-                        <i className="fa-solid fa-magnifying-glass absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 text-[13px]"></i>
-                        <input ref={inputRef} type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search here..." className="w-full rounded-[0.5rem] border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-[13.5px] font-bold outline-none focus:ring-2 focus:ring-indigo-600 shadow-sm" />
-                    </div>
-                    <div className="overflow-y-auto py-1.5 custom-table-scroll">
-                        {filtered.length === 0 ? (
-                            <div className="p-4 text-center text-[13px] text-slate-400 font-bold">No results found</div>
-                        ) : (
-                            filtered.map((opt) => {
-                                const isActive = String(getValue(opt)) === String(value);
-                                return (
-                                    <div key={getValue(opt)} onClick={() => { onChange(String(getValue(opt))); setOpen(false); setSearch(""); }} className={`cursor-pointer px-4 py-2.5 text-[13.5px] font-[700] transition-colors border-b border-slate-50 last:border-0 ${isActive ? 'bg-[#4F46E5] text-white' : 'text-[#0F172A] hover:bg-[#EEF2FF]'}`}>
-                                        {getLabel(opt)}
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
 
 export default function Index({ project_expenses = { data: [], links: [] }, projects = [], categories = [], vendors = [], totals = null, filters = {} }) {
     const { auth } = usePage().props;
@@ -420,7 +360,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                     {/* Secondary Filters */}
                     <div className="flex flex-col gap-3 border-b border-slate-100 bg-white px-5 py-4 sm:flex-row sm:items-center sm:px-6">
                         <div className="relative w-full sm:w-[130px]">
-                            <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
+                            <CustomSelect value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
                                 className="w-full appearance-none bg-white border border-slate-300 rounded-xl pl-4 pr-9 py-2.5 text-[13px] font-bold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer"
                             >
                                 <option value={10}>10 Rows</option>
@@ -428,12 +368,11 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                 <option value={50}>50 Rows</option>
                                 <option value={100}>100 Rows</option>
                                 <option value="all">All Rows</option>
-                            </select>
-                            <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 pointer-events-none"></i>
+                            </CustomSelect>
                         </div>
 
                         <div className="relative w-full sm:w-[130px]">
-                            <select
+                            <CustomSelect
                                 value={yearFilter}
                                 onChange={(e) => { setYearFilter(e.target.value); if (e.target.value) { setDateFrom(""); setDateTo(""); } }}
                                 className="w-full appearance-none bg-white border border-slate-300 rounded-xl pl-4 pr-9 py-2.5 text-[13px] font-bold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm cursor-pointer"
@@ -442,8 +381,7 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                 {yearOptions.map(y => (
                                     <option key={y} value={y}>{y}</option>
                                 ))}
-                            </select>
-                            <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 pointer-events-none"></i>
+                            </CustomSelect>
                         </div>
 
                         <span className="hidden sm:block text-slate-300 mx-1">|</span>

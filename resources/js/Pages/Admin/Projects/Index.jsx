@@ -287,7 +287,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select value={perPage} onChange={(e) =>
+                                    <CustomSelect value={perPage} onChange={(e) =>
  setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
                                         className="appearance-none bg-transparent pl-4 pr-10 py-2.5 text-[14px] font-bold text-slate-900 outline-none cursor-pointer border-none focus:ring-0 w-[120px]"
 
@@ -297,7 +297,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                         <option value={50}>50 Rows</option>
                                         <option value={100}>100 Rows</option>
                                         <option value="all">All Data</option>
-                                    </select>
+                                    </CustomSelect>
                                 </div>
                             </div>
 
@@ -466,7 +466,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
 
                                                 {/* Status & Progress */}
                                                 <td className="px-6 py-4 w-[180px]">
-                                                    <select
+                                                    <CustomSelect
                                                         value={project.status}
                                                         onChange={(e) => handleQuickStatusChange(project.id, e.target.value)}
                                                         disabled={!canModify}
@@ -477,7 +477,7 @@ export default function Index({ projects = { data: [], links: [] }, clients = []
                                                         <option value="in_progress" className="bg-white text-slate-800">In Progress</option>
                                                         <option value="on_hold" className="bg-white text-slate-800">On Hold</option>
                                                         <option value="completed" className="bg-white text-slate-800">Completed</option>
-                                                    </select>
+                                                    </CustomSelect>
 
                                                     <div className="w-full bg-slate-200 rounded-full h-2 mt-1.5 overflow-hidden border border-slate-300">
                                                         <div

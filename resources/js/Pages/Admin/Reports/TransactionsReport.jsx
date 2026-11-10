@@ -169,10 +169,10 @@ export default function TransactionsReport({ transactions = { data: [], links: [
                             <div className="flex items-center rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
                                 <span className="bg-slate-50 px-3.5 py-2 text-[12.5px] font-bold text-slate-600 border-r border-slate-200">Show</span>
                                 <div className="relative">
-                                    <select value={perPage} onChange={(e) =>
+                                    <CustomSelect value={perPage} onChange={(e) =>
  setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} className="bg-transparent pl-3 pr-8 py-2 text-[13px] font-bold text-slate-800 outline-none cursor-pointer border-none focus:ring-0 w-[100px]">
                                         <option value={10}>10</option><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option><option value="all">All</option>
-                                    </select>
+                                    </CustomSelect>
                                 </div>
                             </div>
                         </div>

@@ -391,13 +391,13 @@ export default function Index({
                         <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full lg:w-auto">
                             <div className="flex items-center bg-white border border-slate-300 rounded-xl px-3 py-2.5 shadow-sm focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all hover:border-slate-400 w-full sm:w-auto">
                                 <span className="text-[12px] font-black text-slate-500 mr-2 uppercase tracking-wide">Show</span>
-                                <select value={perPage} onChange={(e) => setPerPage(e.target.value)} className="appearance-none w-full sm:w-auto border-none bg-transparent text-[13px] font-bold text-slate-900 outline-none cursor-pointer p-0 focus:ring-0">
+                                <CustomSelect value={perPage} onChange={(e) => setPerPage(e.target.value)} className="appearance-none w-full sm:w-auto border-none bg-transparent text-[13px] font-bold text-slate-900 outline-none cursor-pointer p-0 focus:ring-0">
                                     <option value="10">10</option>
                                     <option value="25">25</option>
                                     <option value="50">50</option>
                                     <option value="100">100</option>
                                     <option value="all">All</option>
-                                </select>
+                                </CustomSelect>
                             </div>
 
                             <div className="relative w-full sm:w-auto">

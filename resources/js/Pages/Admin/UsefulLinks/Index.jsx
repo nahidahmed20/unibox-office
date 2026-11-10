@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, useForm, router } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+import CustomSelect from '@/Components/CustomSelect';
 
 export default function Index({
     links = { data: [], links: [] },
@@ -822,7 +823,7 @@ export default function Index({
                                     <label className="block text-[12px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                                         Category <span className="text-rose-500">*</span>
                                     </label>
-                                    <select
+                                    <CustomSelect
                                         value={data.category}
                                         onChange={(e) => setData('category', e.target.value)}
                                         className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none shadow-sm transition-all"
@@ -831,7 +832,7 @@ export default function Index({
                                             <option key={c} value={c}>{c}</option>
                                         ))}
                                         <option value="Custom">+ Create New Category...</option>
-                                    </select>
+                                    </CustomSelect>
 
                                     {data.category === 'Custom' && (
                                         <input

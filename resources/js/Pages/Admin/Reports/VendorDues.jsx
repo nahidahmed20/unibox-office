@@ -265,7 +265,7 @@ export default function VendorDues({ vendorDues = { data: [], links: [] }, grand
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select value={perPage} onChange={(e) =>
+                                    <CustomSelect value={perPage} onChange={(e) =>
  setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
                                         className="appearance-none bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
                                     >
@@ -274,7 +274,7 @@ export default function VendorDues({ vendorDues = { data: [], links: [] }, grand
                                         <option value={50}>50 Rows</option>
                                         <option value={100}>100 Rows</option>
                                         <option value="all">All Data</option>
-                                    </select>
+                                    </CustomSelect>
                                 </div>
                             </div>
 

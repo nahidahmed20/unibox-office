@@ -420,13 +420,13 @@ export default function Index({
                                 {/* Items Per Page */}
                                 <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-xs">
                                     <span className="text-[11px] font-extrabold text-slate-500 mr-2 uppercase">Show</span>
-                                    <select value={perPage} onChange={(e) => setPerPage(e.target.value)} className="border-none bg-transparent text-[12.5px] font-bold text-slate-900 outline-none cursor-pointer p-0 focus:ring-0">
+                                    <CustomSelect value={perPage} onChange={(e) => setPerPage(e.target.value)} className="border-none bg-transparent text-[12.5px] font-bold text-slate-900 outline-none cursor-pointer p-0 focus:ring-0">
                                         <option value="10">10</option>
                                         <option value="25">25</option>
                                         <option value="50">50</option>
                                         <option value="100">100</option>
                                         <option value="all">All</option>
-                                    </select>
+                                    </CustomSelect>
                                 </div>
 
                                 {/* Search Bar */}
@@ -670,7 +670,7 @@ export default function Index({
                                                 {/* Status (with Quick Change) */}
                                                 <td className="px-5 py-4 text-center">
                                                     <div className="inline-flex items-center relative">
-                                                        <select
+                                                        <CustomSelect
                                                             value={sample.sample_status || 'pending'}
                                                             onChange={(e) => handleQuickStatusChange(sample, e.target.value)}
                                                             className={`appearance-none cursor-pointer rounded-xl px-2.5 py-1 text-[11.5px] font-black border ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border} pr-6 outline-none shadow-xs`}
@@ -681,8 +681,7 @@ export default function Index({
                                                             <option value="delivered">🚀 Delivered</option>
                                                             <option value="approved">✅ Approved</option>
                                                             <option value="rejected">❌ Rejected</option>
-                                                        </select>
-                                                        <i className="fa-solid fa-chevron-down absolute right-2 text-[9px] pointer-events-none opacity-60"></i>
+                                                        </CustomSelect>
                                                     </div>
                                                 </td>
 
@@ -846,7 +845,7 @@ export default function Index({
                                     <label className="block text-[12px] font-black uppercase tracking-wider text-slate-700 mb-1">
                                         Client / Prospect (Optional)
                                     </label>
-                                    <select
+                                    <CustomSelect
                                         value={data.client_id}
                                         onChange={(e) => setData("client_id", e.target.value)}
                                         className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-[13px] font-bold text-slate-900 outline-none focus:border-emerald-600 bg-white"
@@ -857,7 +856,7 @@ export default function Index({
                                                 {c.name} {c.company_name ? `(${c.company_name})` : ''}
                                             </option>
                                         ))}
-                                    </select>
+                                    </CustomSelect>
                                     {errors.client_id && <p className="text-xs text-rose-500 font-bold mt-1">{errors.client_id}</p>}
                                 </div>
 
@@ -866,7 +865,7 @@ export default function Index({
                                     <label className="block text-[12px] font-black uppercase tracking-wider text-slate-700 mb-1">
                                         Expense Category
                                     </label>
-                                    <select
+                                    <CustomSelect
                                         value={data.expense_category_id}
                                         onChange={(e) => setData("expense_category_id", e.target.value)}
                                         className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-[13px] font-bold text-slate-900 outline-none focus:border-emerald-600 bg-white"
@@ -875,7 +874,7 @@ export default function Index({
                                         {categories.map(cat => (
                                             <option key={cat.id} value={cat.id}>{cat.name}</option>
                                         ))}
-                                    </select>
+                                    </CustomSelect>
                                     {errors.expense_category_id && <p className="text-xs text-rose-500 font-bold mt-1">{errors.expense_category_id}</p>}
                                 </div>
                             </div>
@@ -937,7 +936,7 @@ export default function Index({
                                     <label className="block text-[12px] font-black uppercase tracking-wider text-slate-700 mb-1">
                                         Sample Status
                                     </label>
-                                    <select
+                                    <CustomSelect
                                         value={data.sample_status}
                                         onChange={(e) => setData("sample_status", e.target.value)}
                                         className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-[13px] font-bold text-slate-900 outline-none focus:border-emerald-600 bg-white"
@@ -947,14 +946,14 @@ export default function Index({
                                         <option value="delivered">🚀 Delivered to Client</option>
                                         <option value="approved">✅ Approved / Confirmed</option>
                                         <option value="rejected">❌ Rejected / Closed</option>
-                                    </select>
+                                    </CustomSelect>
                                 </div>
 
                                 <div>
                                     <label className="block text-[12px] font-black uppercase tracking-wider text-slate-700 mb-1">
                                         Billing / Cost Nature
                                     </label>
-                                    <select
+                                    <CustomSelect
                                         value={data.cost_type}
                                         onChange={(e) => setData("cost_type", e.target.value)}
                                         className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-[13px] font-bold text-slate-900 outline-none focus:border-emerald-600 bg-white"
@@ -962,7 +961,7 @@ export default function Index({
                                         <option value="company_cost">🏢 Company Expense (Free Sample)</option>
                                         <option value="billable">💼 Billable to Client</option>
                                         <option value="adjusted">🔄 Adjusted with Full Project Order</option>
-                                    </select>
+                                    </CustomSelect>
                                 </div>
                             </div>
 
@@ -1024,7 +1023,7 @@ export default function Index({
                                                 </span>
                                             )}
                                         </div>
-                                        <select
+                                        <CustomSelect
                                             value={data.account_id}
                                             onChange={(e) => setData("account_id", e.target.value)}
                                             className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-[13px] font-bold text-slate-900 outline-none focus:border-blue-500 bg-white"
@@ -1035,7 +1034,7 @@ export default function Index({
                                                     {acc.name} (৳{Number(acc.current_balance).toLocaleString('en-IN')})
                                                 </option>
                                             ))}
-                                        </select>
+                                        </CustomSelect>
                                         {errors.account_id && <p className="text-xs text-rose-500 font-bold mt-1">{errors.account_id}</p>}
                                     </div>
                                 )}
@@ -1050,7 +1049,7 @@ export default function Index({
                                                 </span>
                                             )}
                                         </div>
-                                        <select
+                                        <CustomSelect
                                             value={data.advance_user_id}
                                             onChange={(e) => setData("advance_user_id", e.target.value)}
                                             className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-[13px] font-bold text-slate-900 outline-none focus:border-amber-500 bg-white"
@@ -1061,7 +1060,7 @@ export default function Index({
                                                     {adv.user?.name} (Available: ৳{Number(adv.balance).toLocaleString('en-IN')})
                                                 </option>
                                             ))}
-                                        </select>
+                                        </CustomSelect>
                                         {errors.advance_user_id && <p className="text-xs text-rose-500 font-bold mt-1">{errors.advance_user_id}</p>}
                                     </div>
                                 )}
@@ -1076,7 +1075,7 @@ export default function Index({
                                                 </span>
                                             )}
                                         </div>
-                                        <select
+                                        <CustomSelect
                                             value={data.vendor_id}
                                             onChange={(e) => setData("vendor_id", e.target.value)}
                                             className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-[13px] font-bold text-slate-900 outline-none focus:border-purple-500 bg-white"
@@ -1087,7 +1086,7 @@ export default function Index({
                                                     {ven.name} {ven.company_name ? `(${ven.company_name})` : ''} - (Wallet: ৳{Number(ven.wallet_balance).toLocaleString('en-IN')})
                                                 </option>
                                             ))}
-                                        </select>
+                                        </CustomSelect>
                                         {errors.vendor_id && <p className="text-xs text-rose-500 font-bold mt-1">{errors.vendor_id}</p>}
                                     </div>
                                 )}

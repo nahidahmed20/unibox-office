@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useForm, Head, router, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
@@ -352,7 +353,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                             <p className="mt-0.5 text-[12px] font-medium text-slate-500">{salaries.total ?? recordList.length} payroll records</p></div>
                         </div>
                         {hasPermission('create_salary') && (
-                            <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-[13px] font-extrabold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-md">
+                            <button type="button" onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-[13px] font-extrabold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-md">
                                 <i className="fa-solid fa-plus text-[12px]"></i> Process Salary
                             </button>
                         )}
@@ -363,10 +364,10 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                             <div className="flex items-center rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
                                 <span className="bg-gray-50 px-4 py-2.5 text-[12px] font-bold text-gray-500 border-r border-gray-200">Show</span>
                                 <div className="relative">
-                                    <select value={perPage} onChange={(e) =>
+                                    <CustomSelect value={perPage} onChange={(e) =>
  setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} className="bg-transparent pl-4 pr-9 py-2.5 text-[13.5px] font-semibold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[110px]">
                                         <option value={10}>10 Rows</option><option value={25}>25 Rows</option><option value={50}>50 Rows</option><option value={100}>100 Rows</option><option value="all">All Data</option>
-                                    </select>
+                                    </CustomSelect>
                                 </div>
                             </div>
                             <div className="h-6 w-px bg-gray-200 hidden sm:block mx-1"></div>
@@ -494,7 +495,7 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
             </div>
 
             {/* --- 🟢 EXECUTIVE CREATE / EDIT PAYSLIP MODAL --- */}
-            {showModal && (
+            {showModal && typeof document !== 'undefined' && createPortal(
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-3 sm:p-5 md:p-8 overflow-y-auto">
                     <div className="w-full max-w-4xl bg-slate-50 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-slate-700/30 animate-[scaleIn_0.2s_ease-out]">
                         
@@ -644,11 +645,12 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* --- 🟢 EXECUTIVE PAY DUE SALARY MODAL --- */}
-            {showPaymentModal && selectedRecord && (
+            {showPaymentModal && selectedRecord && typeof document !== 'undefined' && createPortal(
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-3 sm:p-5 md:p-8 overflow-y-auto">
                     <div className="w-full max-w-4xl bg-slate-50 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden border border-slate-700/30 animate-[scaleIn_0.2s_ease-out]">
                         
@@ -807,11 +809,12 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* --- 🟢 VIEW PAYSLIP MODAL --- */}
-            {showViewModal && selectedRecord && (
+            {showViewModal && selectedRecord && typeof document !== 'undefined' && createPortal(
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 md:p-6 overflow-y-auto">
                     <div className="w-full max-w-md bg-white rounded-[24px] shadow-2xl flex flex-col max-h-[95vh] overflow-hidden animate-[fadeIn_0.2s_ease-out]">
                         <div className="relative bg-gray-900 px-8 py-6 shrink-0 overflow-hidden text-center flex flex-col items-center">
@@ -891,7 +894,8 @@ export default function Index({ salaries = { data: [], links: [] }, users = [], 
                             <button onClick={() => setShowViewModal(false)} className="rounded-xl border border-gray-200 bg-white px-8 py-3 text-[13.5px] font-bold text-gray-700 transition-all hover:bg-gray-50 shadow-sm w-full">Close Receipt</button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </AdminLayout>
     );

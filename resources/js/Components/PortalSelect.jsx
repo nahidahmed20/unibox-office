@@ -1,22 +1,27 @@
 import React from 'react';
-import Select from 'react-select';
+import CustomSelect from '@/Components/CustomSelect';
 
-export default function PortalSelect({ menuPortalTarget, menuPosition, styles, ...props }) {
-    const portalTarget = typeof document !== 'undefined' ? document.body : menuPortalTarget;
-    const mergedStyles = {
-        ...styles,
-        menuPortal: (base, state) => ({
-            ...(typeof styles?.menuPortal === 'function' ? styles.menuPortal(base, state) : styles?.menuPortal),
-            zIndex: 100000,
-        }),
-    };
+/**
+ * Select2-style adapter for the react-select API used across existing pages.
+ * All searchable dropdowns now use the same control and menu implementation.
+ */
+export default function PortalSelect({ value, onChange, options = [], isClearable, isDisabled, ...props }) {
+    const selectedValue = value && typeof value === 'object'
+        ? (value.value ?? value.id ?? '')
+        : (value ?? '');
 
     return (
-        <Select
+        <CustomSelect
             {...props}
-            styles={mergedStyles}
-            menuPortalTarget={portalTarget}
-            menuPosition={menuPosition || 'fixed'}
+            options={options}
+            value={selectedValue}
+            isClearable={isClearable ?? false}
+            isDisabled={isDisabled}
+            onChange={(event) => {
+                if (!onChange) return;
+                const option = event.option?.raw ?? null;
+                onChange(option);
+            }}
         />
     );
 }

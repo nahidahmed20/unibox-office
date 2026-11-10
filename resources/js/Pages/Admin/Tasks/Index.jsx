@@ -3,88 +3,11 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { useForm, Head, router, Link, usePage } from "@inertiajs/react";
 import Swal from "sweetalert2";
 import CustomSelect from '@/Components/CustomSelect';
+import SearchableSelect from '@/Components/SearchableSelect';
 
 /* =========================================
    REUSABLE SEARCHABLE SELECT COMPONENT
 ========================================= */
-function SearchableSelect({ options, value, onChange, placeholder, getLabel, getValue, renderOption, error, disabled }) {
-    const [open, setOpen] = useState(false);
-    const [search, setSearch] = useState("");
-    const wrapperRef = useRef(null);
-    const inputRef = useRef(null);
-
-    useEffect(() => {
-        function handleClickOutside(e) {
-            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-                setOpen(false);
-                setSearch("");
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    useEffect(() => {
-        if (open && inputRef.current) inputRef.current.focus();
-    }, [open]);
-
-    const selected = options.find((opt) => String(getValue(opt)) === String(value));
-    const filtered = options.filter((opt) =>
-        getLabel(opt).toLowerCase().includes(search.toLowerCase())
-    );
-
-    return (
-        <div ref={wrapperRef} className="relative w-full">
-            <div
-                onClick={() => !disabled && setOpen((o) => !o)}
-                className={`flex w-full cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-[14px] font-bold outline-none transition-shadow 
-                    ${disabled ? 'bg-gray-100 cursor-not-allowed opacity-70 border-gray-200' : 'bg-white hover:bg-gray-50 focus:ring-4'} 
-                    ${error ? 'border-red-400 focus:ring-red-500/10' : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500/10'} 
-                    ${selected ? 'text-gray-900' : 'text-gray-500'} shadow-sm
-                `}
-            >
-                <span className="truncate flex-1">
-                    {selected ? getLabel(selected) : placeholder}
-                </span>
-                <i className={`fa-solid fa-chevron-down text-[11px] text-gray-400 shrink-0 ml-2 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}></i>
-            </div>
-
-            {open && !disabled && (
-                <div className="absolute top-full left-0 mt-1 flex max-h-[260px] w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl z-50">
-                    <div className="border-b border-gray-100 bg-gray-50 p-2 shrink-0 relative">
-                        <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-[12px]"></i>
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Type to search..."
-                            className="w-full rounded-lg border border-gray-200 py-2 pl-8 pr-3 text-[13px] outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 bg-white"
-                        />
-                    </div>
-                    <div className="overflow-y-auto py-1 custom-table-scroll">
-                        {filtered.length === 0 ? (
-                            <div className="p-4 text-center text-[13px] font-medium text-gray-400">No results found</div>
-                        ) : (
-                            filtered.map((opt) => {
-                                const isActive = String(getValue(opt)) === String(value);
-                                return (
-                                    <div
-                                        key={getValue(opt)}
-                                        onClick={() => { onChange(String(getValue(opt))); setOpen(false); setSearch(""); }}
-                                        className={`cursor-pointer px-4 py-2.5 text-[13.5px] transition-colors ${isActive ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-gray-700 font-medium hover:bg-gray-50'}`}
-                                    >
-                                        {renderOption ? renderOption(opt) : getLabel(opt)}
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
 
 export default function Index({ tasks = { data: [], links: [] }, projects = [], users = [] }) {
     const { auth } = usePage().props;
@@ -349,7 +272,7 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select value={perPage} onChange={(e) =>
+                                    <CustomSelect value={perPage} onChange={(e) =>
  setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))} 
                                         className="appearance-none bg-transparent pl-4 pr-10 py-2.5 text-[13.5px] font-bold text-gray-800 outline-none cursor-pointer border-none focus:ring-0 w-[115px]"
                                     >
@@ -358,7 +281,7 @@ export default function Index({ tasks = { data: [], links: [] }, projects = [], 
                                         <option value={50}>50 Rows</option>
                                         <option value={100}>100 Rows</option>
                                         <option value="all">All Data</option>
-                                    </select>
+                                    </CustomSelect>
                                     
                                     {/* Custom SVG Arrow */}
                                 </div>

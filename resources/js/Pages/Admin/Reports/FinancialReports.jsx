@@ -275,15 +275,14 @@ export default function FinancialReports({ clientsReport = [], monthlyReport = [
                     <div className="flex flex-wrap items-center gap-3 border-t border-white/10 bg-white/[0.03] px-6 py-4 sm:px-8 relative z-10">
                         <span className="flex items-center gap-2 text-[13px] font-bold text-slate-400"><i className="fa-solid fa-calendar-days"></i> Period</span>
                         <div className="relative">
-                            <select
+                            <CustomSelect
                                 value={filterYear}
                                 onChange={(e) => { setFilterYear(e.target.value); setFilterMonth(''); setStartDate(''); setEndDate(''); }}
                                 className={`${darkInput} w-[130px] appearance-none pr-8`}
                             >
                                 <option value="" className="text-slate-900 font-bold">All Years</option>
                                 {years.map(y => <option key={y} value={y} className="text-slate-900 font-bold">{y}</option>)}
-                            </select>
-                            <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
+                            </CustomSelect>
                         </div>
                         <input
                             type="month" value={filterMonth}

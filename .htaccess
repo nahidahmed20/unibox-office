@@ -1,25 +1,21 @@
+<IfModule mod_negotiation.c>
+    Options -MultiViews -Indexes
+</IfModule>
 
 <IfModule mod_rewrite.c>
-    <IfModule mod_negotiation.c>
-        Options -MultiViews -Indexes
-    </IfModule>
-
     RewriteEngine On
-    RewriteRule ^(\.env|composer\.(json|lock)|package\.json|phpunit\.xml)$ - [F,L,NC]
-    
+
+    # Protect application and deployment files when the project root is the
+    # hosting document root. Pointing the document root at /public is safer.
+    RewriteRule ^(\.env|\.git|composer\.(json|lock)|package(-lock)?\.json|phpunit\.xml|server\.php)(/.*)?$ - [F,L,NC]
     RewriteRule ^(app|bootstrap|config|database|resources|storage|tests|vendor)(/.*)?$ - [F,L,NC]
-    RewriteCond %{REQUEST_FILENAME} -d [OR]
-    RewriteCond %{REQUEST_FILENAME} -f
-    RewriteRule ^ ^$1 [N]
 
-    RewriteCond %{REQUEST_URI} (\.\w+$) [NC]
-    RewriteRule ^(.*)$ public/$1 [L] 
-
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteRule ^ server.php [L]
+    # Pass requests through to Laravel's public directory. Its own .htaccess
+    # serves real assets and sends application routes to index.php.
+    RewriteCond %{REQUEST_URI} !^/public(?:/|$) [NC]
+    RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
 
 <IfModule mime_module>
-  AddHandler application/x-httpd-ea-php84___lsphp .php .php8 .phtml
+    AddHandler application/x-httpd-ea-php84___lsphp .php .php8 .phtml
 </IfModule>

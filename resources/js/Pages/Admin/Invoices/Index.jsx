@@ -5,6 +5,7 @@ import Swal from 'sweetalert2';
 import Select from '@/Components/PortalSelect';
 import TableExportButtons from '@/Components/TableExportButtons';
 import sanitizeHtml from '@/Utils/sanitizeHtml';
+import CustomSelect from '@/Components/CustomSelect';
 
 /* ---------- Design tokens & Helpers ---------- */
 const fmt = (n) => Number(n || 0).toLocaleString('en-IN');
@@ -411,7 +412,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
 
                         {/* Show Rows Dropdown */}
                         <div className="relative w-full sm:w-[140px]">
-                            <select value={perPage} onChange={(e) => handleFilterChange('per_page', e.target.value === "all" ? "all" : Number(e.target.value))}
+                            <CustomSelect value={perPage} onChange={(e) => handleFilterChange('per_page', e.target.value === "all" ? "all" : Number(e.target.value))}
                                 className="appearance-none w-full bg-white border border-slate-200 rounded-xl pl-4 pr-9 py-2.5 text-[13.5px] font-bold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer"
                             >
                                 <option value={10}>10 Rows</option>
@@ -419,12 +420,12 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 <option value={50}>50 Rows</option>
                                 <option value={100}>100 Rows</option>
                                 <option value="all">All Rows</option>
-                            </select>
+                            </CustomSelect>
                         </div>
 
                         {/* Year Select */}
                         <div className="relative w-full sm:w-[140px]">
-                            <select
+                            <CustomSelect
                                 value={year}
                                 onChange={(e) => handleFilterChange('year', e.target.value)}
                                 className="appearance-none w-full bg-white border border-slate-200 rounded-xl pl-4 pr-9 py-2.5 text-[13.5px] font-bold text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm cursor-pointer"
@@ -433,8 +434,7 @@ export default function Index({ invoices = { data: [], links: [] }, clients = []
                                 {yearOptions.map(opt => (
                                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                                 ))}
-                            </select>
-                            <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 pointer-events-none"></i>
+                            </CustomSelect>
                         </div>
 
                         <span className="hidden h-8 border-l border-slate-200 lg:block"></span>

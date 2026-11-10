@@ -362,7 +362,7 @@ export default function Index({ accounts = { data: [], links: [] }, summary = {}
                                     Show
                                 </span>
                                 <div className="relative">
-                                    <select value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
+                                    <CustomSelect value={perPage} onChange={(e) => setPerPage(e.target.value === "all" ? "all" : Number(e.target.value))}
                                         className="appearance-none bg-transparent pl-4 pr-10 py-2 text-[13.5px] font-semibold text-slate-700 outline-none cursor-pointer border-none focus:ring-0 w-[110px]"
                                     >
                                         <option value={10}>10 Rows</option>
@@ -370,7 +370,7 @@ export default function Index({ accounts = { data: [], links: [] }, summary = {}
                                         <option value={50}>50 Rows</option>
                                         <option value={100}>100 Rows</option>
                                         <option value="all">All Data</option>
-                                    </select>
+                                    </CustomSelect>
                                 </div>
                             </div>
                         </div>

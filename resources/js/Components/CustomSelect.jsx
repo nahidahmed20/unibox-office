@@ -2,15 +2,16 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 
 /**
- * CustomSelect - Seamless, rock-solid dropdown component.
- * Replaces native <select> and buggy react-select throughout the application.
- * Never floats detached, never loses scroll alignment in modals, opens downwards naturally.
+ * Shared Select2-style dropdown with searchable options and an aligned portal menu.
  */
 export default function CustomSelect({
     value,
     onChange,
     children,
     options: propOptions,
+    getOptionLabel,
+    getOptionValue,
+    renderOption,
     placeholder = 'Select an option...',
     className = '',
     isClearable = true,
@@ -39,8 +40,8 @@ export default function CustomSelect({
             opts = propOptions.map(opt => {
                 if (typeof opt === 'object' && opt !== null) {
                     return {
-                        value: opt.value !== undefined ? opt.value : opt.id,
-                        label: opt.label !== undefined ? opt.label : (opt.name || opt.title || String(opt.value)),
+                        value: getOptionValue ? getOptionValue(opt) : (opt.value !== undefined ? opt.value : opt.id),
+                        label: getOptionLabel ? getOptionLabel(opt) : (opt.label !== undefined ? opt.label : (opt.name || opt.title || String(opt.value))),
                         raw: opt
                     };
                 }
@@ -63,7 +64,7 @@ export default function CustomSelect({
         }
 
         return { options: opts, extractedPlaceholder: pHolder };
-    }, [propOptions, children, placeholder]);
+    }, [propOptions, children, placeholder, getOptionLabel, getOptionValue]);
 
     // Close on click outside
     useEffect(() => {
@@ -132,7 +133,7 @@ export default function CustomSelect({
     const filteredOptions = useMemo(() => {
         if (!search.trim()) return options;
         const q = search.toLowerCase();
-        return options.filter(opt => String(opt.label).toLowerCase().includes(q));
+        return options.filter(opt => String(opt.label ?? '').toLowerCase().includes(q));
     }, [options, search]);
 
     const handleSelect = (opt) => {
@@ -158,7 +159,8 @@ export default function CustomSelect({
         handleSelect(null);
     };
 
-    const showSearch = options.length > 7;
+    // Keep the same searchable interaction for short and long option lists.
+    const showSearch = true;
 
     // Extract layout / sizing classes from caller className
     const containerClasses = useMemo(() => {
@@ -231,7 +233,7 @@ export default function CustomSelect({
                     {/* Search Bar (Only shown for 8+ options) */}
                     {showSearch && (
                         <div className="border-b border-slate-200 bg-slate-50 p-2 shrink-0 relative">
-                            <i className="fa-solid fa-magnifying-glass absolute left-4.5 top-1/2 -translate-y-1/2 text-slate-400 text-[11px]"></i>
+                            <i className="fa-solid fa-magnifying-glass pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-[11px]"></i>
                             <input
                                 ref={inputRef}
                                 type="text"
@@ -269,7 +271,7 @@ export default function CustomSelect({
                                                 : 'text-slate-800 hover:bg-indigo-50 hover:text-indigo-900'
                                         }`}
                                     >
-                                        <span className="truncate flex-1">{opt.label}</span>
+                                        <span className="truncate flex-1">{renderOption ? renderOption(opt.raw) : opt.label}</span>
                                         {isActive && (
                                             <i className="fa-solid fa-check text-[11px] text-white shrink-0 ml-2"></i>
                                         )}
