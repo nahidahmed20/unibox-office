@@ -20,6 +20,13 @@ class VendorController extends Controller
 {
     public function index(Request $request)
     {
+        $paymentExpense = null;
+        if ($request->filled('pay_expense_id')) {
+            $paymentExpense = ProjectExpense::where('due_amount', '>', 0)
+                ->whereNotNull('vendor_id')
+                ->find($request->input('pay_expense_id'));
+        }
+
         $query = Vendor::with([
             'projectExpenses' => function($q) {
                 $q->where('due_amount', '>', 0)->select('id', 'vendor_id', 'title', 'total_bill', 'paid_amount', 'due_amount');
@@ -27,6 +34,10 @@ class VendorController extends Controller
         ])->withSum(['projectExpenses as total_due' => function($q) {
             $q->where('due_amount', '>', 0);
         }], 'due_amount');
+
+        if ($paymentExpense) {
+            $query->whereKey($paymentExpense->vendor_id);
+        }
 
         if ($request->has('search')) {
             $query->where('name', 'like', "%{$request->search}%")
@@ -61,6 +72,10 @@ class VendorController extends Controller
             'vendors' => $vendors,
             'accounts' => $accounts,
             'advances' => $advances,
+            'initialPayment' => $paymentExpense ? [
+                'vendor_id' => $paymentExpense->vendor_id,
+                'expense_id' => $paymentExpense->id,
+            ] : null,
             'filters' => $request->only('search', 'per_page'),
         ]);
     }

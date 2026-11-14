@@ -527,6 +527,11 @@ export default function Index({ project_expenses = { data: [], links: [] }, proj
                                                             <i className="fa-regular fa-eye text-[13px]"></i>
                                                         </button>
                                                     )}
+                                                    {hasPermission('view_pay_vendor') && hasPermission('view_vendors') && exp.vendor_id && parseFloat(exp.due_amount) > 0 && (
+                                                        <Link href={route('admin.vendors.index', { pay_expense_id: exp.id })} className="h-8 w-8 rounded-lg bg-white border border-slate-200 text-emerald-600 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 flex items-center justify-center transition-all shadow-sm active:scale-[0.95]" title="Pay Due">
+                                                            <i className="fa-solid fa-money-bill-wave text-[13px]"></i>
+                                                        </Link>
+                                                    )}
                                                     {hasPermission('edit_project_expense') && (
                                                         <Link href={route('admin.project-expenses.edit', exp.id)} className="h-8 w-8 rounded-lg bg-white border border-slate-200 text-amber-600 hover:bg-amber-500 hover:text-white hover:border-amber-500 flex items-center justify-center transition-all shadow-sm active:scale-[0.95]" title="Edit">
                                                             <i className="fa-regular fa-pen-to-square text-[13px]"></i>

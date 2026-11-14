@@ -27,7 +27,7 @@ const formatDateDisplay = (dateStr) => {
 };
 
 
-export default function Index({ vendors = { data: [], links: [] }, accounts = [], advances = [] }) {
+export default function Index({ vendors = { data: [], links: [] }, accounts = [], advances = [], initialPayment = null }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
     const permissions = auth?.permissions || [];
@@ -40,6 +40,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
     const [showPayModal, setShowPayModal] = useState(false);
     const [selectedBillIds, setSelectedBillIds] = useState([]);
     const [selectedVendor, setSelectedVendor] = useState(null);
+    const initialPaymentOpened = useRef(false);
 
     // Wallet Modal State
     const [showWalletModal, setShowWalletModal] = useState(false);
@@ -96,11 +97,24 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
     const openCreateModal = () => { clearErrors(); setData({ id: '', name: '', company_name: '', phone: '', address: '', opening_balance: 0 }); setEditMode(false); setShowModal(true); };
     const openEditModal = (vendor) => { clearErrors(); setData({ id: vendor?.id || '', name: vendor?.name || '', company_name: vendor?.company_name || '', phone: vendor?.phone || '', address: vendor?.address || '', opening_balance: vendor?.opening_balance || 0 }); setEditMode(true); setShowModal(true); };
 
-    const openPayModal = (vendor) => {
+    const openPayModal = (vendor, initialExpenseId = null) => {
         const dueBills = vendor.project_expenses || vendor.projectExpenses || [];
         if (dueBills.length === 0) return Swal.fire("No Dues", "This vendor has no pending bills.", "info");
-        setSelectedVendor(vendor); setSelectedBillIds([]); payForm.setData({ project_expense_ids: [], payment_source: 'account', account_id: '', account_payments: [{ account_id: accounts[0]?.id || '', amount: '', bank_charge: '' }], advance_user_id: '', adjustment_amount: '', pay_amount: '', bank_charge: '', date: new Date().toISOString().split('T')[0] }); payForm.clearErrors(); setShowPayModal(true);
+        const selectedIds = initialExpenseId === null
+            ? []
+            : dueBills.filter(bill => Number(bill.id) === Number(initialExpenseId)).map(bill => bill.id);
+        const selectedDue = dueBills.filter(bill => selectedIds.includes(bill.id)).reduce((sum, bill) => sum + Number(bill.due_amount || 0), 0);
+        setSelectedVendor(vendor); setSelectedBillIds(selectedIds); payForm.setData({ project_expense_ids: selectedIds, payment_source: 'account', account_id: '', account_payments: [{ account_id: accounts[0]?.id || '', amount: selectedDue || '', bank_charge: '' }], advance_user_id: '', adjustment_amount: '', pay_amount: selectedDue || '', bank_charge: '', date: new Date().toISOString().split('T')[0] }); payForm.clearErrors(); setShowPayModal(true);
     };
+
+    useEffect(() => {
+        if (!initialPayment || initialPaymentOpened.current) return;
+        const vendor = vendorList.find(item => Number(item.id) === Number(initialPayment.vendor_id));
+        if (!vendor) return;
+
+        initialPaymentOpened.current = true;
+        openPayModal(vendor, initialPayment.expense_id);
+    }, [initialPayment, vendorList]);
 
     const openWalletModal = (vendor, action) => {
         const today = new Date();

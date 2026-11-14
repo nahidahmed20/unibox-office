@@ -264,6 +264,38 @@ class PaymentAccountingTest extends TestCase
             ->etc());
     }
 
+    public function test_project_expense_can_open_vendor_payment_for_its_due(): void
+    {
+        $vendor = Vendor::create(['name' => 'Due Vendor']);
+        $expense = ProjectExpense::create([
+            'project_id' => $this->project->id,
+            'expense_category_id' => $this->category->id,
+            'title' => 'Unpaid printing bill',
+            'vendor_id' => $vendor->id,
+            'total_bill' => 1000,
+            'paid_amount' => 250,
+            'due_amount' => 750,
+            'payment_status' => 'partial',
+            'date' => '2026-09-01',
+            'logged_by' => $this->staff->id,
+        ]);
+
+        $this->get(route('admin.vendors.index', ['pay_expense_id' => $expense->id]))
+            ->assertInertia(fn (Assert $p) => $p
+                ->where('initialPayment.vendor_id', $vendor->id)
+                ->where('initialPayment.expense_id', $expense->id)
+                ->has('vendors.data', 1)
+                ->where('vendors.data.0.id', $vendor->id)
+                ->has('vendors.data.0.project_expenses', 1)
+                ->where('vendors.data.0.project_expenses.0.id', $expense->id)
+                ->where('vendors.data.0.project_expenses.0.due_amount', '750.00')
+                ->etc());
+
+        $expense->update(['due_amount' => 0]);
+        $this->get(route('admin.vendors.index', ['pay_expense_id' => $expense->id]))
+            ->assertInertia(fn (Assert $p) => $p->where('initialPayment', null)->etc());
+    }
+
     public function test_dashboard_does_not_double_count_client_advances_and_uses_all_account_cash_movements(): void
     {
         $client = Client::create(['name' => 'Dashboard Client']);
@@ -353,6 +385,8 @@ class PaymentAccountingTest extends TestCase
 
     public function test_project_payee_can_exist_without_vendor_and_bank_charge_is_additional(): void
     {
+        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+
         $this->post(route('admin.project-expenses.store'), $this->expenseData())->assertSessionHasNoErrors();
         $expense = ProjectExpense::firstOrFail();
         $this->assertNull($expense->vendor_id);
@@ -364,6 +398,44 @@ class PaymentAccountingTest extends TestCase
         $this->put(route('admin.project-expenses.update', $expense), $this->expenseData())->assertSessionHasNoErrors();
         $this->assertEquals(8990, $this->account->fresh()->current_balance);
         $this->delete(route('admin.project-expenses.destroy', $expense))->assertSessionHasNoErrors();
+        $this->assertEquals(10000, $this->account->fresh()->current_balance);
+    }
+
+    public function test_project_expense_can_be_saved_with_due_and_blank_account_allocation(): void
+    {
+        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+
+        $this->post(route('admin.project-expenses.store'), $this->expenseData([
+            'total_bill' => 1000,
+            'paid_amount' => 0,
+            'bank_charge' => 0,
+            'vendor_id' => Vendor::create(['name' => 'Unpaid Bill Vendor'])->id,
+            'account_payments' => [['account_id' => '', 'amount' => '', 'bank_charge' => '']],
+        ]))->assertSessionHasNoErrors();
+
+        $expense = ProjectExpense::firstOrFail();
+        $this->assertEquals(1000, $expense->total_bill);
+        $this->assertEquals(0, $expense->paid_amount);
+        $this->assertEquals(1000, $expense->due_amount);
+        $this->assertSame('due', $expense->payment_status);
+        $this->assertDatabaseCount('transactions', 0);
+        $this->assertEquals(10000, $this->account->fresh()->current_balance);
+    }
+
+    public function test_project_expense_with_due_requires_a_vendor(): void
+    {
+        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+
+        $this->post(route('admin.project-expenses.store'), $this->expenseData([
+            'total_bill' => 1000,
+            'paid_amount' => 0,
+            'bank_charge' => 0,
+            'vendor_id' => '',
+            'account_payments' => [['account_id' => '', 'amount' => '', 'bank_charge' => '']],
+        ]))->assertSessionHasErrors('vendor_id');
+
+        $this->assertDatabaseCount('project_expenses', 0);
+        $this->assertDatabaseCount('transactions', 0);
         $this->assertEquals(10000, $this->account->fresh()->current_balance);
     }
 

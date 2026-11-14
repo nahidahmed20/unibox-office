@@ -408,7 +408,7 @@ class ProjectExpenseController extends Controller
 
     private function validateData(Request $request): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'project_id'          => 'required|exists:projects,id',
             'expense_category_id' => 'required|exists:expense_categories,id',
             'account_id'          => 'nullable|exists:accounts,id',
@@ -423,11 +423,16 @@ class ProjectExpenseController extends Controller
             'description'         => 'nullable|string',
             'pay_type'            => 'nullable|in:account,advance,wallet',
             'return_account_id'   => 'nullable|exists:accounts,id',
-            'account_payments' => 'nullable|array|min:1',
-            'account_payments.*.account_id' => 'required|distinct|exists:accounts,id',
-            'account_payments.*.amount' => 'required|numeric|decimal:0,2|min:0.01',
-            'account_payments.*.bank_charge' => 'nullable|numeric|decimal:0,2|min:0',
+            'account_payments' => 'nullable|array',
         ]);
+
+        if ((float) $validated['total_bill'] > (float) ($validated['paid_amount'] ?? 0) && empty($validated['vendor_id'])) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'vendor_id' => 'Select a vendor when the bill has an outstanding due.',
+            ]);
+        }
+
+        return $validated;
     }
 
     private function resolveStatus($bill, $paid): string

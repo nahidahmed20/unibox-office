@@ -1,3 +1,4 @@
+
 <IfModule mod_negotiation.c>
     Options -MultiViews -Indexes
 </IfModule>
@@ -5,14 +6,14 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Protect application and deployment files when the project root is the
-    # hosting document root. Pointing the document root at /public is safer.
+    # Block sensitive files
     RewriteRule ^(\.env|\.git|composer\.(json|lock)|package(-lock)?\.json|phpunit\.xml|server\.php)(/.*)?$ - [F,L,NC]
+
+    # Block application directories
     RewriteRule ^(app|bootstrap|config|database|resources|storage|tests|vendor)(/.*)?$ - [F,L,NC]
 
-    # Pass requests through to Laravel's public directory. Its own .htaccess
-    # serves real assets and sends application routes to index.php.
-    RewriteCond %{REQUEST_URI} !^/public(?:/|$) [NC]
+    # Laravel public directory
+    RewriteCond %{REQUEST_URI} !^/public(/|$) [NC]
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
 
