@@ -3,14 +3,15 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import TableExportButtons from '@/Components/TableExportButtons';
+import AccountAllocationFields from '@/Components/AccountAllocationFields';
 
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
 );
 
-function BankChargeEditor({ payment, onSuccess }) {
+function BankChargeEditor({ payment, accounts, onSuccess }) {
     const [editing, setEditing] = useState(false);
-    const form = useForm({ pay_amount: payment.pay_amount, bank_charge: payment.bank_charge || 0 });
+    const form = useForm({ pay_amount: payment.pay_amount, bank_charge: payment.bank_charge || 0, account_payments: payment.account_payments?.length ? payment.account_payments : [{ account_id: payment.account_id || '', amount: payment.pay_amount, bank_charge: payment.bank_charge || 0 }] });
 
     if (payment.payment_source !== 'account' || payment.status !== 'completed' || Number(payment.pay_amount) <= 0) {
         return (
@@ -27,7 +28,7 @@ function BankChargeEditor({ payment, onSuccess }) {
                     <div className="text-[12px] font-bold text-gray-600 bg-white px-2.5 py-1 rounded-md border border-gray-200 shadow-sm">
                         Bank charge: <Taka className="text-[11px]" />{Number(payment.bank_charge || 0).toLocaleString('en-IN')}
                     </div>
-                    <button onClick={() => { form.setData({ pay_amount: payment.pay_amount, bank_charge: payment.bank_charge || 0 }); form.clearErrors(); setEditing(true); }} className="text-[11.5px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md">
+                    <button onClick={() => { form.setData({ pay_amount: payment.pay_amount, bank_charge: payment.bank_charge || 0, account_payments: payment.account_payments?.length ? payment.account_payments : [{ account_id: payment.account_id || '', amount: payment.pay_amount, bank_charge: payment.bank_charge || 0 }] }); form.clearErrors(); setEditing(true); }} className="text-[11.5px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md">
                         <i className="fa-solid fa-pen-to-square"></i> Edit
                     </button>
                 </div>
@@ -47,15 +48,11 @@ function BankChargeEditor({ payment, onSuccess }) {
                     <div className="grid grid-cols-2 gap-3 mb-3">
                         <div>
                             <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Pay Amount <span className="text-red-500">*</span></label>
-                            <input type="number" min="0.01" step="0.01" required value={form.data.pay_amount} onChange={e => form.setData('pay_amount', e.target.value)} className="w-full rounded-lg border-gray-300 px-3 py-2 text-[13px] font-bold text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" />
+                            <input type="number" min="0.01" step="0.01" required value={form.data.pay_amount} onChange={e => { const payAmount = e.target.value; form.setData(prev => ({ ...prev, pay_amount: payAmount, account_payments: prev.account_payments?.length === 1 ? [{ ...prev.account_payments[0], amount: payAmount }] : prev.account_payments })); }} className="w-full rounded-lg border-gray-300 px-3 py-2 text-[13px] font-bold text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" />
                             {form.errors.pay_amount && <p className="text-[10px] text-red-600 font-bold mt-1">{form.errors.pay_amount}</p>}
                         </div>
-                        <div>
-                            <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Bank Charge <span className="text-red-500">*</span></label>
-                            <input type="number" min="0" step="0.01" required value={form.data.bank_charge} onChange={e => form.setData('bank_charge', e.target.value)} className="w-full rounded-lg border-gray-300 px-3 py-2 text-[13px] font-bold text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" />
-                            {form.errors.bank_charge && <p className="text-[10px] text-red-600 font-bold mt-1">{form.errors.bank_charge}</p>}
-                        </div>
                     </div>
+                    <AccountAllocationFields accounts={accounts} rows={form.data.account_payments || []} total={form.data.pay_amount} allowCharges onChange={rows => form.setData(prev => ({ ...prev, account_payments: rows, bank_charge: rows.reduce((sum, row) => sum + (Number(row.bank_charge) || 0), 0) }))} />
 
                     <div className="flex items-center justify-between mt-4">
                         <div className="text-[11.5px] font-bold text-indigo-900 bg-white px-2.5 py-1 rounded border border-indigo-100">
@@ -81,7 +78,7 @@ const COMPANY = {
     address: '278/3/A, Sardar Villa, 5th Floor, Kataban Dhal, Kataban, Dhaka-1205',
 };
 
-export default function Show({ vendor, payments = [], ledgers = [], bills = [], statement = [], directPayments = [], dateWisePayments = [], stats = {} }) {
+export default function Show({ vendor, payments = [], ledgers = [], bills = [], statement = [], directPayments = [], dateWisePayments = [], stats = {}, accounts = [] }) {
     const { auth } = usePage().props;
     const isSuperAdmin = auth?.roles?.includes('Super Admin') || auth?.roles?.includes('super-admin');
 
@@ -503,7 +500,7 @@ export default function Show({ vendor, payments = [], ledgers = [], bills = [], 
                                                 <div className="text-[11.5px] font-bold text-gray-400 mt-1 uppercase tracking-wider">
                                                     Ref: #{String(pay.id).padStart(5, '0')}
                                                 </div>
-                                                {pay.status !== 'voided' && <BankChargeEditor payment={pay} />}
+                                                {pay.status !== 'voided' && <BankChargeEditor payment={pay} accounts={accounts} />}
                                             </td>
                                             <td className="px-6 py-4 align-top">
                                                 <div className="font-bold text-indigo-700 flex items-center gap-2 bg-indigo-50 px-3 py-1.5 w-fit rounded-lg border border-indigo-100">

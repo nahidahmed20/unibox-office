@@ -68,9 +68,16 @@ class VendorController extends Controller
     public function payments(Vendor $vendor, Request $request)
     {
         $payments = $vendor->payments()
-            ->with(['account:id,name', 'details.expense:id,title'])
+            ->with(['account:id,name', 'details.expense:id,title', 'transactions'])
             ->latest('date')
             ->paginate(\App\Support\Pagination::perPage($request, $vendor->payments(), 5));
+        $payments->getCollection()->each(function ($payment) {
+            $payment->account_payments = $payment->transactions->where('type', 'debit')->map(fn ($transaction) => [
+                'account_id' => $transaction->account_id,
+                'amount' => (float) $transaction->amount - (float) $transaction->bank_charge,
+                'bank_charge' => (float) $transaction->bank_charge,
+            ])->values();
+        });
 
         return response()->json($payments);
     }
@@ -81,7 +88,11 @@ class VendorController extends Controller
             'project_expense_ids'   => 'required|array|min:1',
             'project_expense_ids.*' => 'exists:project_expenses,id',
             'payment_source'        => 'required|in:account,advance,wallet',
-            'account_id'            => 'nullable|required_if:payment_source,account|exists:accounts,id',
+            'account_id'            => 'nullable|exists:accounts,id',
+            'account_payments'      => 'nullable|array|min:1',
+            'account_payments.*.account_id' => 'required|distinct|exists:accounts,id',
+            'account_payments.*.amount' => 'required|numeric|decimal:0,2|min:0.01',
+            'account_payments.*.bank_charge' => 'nullable|numeric|decimal:0,2|min:0',
             'advance_user_id'       => 'nullable|required_if:payment_source,advance|exists:users,id',
             'pay_amount'            => 'required|numeric|decimal:0,2|min:0',
             'bank_charge' => 'nullable|numeric|decimal:0,2|min:0',
@@ -94,7 +105,13 @@ class VendorController extends Controller
 
             $vendor = Vendor::whereKey($vendor->id)->lockForUpdate()->firstOrFail();
             $payAmount = round((float) $request->pay_amount, 2);
+            $allocations = [];
             $charge = round((float) ($request->bank_charge ?? 0), 2);
+            if ($request->payment_source === 'account' && $payAmount > 0) {
+                $allocations = app(\App\Services\AccountAllocationService::class)->fromRequest($request->all(), $payAmount, true);
+                $charge = array_sum(array_column($allocations, 'bank_charge'));
+                $request->merge(['account_id' => $allocations[0]['account_id']]);
+            }
             if ($charge > 0 && ($request->payment_source !== 'account' || $payAmount <= 0)) throw new \Exception('Payment from account is required for bank charges.');
             $adjustmentAmount = $request->adjustment_amount ?: 0;
 
@@ -146,10 +163,7 @@ class VendorController extends Controller
 
             if ($payAmount > 0) {
                 if ($request->payment_source === 'account') {
-                    $account = Account::whereKey($request->account_id)->lockForUpdate()->firstOrFail();
-                    if ($account->current_balance < $payAmount + $charge) {
-                        throw new \Exception('Insufficient balance in selected account!');
-                    }
+                    // Balance is checked per allocation when the transactions are created below.
                 } else {
                     // Advance allocation is recorded after creating the payment below.
                 }
@@ -199,19 +213,10 @@ class VendorController extends Controller
             }
 
             if ($request->payment_source === 'account' && $payAmount > 0) {
-                $account = Account::findOrFail($request->account_id);
-                $account->decrement('current_balance', $payAmount + $charge);
-
-                Transaction::create([
-                    'account_id'           => $account->id,
-                    'type'                 => 'debit',
-                    'amount'               => $payAmount + $charge,
-                    'bank_charge' => $charge,
-                    'transaction_date'     => $request->date,
-                    'description'          => 'Bill payment to vendor: ' . $vendor->name . ' (VP-' . $payment->id . ')',
-                    'transactionable_id'   => $payment->id,
-                    'transactionable_type' => VendorPayment::class,
-                ]);
+                app(\App\Services\AccountAllocationService::class)->replace(
+                    $payment, $allocations, 'debit', $request->date,
+                    'Bill payment to vendor: ' . $vendor->name . ' (VP-' . $payment->id . ')'
+                );
             }
 
             DB::commit();
@@ -229,11 +234,18 @@ class VendorController extends Controller
         $vendor->append(['total_due', 'net_due']);
 
         // All payment history for vendor
-        $payments = VendorPayment::with(['account', 'details.expense.project'])
+        $payments = VendorPayment::with(['account', 'details.expense.project', 'transactions'])
             ->where('vendor_id', $vendor->id)
             ->latest('date')
             ->latest('id')
             ->get();
+        $payments->each(function ($payment) {
+            $payment->account_payments = $payment->transactions->where('type', 'debit')->map(fn ($transaction) => [
+                'account_id' => $transaction->account_id,
+                'amount' => (float) $transaction->amount - (float) $transaction->bank_charge,
+                'bank_charge' => (float) $transaction->bank_charge,
+            ])->values();
+        });
 
         // Vendor wallet transactions (Advance/Refund)
         $ledgers = \App\Models\VendorLedger::where('vendor_id', $vendor->id)
@@ -708,6 +720,10 @@ class VendorController extends Controller
             'bank_charge'       => 'required|numeric|decimal:0,2|min:0|max:9999999999999.99',
             'pay_amount'        => 'sometimes|required|numeric|decimal:0,2|min:0.01|max:9999999999999.99',
             'adjustment_amount' => 'nullable|numeric|decimal:0,2|min:0|max:9999999999999.99',
+            'account_payments' => 'nullable|array|min:1',
+            'account_payments.*.account_id' => 'required|distinct|exists:accounts,id',
+            'account_payments.*.amount' => 'required|numeric|decimal:0,2|min:0.01',
+            'account_payments.*.bank_charge' => 'nullable|numeric|decimal:0,2|min:0',
         ]);
 
         DB::transaction(function () use ($payment, $data) {
@@ -717,23 +733,32 @@ class VendorController extends Controller
                 $fail('Only completed account payments can be edited.');
             }
             $vendor = Vendor::whereKey($payment->vendor_id)->lockForUpdate()->firstOrFail();
-            $account = Account::whereKey($payment->account_id)->lockForUpdate()->firstOrFail();
             $transactions = Transaction::where('transactionable_type', $payment->getMorphClass())
                 ->where('transactionable_id', $payment->id)->where('type', 'debit')->lockForUpdate()->get();
 
-            if ($transactions->count() !== 1 || $transactions->first()->account_id != $account->id) {
-                $fail('Original account transaction not found.');
-            }
-
-            $transaction = $transactions->first();
-
-            if (abs((float) $transaction->amount - ((float) $payment->pay_amount + (float) $payment->bank_charge)) > 0.001) {
+            if ($transactions->isNotEmpty() && (
+                abs((float) $transactions->sum('amount') - ((float) $payment->pay_amount + (float) $payment->bank_charge)) > 0.001
+                || abs((float) $transactions->sum('bank_charge') - (float) $payment->bank_charge) > 0.001
+            )) {
                 $fail('Payment amount does not match original transaction amount.');
             }
 
             $charge = round((float) $data['bank_charge'], 2);
             $amount = round((float) ($data['pay_amount'] ?? $payment->pay_amount), 2);
             $adjustment = isset($data['adjustment_amount']) ? round((float) $data['adjustment_amount'], 2) : round((float) $payment->adjustment_amount, 2);
+            $allocationService = app(\App\Services\AccountAllocationService::class);
+            if (isset($data['account_payments'])) {
+                $allocations = $allocationService->normalize($data['account_payments'], $amount, true);
+                $charge = array_sum(array_column($allocations, 'bank_charge'));
+            } else {
+                $allocations = $allocationService->rowsFor($payment, 'debit');
+                if ($allocations === []) {
+                    $allocations = [['account_id' => $payment->account_id, 'amount' => (float) $payment->pay_amount, 'bank_charge' => 0]];
+                }
+                $allocations[0]['amount'] = round((float) $allocations[0]['amount'] + $amount - (float) $payment->pay_amount, 2);
+                $allocations[0]['bank_charge'] = $charge;
+                $allocations = $allocationService->normalize($allocations, $amount, true);
+            }
 
             if ($amount != (float) $payment->pay_amount || $adjustment != (float) $payment->adjustment_amount) {
                 $details = $payment->details()->lockForUpdate()->get();
@@ -781,23 +806,17 @@ class VendorController extends Controller
                 $payment->adjustment_amount = $adjustment;
             }
 
-            $difference = round($amount + $charge - $payment->pay_amount - $payment->bank_charge, 2);
-
-            if ($difference > 0 && $account->current_balance < $difference) {
-                $fail('Insufficient balance in account for modified payment amount.');
+            try {
+                $allocationService->replace(
+                    $payment, $allocations, 'debit', $payment->getRawOriginal('date'),
+                    'Bill payment to vendor: ' . $vendor->name . ' (VP-' . $payment->id . ')'
+                );
+            } catch (\Illuminate\Validation\ValidationException $exception) {
+                $fail($exception->validator->errors()->first());
             }
-
-            if ($difference != 0) {
-                $account->decrement('current_balance', $difference);
-            }
-
-            $transaction->update([
-                'amount' => round($amount + $charge, 2),
-                'bank_charge' => $charge,
-                'transaction_date' => $transaction->getRawOriginal('transaction_date')
-            ]);
 
             $payment->update([
+                'account_id' => $allocations[0]['account_id'],
                 'pay_amount' => $amount,
                 'bank_charge' => $charge,
                 'adjustment_amount' => $adjustment,
@@ -837,19 +856,29 @@ class VendorController extends Controller
             }
 
             if ($payment->payment_source === 'account') {
-                $account = Account::findOrFail($payment->account_id);
-                $account->increment('current_balance', $payment->pay_amount + $payment->bank_charge);
-
-                Transaction::create([
-                    'account_id'           => $account->id,
-                    'type'                 => 'credit',
-                    'amount'               => $payment->pay_amount + $payment->bank_charge,
-                    'bank_charge' => $payment->bank_charge,
-                    'transaction_date'     => now()->toDateString(),
-                    'description'          => 'Payment voided (VP-' . $payment->id . '): ' . $request->void_reason,
-                    'transactionable_id'   => $payment->id,
-                    'transactionable_type' => VendorPayment::class,
-                ]);
+                $debits = Transaction::where('transactionable_type', $payment->getMorphClass())
+                    ->where('transactionable_id', $payment->id)->where('type', 'debit')->get();
+                if ($debits->isEmpty()) {
+                    $debits->push(new Transaction([
+                        'account_id' => $payment->account_id,
+                        'amount' => $payment->pay_amount + $payment->bank_charge,
+                        'bank_charge' => $payment->bank_charge,
+                    ]));
+                }
+                foreach ($debits as $debit) {
+                    $account = Account::findOrFail($debit->account_id);
+                    $account->increment('current_balance', $debit->amount);
+                    Transaction::create([
+                        'account_id' => $account->id,
+                        'type' => 'credit',
+                        'amount' => $debit->amount,
+                        'bank_charge' => $debit->bank_charge,
+                        'transaction_date' => now()->toDateString(),
+                        'description' => 'Payment voided (VP-' . $payment->id . '): ' . $request->void_reason,
+                        'transactionable_id' => $payment->id,
+                        'transactionable_type' => VendorPayment::class,
+                    ]);
+                }
 
             } elseif ($payment->payment_source === 'wallet') {
                 if ($payment->pay_amount > 0) {

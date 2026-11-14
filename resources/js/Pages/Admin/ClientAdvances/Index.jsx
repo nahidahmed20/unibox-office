@@ -6,6 +6,7 @@ import Select from '@/Components/PortalSelect';
 import CustomSelect from '@/Components/CustomSelect';
 import SearchableSelect from '@/Components/SearchableSelect';
 import TableExportButtons from '@/Components/TableExportButtons';
+import AccountAllocationFields from '@/Components/AccountAllocationFields';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -101,6 +102,7 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
         id: '',
         client_id: '',
         account_id: '',
+        account_payments: [{ account_id: '', amount: '' }],
         amount: '',
         date: new Date().toISOString().split('T')[0],
         note: ''
@@ -258,7 +260,7 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
     // --- Modals Logic ---
     const openCreateModal = () => {
         clearErrors();
-        setData({ id: '', client_id: '', account_id: '', amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
+        setData({ id: '', client_id: '', account_id: '', account_payments: [{ account_id: '', amount: '' }], amount: '', date: new Date().toISOString().slice(0, 10), note: '' });
         setEditMode(false);
         setShowModal(true);
     };
@@ -268,7 +270,7 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
             return Swal.fire("Warning", "Cannot edit! This amount is already used in an invoice.", "warning");
         }
         clearErrors();
-        setData({ id: advance.id, client_id: advance.client_id, account_id: advance.account_id, amount: advance.amount, date: advance.date, note: advance.note || '' });
+        setData({ id: advance.id, client_id: advance.client_id, account_id: advance.account_id, account_payments: advance.account_payments?.length ? advance.account_payments : [{ account_id: advance.account_id, amount: advance.amount }], amount: advance.amount, date: advance.date, note: advance.note || '' });
         setEditMode(true);
         setShowModal(true);
     };
@@ -857,16 +859,9 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
                                                 <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-widest mb-2">
                                                     Deposit To Account <span className="text-red-600">*</span>
                                                 </label>
-                                                <SearchableSelect
-                                                    options={accounts}
-                                                    value={data.account_id}
-                                                    onChange={(val) => setData("account_id", val)}
-                                                    placeholder="-- Select bank or cash account --"
-                                                    getValue={(a) => a.id}
-                                                    getLabel={(a) => `${a.name} (৳ ${Number(a.current_balance).toLocaleString('en-IN')})`}
-                                                    error={errors.account_id}
-                                                />
+                                                <AccountAllocationFields accounts={accounts} rows={data.account_payments || []} total={data.amount} onChange={(rows) => setData(prev => ({ ...prev, account_payments: rows, account_id: rows[0]?.account_id || "" }))} />
                                                 {errors.account_id && <span className="mt-1 block text-[11px] font-bold text-red-600">{errors.account_id}</span>}
+                                                {errors.account_payments && <span className="mt-1 block text-[11px] font-bold text-red-600">{errors.account_payments}</span>}
                                             </div>
                                         </div>
 
@@ -882,7 +877,7 @@ export default function Index({ clientWithAdvances = { data: [], links: [] }, cl
                                                         step="any"
                                                         min="0.01"
                                                         value={data.amount}
-                                                        onChange={(e) => setData('amount', e.target.value)}
+                                                        onChange={(e) => { const amount = e.target.value; setData(prev => ({ ...prev, amount, account_payments: prev.account_payments?.length === 1 ? [{ ...prev.account_payments[0], amount }] : prev.account_payments })); }}
                                                         placeholder="0.00"
                                                         className="w-full rounded-xl border border-emerald-300 bg-emerald-50/30 focus:bg-white pl-10 pr-4 py-3.5 text-[17px] font-black text-emerald-950 outline-none transition-all focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10 shadow-xs"
                                                         required

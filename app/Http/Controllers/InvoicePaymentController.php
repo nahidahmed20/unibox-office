@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\{Account, Client, ClientAdvance, Invoice, InvoicePayment};
+use App\Services\AccountAllocationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -34,6 +35,16 @@ class InvoicePaymentController extends Controller
         $count = (clone $query)->count();
         $perPage = $request->input('per_page') === 'all' ? max($count, 1) : \App\Support\Pagination::perPage($request, $query);
         $payments = $query->orderByDesc('payment_date')->orderByDesc('id')->paginate($perPage)->withQueryString();
+        $paymentIds = $payments->pluck('id');
+        $accountTransactions = \App\Models\Transaction::where('transactionable_type', InvoicePayment::class)
+            ->whereIn('transactionable_id', $paymentIds)->where('type', 'credit')->orderBy('id')->get()->groupBy('transactionable_id');
+        $payments->getCollection()->transform(function (InvoicePayment $payment) use ($accountTransactions) {
+            $payment->account_payments = ($accountTransactions[$payment->id] ?? collect())->map(fn ($transaction) => [
+                'account_id' => $transaction->account_id,
+                'amount' => (float) $transaction->amount,
+            ])->values();
+            return $payment;
+        });
 
         $invoices = Invoice::with('client')->withSum('payments', 'amount')->where('status', '!=', 'paid')->latest()->get()->map(function ($invoice) {
             $legacy = (float) ($invoice->getRawOriginal('advance_used') ?? 0);
@@ -96,6 +107,10 @@ class InvoicePaymentController extends Controller
 
         if (abs($totalPayRequested - $totalGiven) > 0.01) {
             return back()->withErrors(['amount_mismatch' => "Payment sources total ({$totalGiven} TK) must match the total payable invoice amount ({$totalPayRequested} TK)."]);
+        }
+        if (collect($request->account_payments)->isNotEmpty()
+            && Account::whereIn('id', collect($request->account_payments)->pluck('account_id'))->where('is_active', true)->count() !== collect($request->account_payments)->count()) {
+            return back()->withErrors(['account_payments' => 'Every selected account must be active.']);
         }
 
         $availableAdvance = (float) ClientAdvance::where('client_id', $request->client_id)->selectRaw('COALESCE(SUM(amount-used_amount),0) balance')->value('balance');
@@ -231,7 +246,18 @@ class InvoicePaymentController extends Controller
         if ($payment->method === 'Client Advance' || $payment->method === 'Discount Only') {
             return back()->withErrors(['error' => 'Delete this specialized payment to restore it, then enter it again.']);
         }
-        $data = $request->validate(['invoice_id' => 'required|exists:invoices,id', 'account_id' => 'required|exists:accounts,id', 'amount' => 'required|numeric|min:0.01', 'payment_date' => 'required|date', 'note' => 'nullable|string']);
+        $data = $request->validate([
+            'invoice_id' => 'required|exists:invoices,id',
+            'account_id' => 'nullable|exists:accounts,id',
+            'account_payments' => 'nullable|array|min:1',
+            'account_payments.*.account_id' => 'required|distinct|exists:accounts,id',
+            'account_payments.*.amount' => 'required|numeric|decimal:0,2|min:0.01',
+            'amount' => 'required|numeric|decimal:0,2|min:0.01',
+            'payment_date' => 'required|date',
+            'note' => 'nullable|string',
+        ]);
+        $allocations = app(AccountAllocationService::class)->fromRequest($data, (float) $data['amount']);
+        $data['account_id'] = $allocations[0]['account_id'];
         $targetInvoice = Invoice::withSum('payments', 'amount')->findOrFail($data['invoice_id']);
         $paidWithoutCurrent = (float) ($targetInvoice->payments_sum_amount ?? 0) - ($payment->invoice_id == $targetInvoice->id ? (float) $payment->amount : 0);
         $legacyAdvance = (float) ($targetInvoice->getRawOriginal('advance_used') ?? 0);
@@ -239,11 +265,14 @@ class InvoicePaymentController extends Controller
 
         if ((float) $data['amount'] > $availableDue) return back()->withErrors(['amount' => "Payment cannot exceed invoice due ({$availableDue} TK)."]);
 
-        DB::transaction(function () use ($data, $payment) {
-            Account::find($payment->account_id)?->decrement('current_balance', $payment->amount);
-            Account::findOrFail($data['account_id'])->increment('current_balance', $data['amount']);
-            $payment->transaction?->update(['account_id' => $data['account_id'], 'amount' => $data['amount'], 'transaction_date' => $data['payment_date']]);
-            $oldInvoice = $payment->invoice_id; $payment->update($data);
+        DB::transaction(function () use ($data, $payment, $allocations) {
+            $oldInvoice = $payment->invoice_id;
+            $service = app(AccountAllocationService::class);
+            if ($service->reverse($payment, 'credit') === 0 && $payment->account_id) {
+                Account::find($payment->account_id)?->decrement('current_balance', $payment->amount);
+            }
+            $payment->update(collect($data)->except('account_payments')->toArray());
+            $service->replace($payment, $allocations, 'credit', $data['payment_date'], 'Invoice Payment Received. Ref: '.$payment->invoice->invoice_number);
             $this->updateInvoiceStatus($oldInvoice);
             if ($oldInvoice != $data['invoice_id']) $this->updateInvoiceStatus($data['invoice_id']);
         });
@@ -264,9 +293,14 @@ class InvoicePaymentController extends Controller
                     $this->restoreClientAdvance($payment->invoice->client_id, (float) $payment->amount);
                 }
             } else if($payment->method === 'Account') {
-                Account::find($payment->account_id)?->decrement('current_balance', $payment->amount);
+                $service = app(AccountAllocationService::class);
+                if ($service->reverse($payment, 'credit') === 0 && $payment->account_id) {
+                    Account::find($payment->account_id)?->decrement('current_balance', $payment->amount);
+                }
             }
-            $payment->transaction?->delete();
+            if ($payment->method !== 'Account') {
+                $payment->transaction?->delete();
+            }
             $invoiceId = $payment->invoice_id; $payment->delete();
 
             if ((float) $payment->discount_amount > 0) {

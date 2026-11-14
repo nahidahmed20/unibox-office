@@ -37,6 +37,15 @@ class AssetController extends Controller
         }
 
         $assets = $query->latest()->paginate($perPage)->withQueryString();
+        $assetIds = $assets->pluck('id');
+        $assetTransactions = Transaction::where('transactionable_type', Asset::class)
+            ->whereIn('transactionable_id', $assetIds)->where('type', 'debit')->orderBy('id')->get()->groupBy('transactionable_id');
+        $assets->getCollection()->each(function ($asset) use ($assetTransactions) {
+            $asset->account_payments = ($assetTransactions[$asset->id] ?? collect())->map(fn ($transaction) => [
+                'account_id' => $transaction->account_id,
+                'amount' => (float) $transaction->amount,
+            ])->values();
+        });
 
         $users = User::select('id', 'name')->orderBy('name')->get();
 
@@ -71,43 +80,30 @@ class AssetController extends Controller
             'purchase_date'  => 'nullable|date',
             'purchase_price' => 'nullable|numeric|min:0',
             'account_id'     => 'nullable|exists:accounts,id',
+            'account_payments' => 'nullable|array|min:1',
+            'account_payments.*.account_id' => 'required|distinct|exists:accounts,id',
+            'account_payments.*.amount' => 'required|numeric|decimal:0,2|min:0.01',
             'assigned_to'    => 'nullable|exists:users,id',
             'assigned_date'  => 'nullable|date',
             'condition'      => 'required|in:new,good,damaged,under_repair',
         ]);
 
-        if (!empty($validated['purchase_price']) && $validated['purchase_price'] > 0 && empty($validated['account_id'])) {
-            return back()
-                ->withErrors(['account_id' => 'Please select an account to deduct the purchase cost from.'])
-                ->withInput();
-        }
+        $allocations = (float) ($validated['purchase_price'] ?? 0) > 0
+            ? app(\App\Services\AccountAllocationService::class)->fromRequest($validated, (float) $validated['purchase_price'])
+            : [];
+        if ($allocations !== []) $validated['account_id'] = $allocations[0]['account_id'];
+        unset($validated['account_payments']);
 
-        DB::transaction(function () use ($validated) {
+        DB::transaction(function () use ($validated, $allocations) {
             $price = (float) ($validated['purchase_price'] ?? 0);
-            $account = null;
-
-            if (!empty($validated['account_id']) && $price > 0) {
-                $account = Account::where('id', $validated['account_id'])->lockForUpdate()->firstOrFail();
-                if ((float) $account->current_balance < $price) {
-                    throw ValidationException::withMessages([
-                        'account_id' => "Insufficient balance in {$account->name}.",
-                    ]);
-                }
-            }
-
-            $asset = Asset::create($validated);
-
-            if ($account && $price > 0) {
-                $account->decrement('current_balance', $price);
-                Transaction::create([
-                    'account_id'           => $account->id,
-                    'type'                 => 'debit',
-                    'amount'               => $price,
-                    'transaction_date'     => $validated['purchase_date'] ?: now()->toDateString(),
-                    'description'          => "Asset Purchase: {$asset->name} ({$asset->asset_code})",
-                    'transactionable_id'   => $asset->id,
-                    'transactionable_type' => Asset::class,
-                ]);
+            $asset = new Asset($validated);
+            \App\Observers\AccountMovementObserver::suppress($asset);
+            $asset->save();
+            if ($price > 0) {
+                app(\App\Services\AccountAllocationService::class)->replace(
+                    $asset, $allocations, 'debit', $validated['purchase_date'] ?: now()->toDateString(),
+                    "Asset Purchase: {$asset->name} ({$asset->asset_code})"
+                );
             }
         });
 
@@ -125,69 +121,40 @@ class AssetController extends Controller
             'purchase_date'  => 'nullable|date',
             'purchase_price' => 'nullable|numeric|min:0',
             'account_id'     => 'nullable|exists:accounts,id',
+            'account_payments' => 'nullable|array|min:1',
+            'account_payments.*.account_id' => 'required|distinct|exists:accounts,id',
+            'account_payments.*.amount' => 'required|numeric|decimal:0,2|min:0.01',
             'assigned_to'    => 'nullable|exists:users,id',
             'assigned_date'  => 'nullable|date',
             'condition'      => 'required|in:new,good,damaged,under_repair',
         ]);
 
-        if (!empty($validated['purchase_price']) && $validated['purchase_price'] > 0 && empty($validated['account_id'])) {
-            return back()
-                ->withErrors(['account_id' => 'Please select an account to deduct the purchase cost from.'])
-                ->withInput();
-        }
+        $allocations = (float) ($validated['purchase_price'] ?? 0) > 0
+            ? app(\App\Services\AccountAllocationService::class)->fromRequest($validated, (float) $validated['purchase_price'])
+            : [];
+        if ($allocations !== []) $validated['account_id'] = $allocations[0]['account_id'];
+        unset($validated['account_payments']);
 
-        DB::transaction(function () use ($asset, $validated) {
+        DB::transaction(function () use ($asset, $validated, $allocations) {
             $asset = Asset::with('transaction')->lockForUpdate()->findOrFail($asset->id);
-            $oldAccountId = $asset->account_id;
-            $oldPrice     = (float) ($asset->purchase_price ?? 0);
-            $assetTransactions = Transaction::where('transactionable_type', $asset->getMorphClass())
-                ->where('transactionable_id', $asset->id)
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->get();
-
-            if ($oldAccountId && $oldPrice > 0) {
-                $oldAccount = Account::where('id', $oldAccountId)->lockForUpdate()->first();
-                if ($oldAccount) {
-                    $oldAccount->increment('current_balance', $oldPrice);
-                }
+            $oldPrice = (float) ($asset->purchase_price ?? 0);
+            $debits = Transaction::where('transactionable_type', $asset->getMorphClass())
+                ->where('transactionable_id', $asset->id)->where('type', 'debit')->lockForUpdate()->get();
+            if ($debits->isNotEmpty() && abs((float) $debits->sum('amount') - $oldPrice) < 0.001) {
+                app(\App\Services\AccountAllocationService::class)->reverse($asset, 'debit');
+            } elseif ($oldPrice > 0 && $asset->account_id) {
+                Account::whereKey($asset->account_id)->lockForUpdate()->increment('current_balance', $oldPrice);
+                $debits->each->delete();
             }
 
-            $newAccountId = $validated['account_id'] ?? null;
             $newPrice     = (float) ($validated['purchase_price'] ?? 0);
-
-            if ($newAccountId && $newPrice > 0) {
-                $newAccount = Account::where('id', $newAccountId)->lockForUpdate()->firstOrFail();
-                if ((float) $newAccount->current_balance < $newPrice) {
-                    throw ValidationException::withMessages([
-                        'account_id' => "Insufficient balance in {$newAccount->name}.",
-                    ]);
-                }
-                $newAccount->decrement('current_balance', $newPrice);
-            }
-
+            \App\Observers\AccountMovementObserver::suppress($asset);
             $asset->update($validated);
-
-            if ($newAccountId && $newPrice > 0) {
-                $trxData = [
-                    'account_id'       => $newAccountId,
-                    'type'             => 'debit',
-                    'amount'           => $newPrice,
-                    'transaction_date' => $validated['purchase_date'] ?: ($asset->created_at?->toDateString() ?? now()->toDateString()),
-                    'description'      => "Asset Purchase: {$asset->name} ({$asset->asset_code})",
-                ];
-                if ($assetTransactions->isNotEmpty()) {
-                    $assetTransactions->first()->update($trxData);
-                    $assetTransactions->skip(1)->each->delete();
-                } else {
-                    Transaction::create([
-                        ...$trxData,
-                        'transactionable_type' => $asset->getMorphClass(),
-                        'transactionable_id' => $asset->id,
-                    ]);
-                }
-            } else {
-                $assetTransactions->each->delete();
+            if ($newPrice > 0) {
+                app(\App\Services\AccountAllocationService::class)->replace(
+                    $asset, $allocations, 'debit', $validated['purchase_date'] ?: ($asset->created_at?->toDateString() ?? now()->toDateString()),
+                    "Asset Purchase: {$asset->name} ({$asset->asset_code})"
+                );
             }
         });
 
@@ -199,19 +166,15 @@ class AssetController extends Controller
         $asset = Asset::findOrFail($id);
 
         DB::transaction(function () use ($asset) {
-            $assetTransactions = Transaction::where('transactionable_type', $asset->getMorphClass())
-                ->where('transactionable_id', $asset->id)
-                ->lockForUpdate()
-                ->get();
-
-            if ($asset->account_id && $asset->purchase_price > 0) {
-                $account = Account::where('id', $asset->account_id)->lockForUpdate()->first();
-                if ($account) {
-                    $account->increment('current_balance', $asset->purchase_price);
-                }
+            $debits = Transaction::where('transactionable_type', $asset->getMorphClass())
+                ->where('transactionable_id', $asset->id)->where('type', 'debit')->lockForUpdate()->get();
+            if ($debits->isNotEmpty() && abs((float) $debits->sum('amount') - (float) $asset->purchase_price) < 0.001) {
+                app(\App\Services\AccountAllocationService::class)->reverse($asset, 'debit');
+            } elseif ($asset->account_id && $asset->purchase_price > 0) {
+                Account::whereKey($asset->account_id)->lockForUpdate()->increment('current_balance', $asset->purchase_price);
+                $debits->each->delete();
             }
 
-            $assetTransactions->each->delete();
             $asset->delete();
         });
 

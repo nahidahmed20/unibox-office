@@ -175,6 +175,13 @@ class ProjectExpenseController extends Controller
         $advances = $advances->filter(fn ($b) => $b['balance'] > 0)->values();
 
         $expense->paid_amount = $expense->payment_amount ?? $expense->paid_amount;
+        $expense->account_payments = Transaction::where('transactionable_type', $expense->getMorphClass())
+            ->where('transactionable_id', $expense->id)->where('type', 'debit')->orderBy('id')->get()
+            ->map(fn ($transaction) => [
+                'account_id' => $transaction->account_id,
+                'amount' => (float) $transaction->amount - (float) $transaction->bank_charge,
+                'bank_charge' => (float) $transaction->bank_charge,
+            ])->values();
 
         return Inertia::render('Admin/ProjectExpenses/Edit', compact('expense', 'projects', 'categories', 'accounts', 'vendors', 'advances'));
     }
@@ -262,7 +269,12 @@ class ProjectExpenseController extends Controller
         // Validate Cash Deduction
         if ($cashDeduction + $charge > 0) {
             $payType = $validated['pay_type'] ?? 'account';
-            if ($payType === 'account' && empty($validated['account_id'])) throw new \Exception('Please select a Bank/Cash Account.');
+            if ($payType === 'account') {
+                $allocations = app(\App\Services\AccountAllocationService::class)->fromRequest($validated, $cashDeduction, true);
+                $validated['account_payments'] = $allocations;
+                $validated['account_id'] = $allocations[0]['account_id'];
+                $charge = array_sum(array_column($allocations, 'bank_charge'));
+            }
             if ($payType === 'advance' && empty($validated['advance_user_id'])) throw new \Exception('Please select an Advance User.');
         } else {
             $validated['pay_type'] = null;
@@ -275,7 +287,7 @@ class ProjectExpenseController extends Controller
         if ($overpayment > 0 && !$vendor && empty($validated['return_account_id'])) throw new \Exception('Select a return account for the excess payment.');
         if (($validated['pay_type'] ?? null) === 'wallet' && $cashDeduction > 0) throw new \Exception('Vendor wallet cannot cover this payment.');
 
-        $insertData = collect($validated)->except(['pay_type', 'return_account_id'])->toArray();
+        $insertData = collect($validated)->except(['pay_type', 'return_account_id', 'account_payments'])->toArray();
         $dataToSave = [
             ...$insertData,
             'paid_amount'    => $actualExpensePaid,
@@ -311,20 +323,13 @@ class ProjectExpenseController extends Controller
         if ($cashDeduction > 0) {
             $payType = $validated['pay_type'];
             if ($payType === 'account') {
-                $account = Account::whereKey($validated['account_id'])->lockForUpdate()->firstOrFail();
-                if ($account->current_balance < $cashDeduction + $charge) throw new \Exception('Insufficient balance in selected account!');
-
-                $account->decrement('current_balance', $cashDeduction + $charge);
-                Transaction::create([
-                    'account_id'       => $account->id,
-                    'type'             => 'debit',
-                    'amount'           => $cashDeduction + $charge,
-                    'bank_charge' => $charge,
-                    'transaction_date' => $validated['date'],
-                    'description'      => "Project Expense: {$expense->title}",
-                    'transactionable_id' => $expense->id,
-                    'transactionable_type' => get_class($expense)
-                ]);
+                app(\App\Services\AccountAllocationService::class)->replace(
+                    $expense,
+                    $validated['account_payments'],
+                    'debit',
+                    $validated['date'],
+                    "Project Expense: {$expense->title}"
+                );
             } else {
                 app(\App\Services\AdvanceSettlementService::class)->consume($expense, $validated['advance_user_id'], $cashDeduction);
             }
@@ -362,20 +367,16 @@ class ProjectExpenseController extends Controller
         if (\App\Models\VendorPaymentDetail::where('project_expense_id', $expense->id)->whereHas('payment', fn ($q) => $q->where('status', 'completed'))->exists()) throw new \Exception('Void linked vendor payments before editing or deleting this expense.');
 
         // 1. Revert Bank Transactions
-        $bankTransaction = Transaction::where('transactionable_id', $expense->id)->where('transactionable_type', get_class($expense))->where('type', 'debit')->first();
-        $bankAmount = $bankTransaction ? (float) $bankTransaction->amount : 0;
-
-        if ($bankAmount > 0) {
-            Account::where('id', $bankTransaction->account_id)->increment('current_balance', $bankAmount);
-            $bankTransaction->delete();
+        $service = app(\App\Services\AccountAllocationService::class);
+        $debits = Transaction::where('transactionable_id', $expense->id)->where('transactionable_type', get_class($expense))->where('type', 'debit')->get();
+        $bankAmount = (float) $debits->sum('amount');
+        if ($service->reverse($expense, 'debit') === 0 && $expense->account_id && $bankAmount <= 0) {
+            Account::whereKey($expense->account_id)->increment('current_balance', (float) ($expense->payment_amount ?? $expense->paid_amount) + (float) $expense->bank_charge);
+            $bankAmount = (float) ($expense->payment_amount ?? $expense->paid_amount) + (float) $expense->bank_charge;
         }
 
         // 2. Revert Overpayment Returns
-        $overpaymentTransaction = Transaction::where('transactionable_id', $expense->id)->where('transactionable_type', get_class($expense))->where('type', 'credit')->first();
-        if ($overpaymentTransaction) {
-            Account::where('id', $overpaymentTransaction->account_id)->decrement('current_balance', $overpaymentTransaction->amount);
-            $overpaymentTransaction->delete();
-        }
+        $service->reverse($expense, 'credit');
 
         // 3. Revert Vendor Wallet
         $walletDeducted = 0;
@@ -422,6 +423,10 @@ class ProjectExpenseController extends Controller
             'description'         => 'nullable|string',
             'pay_type'            => 'nullable|in:account,advance,wallet',
             'return_account_id'   => 'nullable|exists:accounts,id',
+            'account_payments' => 'nullable|array|min:1',
+            'account_payments.*.account_id' => 'required|distinct|exists:accounts,id',
+            'account_payments.*.amount' => 'required|numeric|decimal:0,2|min:0.01',
+            'account_payments.*.bank_charge' => 'nullable|numeric|decimal:0,2|min:0',
         ]);
     }
 

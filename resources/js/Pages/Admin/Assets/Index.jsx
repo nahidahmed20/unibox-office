@@ -6,6 +6,7 @@ import Select from '@/Components/PortalSelect';
 import CustomSelect from '@/Components/CustomSelect';
 import SearchableSelect from '@/Components/SearchableSelect';
 import TableExportButtons from '@/Components/TableExportButtons';
+import AccountAllocationFields from '@/Components/AccountAllocationFields';
 
 // 🟢 Custom Taka Component
 const Taka = ({ className = "text-[16px]" }) => (
@@ -51,7 +52,7 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
 
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
         id: '', name: '', asset_code: '', serial_number: '', purchase_date: '', purchase_price: '',
-        account_id: '', assigned_to: '', assigned_date: '', condition: 'new'
+        account_id: '', account_payments: [{ account_id: '', amount: '' }], assigned_to: '', assigned_date: '', condition: 'new'
     });
 
     useEffect(() => {
@@ -82,14 +83,14 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
 
     const openCreateModal = () => {
         clearErrors();
-        setData({ id: '', account_id: '', name: '', asset_code: '', serial_number: '', purchase_date: '', purchase_price: '', assigned_to: '', assigned_date: '', condition: 'new' });
+        setData({ id: '', account_id: '', account_payments: [{ account_id: '', amount: '' }], name: '', asset_code: '', serial_number: '', purchase_date: '', purchase_price: '', assigned_to: '', assigned_date: '', condition: 'new' });
         setEditMode(false);
         setShowModal(true);
     };
 
     const openEditModal = (record) => {
         clearErrors();
-        setData({ id: record.id, name: record.name || '', asset_code: record.asset_code || '', serial_number: record.serial_number || '', purchase_date: record.purchase_date || '', purchase_price: record.purchase_price || '', account_id: record.account_id || '', assigned_to: record.assigned_to || '', assigned_date: record.assigned_date || '', condition: record.condition || 'new' });
+        setData({ id: record.id, name: record.name || '', asset_code: record.asset_code || '', serial_number: record.serial_number || '', purchase_date: record.purchase_date || '', purchase_price: record.purchase_price || '', account_id: record.account_id || '', account_payments: record.account_payments?.length ? record.account_payments : [{ account_id: record.account_id || '', amount: record.purchase_price || '' }], assigned_to: record.assigned_to || '', assigned_date: record.assigned_date || '', condition: record.condition || 'new' });
         setEditMode(true);
         setShowModal(true);
     };
@@ -594,7 +595,7 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
                                                 type="number"
                                                 step="0.01"
                                                 value={data.purchase_price}
-                                                onChange={e => setData('purchase_price', e.target.value)}
+                                                onChange={e => { const purchasePrice = e.target.value; setData(prev => ({ ...prev, purchase_price: purchasePrice, account_payments: prev.account_payments?.length === 1 ? [{ ...prev.account_payments[0], amount: purchasePrice }] : prev.account_payments })); }}
                                                 className="w-full rounded-xl border border-gray-300 bg-white pl-9 pr-4 py-3 text-[15px] font-black text-blue-700 outline-none transition-shadow focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 shadow-sm"
                                                 placeholder="0.00"
                                             />
@@ -603,16 +604,9 @@ export default function Index({ assets = { data: [], links: [] }, users = [], ac
                                     </div>
                                     <div className="md:col-span-2 relative z-[60]">
                                         <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-2">Paid From Account <span className="text-gray-400 font-medium normal-case tracking-normal">(Optional)</span></label>
-                                        <SearchableSelect
-                                            options={accounts.map(a => ({ value: a.id, label: `${a.name} (Bal: ${Number(a.current_balance).toLocaleString('en-IN')})` }))}
-                                            value={data.account_id}
-                                            onChange={(val) => setData("account_id", val)}
-                                            placeholder="-- Select Payment Source --"
-                                            error={errors.account_id}
-                                            getValue={(a) => a.value}
-                                            getLabel={(a) => a.label}
-                                        />
+                                        <AccountAllocationFields accounts={accounts} rows={data.account_payments || []} total={data.purchase_price} onChange={rows => setData(prev => ({ ...prev, account_payments: rows, account_id: rows[0]?.account_id || '' }))} />
                                         {errors.account_id && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.account_id}</p>}
+                                        {errors.account_payments && <p className="text-red-500 text-[11px] font-bold mt-1.5">{errors.account_payments}</p>}
                                         <p className="text-[11px] font-bold text-amber-600 mt-2 flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-lg w-fit">
                                             <i className="fa-solid fa-circle-info"></i> If selected, purchase price will be deducted from this account.
                                         </p>

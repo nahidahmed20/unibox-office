@@ -5,6 +5,7 @@ import Swal from "sweetalert2";
 import Select from '@/Components/PortalSelect';
 import CustomSelect from '@/Components/CustomSelect';
 import TableExportButtons from '@/Components/TableExportButtons';
+import AccountAllocationFields from '@/Components/AccountAllocationFields';
 
 const COMPANY = {
     name: 'UNIBOX',
@@ -384,7 +385,8 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
 
     const openEditModal = (payment) => {
         clearErrors(); setEditingPayment(payment);
-        setData({ id: payment.id, invoice_id: payment.invoice_id, account_id: payment.account_id || "", amount: payment.amount, payment_date: payment.payment_date, note: payment.note || "", _method: "put" });
+        const accountPayments = payment.account_payments?.length ? payment.account_payments : [{ account_id: payment.account_id || "", amount: payment.amount }];
+        setData({ id: payment.id, invoice_id: payment.invoice_id, account_id: payment.account_id || "", amount: payment.amount, account_payments: accountPayments, payment_date: payment.payment_date, note: payment.note || "", _method: "put" });
         setEditMode(true); setShowModal(true);
     };
 
@@ -1219,22 +1221,16 @@ export default function Index({ payments = {}, invoices = [], accounts = [], cli
                                         </div>
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm">
-                                            <div className="z-20">
-                                                <label className="block text-[12px] font-bold text-slate-700 mb-2">Deposit Account <span className="text-red-500">*</span></label>
-                                                <Select
-                                                    options={accountOptions}
-                                                    value={accountOptions.find(opt => String(opt.value) === String(data.account_id)) || null}
-                                                    onChange={selected => setData("account_id", selected ? selected.value : '')}
-                                                    placeholder="Select Bank/Cash"
-                                                    {...portal}
-                                                />
-                                                {errors.account_id && <span className="mt-1.5 block text-[11px] font-medium text-red-500">{errors.account_id}</span>}
+                                            <div className="sm:col-span-2">
+                                                <label className="block text-[12px] font-bold text-slate-700 mb-2">Deposit account allocations <span className="text-red-500">*</span></label>
+                                                <AccountAllocationFields accounts={accounts} rows={data.account_payments || []} total={data.amount} onChange={(rows) => setData(prev => ({ ...prev, account_payments: rows, account_id: rows[0]?.account_id || "" }))} />
+                                                {errors.account_payments && <span className="mt-1.5 block text-[11px] font-medium text-red-500">{errors.account_payments}</span>}
                                             </div>
                                             <div>
                                                 <label className="block text-[12px] font-bold text-slate-700 mb-2">Amount <span className="text-red-500">*</span></label>
                                                 <div className="relative">
                                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 font-bold">৳</span>
-                                                    <input type="number" step="0.01" value={data.amount} onChange={(e) => setData("amount", e.target.value)} required className="w-full rounded-xl border border-emerald-200 bg-emerald-50/30 pl-9 pr-4 py-2.5 text-[15px] font-bold text-emerald-700 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm transition-all" />
+                                                    <input type="number" step="0.01" value={data.amount} onChange={(e) => { const amount = e.target.value; setData(prev => ({ ...prev, amount, account_payments: prev.account_payments?.length === 1 ? [{ ...prev.account_payments[0], amount }] : prev.account_payments })); }} required className="w-full rounded-xl border border-emerald-200 bg-emerald-50/30 pl-9 pr-4 py-2.5 text-[15px] font-bold text-emerald-700 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm transition-all" />
                                                 </div>
                                                 {errors.amount && <span className="mt-1.5 block text-[11px] font-medium text-red-500">{errors.amount}</span>}
                                             </div>

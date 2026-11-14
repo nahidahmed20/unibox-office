@@ -135,6 +135,17 @@ class SampleExpenseController extends Controller
             : \App\Support\Pagination::perPage($request, $query);
 
         $samples = $query->reorder()->orderBy('date', 'desc')->orderBy('id', 'desc')->paginate($perPage)->withQueryString();
+        $sampleIds = $samples->pluck('id');
+        $transactions = \App\Models\Transaction::where('transactionable_type', Expense::class)
+            ->whereIn('transactionable_id', $sampleIds)->where('type', 'debit')->orderBy('id')->get()->groupBy('transactionable_id');
+        $samples->getCollection()->transform(function (Expense $expense) use ($transactions) {
+            $expense->account_payments = ($transactions[$expense->id] ?? collect())->map(fn ($transaction) => [
+                'account_id' => $transaction->account_id,
+                'amount' => (float) $transaction->amount - (float) $transaction->bank_charge,
+                'bank_charge' => (float) $transaction->bank_charge,
+            ])->values();
+            return $expense;
+        });
 
         $categories = ExpenseCategory::select('id', 'name')->orderBy('name')->get();
         $clients = Client::select('id', 'name', 'company_name')->orderBy('name')->get();
@@ -203,7 +214,7 @@ class SampleExpenseController extends Controller
 
         try {
             DB::transaction(function () use ($validated) {
-                $insertData = collect($validated)->except(['pay_type'])->toArray();
+                $insertData = collect($validated)->except(['pay_type', 'account_payments'])->toArray();
                 $insertData['type'] = 'sample';
                 $insertData['bank_charge'] = $validated['bank_charge'] ?? 0;
                 $insertData['logged_by'] = auth()->id() ?? 1;
@@ -255,7 +266,7 @@ class SampleExpenseController extends Controller
             DB::transaction(function () use ($validated, $expense) {
                 $this->refundToSource($expense, (float) $expense->amount);
 
-                $updateData = collect($validated)->except(['pay_type'])->toArray();
+                $updateData = collect($validated)->except(['pay_type', 'account_payments'])->toArray();
                 $updateData['type'] = 'sample';
                 $updateData['bank_charge'] = $validated['bank_charge'] ?? 0;
 
@@ -327,7 +338,7 @@ class SampleExpenseController extends Controller
 
     private function validateData(Request $request): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'title'               => 'required|string|max:255',
             'client_id'           => 'nullable|exists:clients,id',
             'expense_category_id' => 'nullable|exists:expense_categories,id',
@@ -342,7 +353,20 @@ class SampleExpenseController extends Controller
             'description'         => 'nullable|string',
             'attachment'          => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'pay_type'            => 'required|in:account,advance,vendor',
+            'account_payments' => 'nullable|array|min:1',
+            'account_payments.*.account_id' => 'required|distinct|exists:accounts,id',
+            'account_payments.*.amount' => 'required|numeric|decimal:0,2|min:0.01',
+            'account_payments.*.bank_charge' => 'nullable|numeric|decimal:0,2|min:0',
         ]);
+
+        if ($validated['pay_type'] === 'account') {
+            $validated['account_payments'] = app(\App\Services\AccountAllocationService::class)
+                ->fromRequest($validated, (float) $validated['amount'], true);
+            $validated['account_id'] = $validated['account_payments'][0]['account_id'];
+            $validated['bank_charge'] = array_sum(array_column($validated['account_payments'], 'bank_charge'));
+        }
+
+        return $validated;
     }
 
     private function validateSource(array $validated, ?Expense $existingExpense = null): ?string
@@ -394,22 +418,13 @@ class SampleExpenseController extends Controller
     private function deductFromSource(array $validated, float $amount, Expense $expense): void
     {
         if ($validated['pay_type'] === 'account') {
-            $charge = round((float) ($validated['bank_charge'] ?? 0), 2);
-            $totalDebit = round($amount + $charge, 2);
-            $account = Account::whereKey($validated['account_id'])->lockForUpdate()->firstOrFail();
-            if ($account->current_balance < $totalDebit) {
-                throw new \Exception('Insufficient Account Balance');
-            }
-            $account->decrement('current_balance', $totalDebit);
-
-            $expense->transaction()->create([
-                'account_id'       => $account->id,
-                'type'             => 'debit',
-                'amount'           => $totalDebit,
-                'bank_charge'      => $charge,
-                'transaction_date' => $validated['date'],
-                'description'      => 'Sample Expense: ' . $validated['title'],
-            ]);
+            app(\App\Services\AccountAllocationService::class)->replace(
+                $expense,
+                $validated['account_payments'],
+                'debit',
+                $validated['date'],
+                'Sample Expense: ' . $validated['title']
+            );
         } elseif ($validated['pay_type'] === 'advance') {
             app(AdvanceSettlementService::class)->consume($expense, (int) $validated['advance_user_id'], $amount);
         } elseif ($validated['pay_type'] === 'vendor') {
@@ -433,9 +448,9 @@ class SampleExpenseController extends Controller
         if ($amount <= 0) return;
 
         if ($expense->account_id) {
-            Account::where('id', $expense->account_id)->increment('current_balance', $amount + (float) ($expense->bank_charge ?? 0));
-            if ($expense->transaction) {
-                $expense->transaction()->delete();
+            $service = app(\App\Services\AccountAllocationService::class);
+            if ($service->reverse($expense, 'debit') === 0) {
+                Account::where('id', $expense->account_id)->increment('current_balance', $amount + (float) ($expense->bank_charge ?? 0));
             }
         } elseif ($expense->advance_user_id) {
             if (!app(AdvanceSettlementService::class)->refund($expense)) {

@@ -6,6 +6,7 @@ import axios from 'axios';
 import TableExportButtons from '@/Components/TableExportButtons';
 import CustomSelect from '@/Components/CustomSelect';
 import SearchableSelect from '@/Components/SearchableSelect';
+import AccountAllocationFields from '@/Components/AccountAllocationFields';
 
 const Taka = ({ className = "text-[14px]" }) => (
     <span style={{ fontFamily: 'Arial, sans-serif', fontStyle: 'normal', fontWeight: 'bold' }} className={`mr-0.5 opacity-80 ${className}`}>৳</span>
@@ -54,7 +55,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
     });
 
     const payForm = useForm({
-        project_expense_ids: [], payment_source: 'account', account_id: '', advance_user_id: '', adjustment_amount: '', pay_amount: '', bank_charge: '', date: new Date().toISOString().split('T')[0]
+        project_expense_ids: [], payment_source: 'account', account_id: '', account_payments: [{ account_id: '', amount: '', bank_charge: '' }], advance_user_id: '', adjustment_amount: '', pay_amount: '', bank_charge: '', date: new Date().toISOString().split('T')[0]
     });
 
     const walletForm = useForm({
@@ -98,7 +99,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
     const openPayModal = (vendor) => {
         const dueBills = vendor.project_expenses || vendor.projectExpenses || [];
         if (dueBills.length === 0) return Swal.fire("No Dues", "This vendor has no pending bills.", "info");
-        setSelectedVendor(vendor); setSelectedBillIds([]); payForm.reset(); payForm.clearErrors(); setShowPayModal(true);
+        setSelectedVendor(vendor); setSelectedBillIds([]); payForm.setData({ project_expense_ids: [], payment_source: 'account', account_id: '', account_payments: [{ account_id: accounts[0]?.id || '', amount: '', bank_charge: '' }], advance_user_id: '', adjustment_amount: '', pay_amount: '', bank_charge: '', date: new Date().toISOString().split('T')[0] }); payForm.clearErrors(); setShowPayModal(true);
     };
 
     const openWalletModal = (vendor, action) => {
@@ -140,7 +141,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         setSelectedBillIds(prev => {
             const nextIds = prev.includes(billId) ? prev.filter(id => id !== billId) : [...prev, billId];
             const newTotalDue = dueBillsList.filter(bill => nextIds.includes(bill.id)).reduce((sum, bill) => sum + Number(bill.due_amount || 0), 0);
-            payForm.setData("pay_amount", newTotalDue > 0 ? newTotalDue : '');
+            payForm.setData(prev => ({ ...prev, pay_amount: newTotalDue > 0 ? newTotalDue : '', account_payments: prev.payment_source === 'account' && prev.account_payments?.length === 1 ? [{ ...prev.account_payments[0], amount: newTotalDue > 0 ? newTotalDue : '' }] : prev.account_payments }));
             return nextIds;
         });
     };
@@ -149,7 +150,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
         const nextIds = selectedBillIds.length === dueBillsList.length ? [] : dueBillsList.map(b => b.id);
         setSelectedBillIds(nextIds);
         const newTotalDue = dueBillsList.filter(bill => nextIds.includes(bill.id)).reduce((sum, bill) => sum + Number(bill.due_amount || 0), 0);
-        payForm.setData("pay_amount", newTotalDue > 0 ? newTotalDue : '');
+        payForm.setData(prev => ({ ...prev, pay_amount: newTotalDue > 0 ? newTotalDue : '', account_payments: prev.payment_source === 'account' && prev.account_payments?.length === 1 ? [{ ...prev.account_payments[0], amount: newTotalDue > 0 ? newTotalDue : '' }] : prev.account_payments }));
     };
 
     const handleSubmit = (e) => {
@@ -720,16 +721,21 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                                 <label className="block text-[11.5px] sm:text-[12px] font-black text-slate-700 uppercase tracking-widest mb-2">
                                                     Select Payment Account <span className="text-red-600">*</span>
                                                 </label>
-                                                <SearchableSelect
-                                                    options={accounts}
-                                                    value={payForm.data.account_id}
-                                                    onChange={(val) => payForm.setData("account_id", val)}
-                                                    placeholder="-- Click to search & select bank/cash account --"
-                                                    getValue={(acc) => acc.id}
-                                                    getLabel={(acc) => `${acc.name} (Current Bal: ৳ ${Number(acc.current_balance).toLocaleString('en-IN')})`}
-                                                    error={payForm.errors.account_id}
+                                                <AccountAllocationFields
+                                                    accounts={accounts}
+                                                    rows={payForm.data.account_payments || []}
+                                                    total={payForm.data.pay_amount}
+                                                    allowCharges
+                                                    onChange={(rows) => payForm.setData(prev => ({
+                                                        ...prev,
+                                                        account_payments: rows,
+                                                        account_id: rows[0]?.account_id || '',
+                                                        pay_amount: rows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0),
+                                                        bank_charge: rows.reduce((sum, row) => sum + (Number(row.bank_charge) || 0), 0),
+                                                    }))}
                                                 />
                                                 {payForm.errors.account_id && <span className="mt-1.5 block text-[12px] font-bold text-red-600">{payForm.errors.account_id}</span>}
+                                                {payForm.errors.account_payments && <span className="mt-1.5 block text-[12px] font-bold text-red-600">{payForm.errors.account_payments}</span>}
                                             </div>
                                         ) : (
                                             <div>
@@ -756,7 +762,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                             <label className="block text-[11.5px] font-black text-emerald-700 uppercase tracking-widest mb-2">Pay Amount <span className="text-red-600">*</span></label>
                                             <div className="relative">
                                                 <Taka className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 font-bold text-[15px]" />
-                                                <input type="number" step="0.01" min="0" value={payForm.data.pay_amount} onChange={e => payForm.setData("pay_amount", e.target.value)} placeholder="0.00" className="w-full rounded-xl border border-emerald-400 bg-emerald-50/40 pl-9 pr-3 py-3 text-[16px] font-black text-emerald-950 outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10 shadow-xs transition-all" required={!payForm.data.adjustment_amount} />
+                                                <input type="number" step="0.01" min="0" value={payForm.data.pay_amount} onChange={e => { const payAmount = e.target.value; payForm.setData(prev => ({ ...prev, pay_amount: payAmount, account_payments: prev.payment_source === 'account' && prev.account_payments?.length === 1 ? [{ ...prev.account_payments[0], amount: payAmount }] : prev.account_payments })); }} placeholder="0.00" className="w-full rounded-xl border border-emerald-400 bg-emerald-50/40 pl-9 pr-3 py-3 text-[16px] font-black text-emerald-950 outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10 shadow-xs transition-all" required={!payForm.data.adjustment_amount} />
                                             </div>
                                             {payForm.errors.pay_amount && <span className="mt-1 block text-[11px] font-bold text-red-600">{payForm.errors.pay_amount}</span>}
                                         </div>
@@ -771,14 +777,7 @@ export default function Index({ vendors = { data: [], links: [] }, accounts = []
                                         </div>
 
                                         {payForm.data.payment_source === 'account' ? (
-                                            <div>
-                                                <label className="block text-[11.5px] font-black text-rose-600 uppercase tracking-widest mb-2">Bank Charge</label>
-                                                <div className="relative">
-                                                    <Taka className="absolute left-3.5 top-1/2 -translate-y-1/2 text-rose-400 font-bold text-[15px]" />
-                                                    <input type="number" step="0.01" min="0" value={payForm.data.bank_charge || ''} onChange={e => payForm.setData("bank_charge", e.target.value)} placeholder="0.00" className="w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 py-3 text-[16px] font-black text-slate-800 outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 shadow-xs transition-all" />
-                                                </div>
-                                                {payForm.errors.bank_charge && <span className="mt-1 block text-[11px] font-bold text-red-600">{payForm.errors.bank_charge}</span>}
-                                            </div>
+                                            <div className="flex items-center text-[11px] font-bold text-slate-500">Bank charges are entered per account above.</div>
                                         ) : (
                                             <div className="opacity-50 pointer-events-none">
                                                 <label className="block text-[11.5px] font-black text-slate-400 uppercase tracking-widest mb-2">Bank Charge</label>

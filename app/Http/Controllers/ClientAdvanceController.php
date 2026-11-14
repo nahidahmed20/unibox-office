@@ -50,6 +50,17 @@ class ClientAdvanceController extends Controller
                 );
                 return $client;
             });
+        $advanceIds = $clientWithAdvances->getCollection()->flatMap(fn ($client) => $client->clientAdvances->pluck('id'))->all();
+        $depositTransactions = Transaction::where('transactionable_type', ClientAdvance::class)
+            ->whereIn('transactionable_id', $advanceIds)->where('type', 'credit')->orderBy('id')->get()->groupBy('transactionable_id');
+        $clientWithAdvances->getCollection()->each(function ($client) use ($depositTransactions) {
+            $client->clientAdvances->each(function ($advance) use ($depositTransactions) {
+                $advance->account_payments = ($depositTransactions[$advance->id] ?? collect())->map(fn ($transaction) => [
+                    'account_id' => $transaction->account_id,
+                    'amount' => (float) $transaction->amount,
+                ])->values();
+            });
+        });
 
         $advanceTotalsQuery = ClientAdvance::whereHas('client', function ($q) use ($search) {
             if ($search) {
@@ -80,34 +91,32 @@ class ClientAdvanceController extends Controller
     {
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
-            'account_id' => 'required|exists:accounts,id',
+            'account_id' => 'nullable|exists:accounts,id',
+            'account_payments' => 'nullable|array|min:1',
+            'account_payments.*.account_id' => 'required|distinct|exists:accounts,id',
+            'account_payments.*.amount' => 'required|numeric|decimal:0,2|min:0.01',
             'amount' => 'required|numeric|min:0.01',
             'date' => 'required|date',
             'note' => 'nullable|string',
         ]);
+        $allocations = app(\App\Services\AccountAllocationService::class)->fromRequest($validated, (float) $validated['amount']);
+        $validated['account_id'] = $allocations[0]['account_id'];
+        unset($validated['account_payments']);
 
-        DB::transaction(function () use ($validated) {
+        DB::transaction(function () use ($validated, $allocations) {
             $advance = ClientAdvance::create([
                 'client_id' => $validated['client_id'],
                 'account_id' => $validated['account_id'],
                 'amount' => $validated['amount'],
                 'used_amount' => 0,
                 'date' => $validated['date'],
-                'note' => $validated['note'],
+                'note' => $validated['note'] ?? null,
             ]);
 
-            $account = Account::findOrFail($validated['account_id']);
-            $account->increment('current_balance', $validated['amount']);
-
-            Transaction::create([
-                'account_id'           => $account->id,
-                'type'                 => 'credit',
-                'amount'               => $validated['amount'],
-                'transaction_date'     => $validated['date'],
-                'description'          => 'Client Advance Received. ' . ($validated['note'] ? ' Note: ' . $validated['note'] : ''),
-                'transactionable_id'   => $advance->id,
-                'transactionable_type' => ClientAdvance::class,
-            ]);
+            app(\App\Services\AccountAllocationService::class)->replace(
+                $advance, $allocations, 'credit', $validated['date'],
+                'Client Advance Received. ' . (!empty($validated['note']) ? ' Note: ' . $validated['note'] : '')
+            );
         });
 
         return redirect()->back()->with('success', 'Advance logged successfully.');
@@ -117,63 +126,41 @@ class ClientAdvanceController extends Controller
     {
         $request->validate([
             'client_id' => 'required|exists:clients,id',
-            'account_id' => 'required|exists:accounts,id',
+            'account_id' => 'nullable|exists:accounts,id',
+            'account_payments' => 'nullable|array|min:1',
+            'account_payments.*.account_id' => 'required|distinct|exists:accounts,id',
+            'account_payments.*.amount' => 'required|numeric|decimal:0,2|min:0.01',
             'amount' => 'required|numeric|min:0.01',
             'date' => 'required|date',
             'note' => 'nullable|string'
         ]);
+        $allocations = app(\App\Services\AccountAllocationService::class)->fromRequest($request->all(), (float) $request->amount);
+        $request->merge(['account_id' => $allocations[0]['account_id']]);
 
         try {
-            DB::transaction(function () use ($request, $id) {
+            DB::transaction(function () use ($request, $id, $allocations) {
                 $advance = ClientAdvance::findOrFail($id);
 
                 if ($advance->used_amount > 0) {
                     throw ValidationException::withMessages(['amount' => 'Cannot edit! This amount is already used in billing.']);
                 }
 
-                $oldAmount = $advance->amount;
-                $oldAccountId = $advance->account_id;
                 $newAmount = $request->amount;
-                $newAccountId = $request->account_id;
-
-                if ($oldAccountId == $newAccountId) {
-                    $difference = $newAmount - $oldAmount;
-                    if ($difference != 0) {
-                        $account = Account::findOrFail($newAccountId);
-                        $account->current_balance += $difference;
-                        $account->save();
-                    }
-                } else {
-                    $oldAccount = Account::findOrFail($oldAccountId);
-                    $oldAccount->current_balance -= $oldAmount;
-                    $oldAccount->save();
-
-                    $newAccount = Account::findOrFail($newAccountId);
-                    $newAccount->current_balance += $newAmount;
-                    $newAccount->save();
+                $service = app(\App\Services\AccountAllocationService::class);
+                if ($service->reverse($advance, 'credit') === 0 && $advance->account_id) {
+                    Account::whereKey($advance->account_id)->decrement('current_balance', (float) $advance->amount);
                 }
 
                 $advance->update([
                     'client_id' => $request->client_id,
-                    'account_id' => $newAccountId,
+                    'account_id' => $request->account_id,
                     'amount' => $newAmount,
                     'date' => $request->date,
                     'note' => $request->note,
                 ]);
 
-                // 🟢 Update Transaction Table
-                $transaction = Transaction::where('transactionable_id', $advance->id)
-                    ->where('transactionable_type', ClientAdvance::class)
-                    ->first();
-
-                if ($transaction) {
-                    $transaction->update([
-                        'account_id'       => $newAccountId,
-                        'amount'           => $newAmount,
-                        'transaction_date' => $request->date,
-                        'description'      => 'Client Advance Received. ' . ($request->note ? ' Note: ' . $request->note : ''),
-                    ]);
-                }
+                $service->replace($advance, $allocations, 'credit', $request->date,
+                    'Client Advance Received. ' . ($request->note ? ' Note: ' . $request->note : ''));
             });
 
             return redirect()->back()->with('success', 'Advance updated successfully.');
@@ -193,14 +180,10 @@ class ClientAdvanceController extends Controller
                     throw ValidationException::withMessages(['error' => 'Cannot delete! Already used in an invoice.']);
                 }
 
-                $account = Account::findOrFail($advance->account_id);
-                $account->current_balance -= $advance->amount;
-                $account->save();
-
-                // 🟢 Delete Transaction Record
-                Transaction::where('transactionable_id', $advance->id)
-                    ->where('transactionable_type', ClientAdvance::class)
-                    ->delete();
+                $service = app(\App\Services\AccountAllocationService::class);
+                if ($service->reverse($advance, 'credit') === 0 && $advance->account_id) {
+                    Account::whereKey($advance->account_id)->decrement('current_balance', (float) $advance->amount);
+                }
 
                 $advance->delete();
             });

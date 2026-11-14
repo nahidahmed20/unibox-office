@@ -8,8 +8,21 @@ use Illuminate\Database\Eloquent\Model;
 /** Keeps the transaction list in sync; account balances are handled by the source controllers. */
 class AccountMovementObserver
 {
+    private static ?\WeakMap $suppressed = null;
+
+    public static function suppress(Model $source): void
+    {
+        self::$suppressed ??= new \WeakMap();
+        self::$suppressed[$source] = true;
+    }
+
     public function saved(Model $source): void
     {
+        if (self::$suppressed && isset(self::$suppressed[$source])) {
+            unset(self::$suppressed[$source]);
+            return;
+        }
+
         $amount = match (true) {
             $source instanceof Asset => $source->purchase_price,
             $source instanceof Investment => $source->amount,

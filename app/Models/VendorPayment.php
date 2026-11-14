@@ -10,4 +10,5 @@ class VendorPayment extends Model
     public function details() { return $this->hasMany(VendorPaymentDetail::class); }
     public function vendor()  { return $this->belongsTo(Vendor::class); }
     public function account() { return $this->belongsTo(Account::class); }
+    public function transactions() { return $this->morphMany(Transaction::class, 'transactionable'); }
 }

@@ -5,6 +5,7 @@ import Swal from "sweetalert2";
 import Select from "@/Components/PortalSelect";
 import CustomSelect from '@/Components/CustomSelect';
 import TableExportButtons from '@/Components/TableExportButtons';
+import AccountAllocationFields from '@/Components/AccountAllocationFields';
 
 // 🟢 Custom Straight Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
@@ -60,7 +61,7 @@ export default function Index({
 
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
         id: "", title: "", expense_category_id: "", account_id: "", advance_user_id: "", vendor_id: "",
-        amount: "", bank_charge: "", date: new Date().toISOString().slice(0, 10),
+        amount: "", bank_charge: "", account_payments: [{ account_id: "", amount: "", bank_charge: "" }], date: new Date().toISOString().slice(0, 10),
         description: "", pay_type: "account", attachment: null, _method: "post",
     });
 
@@ -163,7 +164,7 @@ export default function Index({
         clearErrors();
         setData({
             id: '', title: '', description: '', expense_category_id: '', advance_user_id: '', account_id: '', vendor_id: '',
-            amount: '', bank_charge: '', date: new Date().toISOString().slice(0, 10), pay_type: 'account', attachment: null, _method: "post"
+            amount: '', bank_charge: '', account_payments: [{ account_id: '', amount: '', bank_charge: '' }], date: new Date().toISOString().slice(0, 10), pay_type: 'account', attachment: null, _method: "post"
         });
         setEditMode(false);
         setShowModal(true);
@@ -175,7 +176,7 @@ export default function Index({
         setData({
             id: expense.id, title: expense.title || "", expense_category_id: expense.expense_category_id || "",
             account_id: expense.account_id || "", advance_user_id: expense.advance_user_id || "", vendor_id: expense.vendor_id || "",
-            amount: expense.amount || "", bank_charge: expense.bank_charge || "", date: expense.date || "",
+            amount: expense.amount || "", bank_charge: expense.bank_charge || "", account_payments: expense.account_payments?.length ? expense.account_payments : [{ account_id: expense.account_id || "", amount: expense.amount || "", bank_charge: expense.bank_charge || "" }], date: expense.date || "",
             description: expense.description || "", pay_type: pType,
             attachment: null, _method: "put",
         });
@@ -188,7 +189,7 @@ export default function Index({
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        if (data.pay_type === 'account' && !data.account_id) return Swal.fire("Required", "Please select a Bank/Cash Account.", "warning");
+        if (data.pay_type === 'account' && !data.account_payments?.length) return Swal.fire("Required", "Please add an account allocation.", "warning");
         if (data.pay_type === 'advance' && !data.advance_user_id) return Swal.fire("Required", "Please select an Advance User.", "warning");
         if (data.pay_type === 'vendor' && !data.vendor_id) return Swal.fire("Required", "Please select a Vendor.", "warning");
 
@@ -790,16 +791,7 @@ export default function Index({
                                             <label className="block text-[11.5px] sm:text-[12.5px] font-black text-slate-800 uppercase tracking-widest mb-2 sm:mb-2.5">
                                                 {data.pay_type === 'account' ? 'Select Bank/Cash Account' : data.pay_type === 'advance' ? 'Select Employee' : 'Select Vendor'} <span className="text-red-600">*</span>
                                             </label>
-                                            {data.pay_type === 'account' && (
-                                                <Select
-                                                    menuPortalTarget={document.body}
-                                                    menuPosition="fixed"
-                                                    options={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` }))}
-                                                    value={accounts.map((a) => ({ value: a.id, label: `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})` })).find((opt) => Number(opt.value) === Number(data.account_id)) || null}
-                                                    onChange={(selected) => setData("account_id", selected ? selected.value : "")}
-                                                    placeholder="Type to search account..." isSearchable isClearable styles={selectStyles}
-                                                />
-                                            )}
+                                            {data.pay_type === 'account' && <AccountAllocationFields accounts={accounts} rows={data.account_payments || []} total={data.amount} allowCharges onChange={(rows) => setData(prev => ({ ...prev, account_payments: rows, account_id: rows[0]?.account_id || "", bank_charge: rows.reduce((sum, row) => sum + (Number(row.bank_charge) || 0), 0) }))} />}
                                             {data.pay_type === 'advance' && (
                                                 <Select
                                                     menuPortalTarget={document.body}
@@ -861,20 +853,10 @@ export default function Index({
                                                     <label className="block text-[12px] sm:text-[13px] font-bold text-slate-300 mb-2 sm:mb-2.5">Expense Amount <span className="text-rose-500">*</span></label>
                                                     <div className="relative">
                                                         <Taka className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-rose-500 text-[16px] sm:text-[18px]" />
-                                                        <input type="number" step="0.01" min="1" value={data.amount} onChange={e => setData('amount', e.target.value)} className="w-full rounded-xl border border-rose-400/50 bg-rose-950/30 pl-9 sm:pl-10 pr-4 py-3 sm:py-3.5 text-[16px] sm:text-[18px] font-black tabular-nums text-rose-400 outline-none focus:border-rose-500 focus:ring-[3px] focus:ring-rose-500/50 transition-all shadow-inner" placeholder="0.00" required />
+                                                        <input type="number" step="0.01" min="1" value={data.amount} onChange={e => { const amount = e.target.value; setData(prev => ({ ...prev, amount, account_payments: prev.account_payments?.length === 1 ? [{ ...prev.account_payments[0], amount }] : prev.account_payments })); }} className="w-full rounded-xl border border-rose-400/50 bg-rose-950/30 pl-9 sm:pl-10 pr-4 py-3 sm:py-3.5 text-[16px] sm:text-[18px] font-black tabular-nums text-rose-400 outline-none focus:border-rose-500 focus:ring-[3px] focus:ring-rose-500/50 transition-all shadow-inner" placeholder="0.00" required />
                                                     </div>
                                                     {errors.amount && <p className="text-rose-400 text-xs mt-1.5 font-bold">{errors.amount}</p>}
                                                 </div>
-
-                                                {data.pay_type === 'account' && (
-                                                    <div>
-                                                        <label className="block text-[12px] sm:text-[13px] font-bold text-slate-300 mb-2 sm:mb-2.5">Bank charge <span className="text-slate-500 font-medium">(extra)</span></label>
-                                                        <div className="relative">
-                                                            <Taka className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-slate-500 text-[13px] sm:text-[15px]" />
-                                                            <input type="number" step="0.01" min="0" value={data.bank_charge} onChange={e => setData('bank_charge', e.target.value)} className="w-full rounded-xl border border-slate-600 bg-slate-800 pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 text-[14px] sm:text-[15px] font-black tabular-nums text-white outline-none focus:border-indigo-500 focus:ring-[3px] focus:ring-indigo-500/50 transition-all shadow-inner" placeholder="0.00" />
-                                                        </div>
-                                                    </div>
-                                                )}
 
                                                 <div className="pt-4 sm:pt-6 border-t border-slate-700 mt-2">
                                                     <div className="flex justify-between items-center mb-1">

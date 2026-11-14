@@ -4,6 +4,7 @@ import { Head, useForm, Link } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import Select from '@/Components/PortalSelect';
 import axios from 'axios';
+import AccountAllocationFields from '@/Components/AccountAllocationFields';
 
 // 🟢 Custom Straight Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
@@ -22,6 +23,7 @@ export default function Edit({ expense, projects = [], categories = [], accounts
         project_id: expense.project_id || '',
         expense_category_id: expense.expense_category_id || '',
         account_id: expense.account_id || '',
+        account_payments: expense.account_payments?.length ? expense.account_payments : [{ account_id: expense.account_id || '', amount: expense.payment_amount || expense.paid_amount || '', bank_charge: expense.bank_charge || 0 }],
         return_account_id: '',
         advance_user_id: expense.advance_user_id || '',
         title: expense.title || '',
@@ -188,7 +190,7 @@ export default function Edit({ expense, projects = [], categories = [], accounts
 
         if (bill <= 0) return Swal.fire("Required", "Enter a valid total bill amount.", "warning");
         if (cashDeduction > 0) {
-            if (data.pay_type === 'account' && !data.account_id) return Swal.fire("Account Required", "Select an account to pay from.", "warning");
+            if (data.pay_type === 'account' && cashDeduction > 0 && !data.account_payments?.length) return Swal.fire("Account Required", "Add account allocations for the cash payment.", "warning");
             if (data.pay_type === 'advance' && !data.advance_user_id) return Swal.fire("User Required", "Select whose advance balance this should be paid from.", "warning");
         }
         if (isOverpaid && !data.return_account_id && !data.vendor_id) {
@@ -576,17 +578,9 @@ export default function Edit({ expense, projects = [], categories = [], accounts
                                             <label className="block text-[11.5px] font-black text-slate-700 uppercase tracking-wider mb-2">
                                                 Select Bank or Cash Box <span className="text-rose-600">*</span>
                                             </label>
-                                            <Select
-                                                options={accountOptions}
-                                                value={accountOptions.find(o => o.value === data.account_id) || null}
-                                                onChange={opt => setData('account_id', opt ? opt.value : '')}
-                                                placeholder="Choose company account..."
-                                                isClearable
-                                                styles={selectStyles}
-                                                menuPortalTarget={selectMenuPortalTarget}
-                                                menuPosition="fixed"
-                                            />
+                                            <AccountAllocationFields accounts={accounts} rows={data.account_payments || []} total={cashDeduction} allowCharges onChange={rows => setData(prev => ({ ...prev, account_payments: rows, account_id: rows[0]?.account_id || '', bank_charge: rows.reduce((sum, row) => sum + (Number(row.bank_charge) || 0), 0) }))} />
                                             {errors.account_id && <p className="text-rose-600 text-xs mt-1.5 font-bold">{errors.account_id}</p>}
+                                            {errors.account_payments && <p className="text-rose-600 text-xs mt-1.5 font-bold">{errors.account_payments}</p>}
                                         </div>
                                     )}
 
@@ -691,7 +685,7 @@ export default function Edit({ expense, projects = [], categories = [], accounts
                                                     step="0.01"
                                                     min="0"
                                                     value={data.paid_amount}
-                                                    onChange={e => setData('paid_amount', e.target.value)}
+                                                    onChange={e => { const paidAmount = e.target.value; const nextPaid = Number(paidAmount) || 0; const nextCash = data.pay_type === 'wallet' ? 0 : Math.max(nextPaid - Math.min(Math.min(nextPaid, bill), vendorWallet), 0); setData(prev => ({ ...prev, paid_amount: paidAmount, account_payments: prev.account_payments?.length === 1 ? [{ ...prev.account_payments[0], amount: nextCash }] : prev.account_payments })); }}
                                                     className="w-full rounded-2xl border border-emerald-500/40 bg-emerald-950/20 pl-10 pr-4 py-3 text-[17px] font-black tabular-nums text-emerald-300 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/20 shadow-inner transition-all"
                                                     placeholder="0.00"
                                                 />
@@ -700,25 +694,6 @@ export default function Edit({ expense, projects = [], categories = [], accounts
                                         </div>
 
                                         {/* Bank Charge Input */}
-                                        {data.pay_type === 'account' && (
-                                            <div>
-                                                <label className="block text-[11.5px] font-bold text-slate-300 mb-1.5 flex items-center justify-between">
-                                                    <span>Bank Charge <span className="text-slate-500 font-normal">(extra debit)</span></span>
-                                                </label>
-                                                <div className="relative">
-                                                    <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm" />
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        step="0.01"
-                                                        value={data.bank_charge}
-                                                        onChange={e => setData('bank_charge', e.target.value)}
-                                                        className="w-full rounded-xl border border-slate-700 bg-slate-800/80 pl-9 pr-3 py-2 text-[13.5px] font-bold tabular-nums text-white outline-none focus:border-indigo-500 transition-all shadow-inner"
-                                                        placeholder="0.00"
-                                                    />
-                                                </div>
-                                            </div>
-                                        )}
 
                                         {/* Auto Deduction Pill Blocks */}
                                         {walletDeduction > 0 && (

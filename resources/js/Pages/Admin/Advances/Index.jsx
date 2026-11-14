@@ -5,6 +5,7 @@ import Swal from 'sweetalert2';
 import TableExportButtons from '@/Components/TableExportButtons';
 import CustomSelect from '@/Components/CustomSelect';
 import SearchableSelect from '@/Components/SearchableSelect';
+import AccountAllocationFields from '@/Components/AccountAllocationFields';
 
 // Custom Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
@@ -37,7 +38,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
     const isFirstRender = useRef(true);
 
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
-        id: '', account_id: '', user_id: '', amount: '', bank_charge: '', date: new Date().toISOString().slice(0, 10), purpose: 'Office Purpose', status: 'unsettled', notes: ''
+        id: '', account_id: '', account_payments: [{ account_id: '', amount: '', bank_charge: '' }], user_id: '', amount: '', bank_charge: '', date: new Date().toISOString().slice(0, 10), purpose: 'Office Purpose', status: 'unsettled', notes: ''
     });
 
     const { data: returnData, setData: setReturnData, post: postReturn, processing: returnProcessing, reset: returnReset, errors: returnErrors, clearErrors: clearReturnErrors } = useForm({
@@ -101,13 +102,13 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
 
     const openCreateModal = () => {
         clearErrors();
-        setData({ id: '', account_id: '', user_id: '', amount: '', bank_charge: '', settled_amount: 0, returned_amount: 0, date: new Date().toISOString().slice(0, 10), purpose: 'Office Work', status: 'unsettled', notes: '' });
+        setData({ id: '', account_id: '', account_payments: [{ account_id: '', amount: '', bank_charge: '' }], user_id: '', amount: '', bank_charge: '', settled_amount: 0, returned_amount: 0, date: new Date().toISOString().slice(0, 10), purpose: 'Office Work', status: 'unsettled', notes: '' });
         setEditMode(false); setShowModal(true);
     };
 
     const openEditModal = (adv) => {
         clearErrors();
-        setData({ id: adv.id, account_id: adv.account_id || '', user_id: adv.user_id || '', amount: adv.amount, bank_charge: adv.bank_charge || '', date: adv.date, purpose: adv.purpose || 'Office Work', status: adv.status || 'unsettled', notes: adv.notes || '' });
+        setData({ id: adv.id, account_id: adv.account_id || '', account_payments: adv.account_payments?.length ? adv.account_payments : [{ account_id: adv.account_id || '', amount: adv.amount, bank_charge: adv.bank_charge || '' }], user_id: adv.user_id || '', amount: adv.amount, bank_charge: adv.bank_charge || '', date: adv.date, purpose: adv.purpose || 'Office Work', status: adv.status || 'unsettled', notes: adv.notes || '' });
         setEditMode(true); setShowModal(true);
     };
 
@@ -123,7 +124,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!data.user_id) return Swal.fire("Required", "Please select an employee.", "warning");
-        if (!data.account_id) return Swal.fire("Required", "Please select an account.", "warning");
+        if (!data.account_payments?.length) return Swal.fire("Required", "Please add an account allocation.", "warning");
 
         const action = editMode ? put : post;
         const routeName = editMode ? route('admin.advances.update', data.id) : route('admin.advances.store');
@@ -535,19 +536,11 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                             />
                                             {errors.user_id && <p className="text-red-500 text-[12px] mt-1.5 font-bold">{errors.user_id}</p>}
                                         </div>
-                                        <div className="relative z-[50]">
+                                        <div className="relative z-[50] md:col-span-2">
                                             <label className="block text-[11.5px] font-black text-slate-600 uppercase tracking-widest mb-2.5"><i className="fa-solid fa-building-columns text-emerald-500 mr-1.5"></i> Pay From Account <span className="text-red-500">*</span></label>
-                                            <SearchableSelect
-                                                options={accounts}
-                                                value={data.account_id}
-                                                onChange={(val) => setData("account_id", val)}
-                                                placeholder="-- Click to search account --"
-                                                getLabel={(a) => `${a.name} (Bal: ৳${Number(a.current_balance).toLocaleString('en-IN')})`}
-                                                getValue={(a) => a.id}
-                                                error={errors.account_id}
-                                                isClearable
-                                            />
+                                            <AccountAllocationFields accounts={accounts} rows={data.account_payments || []} total={data.amount} allowCharges onChange={(rows) => setData(prev => ({ ...prev, account_payments: rows, account_id: rows[0]?.account_id || "", bank_charge: rows.reduce((sum, row) => sum + (Number(row.bank_charge) || 0), 0) }))} />
                                             {errors.account_id && <p className="text-red-500 text-[12px] mt-1.5 font-bold">{errors.account_id}</p>}
+                                            {errors.account_payments && <p className="text-red-500 text-[12px] mt-1.5 font-bold">{errors.account_payments}</p>}
                                         </div>
                                     </div>
 
@@ -589,7 +582,7 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                         type="number" 
                                                         step="any" 
                                                         value={data.amount} 
-                                                        onChange={e => setData('amount', e.target.value)} 
+                                                        onChange={e => { const amount = e.target.value; setData(prev => ({ ...prev, amount, account_payments: prev.account_payments?.length === 1 ? [{ ...prev.account_payments[0], amount }] : prev.account_payments })); }}
                                                         className="w-full rounded-xl sm:rounded-2xl border border-emerald-500/30 bg-emerald-950/20 pl-10 sm:pl-11 pr-4 py-3 sm:py-3.5 text-[16px] sm:text-[18px] font-black tabular-nums text-emerald-400 outline-none focus:bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/20 transition-all shadow-inner" 
                                                         placeholder="0.00" 
                                                         required 
@@ -598,20 +591,6 @@ export default function Index({ advances = [], filters = {}, accounts = [], empl
                                                 {errors.amount && <p className="text-red-500 text-[11.5px] mt-1.5 font-bold">{errors.amount}</p>}
                                             </div>
 
-                                            <div>
-                                                <label className="block text-[12px] sm:text-[12.5px] font-bold text-slate-300 mb-2">Bank Charge <span className="text-[10.5px] font-medium text-slate-500">(extra)</span></label>
-                                                <div className="relative">
-                                                    <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-[15px] sm:text-[16px]" />
-                                                    <input 
-                                                        type="number" 
-                                                        step="any" 
-                                                        value={data.bank_charge} 
-                                                        onChange={e => setData('bank_charge', e.target.value)} 
-                                                        className="w-full rounded-xl sm:rounded-2xl border border-slate-700 bg-slate-800/50 pl-10 sm:pl-11 pr-4 py-2.5 sm:py-3 text-[15px] sm:text-[16px] font-black tabular-nums text-white outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all shadow-inner" 
-                                                        placeholder="0.00" 
-                                                    />
-                                                </div>
-                                            </div>
                                         </div>
 
                                         {/* TOTAL OFFICE CUT CARD */}

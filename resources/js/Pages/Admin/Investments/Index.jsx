@@ -5,6 +5,7 @@ import Swal from 'sweetalert2';
 import Select from '@/Components/PortalSelect';
 import CustomSelect from '@/Components/CustomSelect';
 import TableExportButtons from '@/Components/TableExportButtons';
+import AccountAllocationFields from '@/Components/AccountAllocationFields';
 
 const INVESTOR_TYPE_META = {
     lender: { label: 'Lender', chip: 'border-amber-500 bg-amber-50 text-amber-700', avatar: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
@@ -85,13 +86,13 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
     const isFirstRender = useRef(true);
 
     const { data, setData, post, put, delete: destroy, reset, processing, errors, clearErrors } = useForm({
-        id: '', account_id: '', amount: '',
+        id: '', account_id: '', account_payments: [{ account_id: '', amount: '' }], amount: '',
         investor_name: '', investor_phone: '', investor_type: 'lender', investment_type: 'loan',
         date: new Date().toISOString().slice(0, 10), purpose: 'Business Capital', note: ''
     });
 
     const returnForm = useForm({
-        account_id: '', principal_amount: 0, profit_amount: 0, payment_date: new Date().toISOString().slice(0, 10), note: ''
+        account_id: '', account_payments: [{ account_id: '', amount: '' }], principal_amount: 0, profit_amount: 0, payment_date: new Date().toISOString().slice(0, 10), note: ''
     });
 
     useEffect(() => {
@@ -104,7 +105,7 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
 
     const openCreateModal = () => {
         clearErrors();
-        setData({ id: '', account_id: '', amount: '', investor_name: '', investor_phone: '', investor_type: 'lender', investment_type: 'loan', date: new Date().toISOString().slice(0, 10), purpose: 'Business Capital', note: '' });
+        setData({ id: '', account_id: '', account_payments: [{ account_id: '', amount: '' }], amount: '', investor_name: '', investor_phone: '', investor_type: 'lender', investment_type: 'loan', date: new Date().toISOString().slice(0, 10), purpose: 'Business Capital', note: '' });
         setEditMode(false); setShowModal(true);
     };
 
@@ -113,6 +114,7 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
         setData({
             id: inv.id,
             account_id: inv.account_id || '',
+            account_payments: inv.account_payments?.length ? inv.account_payments : [{ account_id: inv.account_id || '', amount: inv.amount }],
             amount: inv.amount,
             investor_name: inv.investor?.name || '',
             investor_phone: inv.investor?.phone || '',
@@ -128,7 +130,7 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
     const openReturnModal = (inv) => {
         setSelectedInvestment(inv);
         returnForm.reset();
-        returnForm.setData({ account_id: '', principal_amount: inv.due_amount, profit_amount: 0, payment_date: new Date().toISOString().slice(0, 10), note: '' });
+        returnForm.setData({ account_id: '', account_payments: [{ account_id: '', amount: inv.due_amount }], principal_amount: inv.due_amount, profit_amount: 0, payment_date: new Date().toISOString().slice(0, 10), note: '' });
         returnForm.clearErrors();
         setShowReturnModal(true);
     };
@@ -138,14 +140,14 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
         if (editMode) {
             put(route('admin.investments.update', data.id), { onSuccess: () => { setShowModal(false); Swal.fire({ icon: 'success', title: 'Updated Successfully!', timer: 1500, showConfirmButton: false }); } });
         } else {
-            if (!data.account_id) return Swal.fire("Required", "Please select a deposit account.", "warning");
+            if (!data.account_payments?.length) return Swal.fire("Required", "Add account allocations.", "warning");
             post(route('admin.investments.store'), { onSuccess: () => { reset(); setShowModal(false); Swal.fire({ icon: 'success', title: 'Logged Successfully!', timer: 1500, showConfirmButton: false }); } });
         }
     };
 
     const handleReturnSubmit = (e) => {
         e.preventDefault();
-        if (!returnForm.data.account_id) return Swal.fire("Required", "Please select an account to pay from.", "warning");
+        if (!returnForm.data.account_payments?.length) return Swal.fire("Required", "Add account allocations.", "warning");
         if (Number(returnForm.data.principal_amount) > selectedInvestment.due_amount) {
             return Swal.fire("Error", "Principal return cannot exceed the remaining due amount.", "error");
         }
@@ -490,15 +492,16 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
                                     <div className="col-span-2">
                                         <label className={labelCls}>Deposit To Account <span className="text-red-600">*</span></label>
                                         <div className="relative">
-                                            <Select options={accountOptions} value={accountOptions.find(opt => opt.value === data.account_id) || null} onChange={s => setData("account_id", s ? s.value : "")} placeholder="Search account..." isClearable styles={selectStyles} />
+                                            <AccountAllocationFields accounts={accounts} rows={data.account_payments || []} total={data.amount} onChange={rows => setData(prev => ({ ...prev, account_payments: rows, account_id: rows[0]?.account_id || '' }))} />
                                             {errors.account_id && <p className="text-red-600 text-xs mt-1.5 font-bold">{errors.account_id}</p>}
+                                            {errors.account_payments && <p className="text-red-600 text-xs mt-1.5 font-bold">{errors.account_payments}</p>}
                                         </div>
                                     </div>
                                     <div className="col-span-2">
                                         <label className={`${labelCls} !text-emerald-700`}>Amount (৳) <span className="text-red-600">*</span></label>
                                         <div className="relative">
                                             <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600 text-[18px]" />
-                                            <input type="number" step="any" value={data.amount} onChange={e => setData('amount', e.target.value)} className="w-full rounded-xl border border-emerald-400 bg-emerald-50/50 pl-10 pr-4 py-3.5 text-[18px] font-black text-emerald-800 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-all shadow-sm tabular-nums" placeholder="0.00" required />
+                                            <input type="number" step="any" value={data.amount} onChange={e => { const amount = e.target.value; setData(prev => ({ ...prev, amount, account_payments: prev.account_payments?.length === 1 ? [{ ...prev.account_payments[0], amount }] : prev.account_payments })); }} className="w-full rounded-xl border border-emerald-400 bg-emerald-50/50 pl-10 pr-4 py-3.5 text-[18px] font-black text-emerald-800 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 transition-all shadow-sm tabular-nums" placeholder="0.00" required />
                                         </div>
                                     </div>
                                 </div>
@@ -567,7 +570,8 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
                                 <div className="bg-white p-6 rounded-2xl border border-slate-300 shadow-md space-y-6">
                                     <div>
                                         <label className={labelCls}>Pay From Account <span className="text-red-600">*</span></label>
-                                        <Select options={accountOptions} onChange={s => returnForm.setData("account_id", s ? s.value : "")} placeholder="Search account..." isClearable styles={selectStyles} />
+                                        <AccountAllocationFields accounts={accounts} rows={returnForm.data.account_payments || []} total={Number(returnForm.data.principal_amount || 0) + Number(returnForm.data.profit_amount || 0)} onChange={rows => returnForm.setData(prev => ({ ...prev, account_payments: rows, account_id: rows[0]?.account_id || '' }))} />
+                                        {returnForm.errors.account_payments && <p className="text-red-600 text-xs mt-1.5 font-bold">{returnForm.errors.account_payments}</p>}
                                     </div>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -575,14 +579,14 @@ export default function Index({ investments = {}, accounts = [], existingInvesto
                                             <label className={labelCls}>Return Principal (৳) <span className="text-red-600">*</span></label>
                                             <div className="relative">
                                                 <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-[18px]" />
-                                                <input type="number" step="any" max={selectedInvestment.due_amount} value={returnForm.data.principal_amount} onChange={e => returnForm.setData('principal_amount', e.target.value)} className={`${inputCls} pl-10 text-[16px] font-black tabular-nums border-slate-400 focus:border-indigo-600`} required />
+                                                <input type="number" step="any" max={selectedInvestment.due_amount} value={returnForm.data.principal_amount} onChange={e => { const principal_amount = e.target.value; returnForm.setData(prev => ({ ...prev, principal_amount, account_payments: prev.account_payments?.length === 1 ? [{ ...prev.account_payments[0], amount: Number(principal_amount || 0) + Number(prev.profit_amount || 0) }] : prev.account_payments })); }} className={`${inputCls} pl-10 text-[16px] font-black tabular-nums border-slate-400 focus:border-indigo-600`} required />
                                             </div>
                                         </div>
                                         <div>
                                             <label className={`${labelCls} !text-indigo-700`}>Add Profit/Interest (৳)</label>
                                             <div className="relative">
                                                 <Taka className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500 text-[18px]" />
-                                                <input type="number" step="any" value={returnForm.data.profit_amount} onChange={e => returnForm.setData('profit_amount', e.target.value)} className={`${inputCls} pl-10 text-[16px] font-black tabular-nums bg-indigo-50/50 border-indigo-300 focus:border-indigo-600 text-indigo-800`} />
+                                                <input type="number" step="any" value={returnForm.data.profit_amount} onChange={e => { const profit_amount = e.target.value; returnForm.setData(prev => ({ ...prev, profit_amount, account_payments: prev.account_payments?.length === 1 ? [{ ...prev.account_payments[0], amount: Number(prev.principal_amount || 0) + Number(profit_amount || 0) }] : prev.account_payments })); }} className={`${inputCls} pl-10 text-[16px] font-black tabular-nums bg-indigo-50/50 border-indigo-300 focus:border-indigo-600 text-indigo-800`} />
                                             </div>
                                         </div>
                                     </div>

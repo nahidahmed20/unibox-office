@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\{Account, Advance, AdvanceBalance, Client, ClientAdvance, Expense, ExpenseCategory, Invoice, InvoicePayment, Project, ProjectExpense, Salary, Transaction, User, Vendor, VendorLedger, VendorPayment, VendorPaymentDetail};
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class PaymentAccountingTest extends TestCase
@@ -21,6 +22,7 @@ class PaymentAccountingTest extends TestCase
         parent::setUp();
         $this->withoutVite();
         $this->staff = User::factory()->create();
+        $this->staff->assignRole(Role::firstOrCreate(['name' => 'Super Admin']));
         $this->actingAs($this->staff);
         $this->account = Account::create(['name' => 'Main Bank', 'type' => 'bank', 'current_balance' => 10000]);
         $client = Client::create(['name' => 'Client Alpha', 'company_name' => 'Alpha Company']);
@@ -770,5 +772,222 @@ class PaymentAccountingTest extends TestCase
         $this->assertDatabaseHas('vendor_ledgers', ['vendor_id' => $vendor->id, 'type' => 'credit', 'date' => '2026-09-13']);
         $this->assertDatabaseHas('vendor_ledgers', ['vendor_id' => $vendor->id, 'type' => 'debit', 'date' => '2026-09-15']);
         $this->assertEquals(600, $vendor->fresh()->wallet_balance);
+    }
+
+    public function test_expense_account_allocations_are_reconciled_and_exactly_reversed_on_edit_and_delete(): void
+    {
+        $second = Account::create(['name' => 'Petty Cash', 'type' => 'cash', 'current_balance' => 5000]);
+        $payload = [
+            'title' => 'Split office expense', 'expense_category_id' => $this->category->id,
+            'pay_type' => 'account', 'amount' => 1000, 'date' => '2026-09-10',
+            'account_payments' => [
+                ['account_id' => $this->account->id, 'amount' => 600, 'bank_charge' => 5],
+                ['account_id' => $second->id, 'amount' => 400, 'bank_charge' => 2],
+            ],
+        ];
+        $this->post(route('admin.expenses.store'), $payload)->assertSessionHasNoErrors();
+        $expense = Expense::firstOrFail();
+        $this->assertEquals(9395, $this->account->fresh()->current_balance);
+        $this->assertEquals(4598, $second->fresh()->current_balance);
+        $this->assertDatabaseCount('transactions', 2);
+
+        $payload['amount'] = 800;
+        $payload['account_payments'] = [
+            ['account_id' => $this->account->id, 'amount' => 300, 'bank_charge' => 1],
+            ['account_id' => $second->id, 'amount' => 500, 'bank_charge' => 4],
+        ];
+        $this->put(route('admin.expenses.update', $expense), $payload)->assertSessionHasNoErrors();
+        $this->assertEquals(9699, $this->account->fresh()->current_balance);
+        $this->assertEquals(4496, $second->fresh()->current_balance);
+
+        $this->delete(route('admin.expenses.destroy', $expense))->assertSessionHasNoErrors();
+        $this->assertEquals(10000, $this->account->fresh()->current_balance);
+        $this->assertEquals(5000, $second->fresh()->current_balance);
+        $this->assertDatabaseCount('transactions', 0);
+    }
+
+    public function test_employee_advance_and_client_deposit_support_split_accounts_and_reverse_each_row(): void
+    {
+        $second = Account::create(['name' => 'Petty Cash', 'type' => 'cash', 'current_balance' => 5000]);
+        $advancePayload = [
+            'user_id' => $this->staff->id, 'amount' => 1000, 'date' => '2026-09-11',
+            'purpose' => 'Travel', 'status' => 'unsettled',
+            'account_payments' => [
+                ['account_id' => $this->account->id, 'amount' => 400, 'bank_charge' => 2],
+                ['account_id' => $second->id, 'amount' => 600, 'bank_charge' => 3],
+            ],
+        ];
+        $this->post(route('admin.advances.store'), $advancePayload)->assertSessionHasNoErrors();
+        $advance = Advance::firstOrFail();
+        $this->assertEquals(9598, $this->account->fresh()->current_balance);
+        $this->assertEquals(4397, $second->fresh()->current_balance);
+
+        $advancePayload['account_payments'] = [
+            ['account_id' => $this->account->id, 'amount' => 700, 'bank_charge' => 1],
+            ['account_id' => $second->id, 'amount' => 300, 'bank_charge' => 4],
+        ];
+        $this->put(route('admin.advances.update', $advance), $advancePayload)->assertSessionHasNoErrors();
+        $this->assertEquals(9299, $this->account->fresh()->current_balance);
+        $this->assertEquals(4696, $second->fresh()->current_balance);
+        $this->delete(route('admin.advances.destroy', $advance))->assertSessionHasNoErrors();
+        $this->assertEquals(10000, $this->account->fresh()->current_balance);
+        $this->assertEquals(5000, $second->fresh()->current_balance);
+
+        $client = Client::create(['name' => 'Split Deposit Client']);
+        $depositPayload = [
+            'client_id' => $client->id, 'amount' => 1000, 'date' => '2026-09-12',
+            'account_payments' => [
+                ['account_id' => $this->account->id, 'amount' => 250],
+                ['account_id' => $second->id, 'amount' => 750],
+            ],
+        ];
+        $this->post(route('admin.client-advances.store'), $depositPayload)->assertSessionHasNoErrors();
+        $deposit = ClientAdvance::firstOrFail();
+        $this->assertEquals(10250, $this->account->fresh()->current_balance);
+        $this->assertEquals(5750, $second->fresh()->current_balance);
+
+        $depositPayload['amount'] = 800;
+        $depositPayload['account_payments'] = [
+            ['account_id' => $this->account->id, 'amount' => 300],
+            ['account_id' => $second->id, 'amount' => 500],
+        ];
+        $this->put(route('admin.client-advances.update', $deposit), $depositPayload)->assertSessionHasNoErrors();
+        $this->assertEquals(10300, $this->account->fresh()->current_balance);
+        $this->assertEquals(5500, $second->fresh()->current_balance);
+        $this->delete(route('admin.client-advances.destroy', $deposit))->assertSessionHasNoErrors();
+        $this->assertEquals(10000, $this->account->fresh()->current_balance);
+        $this->assertEquals(5000, $second->fresh()->current_balance);
+    }
+
+    public function test_vendor_payment_and_invoice_payment_splits_update_and_reverse_account_rows(): void
+    {
+        $second = Account::create(['name' => 'Petty Cash', 'type' => 'cash', 'current_balance' => 5000]);
+        $vendor = Vendor::create(['name' => 'Split Vendor']);
+        $this->post(route('admin.project-expenses.store'), $this->expenseData([
+            'vendor_id' => $vendor->id, 'paid_amount' => 0, 'bank_charge' => 0,
+        ]))->assertSessionHasNoErrors();
+        $bill = ProjectExpense::firstOrFail();
+        $this->post(route('admin.vendors.pay', $vendor), [
+            'project_expense_ids' => [$bill->id], 'payment_source' => 'account',
+            'pay_amount' => 1000, 'date' => '2026-09-13',
+            'account_payments' => [
+                ['account_id' => $this->account->id, 'amount' => 400, 'bank_charge' => 2],
+                ['account_id' => $second->id, 'amount' => 600, 'bank_charge' => 3],
+            ],
+        ])->assertSessionHasNoErrors();
+        $vendorPayment = VendorPayment::firstOrFail();
+        $this->assertEquals(9598, $this->account->fresh()->current_balance);
+        $this->assertEquals(4397, $second->fresh()->current_balance);
+        $this->patch(route('admin.vendors.payments.bank-charge', $vendorPayment), [
+            'pay_amount' => 1000, 'bank_charge' => 10,
+            'account_payments' => [
+                ['account_id' => $this->account->id, 'amount' => 500, 'bank_charge' => 3],
+                ['account_id' => $second->id, 'amount' => 500, 'bank_charge' => 7],
+            ],
+        ])->assertSessionHasNoErrors();
+        $this->assertEquals(9497, $this->account->fresh()->current_balance);
+        $this->assertEquals(4493, $second->fresh()->current_balance);
+        $this->post(route('admin.vendors.payments.void', $vendorPayment), ['void_reason' => 'Split correction'])->assertSessionHasNoErrors();
+        $this->assertEquals(10000, $this->account->fresh()->current_balance);
+        $this->assertEquals(5000, $second->fresh()->current_balance);
+
+        $client = Client::create(['name' => 'Split Invoice Client']);
+        $invoice = Invoice::create([
+            'client_id' => $client->id, 'invoice_number' => 'INV-SPLIT-EDIT',
+            'invoice_date' => '2026-09-01', 'due_date' => '2026-09-30',
+            'sub_total' => 1000, 'grand_total' => 1000, 'advance_used' => 0, 'status' => 'unpaid',
+        ]);
+        $payment = InvoicePayment::create([
+            'invoice_id' => $invoice->id, 'account_id' => $this->account->id,
+            'method' => 'Account', 'amount' => 500, 'payment_date' => '2026-09-14',
+        ]);
+        $this->account->increment('current_balance', 500);
+        Transaction::create([
+            'account_id' => $this->account->id, 'type' => 'credit', 'amount' => 500,
+            'transaction_date' => '2026-09-14', 'description' => 'Invoice Payment',
+            'transactionable_id' => $payment->id, 'transactionable_type' => InvoicePayment::class,
+        ]);
+        $this->put(route('invoice-payments.update', $payment), [
+            'invoice_id' => $invoice->id, 'amount' => 700, 'payment_date' => '2026-09-15',
+            'account_payments' => [
+                ['account_id' => $this->account->id, 'amount' => 300],
+                ['account_id' => $second->id, 'amount' => 400],
+            ],
+        ])->assertSessionHasNoErrors();
+        $this->assertEquals(10300, $this->account->fresh()->current_balance);
+        $this->assertEquals(5400, $second->fresh()->current_balance);
+        $this->delete(route('invoice-payments.destroy', $payment))->assertSessionHasNoErrors();
+        $this->assertEquals(10000, $this->account->fresh()->current_balance);
+        $this->assertEquals(5000, $second->fresh()->current_balance);
+    }
+
+    public function test_asset_and_investment_account_splits_update_and_reverse_each_row(): void
+    {
+        $second = Account::create(['name' => 'Petty Cash', 'type' => 'cash', 'current_balance' => 5000]);
+        $assetPayload = [
+            'name' => 'Office Laptop',
+            'asset_code' => 'ASSET-SPLIT-001',
+            'purchase_date' => '2026-09-15',
+            'purchase_price' => 1000,
+            'condition' => 'new',
+            'account_payments' => [
+                ['account_id' => $this->account->id, 'amount' => 600],
+                ['account_id' => $second->id, 'amount' => 400],
+            ],
+        ];
+        $this->post(route('admin.assets.store'), $assetPayload)->assertSessionHasNoErrors();
+        $asset = \App\Models\Asset::firstOrFail();
+        $this->assertEquals(9400, $this->account->fresh()->current_balance);
+        $this->assertEquals(4600, $second->fresh()->current_balance);
+
+        $assetPayload['purchase_price'] = 800;
+        $assetPayload['account_payments'] = [
+            ['account_id' => $this->account->id, 'amount' => 300],
+            ['account_id' => $second->id, 'amount' => 500],
+        ];
+        $this->put(route('admin.assets.update', $asset), $assetPayload)->assertSessionHasNoErrors();
+        $this->assertEquals(9700, $this->account->fresh()->current_balance);
+        $this->assertEquals(4500, $second->fresh()->current_balance);
+        $this->delete(route('admin.assets.destroy', $asset))->assertSessionHasNoErrors();
+        $this->assertEquals(10000, $this->account->fresh()->current_balance);
+        $this->assertEquals(5000, $second->fresh()->current_balance);
+
+        $investmentPayload = [
+            'investor_name' => 'Split Investor',
+            'investor_type' => 'lender',
+            'investment_type' => 'loan',
+            'amount' => 1000,
+            'date' => '2026-09-16',
+            'account_payments' => [
+                ['account_id' => $this->account->id, 'amount' => 250],
+                ['account_id' => $second->id, 'amount' => 750],
+            ],
+        ];
+        $this->post(route('admin.investments.store'), $investmentPayload)->assertSessionHasNoErrors();
+        $investment = \App\Models\Investment::firstOrFail();
+        $this->assertEquals(10250, $this->account->fresh()->current_balance);
+        $this->assertEquals(5750, $second->fresh()->current_balance);
+
+        $investmentPayload['amount'] = 800;
+        $investmentPayload['account_payments'] = [
+            ['account_id' => $this->account->id, 'amount' => 300],
+            ['account_id' => $second->id, 'amount' => 500],
+        ];
+        $this->put(route('admin.investments.update', $investment), $investmentPayload)->assertSessionHasNoErrors();
+        $this->assertEquals(10300, $this->account->fresh()->current_balance);
+        $this->assertEquals(5500, $second->fresh()->current_balance);
+
+        $this->post(route('admin.investments.return', $investment), [
+            'principal_amount' => 100,
+            'profit_amount' => 20,
+            'payment_date' => '2026-09-17',
+            'account_payments' => [
+                ['account_id' => $this->account->id, 'amount' => 50],
+                ['account_id' => $second->id, 'amount' => 70],
+            ],
+        ])->assertSessionHasNoErrors();
+        $this->assertEquals(10250, $this->account->fresh()->current_balance);
+        $this->assertEquals(5430, $second->fresh()->current_balance);
+        $this->assertDatabaseCount('transactions', 4);
     }
 }

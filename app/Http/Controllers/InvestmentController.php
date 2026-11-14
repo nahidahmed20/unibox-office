@@ -40,6 +40,15 @@ class InvestmentController extends Controller
             $inv->due_amount = max($inv->amount - ($inv->returned_principal ?? 0), 0);
             return $inv;
         })->withQueryString();
+        $investmentIds = $investments->pluck('id');
+        $investmentTransactions = Transaction::where('transactionable_type', Investment::class)
+            ->whereIn('transactionable_id', $investmentIds)->where('type', 'credit')->orderBy('id')->get()->groupBy('transactionable_id');
+        $investments->getCollection()->each(function ($investment) use ($investmentTransactions) {
+            $investment->account_payments = ($investmentTransactions[$investment->id] ?? collect())->map(fn ($transaction) => [
+                'account_id' => $transaction->account_id,
+                'amount' => (float) $transaction->amount,
+            ])->values();
+        });
         
         $accounts = Account::where('is_active', true)->get(['id', 'name', 'current_balance']);
         $existingInvestors = Investor::select('name', 'phone', 'type')->get(); // For Auto-suggest
@@ -62,20 +71,26 @@ class InvestmentController extends Controller
             'investor_phone'  => 'nullable|string|max:20',
             'investor_type'   => 'required|in:owner,partner,lender',
             'investment_type' => 'required|in:equity,loan',
-            'account_id'      => 'required|exists:accounts,id',
+            'account_id'      => 'nullable|exists:accounts,id',
+            'account_payments' => 'nullable|array|min:1',
+            'account_payments.*.account_id' => 'required|distinct|exists:accounts,id',
+            'account_payments.*.amount' => 'required|numeric|decimal:0,2|min:0.01',
             'amount'          => 'required|numeric|min:1',
             'date'            => 'required|date',
             'purpose'         => 'nullable|string|max:255',
             'note'            => 'nullable|string',
         ]);
+        $allocations = app(\App\Services\AccountAllocationService::class)->fromRequest($validated, (float) $validated['amount']);
+        $validated['account_id'] = $allocations[0]['account_id'];
+        unset($validated['account_payments']);
 
-        DB::transaction(function () use ($validated) {
+        DB::transaction(function () use ($validated, $allocations) {
             $investor = Investor::firstOrCreate(
                 ['name' => $validated['investor_name']],
                 ['phone' => $validated['investor_phone'], 'type' => $validated['investor_type']]
             );
 
-            $investment = Investment::create([
+            $investment = new Investment([
                 'investor_id'     => $investor->id,
                 'account_id'      => $validated['account_id'],
                 'investment_type' => $validated['investment_type'],
@@ -85,19 +100,12 @@ class InvestmentController extends Controller
                 'note'            => $validated['note'],
                 'status'          => 'active',
             ]);
-
-            $account = Account::lockForUpdate()->findOrFail($validated['account_id']);
-            $account->increment('current_balance', $validated['amount']);
-
-            Transaction::create([
-                'account_id'           => $account->id,
-                'type'                 => 'credit',
-                'amount'               => $validated['amount'],
-                'transaction_date'     => $validated['date'],
-                'description'          => 'Investment/Loan received from ' . $investor->name . ($validated['purpose'] ? " ({$validated['purpose']})" : ''),
-                'transactionable_id'   => $investment->id,
-                'transactionable_type' => Investment::class,
-            ]);
+            \App\Observers\AccountMovementObserver::suppress($investment);
+            $investment->save();
+            app(\App\Services\AccountAllocationService::class)->replace(
+                $investment, $allocations, 'credit', $validated['date'],
+                'Investment/Loan received from ' . $investor->name . ($validated['purpose'] ? " ({$validated['purpose']})" : '')
+            );
         });
 
         return redirect()->back()->with('success', 'Investment logged successfully.');
@@ -110,14 +118,20 @@ class InvestmentController extends Controller
             'investor_phone'  => 'nullable|string|max:20',
             'investor_type'   => 'required|in:owner,partner,lender',
             'investment_type' => 'required|in:equity,loan',
-            'account_id'      => 'required|exists:accounts,id',
+            'account_id'      => 'nullable|exists:accounts,id',
+            'account_payments' => 'nullable|array|min:1',
+            'account_payments.*.account_id' => 'required|distinct|exists:accounts,id',
+            'account_payments.*.amount' => 'required|numeric|decimal:0,2|min:0.01',
             'amount'          => 'required|numeric|min:1',
             'date'            => 'required|date',
             'purpose'         => 'nullable|string|max:255',
             'note'            => 'nullable|string',
         ]);
+        $allocations = app(\App\Services\AccountAllocationService::class)->fromRequest($validated, (float) $validated['amount']);
+        $validated['account_id'] = $allocations[0]['account_id'];
+        unset($validated['account_payments']);
 
-        DB::transaction(function () use ($validated, $id) {
+        DB::transaction(function () use ($validated, $id, $allocations) {
             $investment = Investment::lockForUpdate()->findOrFail($id);
             $returnedPrincipal = (float) InvestmentPayment::where('investment_id', $investment->id)->sum('principal_amount');
             if ((float) $validated['amount'] < $returnedPrincipal) {
@@ -126,14 +140,14 @@ class InvestmentController extends Controller
                 ]);
             }
 
-            if ($investment->account_id != $validated['account_id'] || (float)$investment->amount != (float)$validated['amount']) {
-                $oldAccount = Account::lockForUpdate()->find($investment->account_id);
-                if ($oldAccount) {
-                    $oldAccount->decrement('current_balance', $investment->amount);
-                }
-
-                $newAccount = Account::lockForUpdate()->findOrFail($validated['account_id']);
-                $newAccount->increment('current_balance', $validated['amount']);
+            $service = app(\App\Services\AccountAllocationService::class);
+            $credits = Transaction::where('transactionable_type', $investment->getMorphClass())
+                ->where('transactionable_id', $investment->id)->where('type', 'credit')->lockForUpdate()->get();
+            if ($credits->isNotEmpty() && abs((float) $credits->sum('amount') - (float) $investment->amount) < 0.001) {
+                $service->reverse($investment, 'credit');
+            } elseif ((float) $investment->amount > 0 && $investment->account_id) {
+                Account::whereKey($investment->account_id)->lockForUpdate()->decrement('current_balance', $investment->amount);
+                $credits->each->delete();
             }
 
             $investor = Investor::firstOrCreate(
@@ -141,6 +155,7 @@ class InvestmentController extends Controller
                 ['phone' => $validated['investor_phone'], 'type' => $validated['investor_type']]
             );
 
+            \App\Observers\AccountMovementObserver::suppress($investment);
             $investment->update([
                 'investor_id'     => $investor->id,
                 'account_id'      => $validated['account_id'],
@@ -152,19 +167,10 @@ class InvestmentController extends Controller
                 'status'          => (float)$validated['amount'] <= $returnedPrincipal ? 'fully_paid' : 'active',
             ]);
 
-            $trxData = [
-                'account_id'       => $validated['account_id'],
-                'type'             => 'credit',
-                'amount'           => $validated['amount'],
-                'transaction_date' => $validated['date'],
-                'description'      => 'Investment/Loan received from ' . $investor->name . ($validated['purpose'] ? " ({$validated['purpose']})" : ''),
-            ];
-
-            if ($investment->transaction) {
-                $investment->transaction->update($trxData);
-            } else {
-                $investment->transaction()->create($trxData);
-            }
+            $service->replace(
+                $investment, $allocations, 'credit', $validated['date'],
+                'Investment/Loan received from ' . $investor->name . ($validated['purpose'] ? " ({$validated['purpose']})" : '')
+            );
         });
 
         return redirect()->back()->with('success', 'Investment updated successfully.');
@@ -180,15 +186,20 @@ class InvestmentController extends Controller
                     throw new \Exception("Cannot delete! Money has already been partially or fully returned.");
                 }
 
-                $account = Account::lockForUpdate()->find($investment->account_id);
-                if ($account) {
-                    if ((float) $account->current_balance < (float) $investment->amount) {
+                $service = app(\App\Services\AccountAllocationService::class);
+                $credits = Transaction::where('transactionable_type', $investment->getMorphClass())
+                    ->where('transactionable_id', $investment->id)->where('type', 'credit')->lockForUpdate()->get();
+                if ($credits->isNotEmpty() && abs((float) $credits->sum('amount') - (float) $investment->amount) < 0.001) {
+                    $service->reverse($investment, 'credit');
+                } elseif ($investment->account_id && $investment->amount > 0) {
+                    $account = Account::lockForUpdate()->find($investment->account_id);
+                    if ($account && (float) $account->current_balance < (float) $investment->amount) {
                         throw new \Exception("Insufficient account balance to reverse this investment.");
                     }
-                    $account->decrement('current_balance', $investment->amount);
+                    $account?->decrement('current_balance', $investment->amount);
+                    $credits->each->delete();
                 }
 
-                $investment->transaction?->delete();
                 $investment->delete();
             });
             return redirect()->back()->with('success', 'Record deleted completely.');
@@ -200,14 +211,20 @@ class InvestmentController extends Controller
     public function returnMoney(Request $request, $id)
     {
         $validated = $request->validate([
-            'account_id'       => 'required|exists:accounts,id',
+            'account_id'       => 'nullable|exists:accounts,id',
+            'account_payments' => 'nullable|array|min:1',
+            'account_payments.*.account_id' => 'required|distinct|exists:accounts,id',
+            'account_payments.*.amount' => 'required|numeric|decimal:0,2|min:0.01',
             'principal_amount' => 'required|numeric|min:0',
             'profit_amount'    => 'required|numeric|min:0',
             'payment_date'     => 'required|date',
             'note'             => 'nullable|string',
         ]);
+        $totalPayable = (float) $validated['principal_amount'] + (float) $validated['profit_amount'];
+        $allocations = app(\App\Services\AccountAllocationService::class)->fromRequest($validated, $totalPayable);
+        $validated['account_id'] = $allocations[0]['account_id'];
 
-        DB::transaction(function () use ($validated, $id) {
+        DB::transaction(function () use ($validated, $id, $allocations) {
             $investment = Investment::with('investor')->lockForUpdate()->findOrFail($id);
             $returnedPrincipal = (float) InvestmentPayment::where('investment_id', $id)->sum('principal_amount');
             $duePrincipal = max((float) $investment->amount - $returnedPrincipal, 0);
@@ -222,12 +239,7 @@ class InvestmentController extends Controller
                 throw ValidationException::withMessages(['principal_amount' => "Principal return cannot exceed due principal ({$duePrincipal} TK)."]);
             }
 
-            $account = Account::lockForUpdate()->findOrFail($validated['account_id']);
-            if ((float) $account->current_balance < $totalPayable) {
-                throw ValidationException::withMessages(['account_id' => 'Selected account has insufficient balance.']);
-            }
-
-            $payment = InvestmentPayment::create([
+            $payment = new InvestmentPayment([
                 'investor_id'      => $investment->investor_id,
                 'investment_id'    => $investment->id,
                 'account_id'       => $validated['account_id'],
@@ -237,23 +249,19 @@ class InvestmentController extends Controller
                 'payment_date'     => $validated['payment_date'],
                 'note'             => $validated['note'],
             ]);
+            \App\Observers\AccountMovementObserver::suppress($payment);
+            $payment->save();
 
             $totalPrincipalPaid = InvestmentPayment::where('investment_id', $id)->sum('principal_amount');
             if ($totalPrincipalPaid >= $investment->amount) {
+                \App\Observers\AccountMovementObserver::suppress($investment);
                 $investment->update(['status' => 'fully_paid']);
             }
 
-            $account->decrement('current_balance', $totalPayable);
-
-            Transaction::create([
-                'account_id'           => $account->id,
-                'type'                 => 'debit',
-                'amount'               => $totalPayable,
-                'transaction_date'     => $validated['payment_date'],
-                'description'          => 'Investment Return/Profit paid to ' . ($investment->investor?->name ?? 'Investor') . ($validated['note'] ? " ({$validated['note']})" : ''),
-                'transactionable_id'   => $payment->id,
-                'transactionable_type' => InvestmentPayment::class,
-            ]);
+            app(\App\Services\AccountAllocationService::class)->replace(
+                $payment, $allocations, 'debit', $validated['payment_date'],
+                'Investment Return/Profit paid to ' . ($investment->investor?->name ?? 'Investor') . ($validated['note'] ? " ({$validated['note']})" : '')
+            );
         });
 
         return redirect()->back()->with('success', 'Payment processed successfully.');

@@ -5,6 +5,7 @@ import Swal from "sweetalert2";
 import Select from "@/Components/PortalSelect";
 import CustomSelect from '@/Components/CustomSelect';
 import TableExportButtons from '@/Components/TableExportButtons';
+import AccountAllocationFields from '@/Components/AccountAllocationFields';
 
 // 🟢 Custom Straight Taka Component
 const Taka = ({ className = "text-[14px]" }) => (
@@ -85,6 +86,7 @@ export default function Index({
         client_id: "",
         expense_category_id: "",
         account_id: "",
+        account_payments: [{ account_id: "", amount: "", bank_charge: "" }],
         advance_user_id: "",
         vendor_id: "",
         amount: "",
@@ -162,6 +164,7 @@ export default function Index({
             client_id: "",
             expense_category_id: "",
             account_id: accounts.length > 0 ? accounts[0].id : "",
+            account_payments: [{ account_id: accounts.length > 0 ? accounts[0].id : "", amount: "", bank_charge: "" }],
             advance_user_id: "",
             vendor_id: "",
             amount: "",
@@ -191,6 +194,7 @@ export default function Index({
             client_id: sample.client_id || "",
             expense_category_id: sample.expense_category_id || "",
             account_id: sample.account_id || "",
+            account_payments: sample.account_payments?.length ? sample.account_payments : [{ account_id: sample.account_id || "", amount: sample.amount || "", bank_charge: sample.bank_charge || "" }],
             advance_user_id: sample.advance_user_id || "",
             vendor_id: sample.vendor_id || "",
             amount: sample.amount || "",
@@ -879,8 +883,8 @@ export default function Index({
                                 </div>
                             </div>
 
-                            {/* Amount, Bank Charge, Date Grid */}
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {/* Amount and date */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-[12px] font-black uppercase tracking-wider text-slate-700 mb-1">
                                         Cost Amount (৳) <span className="text-rose-500">*</span>
@@ -892,27 +896,10 @@ export default function Index({
                                         required
                                         placeholder="0.00"
                                         value={data.amount}
-                                        onChange={(e) => setData("amount", e.target.value)}
+                                        onChange={(e) => { const amount = e.target.value; setData(prev => ({ ...prev, amount, account_payments: prev.account_payments?.length === 1 ? [{ ...prev.account_payments[0], amount }] : prev.account_payments })); }}
                                         className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-[14px] font-black text-slate-900 outline-none focus:border-emerald-600"
                                     />
                                     {errors.amount && <p className="text-xs text-rose-500 font-bold mt-1">{errors.amount}</p>}
-                                </div>
-
-                                <div>
-                                    <label className="block text-[12px] font-black uppercase tracking-wider text-slate-700 mb-1">
-                                        Bank Charge (৳)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        placeholder="0.00"
-                                        disabled={data.pay_type !== 'account'}
-                                        value={data.bank_charge}
-                                        onChange={(e) => setData("bank_charge", e.target.value)}
-                                        className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-[14px] font-bold text-slate-900 outline-none focus:border-emerald-600 disabled:bg-slate-100 disabled:text-slate-400"
-                                    />
-                                    {errors.bank_charge && <p className="text-xs text-rose-500 font-bold mt-1">{errors.bank_charge}</p>}
                                 </div>
 
                                 <div>
@@ -1023,19 +1010,9 @@ export default function Index({
                                                 </span>
                                             )}
                                         </div>
-                                        <CustomSelect
-                                            value={data.account_id}
-                                            onChange={(e) => setData("account_id", e.target.value)}
-                                            className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-[13px] font-bold text-slate-900 outline-none focus:border-blue-500 bg-white"
-                                        >
-                                            <option value="">Select Account...</option>
-                                            {accounts.map(acc => (
-                                                <option key={acc.id} value={acc.id}>
-                                                    {acc.name} (৳{Number(acc.current_balance).toLocaleString('en-IN')})
-                                                </option>
-                                            ))}
-                                        </CustomSelect>
+                                        <AccountAllocationFields accounts={accounts} rows={data.account_payments || []} total={data.amount} allowCharges onChange={(rows) => setData(prev => ({ ...prev, account_payments: rows, account_id: rows[0]?.account_id || "", bank_charge: rows.reduce((sum, row) => sum + (Number(row.bank_charge) || 0), 0) }))} />
                                         {errors.account_id && <p className="text-xs text-rose-500 font-bold mt-1">{errors.account_id}</p>}
+                                        {errors.account_payments && <p className="text-xs text-rose-500 font-bold mt-1">{errors.account_payments}</p>}
                                     </div>
                                 )}
 

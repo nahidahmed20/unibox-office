@@ -67,12 +67,18 @@ class AdvanceController extends Controller
         $transactions = Transaction::whereIn('transactionable_id', $advanceIds)
             ->where('transactionable_type', Advance::class)
             ->where('type', 'debit')
+            ->orderBy('id')
             ->get()
-            ->keyBy('transactionable_id');
+            ->groupBy('transactionable_id');
 
-        // Inject Bank Charge into the items
         $advances->getCollection()->transform(function ($adv) use ($transactions) {
-            $adv->bank_charge = $transactions->has($adv->id) ? (float) $transactions[$adv->id]->bank_charge : 0;
+            $rows = $transactions->get($adv->id, collect());
+            $adv->bank_charge = (float) $rows->sum('bank_charge');
+            $adv->account_payments = $rows->map(fn ($transaction) => [
+                'account_id' => $transaction->account_id,
+                'amount' => (float) $transaction->amount - (float) $transaction->bank_charge,
+                'bank_charge' => (float) $transaction->bank_charge,
+            ])->values();
             return $adv;
         });
 
@@ -112,7 +118,11 @@ class AdvanceController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'account_id' => 'required|exists:accounts,id',
+            'account_id' => 'nullable|exists:accounts,id',
+            'account_payments' => 'nullable|array|min:1',
+            'account_payments.*.account_id' => 'required|distinct|exists:accounts,id',
+            'account_payments.*.amount' => 'required|numeric|decimal:0,2|min:0.01',
+            'account_payments.*.bank_charge' => 'nullable|numeric|decimal:0,2|min:0',
             'user_id'    => 'required|exists:users,id',
             'amount'     => 'required|numeric|min:1',
             'bank_charge'=> 'nullable|numeric|min:0', // Validating bank charge from frontend
@@ -125,38 +135,25 @@ class AdvanceController extends Controller
         // 🟢 FIX: Extract bank_charge and REMOVE it from $validated so it doesn't try to save in advances table
         $charge = (float) ($validated['bank_charge'] ?? 0);
         unset($validated['bank_charge']);
+        $allocations = app(\App\Services\AccountAllocationService::class)->fromRequest(
+            [...$validated, 'bank_charge' => $charge],
+            (float) $validated['amount'],
+            true
+        );
+        $validated['account_id'] = $allocations[0]['account_id'];
+        unset($validated['account_payments']);
 
         try {
-            DB::transaction(function () use ($validated, $charge) {
-                $account = Account::findOrFail($validated['account_id']);
-
-                $totalDeduction = (float) $validated['amount'] + $charge;
-
-                if ($account->current_balance < $totalDeduction) {
-                    throw new \Exception('Insufficient account balance!');
-                }
-
-                $account->current_balance -= $totalDeduction;
-                $account->save();
-
+            DB::transaction(function () use ($validated, $allocations) {
                 $validated['logged_by'] = auth()->id();
                 $validated['settled_amount'] = 0;
                 $validated['returned_amount'] = 0;
 
-                // Create the Advance record
                 $advance = Advance::create($validated);
-
-                // Create the Transaction record WITH bank charge
-                Transaction::create([
-                    'account_id'           => $account->id,
-                    'type'                 => 'debit',
-                    'amount'               => $totalDeduction,
-                    'bank_charge'          => $charge, // Saved in Transactions table securely!
-                    'transaction_date'     => $validated['date'],
-                    'description'          => 'Employee Advance: ' . ($validated['purpose'] ?? 'Office Purpose'),
-                    'transactionable_id'   => $advance->id,
-                    'transactionable_type' => Advance::class,
-                ]);
+                app(\App\Services\AccountAllocationService::class)->replace(
+                    $advance, $allocations, 'debit', $validated['date'],
+                    'Employee Advance: ' . ($validated['purpose'] ?? 'Office Purpose')
+                );
 
                 AdvanceBalance::syncForUser((int) $validated['user_id']);
             });
@@ -172,7 +169,11 @@ class AdvanceController extends Controller
         $advance = Advance::findOrFail($id);
 
         $validated = $request->validate([
-            'account_id' => 'required|exists:accounts,id',
+            'account_id' => 'nullable|exists:accounts,id',
+            'account_payments' => 'nullable|array|min:1',
+            'account_payments.*.account_id' => 'required|distinct|exists:accounts,id',
+            'account_payments.*.amount' => 'required|numeric|decimal:0,2|min:0.01',
+            'account_payments.*.bank_charge' => 'nullable|numeric|decimal:0,2|min:0',
             'user_id'    => 'required|exists:users,id',
             'amount'     => 'required|numeric|min:1',
             'bank_charge'=> 'nullable|numeric|min:0',
@@ -184,9 +185,16 @@ class AdvanceController extends Controller
 
         $newCharge = (float) ($validated['bank_charge'] ?? 0);
         unset($validated['bank_charge']);
+        $allocations = app(\App\Services\AccountAllocationService::class)->fromRequest(
+            [...$validated, 'bank_charge' => $newCharge],
+            (float) $validated['amount'],
+            true
+        );
+        $validated['account_id'] = $allocations[0]['account_id'];
+        unset($validated['account_payments']);
 
         try {
-            DB::transaction(function () use ($advance, $validated, $newCharge) {
+            DB::transaction(function () use ($advance, $validated, $allocations) {
                 $advance = Advance::whereKey($advance->id)->lockForUpdate()->firstOrFail();
 
                 if ($validated['amount'] < $advance->settled_amount + $advance->returned_amount || ($validated['user_id'] != $advance->user_id && $advance->settled_amount + $advance->returned_amount > 0)) {
@@ -195,61 +203,11 @@ class AdvanceController extends Controller
 
                 $validated['status'] = $validated['amount'] <= $advance->settled_amount + $advance->returned_amount ? 'settled' : 'unsettled';
 
-                // Fetch existing transaction to get OLD bank charge
-                $transaction = Transaction::where('transactionable_id', $advance->id)
-                    ->where('transactionable_type', Advance::class)
-                    ->where('type', 'debit')
-                    ->first();
-
-                $oldCharge = $transaction ? (float) $transaction->bank_charge : 0;
-                $oldTotalDeduction = (float) $advance->amount + $oldCharge;
-                $newTotalDeduction = (float) $validated['amount'] + $newCharge;
-
-                if ($advance->account_id != $validated['account_id']) {
-                    // Account Changed - Refund old total to old account
-                    $oldAccount = Account::findOrFail($advance->account_id);
-                    $oldAccount->current_balance += $oldTotalDeduction;
-                    $oldAccount->save();
-
-                    // Deduct new total from new account
-                    $newAccount = Account::findOrFail($validated['account_id']);
-                    if ($newAccount->current_balance < $newTotalDeduction) {
-                        throw new \Exception('Insufficient balance in new account!');
-                    }
-                    $newAccount->current_balance -= $newTotalDeduction;
-                    $newAccount->save();
-                } elseif ($oldTotalDeduction != $newTotalDeduction) {
-                    // Same Account, Amount/Charge changed
-                    $account = Account::findOrFail($advance->account_id);
-                    $difference = $newTotalDeduction - $oldTotalDeduction;
-
-                    if ($difference > 0 && $account->current_balance < $difference) {
-                        throw new \Exception('Insufficient account balance!');
-                    }
-                    $account->current_balance -= $difference;
-                    $account->save();
+                $service = app(\App\Services\AccountAllocationService::class);
+                if ($service->reverse($advance, 'debit') === 0 && $advance->account_id) {
+                    Account::whereKey($advance->account_id)->increment('current_balance', (float) $advance->amount);
                 }
-
-                if ($transaction) {
-                    $transaction->update([
-                        'account_id'       => $validated['account_id'],
-                        'amount'           => $newTotalDeduction,
-                        'bank_charge'      => $newCharge, // Update charge directly in transaction
-                        'transaction_date' => $validated['date'],
-                        'description'      => 'Employee Advance: ' . ($validated['purpose'] ?? 'Office Purpose'),
-                    ]);
-                } else {
-                    Transaction::create([
-                        'account_id'           => $validated['account_id'],
-                        'type'                 => 'debit',
-                        'amount'               => $newTotalDeduction,
-                        'bank_charge'          => $newCharge,
-                        'transaction_date'     => $validated['date'],
-                        'description'          => 'Employee Advance: ' . ($validated['purpose'] ?? 'Office Purpose'),
-                        'transactionable_id'   => $advance->id,
-                        'transactionable_type' => Advance::class,
-                    ]);
-                }
+                $service->replace($advance, $allocations, 'debit', $validated['date'], 'Employee Advance: ' . ($validated['purpose'] ?? 'Office Purpose'));
 
                 $oldUserId = $advance->user_id;
                 $newUserId = $validated['user_id'];
